@@ -90,6 +90,9 @@ jobs:
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
           flutter config --enable-native-assets
 
+      - name: Resolve unifiedpush_linux to the stub
+        run: bash tool/apply_macos_pub_overrides.sh
+
       - name: Get dependencies
         run: flutter pub get
 

@@ -1,5 +1,5 @@
 name: unifiedpush_linux
-description: Stub override for macOS app builds without webpush_encryption.
+description: Stub override for macOS and Android app builds without webpush_encryption.
 version: 1.0.0+fluxer
 publish_to: none
 
