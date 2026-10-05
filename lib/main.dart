@@ -91,6 +91,7 @@ Future<void> _bootstrapFluxer(List<String> args) async {
     installImeEditingShortcutHandler();
   }
   configureFluxerMobileDetection();
+  configureFluxerGpuResourceCache();
   configureFluxerImageCache();
   configureFluxerErrorUi();
   _configureFluxerErrorReporting();
