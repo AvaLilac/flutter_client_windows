@@ -1216,12 +1216,20 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     final usesHover = emojiPickerUsesHoverTracking(isMobile: widget.isMobile);
     final sprite = hasTone
         ? SpriteEmoji(
+            emoji: EmojiRegistry.resolveSkinToneSurrogates(
+              emoji,
+              widget.skinTone,
+            ),
             index: emoji.spriteIndex,
             diversityIndex: emoji.diversityIndex,
             size: _unicodeEmojiSize,
             skinTone: widget.skinTone,
           )
-        : SpriteEmoji(index: emoji.spriteIndex, size: _unicodeEmojiSize);
+        : SpriteEmoji(
+            emoji: emoji.surrogates,
+            index: emoji.spriteIndex,
+            size: _unicodeEmojiSize,
+          );
 
     if (!usesHover) {
       return _PressableEmojiCell(
@@ -1525,13 +1533,21 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
             children: [
               if (hasTone)
                 SpriteEmoji(
+                  emoji: EmojiRegistry.resolveSkinToneSurrogates(
+                    emoji,
+                    widget.skinTone,
+                  ),
                   index: emoji.spriteIndex,
                   diversityIndex: emoji.diversityIndex,
                   size: 32,
                   skinTone: widget.skinTone,
                 )
               else
-                SpriteEmoji(index: emoji.spriteIndex, size: 32),
+                SpriteEmoji(
+                  emoji: emoji.surrogates,
+                  index: emoji.spriteIndex,
+                  size: 32,
+                ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

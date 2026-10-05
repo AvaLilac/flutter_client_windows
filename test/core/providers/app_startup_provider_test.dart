@@ -27,6 +27,7 @@ import 'package:fluxer_app/features/settings/providers/guild/known_guild_bans_pr
 import 'package:fluxer_dart/export.dart';
 
 import '../../helpers/open_test_database.dart';
+import '../../helpers/recording_asset_channel.dart';
 
 class _FakeWellKnown extends WellKnown {
   @override
@@ -230,6 +231,31 @@ void main() {
     expect(container.read(currentUserIdProvider), 'user-1');
     expect(container.read(fluxerAuthTokenProvider), 'token-1');
   });
+
+  test(
+    'startup does not decode the 41 MiB emoji sprite sheet before any emoji is shown',
+    () async {
+      final RecordingAssetChannel assets = RecordingAssetChannel.install();
+      final db = openTestDatabase();
+      final MapAuthTokenStorage tokens = MapAuthTokenStorage();
+      await db.authSessionDao.saveSessionMetadata(userId: 'user-1');
+      await tokens.saveToken(userId: 'user-1', token: 'token-1');
+      final container = _startupContainer(
+        db: db,
+        tokens: tokens,
+        apiBaseUrl: 'https://api.fluxer.app/v1',
+        statusCode: 503,
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(appStartupProvider.future),
+        throwsA(isA<ServiceUnavailableException>()),
+      );
+
+      expect(assets.requestsMatching('assets/emoji-sprites/'), 0);
+    },
+  );
 
   test('binds gateway before getCurrentUser returns', () async {
     final db = openTestDatabase();

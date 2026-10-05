@@ -202,6 +202,9 @@ class _EmojiChip extends StatelessWidget {
       return null;
     }
     return SpriteEmoji(
+      emoji: skinTone == null
+          ? entry.surrogates
+          : EmojiRegistry.resolveSkinToneSurrogates(entry, skinTone),
       index: entry.spriteIndex,
       diversityIndex: entry.diversityIndex,
       skinTone: skinTone,
