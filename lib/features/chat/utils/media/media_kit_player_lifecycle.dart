@@ -1,16 +1,40 @@
 import 'dart:async';
 
+import 'package:fluxer_app/core/observability/fluxer_observability.dart';
 import 'package:media_kit/media_kit.dart';
 
+bool _mediaKitInitialized = false;
+
+/// Loads libmpv and ffmpeg.
+///
+/// A failed attempt is not memoized, so the next call retries.
+void ensureMediaKitInitialized() {
+  if (_mediaKitInitialized) {
+    return;
+  }
+  FluxerObservability.instance.traceSync(
+    'app.bootstrap.media_kit',
+    MediaKit.ensureInitialized,
+  );
+  _mediaKitInitialized = true;
+}
+
+/// Owns every media_kit [Player] in the app, so it is the only place that
+/// has to trigger native initialization.
 class MediaKitPlayerLifecycleCoordinator {
-  MediaKitPlayerLifecycleCoordinator._();
+  MediaKitPlayerLifecycleCoordinator({
+    this._ensureInitialized = ensureMediaKitInitialized,
+  });
 
   static final MediaKitPlayerLifecycleCoordinator instance =
-      MediaKitPlayerLifecycleCoordinator._();
+      MediaKitPlayerLifecycleCoordinator();
+
+  final void Function() _ensureInitialized;
 
   final Set<Player> _players = <Player>{};
 
   Player createPlayer({PlayerConfiguration? configuration}) {
+    _ensureInitialized();
     final Player player = configuration == null
         ? Player()
         : Player(configuration: configuration);

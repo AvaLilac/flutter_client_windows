@@ -31,7 +31,6 @@ import 'package:fluxer_app/material_ui.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:measure_flutter/measure_flutter.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 
 Future<void> _showDesktopWindow() async {
@@ -91,15 +90,10 @@ Future<void> _bootstrapFluxer(List<String> args) async {
     installImeEditingShortcutHandler();
   }
   configureFluxerMobileDetection();
-  configureFluxerGpuResourceCache();
   configureFluxerImageCache();
+  configureFluxerGpuResourceCache();
   configureFluxerErrorUi();
   _configureFluxerErrorReporting();
-
-  FluxerObservability.instance.traceSync(
-    'app.bootstrap.media_kit',
-    MediaKit.ensureInitialized,
-  );
 
   final ProviderContainer container = ProviderContainer();
   await Future.wait<void>([
