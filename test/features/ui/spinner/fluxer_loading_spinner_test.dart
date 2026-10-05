@@ -184,16 +184,14 @@ void main() {
         final RenderObject dots = tester.renderObject(_spinnerPaintFinder());
         expect(chromePaints, 1);
 
-        Duration clock = tester.binding.currentSystemFrameTimeStamp;
-        for (int frame = 0; frame < 5; frame++) {
-          clock += const Duration(milliseconds: 16);
-          tester.binding.handleBeginFrame(clock);
+        for (int step = 0; step < 5; step++) {
+          await tester.binding.delayed(kFluxerTypingDotStepInterval);
           expect(
             dots.debugNeedsPaint,
             isTrue,
-            reason: 'tick $frame must schedule a dots repaint',
+            reason: 'step $step must schedule a dots repaint',
           );
-          tester.binding.handleDrawFrame();
+          await tester.pump();
           expect(dots.debugNeedsPaint, isFalse);
         }
         expect(chromePaints, 1);
