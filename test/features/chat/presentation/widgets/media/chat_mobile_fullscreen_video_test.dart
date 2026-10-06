@@ -38,6 +38,35 @@ Widget _wrap(Widget child) {
 }
 
 void main() {
+  testWidgets('HUD time label follows position updates', (tester) async {
+    final ValueNotifier<Duration> position = ValueNotifier<Duration>(
+      Duration.zero,
+    );
+    final ValueNotifier<Duration> duration = ValueNotifier<Duration>(
+      const Duration(seconds: 90),
+    );
+    addTearDown(position.dispose);
+    addTearDown(duration.dispose);
+    await tester.pumpWidget(
+      _wrap(
+        SizedBox(
+          width: 300,
+          child: MobileVideoHudProgress(
+            position: position,
+            duration: duration,
+            onSeekFromGlobalDx: (_, _) async {},
+          ),
+        ),
+      ),
+    );
+    expect(find.text('0:00 / 1:30'), findsOneWidget);
+
+    position.value = const Duration(seconds: 42);
+    await tester.pump();
+
+    expect(find.text('0:42 / 1:30'), findsOneWidget);
+  });
+
   testWidgets('closes after a vertical dismiss fling', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1.0;

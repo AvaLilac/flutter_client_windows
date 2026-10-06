@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
@@ -85,12 +86,16 @@ class _ChatMobileFullscreenVideoPageState
   bool _playbackFailed = false;
   bool _hasAttemptedPlayback = false;
   bool _isPlaying = false;
-  bool _isBuffering = false;
+  final ValueNotifier<bool> _isBuffering = ValueNotifier<bool>(false);
   bool _hudVisible = true;
   final MediaKitForegroundResumeController _foregroundResume =
       MediaKitForegroundResumeController();
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
+  final ValueNotifier<Duration> _position = ValueNotifier<Duration>(
+    Duration.zero,
+  );
+  final ValueNotifier<Duration> _duration = ValueNotifier<Duration>(
+    Duration.zero,
+  );
   bool _isMuted = false;
   Timer? _hudHideTimer;
   double _dismissProgress = 0;
@@ -165,9 +170,7 @@ class _ChatMobileFullscreenVideoPageState
         if (!mounted || _playbackFailed) {
           return;
         }
-        setState(() {
-          _isBuffering = buffering;
-        });
+        _isBuffering.value = buffering;
       });
       _positionSubscription = player.stream.position.listen((
         Duration position,
@@ -175,9 +178,7 @@ class _ChatMobileFullscreenVideoPageState
         if (!mounted || _playbackFailed) {
           return;
         }
-        setState(() {
-          _position = position;
-        });
+        _position.value = position;
       });
       _durationSubscription = player.stream.duration.listen((
         Duration duration,
@@ -185,9 +186,7 @@ class _ChatMobileFullscreenVideoPageState
         if (!mounted || _playbackFailed) {
           return;
         }
-        setState(() {
-          _duration = duration;
-        });
+        _duration.value = duration;
       });
       _errorSubscription = player.stream.error.listen((String error) {
         if (!mounted || !_hasAttemptedPlayback || _playbackFailed) {
@@ -207,6 +206,9 @@ class _ChatMobileFullscreenVideoPageState
   void dispose() {
     _hudHideTimer?.cancel();
     unawaited(_disposePlayer());
+    _isBuffering.dispose();
+    _position.dispose();
+    _duration.dispose();
     super.dispose();
   }
 
@@ -238,9 +240,9 @@ class _ChatMobileFullscreenVideoPageState
       _playbackFailed = true;
       _isOpening = false;
       _isPlaying = false;
-      _isBuffering = false;
       _hudVisible = true;
     });
+    _isBuffering.value = false;
     await _playingSubscription?.cancel();
     await _bufferingSubscription?.cancel();
     await _positionSubscription?.cancel();
@@ -356,12 +358,12 @@ class _ChatMobileFullscreenVideoPageState
     BuildContext sliderContext,
   ) async {
     final RenderObject? renderObject = sliderContext.findRenderObject();
-    if (renderObject is! RenderBox || _duration <= Duration.zero) {
+    if (renderObject is! RenderBox || _duration.value <= Duration.zero) {
       return;
     }
     final Offset local = renderObject.globalToLocal(Offset(globalDx, 0));
     final double relative = (local.dx / renderObject.size.width).clamp(0, 1);
-    final int targetMs = (_duration.inMilliseconds * relative).round();
+    final int targetMs = (_duration.value.inMilliseconds * relative).round();
     await _player?.seek(Duration(milliseconds: targetMs));
     if (_isPlaying) {
       _scheduleHudHide();
@@ -466,12 +468,20 @@ class _ChatMobileFullscreenVideoPageState
                         child: Center(child: FluxerLoadingSpinner()),
                       ),
                     ),
-                  if (_isBuffering && !_isOpening && !_playbackFailed)
-                    IgnorePointer(
-                      child: ColoredBox(
-                        color: Colors.black.withValues(alpha: 0.22),
-                        child: const Center(child: FluxerLoadingSpinner()),
-                      ),
+                  if (!_isOpening && !_playbackFailed)
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _isBuffering,
+                      builder: (BuildContext context, bool isBuffering, _) {
+                        if (!isBuffering) {
+                          return const SizedBox.shrink();
+                        }
+                        return IgnorePointer(
+                          child: ColoredBox(
+                            color: Colors.black.withValues(alpha: 0.22),
+                            child: const Center(child: FluxerLoadingSpinner()),
+                          ),
+                        );
+                      },
                     ),
                   if (controller != null && !_playbackFailed && !_isOpening)
                     Positioned.fill(
@@ -730,16 +740,13 @@ class _MobileVideoHud extends StatelessWidget {
   final Future<void> Function() onMute;
   final bool isPlaying;
   final Future<void> Function() onPlayPause;
-  final Duration position;
-  final Duration duration;
+  final ValueListenable<Duration> position;
+  final ValueListenable<Duration> duration;
   final Future<void> Function(double globalDx, BuildContext sliderContext)
   onSeekFromGlobalDx;
 
   @override
   Widget build(BuildContext context) {
-    final double progress = duration.inMilliseconds <= 0
-        ? 0
-        : (position.inMilliseconds / duration.inMilliseconds).clamp(0, 1);
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
@@ -853,69 +860,10 @@ class _MobileVideoHud extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Builder(
-                              builder: (BuildContext sliderContext) {
-                                return Semantics(
-                                  label: l10n.chatAttachmentVideoProgress,
-                                  value: '${(progress * 100).round()}%',
-                                  slider: true,
-                                  child: FluxerGestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTapDown: (TapDownDetails details) {
-                                      unawaited(
-                                        onSeekFromGlobalDx(
-                                          details.globalPosition.dx,
-                                          sliderContext,
-                                        ),
-                                      );
-                                    },
-                                    onHorizontalDragUpdate:
-                                        (DragUpdateDetails details) {
-                                          unawaited(
-                                            onSeekFromGlobalDx(
-                                              details.globalPosition.dx,
-                                              sliderContext,
-                                            ),
-                                          );
-                                        },
-                                    child: SizedBox(
-                                      height: 24,
-                                      child: Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            2,
-                                          ),
-                                          child: LinearProgressIndicator(
-                                            value: progress,
-                                            minHeight: 4,
-                                            backgroundColor: Colors.white
-                                                .withValues(alpha: 0.3),
-                                            valueColor:
-                                                const AlwaysStoppedAnimation<
-                                                  Color
-                                                >(Colors.white),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            formatAttachmentElapsedTotalMmSs(
-                              elapsed: position,
-                              total: duration,
-                            ),
-                            style: context.textStyles.timestamp.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                              fontFeatures: const <FontFeature>[
-                                FontFeature.tabularFigures(),
-                              ],
+                            child: MobileVideoHudProgress(
+                              position: position,
+                              duration: duration,
+                              onSeekFromGlobalDx: onSeekFromGlobalDx,
                             ),
                           ),
                         ],
@@ -928,6 +876,101 @@ class _MobileVideoHud extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Seek bar and elapsed / total label of the fullscreen video HUD.
+///
+/// Listens to [position] and [duration] itself, so a position update rebuilds
+/// this row instead of the whole fullscreen page.
+class MobileVideoHudProgress extends StatelessWidget {
+  const MobileVideoHudProgress({
+    required this.position,
+    required this.duration,
+    required this.onSeekFromGlobalDx,
+    super.key,
+  });
+
+  final ValueListenable<Duration> position;
+  final ValueListenable<Duration> duration;
+  final Future<void> Function(double globalDx, BuildContext sliderContext)
+  onSeekFromGlobalDx;
+
+  @override
+  Widget build(BuildContext context) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge(<Listenable>[position, duration]),
+      builder: (BuildContext context, _) {
+        final Duration elapsed = position.value;
+        final Duration total = duration.value;
+        final double progress = total.inMilliseconds <= 0
+            ? 0
+            : (elapsed.inMilliseconds / total.inMilliseconds).clamp(0, 1);
+        return Row(
+          children: <Widget>[
+            Expanded(
+              child: Builder(
+                builder: (BuildContext sliderContext) {
+                  return Semantics(
+                    label: l10n.chatAttachmentVideoProgress,
+                    value: '${(progress * 100).round()}%',
+                    slider: true,
+                    child: FluxerGestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: (TapDownDetails details) {
+                        unawaited(
+                          onSeekFromGlobalDx(
+                            details.globalPosition.dx,
+                            sliderContext,
+                          ),
+                        );
+                      },
+                      onHorizontalDragUpdate: (DragUpdateDetails details) {
+                        unawaited(
+                          onSeekFromGlobalDx(
+                            details.globalPosition.dx,
+                            sliderContext,
+                          ),
+                        );
+                      },
+                      child: SizedBox(
+                        height: 24,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 4,
+                              backgroundColor: Colors.white.withValues(
+                                alpha: 0.3,
+                              ),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              formatAttachmentElapsedTotalMmSs(elapsed: elapsed, total: total),
+              style: context.textStyles.timestamp.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
