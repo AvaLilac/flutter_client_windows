@@ -13,6 +13,7 @@ import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_video_p
 import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_youtube_webview.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/attachment_display_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/chat_video_controller_config.dart';
+import 'package:fluxer_app/features/chat/utils/media/chat_video_decoder_log.dart';
 import 'package:fluxer_app/features/chat/utils/media/chat_video_hdr_player_config.dart';
 import 'package:fluxer_app/features/chat/utils/media/chat_video_playback_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/favorite_media_utils.dart';
@@ -204,6 +205,9 @@ class _ChatMobileFullscreenVideoPageState
       _controller = mkv.VideoController(
         player,
         configuration: chatVideoControllerConfiguration(),
+      );
+      unawaited(
+        logChatVideoDecoder(player, surface: ChatVideoSurface.fullscreen),
       );
       unawaited(
         applyChatVideoHdrProperties(

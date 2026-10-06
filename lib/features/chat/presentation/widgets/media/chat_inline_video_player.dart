@@ -11,6 +11,7 @@ import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_video_p
 import 'package:fluxer_app/features/chat/presentation/widgets/media/media_thumb_hash_placeholder.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_double_tap_exemption.dart';
 import 'package:fluxer_app/features/chat/utils/media/chat_video_controller_config.dart';
+import 'package:fluxer_app/features/chat/utils/media/chat_video_decoder_log.dart';
 import 'package:fluxer_app/features/chat/utils/media/chat_video_hdr_player_config.dart';
 import 'package:fluxer_app/features/chat/utils/media/chat_video_playback_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/media_dimension_utils.dart';
@@ -309,6 +310,7 @@ class _ChatInlineVideoPlayerState extends ConsumerState<ChatInlineVideoPlayer> {
       player,
       configuration: chatVideoControllerConfiguration(),
     );
+    unawaited(logChatVideoDecoder(player, surface: ChatVideoSurface.inline));
     unawaited(
       applyChatVideoHdrProperties(
         player,
