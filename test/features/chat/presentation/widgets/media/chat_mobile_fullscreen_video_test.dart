@@ -37,7 +37,110 @@ Widget _wrap(Widget child) {
   );
 }
 
+const ChatVideoSource _source = ChatVideoSource(
+  directMediaUrl: 'https://fluxerusercontent.com/attachments/1/2/clip.mp4',
+  fallbackUrl: 'https://fluxerusercontent.com/attachments/1/2/clip.mp4',
+);
+
+const String _chatBeneath = 'chat beneath';
+
+/// Opens the fullscreen video over a page showing [_chatBeneath] and lets the
+/// 200 ms open transition finish.
+Future<void> _openSettledFullscreenVideo(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(400, 800);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    _wrap(
+      Builder(
+        builder: (BuildContext context) {
+          return Center(
+            child: TextButton(
+              onPressed: () {
+                unawaited(
+                  showChatMobileFullscreenVideo(
+                    context,
+                    launchContext: const ChatFullscreenVideoLaunchContext(
+                      source: _source,
+                    ),
+                  ),
+                );
+              },
+              child: const Text(_chatBeneath),
+            ),
+          );
+        },
+      ),
+    ),
+  );
+  await tester.tap(find.text(_chatBeneath));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 250));
+}
+
+/// Starts a downward dismiss drag on the fullscreen video, short of the
+/// 144 px (18% of 800) dismiss threshold.
+Future<TestGesture> _startShortDismissDrag(WidgetTester tester) async {
+  final TestGesture gesture = await tester.startGesture(
+    tester.getCenter(find.byType(MediaViewerDismissible)),
+  );
+  await gesture.moveBy(const Offset(0, 30));
+  await gesture.moveBy(const Offset(0, 30));
+  await tester.pump();
+  return gesture;
+}
+
 void main() {
+  testWidgets('chat beneath the fullscreen video stops painting once the open '
+      'transition settles', (tester) async {
+    await _openSettledFullscreenVideo(tester);
+
+    expect(find.text(_chatBeneath), findsNothing);
+    expect(find.text(_chatBeneath, skipOffstage: false), findsOneWidget);
+  });
+
+  testWidgets('dismiss drag paints the chat beneath the fullscreen video', (
+    tester,
+  ) async {
+    await _openSettledFullscreenVideo(tester);
+
+    final TestGesture gesture = await _startShortDismissDrag(tester);
+
+    expect(find.text(_chatBeneath), findsOneWidget);
+    await gesture.up();
+  });
+
+  testWidgets('cancelled dismiss drag stops painting the chat beneath again', (
+    tester,
+  ) async {
+    await _openSettledFullscreenVideo(tester);
+    final TestGesture gesture = await _startShortDismissDrag(tester);
+
+    await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(MediaViewerDismissible), findsOneWidget);
+    expect(find.text(_chatBeneath), findsNothing);
+  });
+
+  testWidgets('dismiss animation keeps the chat beneath painted', (
+    tester,
+  ) async {
+    await _openSettledFullscreenVideo(tester);
+    final TestGesture gesture = await tester.startGesture(
+      tester.getCenter(find.byType(MediaViewerDismissible)),
+    );
+    await gesture.moveBy(const Offset(0, 100));
+    await gesture.moveBy(const Offset(0, 100));
+    await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+
+    expect(find.byType(MediaViewerDismissible), findsOneWidget);
+    expect(find.text(_chatBeneath), findsOneWidget);
+  });
+
   testWidgets('HUD time label follows position updates', (tester) async {
     final ValueNotifier<Duration> position = ValueNotifier<Duration>(
       Duration.zero,

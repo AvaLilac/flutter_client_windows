@@ -42,29 +42,90 @@ Future<void> showChatMobileFullscreenVideo(
     context,
   ).read(shellManualGestureBlockProvider.notifier)..setBlocked(value: true);
   try {
-    await showGeneralDialog<void>(
-      context: context,
-      barrierLabel: FluxerLocalizations.of(context).mediaViewerImagePreview,
-      barrierColor: Colors.transparent,
-      pageBuilder: (_, _, _) {
-        if (launchContext.isYouTubeEmbed) {
+    final String barrierLabel = FluxerLocalizations.of(
+      context,
+    ).mediaViewerImagePreview;
+    if (launchContext.isYouTubeEmbed) {
+      await showGeneralDialog<void>(
+        context: context,
+        barrierLabel: barrierLabel,
+        barrierColor: Colors.transparent,
+        pageBuilder: (_, _, _) {
           return _ChatMobileFullscreenYouTubePage(launchContext: launchContext);
-        }
-        return _ChatMobileFullscreenVideoPage(launchContext: launchContext);
-      },
-      transitionBuilder: (_, animation, _, child) {
-        return FadeTransition(opacity: animation, child: child);
+        },
+        transitionBuilder: _fadeTransition,
+      );
+      return;
+    }
+    late final _ChatFullscreenVideoRoute route;
+    route = _ChatFullscreenVideoRoute(
+      barrierLabel: barrierLabel,
+      pageBuilder: (_, _, _) {
+        return _ChatMobileFullscreenVideoPage(
+          launchContext: launchContext,
+          onRevealRoutesBelowChanged: (bool reveal) {
+            route.revealsRoutesBelow = reveal;
+          },
+        );
       },
     );
+    await Navigator.of(context, rootNavigator: true).push<void>(route);
   } finally {
     shellGestureBlock.setBlocked(value: false);
   }
 }
 
+Widget _fadeTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  return FadeTransition(opacity: animation, child: child);
+}
+
+/// Opaque once its open transition settles, so the routes below are not laid
+/// out or painted while video frames arrive. On Android every video frame
+/// re-rasters the whole surface, chat included, unless it is hidden.
+///
+/// [revealsRoutesBelow] makes it see-through again for the dismiss drag.
+class _ChatFullscreenVideoRoute extends RawDialogRoute<void> {
+  _ChatFullscreenVideoRoute({
+    required super.pageBuilder,
+    required String super.barrierLabel,
+  }) : super(
+         barrierColor: Colors.transparent,
+         transitionBuilder: _fadeTransition,
+       );
+
+  bool _revealsRoutesBelow = false;
+
+  bool get revealsRoutesBelow => _revealsRoutesBelow;
+
+  set revealsRoutesBelow(bool value) {
+    if (_revealsRoutesBelow == value) {
+      return;
+    }
+    _revealsRoutesBelow = value;
+    // TransitionRoute copies [opaque] to the entry only when its animation
+    // completes. Mid-transition the entry is already see-through.
+    if (overlayEntries.isNotEmpty && (animation?.isCompleted ?? false)) {
+      overlayEntries.first.opaque = opaque;
+    }
+  }
+
+  @override
+  bool get opaque => !_revealsRoutesBelow;
+}
+
 class _ChatMobileFullscreenVideoPage extends ConsumerStatefulWidget {
-  const _ChatMobileFullscreenVideoPage({required this.launchContext});
+  const _ChatMobileFullscreenVideoPage({
+    required this.launchContext,
+    required this.onRevealRoutesBelowChanged,
+  });
 
   final ChatFullscreenVideoLaunchContext launchContext;
+  final ValueChanged<bool> onRevealRoutesBelowChanged;
 
   @override
   ConsumerState<_ChatMobileFullscreenVideoPage> createState() =>
@@ -378,6 +439,7 @@ class _ChatMobileFullscreenVideoPageState
     if (_dismissProgress == progress) {
       return;
     }
+    widget.onRevealRoutesBelowChanged(progress > 0);
     setState(() {
       _dismissProgress = progress;
     });
