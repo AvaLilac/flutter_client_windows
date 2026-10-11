@@ -115,7 +115,14 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
     if (!_signalScrolling) {
       _stopTicker();
     }
-    callback?.call();
+    if (callback == null) {
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) {
+        callback();
+      }
+    });
   }
 
   void _refreshTailFollowTarget() {
