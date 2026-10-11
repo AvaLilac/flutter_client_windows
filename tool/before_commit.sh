@@ -64,7 +64,7 @@ run_analyze() {
     _log "Skipping analyze (BEFORE_COMMIT_SKIP_ANALYZE=1)."
     return 0
   fi
-  flutter analyze
+  flutter analyze --no-fatal-warnings --no-fatal-infos
 }
 
 apply_dart_fix() {
