@@ -433,6 +433,64 @@ void main() {
     });
 
     test(
+      'resolves from the database when another guild is already in memory',
+      () async {
+        final FluxerDatabase db = openTestDatabase();
+        const String guildId = 'guild_1';
+        const String channelId = 'channel_1';
+        const String userId = 'user_1';
+        await db.guildDao.upsertServer(
+          ServersCompanion.insert(id: guildId, name: 'Guild'),
+        );
+        await db.channelDao.upsertChannel(
+          ChannelsCompanion.insert(
+            id: channelId,
+            guildId: guildId,
+            name: 'general',
+          ),
+        );
+        await db.roleDao.upsertRoles([
+          RolesCompanion.insert(
+            id: guildId,
+            guildId: guildId,
+            name: '@everyone',
+            permissions: Value(Permission.sendMessages.value.toString()),
+          ),
+        ]);
+        await db.memberDao.upsertMember(
+          MembersCompanion.insert(userId: userId, guildId: guildId),
+        );
+
+        final ProviderContainer container = ProviderContainer(
+          overrides: [
+            fluxerDatabaseProvider.overrideWithValue(db),
+            guildListViewModelProvider.overrideWith(
+              () => _FixedGuildListViewModel(<Guild>[
+                const Guild(id: 'other_guild', name: 'Other', ownerId: 'owner'),
+              ]),
+            ),
+            userSettingsViewModelProvider.overrideWith(
+              () => _FixedUserSettingsViewModel(userId),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final ChannelPermissionBitsOutcome outcome = await container.read(
+          FutureProvider<ChannelPermissionBitsOutcome>(
+            (Ref ref) => computeEffectiveGuildChannelPermissionBitsOutcome(
+              ref: ref,
+              channelId: channelId,
+            ),
+          ).future,
+        );
+
+        expect(outcome.shouldCache, isTrue);
+        expect(hasPermission(outcome.value, Permission.sendMessages), isTrue);
+      },
+    );
+
+    test(
       'resolves view-only send deny from local rows while guild list is empty',
       () async {
         final FluxerDatabase db = openTestDatabase();
