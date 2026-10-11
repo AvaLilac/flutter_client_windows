@@ -1,4 +1,4 @@
-enum VoiceCallVisualLayout { packedGrid, paginatedGrid, focus }
+enum VoiceCallVisualLayout { packedGrid, paginatedGrid, pinnedGrid, focus }
 
 VoiceCallVisualLayout resolveVoiceCallVisualLayout({
   required bool isFocusMode,
@@ -6,8 +6,11 @@ VoiceCallVisualLayout resolveVoiceCallVisualLayout({
   required int tileCount,
   required int visibleTileCount,
 }) {
-  if (isFocusMode || pinnedTileId != null) {
+  if (isFocusMode) {
     return VoiceCallVisualLayout.focus;
+  }
+  if (pinnedTileId != null) {
+    return VoiceCallVisualLayout.pinnedGrid;
   }
   if (tileCount > 0 && visibleTileCount < tileCount) {
     return VoiceCallVisualLayout.paginatedGrid;

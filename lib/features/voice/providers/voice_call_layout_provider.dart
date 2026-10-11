@@ -44,14 +44,17 @@ class VoiceCallLayout extends _$VoiceCallLayout {
   VoiceCallLayoutState build() => const VoiceCallLayoutState();
 
   void pin(String tileId) {
-    if (state.mode == VoiceCallLayoutMode.focus &&
-        state.pinnedTileId == tileId) {
+    if (state.pinnedTileId == tileId) {
+      if (state.mode == VoiceCallLayoutMode.grid) {
+        state = state.copyWith(clearPinnedTileId: true);
+      }
       return;
     }
-    state = state.copyWith(
-      mode: VoiceCallLayoutMode.focus,
-      pinnedTileId: tileId,
-    );
+    if (state.mode == VoiceCallLayoutMode.focus) {
+      state = state.copyWith(pinnedTileId: tileId);
+      return;
+    }
+    state = state.copyWith(pinnedTileId: tileId);
   }
 
   void setMode(VoiceCallLayoutMode mode) {

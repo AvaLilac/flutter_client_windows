@@ -46,7 +46,10 @@ class KeyboardSpamHarnessState extends ConsumerState<KeyboardSpamHarness> {
         );
   }
 
-  void showKeyboard({required double keyboardHeight, required double viewInset}) {
+  void showKeyboard({
+    required double keyboardHeight,
+    required double viewInset,
+  }) {
     applyNative(keyboardHeight: keyboardHeight, visible: true);
     applyViewInset(viewInset);
   }
@@ -57,10 +60,8 @@ class KeyboardSpamHarnessState extends ConsumerState<KeyboardSpamHarness> {
 
   void resetKeyboardLayoutState() {
     ref
-      ..read(mobileKeyboardMetricsProvider.notifier)
-          .resetTransientLayoutState()
-      ..read(bottomInputSlotProvider.notifier)
-          .resetAfterChannelChange();
+      ..read(mobileKeyboardMetricsProvider.notifier).resetTransientLayoutState()
+      ..read(bottomInputSlotProvider.notifier).resetAfterChannelChange();
   }
 
   void resetLayoutAndHideKeyboard({required double keyboardHeight}) {

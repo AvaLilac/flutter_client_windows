@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:fluxer_app/core/limits/instance_limit_provider.dart';
+import 'package:fluxer_app/core/limits/limit_key.dart';
 import 'package:fluxer_app/core/platform/fluxer_platform.dart';
 import 'package:fluxer_app/features/voice/domain/voice_output_route.dart';
 import 'package:fluxer_app/features/voice/domain/voice_settings_state.dart';
 import 'package:fluxer_app/features/voice/providers/voice_noise_filter_provider.dart';
-import 'package:fluxer_app/features/voice/providers/voice_p2p_mode_provider.dart';
-import 'package:fluxer_app/features/voice/providers/voice_video_quality_provider.dart';
 import 'package:fluxer_app/features/voice/utils/camera_resolution_presets.dart';
 import 'package:fluxer_app/features/voice/utils/screen_share_presets.dart';
 import 'package:fluxer_app/features/voice/utils/voice_audio_publish_options.dart';
@@ -30,6 +30,15 @@ class VoiceSettingsApplicator {
   final bool noiseFilterSupported;
   final bool higherVideoQuality;
   final bool meshPhoneCap;
+
+  VoiceSettingsApplicator forChannelMode(VoiceChannelMode mode) {
+    final bool isP2p = mode == VoiceChannelMode.p2p;
+    return VoiceSettingsApplicator(
+      noiseFilterSupported: noiseFilterSupported,
+      higherVideoQuality: higherVideoQuality || isP2p,
+      meshPhoneCap: isFluxerMobileOs && isP2p,
+    );
+  }
 
   VoiceSettingsState _clampVideo(VoiceSettingsState settings) {
     return clampVoiceVideoSettings(
@@ -530,11 +539,12 @@ VoiceSettingsApplicator voiceSettingsApplicator(Ref ref) {
         data: (VoiceNoiseFilterState value) => value.isSupported,
         orElse: () => false,
       );
+  final bool higherVideoQuality = ref.watch(
+    instanceFeatureEnabledProvider(LimitKeys.featureHigherVideoQuality),
+  );
   return VoiceSettingsApplicator(
     noiseFilterSupported: noiseFilterSupported,
-    higherVideoQuality: ref.watch(voiceHigherVideoQualityProvider),
-    meshPhoneCap:
-        isFluxerMobileOs &&
-        ref.watch(activeVoiceChannelModeProvider) == VoiceChannelMode.p2p,
+    higherVideoQuality: higherVideoQuality,
+    meshPhoneCap: false,
   );
 }

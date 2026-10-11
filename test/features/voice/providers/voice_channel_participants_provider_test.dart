@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fluxer_app/core/database/fluxer_database.dart' as database;
 import 'package:fluxer_app/features/voice/providers/voice_channel_participants_provider.dart';
 import 'package:fluxer_dart/gateway.dart';
 
@@ -35,5 +36,27 @@ void main() {
     expect(self.voice.guildId, isNull);
     expect(self.voice.connectionId, 'conn-1');
     expect(self.voice.selfVideo, isFalse);
+  });
+
+  test('voiceParticipantsWithSelfProfile fills missing self user row', () {
+    const VoiceState voice = VoiceState(userId: 'me');
+    final List<VoiceChannelParticipantData> participants =
+        voiceParticipantsWithSelfProfile(
+          participants: const <VoiceChannelParticipantData>[
+            VoiceChannelParticipantData(userId: 'me', voice: voice),
+          ],
+          currentUserId: 'me',
+          selfUser: const database.User(
+            id: 'me',
+            username: 'self',
+            discriminator: '0001',
+            bot: false,
+            system: false,
+            status: 'online',
+            mobile: false,
+          ),
+        );
+
+    expect(participants.single.user?.username, 'self');
   });
 }

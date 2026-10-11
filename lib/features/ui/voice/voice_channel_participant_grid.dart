@@ -10,6 +10,7 @@ import 'package:fluxer_app/core/gateway/providers/gateway_event_providers.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
+import 'package:fluxer_app/features/profile/providers/user_presence_provider.dart';
 import 'package:fluxer_app/features/settings/providers/voice_settings_provider.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
@@ -58,8 +59,6 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const Duration _kTileMoveDuration = Duration(milliseconds: 260);
 const Curve _kTileMoveCurve = Curves.easeOutCubic;
-const Key kVoiceCallViewModeToggleKey = Key('voice-call-view-mode-toggle');
-
 Duration _tileMoveDuration(BuildContext context) {
   if (MediaQuery.disableAnimationsOf(context)) {
     return Duration.zero;
@@ -209,6 +208,19 @@ class _VoiceChannelParticipantGridState
   final Map<String, Rect> _placedRects = <String, Rect>{};
   final Map<String, GlobalKey> _tileKeys = <String, GlobalKey>{};
   final Set<String> _departingTileIds = <String>{};
+  String _layoutEpoch = '';
+
+  void _syncLayoutEpoch(VoiceCallLayoutState layout) {
+    final String epoch = '${layout.mode.index}:${layout.pinnedTileId ?? ''}';
+    if (_layoutEpoch == epoch) {
+      return;
+    }
+    _layoutEpoch = epoch;
+    _placedTiles.clear();
+    _placedRects.clear();
+    _departingTileIds.clear();
+    _tileKeys.clear();
+  }
 
   @override
   void initState() {
@@ -492,6 +504,18 @@ class _VoiceChannelParticipantGridState
   }
 
   void _onTileTap(_VoiceGridTileItem item, bool isFocusMain) {
+    final bool inGridMode =
+        ref.read(voiceCallLayoutProvider).mode == VoiceCallLayoutMode.grid;
+
+    if (inGridMode) {
+      if (item.source == VoiceParticipantTileSource.screenShare) {
+        _watchStream(item);
+      }
+      ref.read(voiceCallLayoutProvider.notifier).pin(item.tileId);
+      _revealOverlay();
+      return;
+    }
+
     if (item.source == VoiceParticipantTileSource.screenShare) {
       final bool alreadyWatching = ref
           .read(voiceScreenShareWatchTileProvider)
@@ -543,6 +567,9 @@ class _VoiceChannelParticipantGridState
                 : s.guildId == widget.guildId),
       ),
     );
+    final database.User? selfUser = me != null && onThisChannel
+        ? ref.watch(userPresenceProvider(me)).value
+        : null;
     final VoiceCallLayoutState layout = ref.watch(voiceCallLayoutProvider);
     final VoiceCallDisplayPreferencesState displayPreferences = ref.watch(
       voiceCallDisplayPreferencesProvider,
@@ -561,17 +588,22 @@ class _VoiceChannelParticipantGridState
         me != null &&
         !list.any((VoiceChannelParticipantData p) => p.userId == me);
     final List<VoiceChannelParticipantData> participants =
-        onThisChannel && me != null && missingSelf
-        ? <VoiceChannelParticipantData>[
-            connectingSelfVoiceParticipant(
-              currentUserId: me,
-              channelId: widget.channelId,
-              guildId: widget.guildId,
-              connectionId: localConnectionId,
-            ),
-            ...list,
-          ]
-        : list;
+        voiceParticipantsWithSelfProfile(
+          participants: onThisChannel && me != null && missingSelf
+              ? <VoiceChannelParticipantData>[
+                  connectingSelfVoiceParticipant(
+                    currentUserId: me,
+                    channelId: widget.channelId,
+                    guildId: widget.guildId,
+                    connectionId: localConnectionId,
+                    user: selfUser,
+                  ),
+                  ...list,
+                ]
+              : list,
+          currentUserId: me,
+          selfUser: selfUser,
+        );
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     if (participants.isEmpty) {
       return Center(
@@ -683,6 +715,8 @@ class _VoiceChannelParticipantGridState
     final bool compact = innerWidth < 520 || innerHeight < 360;
     final int count = tiles.length;
 
+    _syncLayoutEpoch(layout);
+
     _VoiceGridTileItem? pinned;
     if (layout.pinnedTileId != null) {
       for (final _VoiceGridTileItem tile in tiles) {
@@ -693,9 +727,8 @@ class _VoiceChannelParticipantGridState
       }
     }
 
-    final bool focus =
-        layout.mode == VoiceCallLayoutMode.focus || pinned != null;
-    final bool useCompact = compact && !focus;
+    final bool focus = layout.mode == VoiceCallLayoutMode.focus;
+    final bool useCompact = compact && !focus && pinned == null;
     if (!useCompact) {
       _placedTiles.clear();
       _placedRects.clear();
@@ -801,6 +834,34 @@ class _VoiceChannelParticipantGridState
       );
     }
 
+    if (visual == VoiceCallVisualLayout.pinnedGrid && pinned != null) {
+      final _VoiceGridTileItem pinnedTile = pinned;
+      final List<_VoiceGridTileItem> secondary = tiles
+          .where((_VoiceGridTileItem t) => t.tileId != pinnedTile.tileId)
+          .toList();
+      return _wrapLayoutSurface(
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+        child: Padding(
+          padding: stageInsets,
+          child: _buildPinnedGrid(
+            context: context,
+            maxWidth: innerWidth,
+            maxHeight: innerHeight,
+            pinnedTile: pinnedTile,
+            secondaryTiles: secondary,
+            watchedTileIds: watchedTileIds,
+            compact: compact,
+            media: media,
+            me: me,
+            localConnectionId: localConnectionId,
+            baseUrl: baseUrl,
+            l10n: l10n,
+          ),
+        ),
+      );
+    }
+
     if (tiles.isEmpty) {
       return _wrapLayoutSurface(
         maxWidth: maxWidth,
@@ -869,7 +930,6 @@ class _VoiceChannelParticipantGridState
               channelId: widget.channelId,
               guildId: widget.guildId,
             ),
-            const _VoiceCallViewModeToggle(),
           ],
         ),
       ),
@@ -896,6 +956,238 @@ class _VoiceChannelParticipantGridState
       return tile;
     }
     return selfCamera ?? tiles.first;
+  }
+
+  ({
+    Rect pinnedRect,
+    double gridTop,
+    double gridHeight,
+    VoiceGridPackedLayoutMetrics packed,
+    List<Rect> secondaryRects,
+  })
+  _resolvePinnedGridGeometry({
+    required double maxWidth,
+    required double maxHeight,
+    required List<_VoiceGridTileItem> secondaryTiles,
+    required bool compact,
+  }) {
+    final double gap = voiceGridGap(
+      tileCount: secondaryTiles.length,
+      containerHeight: maxHeight,
+      compact: compact,
+    );
+    final ({double sidePadding, double verticalPadding}) padding =
+        voiceGridPadding(
+          containerWidth: maxWidth,
+          containerHeight: maxHeight,
+          compact: compact,
+        );
+    final double pinTop = padding.verticalPadding;
+    double pinHeight = math.min(
+      (maxWidth - padding.sidePadding * 2) / voiceGridTileAspectRatio,
+      maxHeight * 0.52,
+    );
+    double gridTop = pinTop + pinHeight + gap;
+    double gridHeight = math.max(0, maxHeight - gridTop);
+    VoiceGridPackedLayoutMetrics packed = _resolveLayoutMetrics(
+      tileCount: secondaryTiles.length,
+      containerWidth: maxWidth,
+      containerHeight: gridHeight,
+      compact: compact,
+    );
+    List<Rect> secondaryRects = _equalTileRects(
+      metrics: packed.metrics,
+      tiles: secondaryTiles,
+    );
+    final Rect anchor = secondaryRects.first;
+    double pinLeft = anchor.left;
+    double pinWidth = anchor.width;
+    pinHeight = math.min(
+      pinWidth / voiceGridTileAspectRatio,
+      math.max(0, maxHeight - pinTop - gap) * 0.65,
+    );
+    gridTop = pinTop + pinHeight + gap;
+    gridHeight = math.max(0, maxHeight - gridTop);
+    packed = _resolveLayoutMetrics(
+      tileCount: secondaryTiles.length,
+      containerWidth: maxWidth,
+      containerHeight: gridHeight,
+      compact: compact,
+    );
+    secondaryRects = _equalTileRects(
+      metrics: packed.metrics,
+      tiles: secondaryTiles,
+    );
+    pinLeft = secondaryRects.first.left;
+    pinWidth = secondaryRects.first.width;
+    final Rect pinnedRect = Rect.fromLTWH(pinLeft, pinTop, pinWidth, pinHeight);
+    return (
+      pinnedRect: pinnedRect,
+      gridTop: gridTop,
+      gridHeight: gridHeight,
+      packed: packed,
+      secondaryRects: secondaryRects,
+    );
+  }
+
+  Widget _buildPinnedGrid({
+    required BuildContext context,
+    required double maxWidth,
+    required double maxHeight,
+    required _VoiceGridTileItem pinnedTile,
+    required List<_VoiceGridTileItem> secondaryTiles,
+    required Set<String> watchedTileIds,
+    required bool compact,
+    required VoiceMediaRoom? media,
+    required String? me,
+    required String? localConnectionId,
+    required String? baseUrl,
+    required FluxerLocalizations l10n,
+  }) {
+    if (secondaryTiles.isEmpty) {
+      final VoiceGridPackedLayoutMetrics packed = _resolveLayoutMetrics(
+        tileCount: 1,
+        containerWidth: maxWidth,
+        containerHeight: maxHeight,
+        compact: compact,
+      );
+      final Rect pinnedRect = _equalTileRects(
+        metrics: packed.metrics,
+        tiles: <_VoiceGridTileItem>[pinnedTile],
+      ).first;
+      return SizedBox(
+        width: maxWidth,
+        height: maxHeight,
+        child: Stack(
+          children: <Widget>[
+            _placedGridTile(
+              context: context,
+              tileKey: ValueKey<String>(pinnedTile.tileId),
+              tile: pinnedTile,
+              rect: pinnedRect,
+              departing: false,
+              isFocusMain: true,
+              watchedTileIds: watchedTileIds,
+              media: media,
+              me: me,
+              localConnectionId: localConnectionId,
+              baseUrl: baseUrl,
+              l10n: l10n,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final ({
+      Rect pinnedRect,
+      double gridTop,
+      double gridHeight,
+      VoiceGridPackedLayoutMetrics packed,
+      List<Rect> secondaryRects,
+    })
+    geometry = _resolvePinnedGridGeometry(
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      secondaryTiles: secondaryTiles,
+      compact: compact,
+    );
+    final bool paginate =
+        geometry.packed.visibleTileCount > 0 &&
+        geometry.packed.visibleTileCount < secondaryTiles.length;
+
+    if (paginate) {
+      return SizedBox(
+        width: maxWidth,
+        height: maxHeight,
+        child: Column(
+          children: <Widget>[
+            SizedBox(
+              width: maxWidth,
+              height: geometry.gridTop,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  geometry.pinnedRect.left,
+                  geometry.pinnedRect.top,
+                  maxWidth - geometry.pinnedRect.right,
+                  0,
+                ),
+                child: SizedBox(
+                  width: geometry.pinnedRect.width,
+                  height: geometry.pinnedRect.height,
+                  child: _buildCard(
+                    context: context,
+                    tile: pinnedTile,
+                    media: media,
+                    me: me,
+                    localConnectionId: localConnectionId,
+                    baseUrl: baseUrl,
+                    l10n: l10n,
+                    isFocusMain: true,
+                    isActiveScreenShare: watchedTileIds.contains(
+                      pinnedTile.tileId,
+                    ),
+                    fillContainer: true,
+                    tileWidth: geometry.pinnedRect.width,
+                    tileHeight: geometry.pinnedRect.height,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _buildPaginatedGrid(
+                context: context,
+                maxWidth: maxWidth,
+                maxHeight: geometry.gridHeight,
+                tiles: secondaryTiles,
+                watchedTileIds: watchedTileIds,
+                tilesPerPage: geometry.packed.visibleTileCount,
+                compact: compact,
+                media: media,
+                me: me,
+                localConnectionId: localConnectionId,
+                baseUrl: baseUrl,
+                l10n: l10n,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final List<_VoiceGridTileItem> ordered = <_VoiceGridTileItem>[
+      pinnedTile,
+      ...secondaryTiles,
+    ];
+    final List<Rect> rects = <Rect>[
+      geometry.pinnedRect,
+      for (int i = 0; i < geometry.secondaryRects.length; i++)
+        geometry.secondaryRects[i].shift(Offset(0, geometry.gridTop)),
+    ];
+
+    return SizedBox(
+      width: maxWidth,
+      height: maxHeight,
+      child: Stack(
+        children: <Widget>[
+          for (int i = 0; i < ordered.length; i++)
+            _placedGridTile(
+              context: context,
+              tileKey: ValueKey<String>(ordered[i].tileId),
+              tile: ordered[i],
+              rect: rects[i],
+              departing: false,
+              isFocusMain: i == 0,
+              watchedTileIds: watchedTileIds,
+              media: media,
+              me: me,
+              localConnectionId: localConnectionId,
+              baseUrl: baseUrl,
+              l10n: l10n,
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPaginatedGrid({
@@ -1119,6 +1411,7 @@ class _VoiceChannelParticipantGridState
     required String? localConnectionId,
     required String? baseUrl,
     required FluxerLocalizations l10n,
+    bool isFocusMain = false,
   }) {
     final Duration duration = _tileMoveDuration(context);
     return AnimatedPositioned(
@@ -1142,7 +1435,7 @@ class _VoiceChannelParticipantGridState
             localConnectionId: localConnectionId,
             baseUrl: baseUrl,
             l10n: l10n,
-            isFocusMain: false,
+            isFocusMain: isFocusMain,
             isActiveScreenShare: watchedTileIds.contains(tile.tileId),
             fillContainer: true,
             tileWidth: rect.width,
@@ -1426,7 +1719,10 @@ class _VoiceChannelParticipantGridState
         child: card,
       );
     }
-    if (featured && (hostFeatured || voicePipIsInFlight(_pipPhase))) {
+    final String? pinnedTileId = ref.read(voiceCallLayoutProvider).pinnedTileId;
+    if (featured &&
+        pinnedTileId == null &&
+        (hostFeatured || voicePipIsInFlight(_pipPhase))) {
       return KeyedSubtree(key: kVoicePipExpandSlotKey, child: wrapped);
     }
     return wrapped;
@@ -2437,73 +2733,6 @@ class _ExtraDevicesChip extends StatelessWidget {
           '+$count',
           style: context.textStyles.smallText.copyWith(
             color: context.colors.textPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VoiceCallViewModeToggle extends ConsumerWidget {
-  const _VoiceCallViewModeToggle();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final VoiceCallLayoutMode mode = ref.watch(
-      voiceCallLayoutProvider.select(
-        (VoiceCallLayoutState state) => state.mode,
-      ),
-    );
-    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
-    final bool isFocus = mode == VoiceCallLayoutMode.focus;
-    final String label = isFocus
-        ? l10n.voiceCallViewModeGrid
-        : l10n.voiceCallViewModeFocus;
-    return _TileHudVisibility(
-      child: SafeArea(
-        child: Align(
-          alignment: AlignmentDirectional.topStart,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: Semantics(
-              button: true,
-              label: label,
-              child: Tooltip(
-                message: label,
-                child: Material(
-                  color: context.colors.backgroundFloating.withValues(
-                    alpha: 0.85,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    key: kVoiceCallViewModeToggleKey,
-                    onTap: () {
-                      ref
-                          .read(voiceCallLayoutProvider.notifier)
-                          .setMode(
-                            isFocus
-                                ? VoiceCallLayoutMode.grid
-                                : VoiceCallLayoutMode.focus,
-                          );
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Center(
-                        child: PhosphorIcon(
-                          isFocus
-                              ? PhosphorIconsFill.squaresFour
-                              : PhosphorIconsFill.userFocus,
-                          size: 20,
-                          color: context.colors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ),
         ),
       ),

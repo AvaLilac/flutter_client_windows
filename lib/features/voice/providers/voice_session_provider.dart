@@ -55,6 +55,7 @@ import 'package:fluxer_app/features/voice/utils/voice_effective_audio_state.dart
 import 'package:fluxer_app/features/voice/utils/voice_join_timing.dart';
 import 'package:fluxer_app/features/voice/utils/voice_lifecycle_log.dart';
 import 'package:fluxer_app/features/voice/utils/voice_media_teardown.dart';
+import 'package:fluxer_app/features/voice/utils/voice_p2p_mode.dart';
 import 'package:fluxer_app/features/voice/utils/voice_participant_volume_utils.dart';
 import 'package:fluxer_app/features/voice/utils/voice_server_update_decision.dart';
 import 'package:fluxer_app/features/voice/utils/voice_volume_utils.dart';
@@ -1467,6 +1468,7 @@ class VoiceSession extends _$VoiceSession {
       roomOptions = await _roomOptionsForVoice(
         resolvedChannelId: resolvedChannelId,
         e2eeKey: e2eeKey,
+        guildId: _normalizeVoiceGuildId(event.guildId) ?? _expectedGuildId,
       );
     } on Object catch (e) {
       talker.error('[Voice][E2EE] Key provider setup failed: $e');
@@ -1518,8 +1520,8 @@ class VoiceSession extends _$VoiceSession {
       timeouts: useE2ee ? _kE2eeConnectTimeouts : Timeouts.defaultTimeouts,
     );
     _armLiveKitConnectWatchdog(attempt);
-    final VoiceSettingsApplicator applicator = ref.read(
-      voiceSettingsApplicatorProvider,
+    final VoiceSettingsApplicator applicator = _voiceSettingsApplicator(
+      channelId: resolvedChannelId,
     );
     try {
       unawaited(applicator.applySpeakerOutput(settings: voiceSettings));
@@ -1672,6 +1674,7 @@ class VoiceSession extends _$VoiceSession {
       roomOptions = await _roomOptionsForVoice(
         resolvedChannelId: resolvedChannelId,
         e2eeKey: e2eeKey,
+        guildId: _normalizeVoiceGuildId(event.guildId) ?? state.guildId,
       );
     } on Object catch (e, st) {
       talker.error('[Voice][E2EE] Region change key setup failed: $e', e, st);
@@ -1810,8 +1813,8 @@ class VoiceSession extends _$VoiceSession {
       return false;
     }
     final VoiceSettingsState settings = ref.read(voiceSettingsProvider);
-    final VoiceSettingsApplicator applicator = ref.read(
-      voiceSettingsApplicatorProvider,
+    final VoiceSettingsApplicator applicator = _voiceSettingsApplicator(
+      channelId: resolvedChannelId,
     );
     final int? channelBitrate = await _bitrateForChannel(resolvedChannelId);
     final EffectiveAudioState audio = _effectiveAudioStateForSelfConnection();
@@ -1868,9 +1871,35 @@ class VoiceSession extends _$VoiceSession {
     return null;
   }
 
+  VoiceSettingsApplicator _voiceSettingsApplicator({
+    String? channelId,
+    String? guildId,
+  }) {
+    final VoiceSettingsApplicator base = ref.read(
+      voiceSettingsApplicatorProvider,
+    );
+    final String? resolvedChannelId =
+        channelId ?? (state.isInVoice ? state.channelId : null);
+    if (resolvedChannelId == null || resolvedChannelId.isEmpty) {
+      return base;
+    }
+    final String? resolvedGuildId = _normalizeVoiceGuildId(
+      guildId ?? state.guildId,
+    );
+    final VoiceChannelMode mode = voiceChannelMode(
+      voiceStatesForChannel(
+        voiceStates: ref.read(voiceStatesMapProvider),
+        channelId: resolvedChannelId,
+        guildId: resolvedGuildId,
+      ),
+    );
+    return base.forChannelMode(mode);
+  }
+
   Future<RoomOptions> _roomOptionsForVoice({
     required String resolvedChannelId,
     required String? e2eeKey,
+    String? guildId,
   }) async {
     final bool useE2ee = e2eeKey != null && e2eeKey.isNotEmpty;
     BaseKeyProvider? keyProvider;
@@ -1880,8 +1909,9 @@ class VoiceSession extends _$VoiceSession {
       talker.info('[Voice][E2EE] Shared key configured on BaseKeyProvider.');
     }
     final VoiceSettingsState voiceSettings = ref.read(voiceSettingsProvider);
-    final VoiceSettingsApplicator applicator = ref.read(
-      voiceSettingsApplicatorProvider,
+    final VoiceSettingsApplicator applicator = _voiceSettingsApplicator(
+      channelId: resolvedChannelId,
+      guildId: guildId,
     );
     final int? channelBitrate = await _bitrateForChannel(resolvedChannelId);
     final RoomOptions baseRoomOptions = applicator.buildRoomOptions(
@@ -2525,13 +2555,11 @@ class VoiceSession extends _$VoiceSession {
       if (mesh != null) {
         await mesh.applyCameraOptions(_cameraCaptureOptions());
       } else if (room != null) {
-        await ref
-            .read(voiceSettingsApplicatorProvider)
-            .refreshCamera(
-              room: room,
-              settings: ref.read(voiceSettingsProvider),
-              cameraEnabled: true,
-            );
+        await _voiceSettingsApplicator().refreshCamera(
+          room: room,
+          settings: ref.read(voiceSettingsProvider),
+          cameraEnabled: true,
+        );
       }
     } finally {
       _togglingVideo = false;
@@ -2614,9 +2642,7 @@ class VoiceSession extends _$VoiceSession {
         talker.debug('[Voice] Screen-share background service is running.');
       }
       try {
-        final VoiceSettingsApplicator applicator = ref.read(
-          voiceSettingsApplicatorProvider,
-        );
+        final VoiceSettingsApplicator applicator = _voiceSettingsApplicator();
         final VoiceSettingsState settings = ref.read(voiceSettingsProvider);
         if (mesh != null) {
           await mesh.setScreenShare(
@@ -3122,9 +3148,7 @@ class VoiceSession extends _$VoiceSession {
     _lastKnownInputDeviceIds = inputIds;
 
     final VoiceSettingsState settings = ref.read(voiceSettingsProvider);
-    final VoiceSettingsApplicator applicator = ref.read(
-      voiceSettingsApplicatorProvider,
-    );
+    final VoiceSettingsApplicator applicator = _voiceSettingsApplicator();
 
     _isRecoveringAudioRoute = true;
     try {
@@ -3194,9 +3218,7 @@ class VoiceSession extends _$VoiceSession {
       return;
     }
     final VoiceSettingsState settings = ref.read(voiceSettingsProvider);
-    final VoiceSettingsApplicator applicator = ref.read(
-      voiceSettingsApplicatorProvider,
-    );
+    final VoiceSettingsApplicator applicator = _voiceSettingsApplicator();
     final VoiceMeshTransport? mesh = state.mesh;
     if (mesh != null) {
       final int? channelBitrate = await _currentChannelBitrate();
@@ -3224,9 +3246,7 @@ class VoiceSession extends _$VoiceSession {
   }
 
   Future<void> _applyVoiceOutputRouting(VoiceSettingsState settings) async {
-    final VoiceSettingsApplicator applicator = ref.read(
-      voiceSettingsApplicatorProvider,
-    );
+    final VoiceSettingsApplicator applicator = _voiceSettingsApplicator();
     await applicator.applySpeakerOutput(settings: settings);
     await _applyAudioOutputDevice(settings.outputDeviceId);
   }
@@ -3270,9 +3290,7 @@ class VoiceSession extends _$VoiceSession {
     if (!state.isInVoice) {
       return;
     }
-    final VoiceSettingsApplicator applicator = ref.read(
-      voiceSettingsApplicatorProvider,
-    );
+    final VoiceSettingsApplicator applicator = _voiceSettingsApplicator();
     final bool outputRoutingChanged =
         previous == null ||
         previous.outputDeviceId != next.outputDeviceId ||
@@ -3373,9 +3391,7 @@ class VoiceSession extends _$VoiceSession {
     required bool inputVolumeChanged,
     required bool cameraChanged,
   }) async {
-    final VoiceSettingsApplicator applicator = ref.read(
-      voiceSettingsApplicatorProvider,
-    );
+    final VoiceSettingsApplicator applicator = _voiceSettingsApplicator();
     final double inputGain = inputVoiceVolumePercentToGain(next.inputVolume);
     if (audioChanged) {
       await mesh.refreshMicrophone(
@@ -3448,9 +3464,9 @@ class VoiceSession extends _$VoiceSession {
   }
 
   CameraCaptureOptions _cameraCaptureOptions() {
-    return ref
-        .read(voiceSettingsApplicatorProvider)
-        .buildCameraCaptureOptions(ref.read(voiceSettingsProvider));
+    return _voiceSettingsApplicator().buildCameraCaptureOptions(
+      ref.read(voiceSettingsProvider),
+    );
   }
 
   Future<void> _subscribeRemotePublicationIfNeeded(
