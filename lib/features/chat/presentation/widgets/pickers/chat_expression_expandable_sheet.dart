@@ -672,10 +672,11 @@ class ChatExpressionExpandableSheetState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         sheetBody,
-        ColoredBox(
-          color: sheetBackground,
-          child: SizedBox(height: homeIndicatorInset),
-        ),
+        if (!_isClosing && homeIndicatorInset > 0)
+          ColoredBox(
+            color: sheetBackground,
+            child: SizedBox(height: homeIndicatorInset),
+          ),
       ],
     );
   }
