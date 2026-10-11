@@ -450,29 +450,6 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
     _textSession.resetAfterSend();
   }
 
-  void _scheduleComposerLayoutAfterSuccessfulSend() {
-    if (!isMobileLayout(context)) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      if (isComposerPanelOpen(
-        expressionPanelOpen: ref.read(expressionPanelProvider),
-        attachmentPanelOpen: ref.read(attachmentPanelProvider),
-      )) {
-        _closeComposerPanelsAndFocusComposer();
-        return;
-      }
-      _keyboardSession.maybeReserveUnmeasuredKeyboard();
-      _keyboardSession.resyncViewInsetsFromContext(context);
-      if (_focusNode.canRequestFocus && !_focusNode.hasFocus) {
-        _focusNode.requestFocus();
-      }
-    });
-  }
-
   void _onComposerChannelChanged() {
     if (_voiceRecording.isActive) {
       unawaited(_voiceRecording.cancel());
@@ -1987,7 +1964,6 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
     if (isEditing) {
       FluxerHaptics.send();
       _resetComposerInputAfterSend();
-      _scheduleComposerLayoutAfterSuccessfulSend();
       unawaited(vm.sendMessage(text: wireText.trim()));
       return;
     }
@@ -2095,7 +2071,6 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
     }
 
     _resetComposerInputAfterSend();
-    _scheduleComposerLayoutAfterSuccessfulSend();
     unawaited(vm.sendMessage(text: baseContent.trim(), tts: tts));
   }
 
