@@ -1,6 +1,8 @@
 import 'package:dynamic_app_icon_flutter_plus/dynamic_app_icon_flutter_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:fluxer_app/core/platform/alternate_app_icon_settings.dart';
+import 'package:fluxer_app/core/platform/android_alternate_app_icon_preference.dart';
 import 'package:fluxer_app/core/platform/android_app_restart.dart';
 import 'package:fluxer_app/features/settings/domain/app_icon_catalog.dart';
 import 'package:fluxer_app/features/settings/domain/app_icon_choice.dart';
@@ -55,8 +57,14 @@ class AppIconSettings extends _$AppIconSettings {
     if (!platformSupported) {
       return const AppIconSettingsState.unsupported();
     }
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await _reconcileAndroidAlternateAppIcon();
+    }
     final String? current =
         await DynamicAppIconFlutterPlus.getAlternateIconName();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await writeAndroidAlternateAppIconPreference(current);
+    }
     final List<String> nativeAlternates =
         await DynamicAppIconFlutterPlus.getAvailableIcons();
     final List<AppIconChoice> choices = resolveAppIconChoices(
@@ -96,13 +104,41 @@ class AppIconSettings extends _$AppIconSettings {
     if (choice.alternateIconName == current.selectedAlternateName) {
       return;
     }
+    await writeAndroidAlternateAppIconPreference(choice.alternateIconName);
+    state = AsyncValue.data(
+      AppIconSettingsState(
+        supported: current.supported,
+        choices: current.choices,
+        selectedAlternateName: choice.alternateIconName,
+      ),
+    );
     try {
       await DynamicAppIconFlutterPlus.setAlternateIconName(
         choice.alternateIconName,
       );
+      await DynamicAppIconFlutterPlus.applyPendingIcon();
     } on PlatformException {
+      await writeAndroidAlternateAppIconPreference(
+        current.selectedAlternateName,
+      );
+      state = AsyncValue.data(current);
       return;
     }
     await restartAndroidApp();
+  }
+
+  Future<void> _reconcileAndroidAlternateAppIcon() async {
+    final String? saved = await readAndroidAlternateAppIconPreference();
+    final String? native =
+        await DynamicAppIconFlutterPlus.getAlternateIconName();
+    if (saved == native) {
+      return;
+    }
+    try {
+      await DynamicAppIconFlutterPlus.setAlternateIconName(saved);
+      await DynamicAppIconFlutterPlus.applyPendingIcon();
+    } on PlatformException {
+      await writeAndroidAlternateAppIconPreference(native);
+    }
   }
 }

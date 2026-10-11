@@ -1,6 +1,9 @@
 package com.fluxer
 
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.os.Process
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
@@ -14,8 +17,8 @@ class AppRestartBridge(
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 METHOD_RESTART -> {
-                    restart()
                     result.success(null)
+                    Handler(Looper.getMainLooper()).post { restart() }
                 }
                 else -> result.notImplemented()
             }
@@ -23,16 +26,13 @@ class AppRestartBridge(
     }
 
     private fun restart() {
-        val launchIntent =
-            activity.packageManager.getLaunchIntentForPackage(activity.packageName)
-        if (launchIntent == null) {
-            return
-        }
-        launchIntent.addFlags(
-            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK,
-        )
-        activity.startActivity(launchIntent)
+        val intent =
+            Intent(activity, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
+        activity.startActivity(intent)
         activity.finishAffinity()
+        Process.killProcess(Process.myPid())
     }
 
     companion object {
