@@ -226,6 +226,10 @@ Map<String, Object?>? _normalizeTemplateChannel(Map<String, Object?>? channel) {
     return null;
   }
   final Map<String, Object?> normalized = Map<String, Object?>.from(channel);
+  final Object? type = normalized['type'];
+  if (type is! num) {
+    return null;
+  }
   normalized['id'] = _discordTemplateScalarToString(normalized['id']);
   if (normalized.containsKey('parent_id')) {
     normalized['parent_id'] = _discordTemplateScalarToString(

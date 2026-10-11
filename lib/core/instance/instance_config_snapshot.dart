@@ -66,11 +66,19 @@ class InstanceConfigSnapshot {
     if (value is! Map) {
       return null;
     }
+    final Map<String, dynamic> map = Map<String, dynamic>.from(value);
+    if (!_isReadableWellKnownMap(map)) {
+      return null;
+    }
     try {
-      return parseWellKnown(Map<String, dynamic>.from(value));
+      return parseWellKnown(map);
     } on Object {
       return null;
     }
+  }
+
+  static bool _isReadableWellKnownMap(Map<String, dynamic> json) {
+    return json.containsKey('api_code_version') || json.containsKey('endpoints');
   }
 
   static WellKnownFluxerResponse parseWellKnown(Map<String, dynamic> json) {
