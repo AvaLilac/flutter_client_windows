@@ -90,20 +90,7 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
     _ensureTicker();
   }
 
-  void _stopTailFollow() {
-    if (!_tailFollowActive) {
-      return;
-    }
-    _tailFollowActive = false;
-    _tailFollowStartedAt = null;
-    _tailFollowOnComplete = null;
-    _tailFollowResolveTarget = null;
-    if (!_signalScrolling) {
-      _stopTicker();
-    }
-  }
-
-  void _abortTailFollow() {
+  void _endTailFollow({required bool deferComplete}) {
     if (!_tailFollowActive) {
       return;
     }
@@ -118,12 +105,23 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
     if (callback == null) {
       return;
     }
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!_disposed) {
-        callback();
-      }
-    });
+    if (deferComplete) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed) {
+          callback();
+        }
+      });
+      return;
+    }
+    callback();
   }
+
+  void _stopTailFollow() {
+    _tailFollowOnComplete = null;
+    _endTailFollow(deferComplete: false);
+  }
+
+  void _abortTailFollow() => _endTailFollow(deferComplete: true);
 
   void _refreshTailFollowTarget() {
     final double Function()? resolve = _tailFollowResolveTarget;
@@ -137,15 +135,7 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
   void _finishTailFollow() {
     _refreshTailFollowTarget();
     _applyPixels(_tailFollowTo.clamp(minScrollExtent, maxScrollExtent));
-    _tailFollowActive = false;
-    _tailFollowStartedAt = null;
-    _tailFollowResolveTarget = null;
-    final VoidCallback? callback = _tailFollowOnComplete;
-    _tailFollowOnComplete = null;
-    if (!_signalScrolling) {
-      _stopTicker();
-    }
-    callback?.call();
+    _endTailFollow(deferComplete: false);
   }
 
   void _tickTailFollow(Duration elapsed) {
