@@ -38,12 +38,14 @@ void main() {
       final List<UserSettingsDesktopNavEntry> withoutBilling =
           buildUserSettingsDesktopNav(
             showBilling: false,
+            showGiveFeedback: false,
             showJoinFluxerLabs: false,
             isTouchPrimary: false,
           );
       final List<UserSettingsDesktopNavEntry> withBilling =
           buildUserSettingsDesktopNav(
             showBilling: true,
+            showGiveFeedback: false,
             showJoinFluxerLabs: false,
             isTouchPrimary: false,
           );
@@ -71,6 +73,7 @@ void main() {
     test('hides shortcuts entry on touch-primary devices', () {
       final touchNav = buildUserSettingsDesktopNav(
         showBilling: false,
+        showGiveFeedback: false,
         showJoinFluxerLabs: false,
         isTouchPrimary: true,
       );
@@ -81,6 +84,7 @@ void main() {
 
       final pointerNav = buildUserSettingsDesktopNav(
         showBilling: false,
+        showGiveFeedback: false,
         showJoinFluxerLabs: false,
         isTouchPrimary: false,
       );
@@ -99,6 +103,7 @@ void main() {
         indexForUserSettingsSection(
           UserSettingsSection.giftsAndCodes,
           showBilling: false,
+          showGiveFeedback: false,
           showJoinFluxerLabs: false,
           isTouchPrimary: false,
         ),
@@ -111,6 +116,7 @@ void main() {
         indexForUserSettingsSection(
           UserSettingsSection.shortcuts,
           showBilling: false,
+          showGiveFeedback: false,
           showJoinFluxerLabs: false,
           isTouchPrimary: true,
         ),

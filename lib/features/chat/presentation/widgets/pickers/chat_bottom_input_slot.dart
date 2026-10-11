@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/attachment_panel_provider.dart';
@@ -54,16 +52,42 @@ class BottomInputSpacer extends ConsumerWidget {
       return _animatedSpacer(context, reservedHeight);
     }
 
-    final double spacerHeight = _keyboardSpacerHeight(context, slotHeight);
+    final ({double liveKeyboardHeight, bool unmeasuredKeyboardReserved})
+    metrics = ref.watch(
+      mobileKeyboardMetricsProvider.select(
+        (MobileKeyboardMetricsState state) => (
+          liveKeyboardHeight: state.liveKeyboardHeight,
+          unmeasuredKeyboardReserved: state.unmeasuredKeyboardReserved,
+        ),
+      ),
+    );
+    final bool keyboardLayoutActive =
+        metrics.liveKeyboardHeight > 0 ||
+        metrics.unmeasuredKeyboardReserved ||
+        slotState.transition != BottomInputTransition.idle ||
+        slotState.slotHeightHeld;
+    final double spacerHeight = _keyboardSpacerHeight(
+      context,
+      slotHeight,
+      keyboardLayoutActive: keyboardLayoutActive,
+    );
     if (spacerHeight <= 0) {
       return const SizedBox.shrink();
     }
     return _coloredSpacer(context, spacerHeight);
   }
 
-  double _keyboardSpacerHeight(BuildContext context, double slotHeight) {
+  double _keyboardSpacerHeight(
+    BuildContext context,
+    double slotHeight, {
+    required bool keyboardLayoutActive,
+  }) {
     final double inset = resolvedKeyboardInsetBottom(context);
-    final double resolved = math.max(inset, slotHeight);
+    final double resolved = resolveKeyboardSpacerRawHeight(
+      viewInsetBottom: inset,
+      slotHeight: slotHeight,
+      keyboardLayoutActive: keyboardLayoutActive,
+    );
     if (resolved <= 0) {
       return 0;
     }

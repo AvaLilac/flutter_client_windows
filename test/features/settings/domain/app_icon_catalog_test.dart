@@ -4,8 +4,23 @@ import 'package:fluxer_app/features/settings/domain/app_icon_catalog_ios.dart';
 import 'package:fluxer_app/features/settings/domain/app_icon_preview_assets.dart';
 
 void main() {
-  test('android catalog is empty until launcher aliases are configured', () {
-    expect(androidAppIconChoiceCatalog(), isEmpty);
+  test('android catalog uses android preview assets', () {
+    final choices = androidAppIconChoiceCatalog();
+    expect(choices, hasLength(6));
+    for (final choice in choices) {
+      expect(
+        choice.previewAssetPath.startsWith(AppIconPreviewAssets.androidRoot),
+        isTrue,
+      );
+    }
+    expect(choices.map((c) => c.alternateIconName).toList(), <String?>[
+      null,
+      kAndroidGreyscaleAlternateIconName,
+      kAndroidRainbowAlternateIconName,
+      kAndroidChromaticAberrationAlternateIconName,
+      kAndroidDefaultBrutalistAlternateIconName,
+      kAndroidGreyscaleBrutalistAlternateIconName,
+    ]);
   });
 
   test('ios catalog uses ios preview assets', () {

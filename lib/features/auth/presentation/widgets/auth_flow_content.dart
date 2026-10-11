@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/features/auth/presentation/mfa_screen.dart';
 import 'package:fluxer_app/features/auth/presentation/widgets/forgot_password_screen.dart';
 import 'package:fluxer_app/features/auth/presentation/widgets/ip_authorization_screen.dart';
@@ -11,6 +10,7 @@ import 'package:fluxer_app/features/auth/presentation/widgets/register_screen.da
 import 'package:fluxer_app/features/auth/presentation/widgets/reset_password_screen.dart';
 import 'package:fluxer_app/features/auth/presentation/widgets/sso_button.dart';
 import 'package:fluxer_app/features/auth/presentation/widgets/suspended_account_screen.dart';
+import 'package:fluxer_app/features/auth/providers/auth_instance_runtime_config_provider.dart';
 import 'package:fluxer_app/features/auth/providers/auth_instance_snapshot_provider.dart';
 import 'package:fluxer_app/features/auth/providers/login_view_model.dart';
 import 'package:fluxer_app/material_ui.dart';
@@ -34,7 +34,7 @@ class AuthFlowContent extends ConsumerWidget {
 
     if (vm.showForgotPassword &&
         ref.watch(
-          instanceRuntimeConfigProvider.select(
+          authInstanceRuntimeConfigProvider.select(
             (config) => config.usernameSignIn,
           ),
         )) {

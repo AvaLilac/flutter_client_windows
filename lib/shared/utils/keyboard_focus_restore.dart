@@ -11,50 +11,6 @@ bool _canSafelyRequestFocus([AppLifecycleState? state]) {
   return current == null || current == AppLifecycleState.resumed;
 }
 
-void _showKeyboard(FocusNode node) {
-  if (!node.hasFocus) {
-    if (node.canRequestFocus) {
-      node.requestFocus();
-    }
-    return;
-  }
-  final BuildContext? context = node.context;
-  if (context == null || !context.mounted) {
-    return;
-  }
-  final EditableTextState? editable = context
-      .findAncestorStateOfType<EditableTextState>();
-  if (editable != null) {
-    editable.requestKeyboard();
-    return;
-  }
-  node.requestFocus();
-}
-
-void nudgeComposerKeyboardOpen(FocusNode node) {
-  if (!node.canRequestFocus || !node.hasFocus) {
-    return;
-  }
-  _showKeyboard(node);
-}
-
-void reconnectComposerKeyboard(FocusNode node) {
-  if (!node.canRequestFocus) {
-    return;
-  }
-  if (!node.hasFocus) {
-    node.requestFocus();
-    return;
-  }
-  nudgeComposerKeyboardOpen(node);
-  node.unfocus();
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (node.canRequestFocus && !node.hasFocus) {
-      node.requestFocus();
-    }
-  });
-}
-
 /// Re-requests [focusNode] on resume when the keyboard was open before backgrounding.
 class KeyboardFocusRestoreHandle {
   KeyboardFocusRestoreHandle({
@@ -63,7 +19,7 @@ class KeyboardFocusRestoreHandle {
     required this.canRestoreFocus,
   });
 
-  final FocusNode focusNode;
+  FocusNode focusNode;
   final bool Function() shouldTrackOnBackground;
   final bool Function() canRestoreFocus;
 
@@ -76,17 +32,9 @@ class KeyboardFocusRestoreHandle {
     _restoreGeneration++;
   }
 
-  void cancelImeReconnect() {
+  void cancelPendingRestore() {
     _restoreGeneration++;
     _pendingRestore = false;
-  }
-
-  void reconnectOpenField() {
-    _pendingRestore = false;
-    if (!_canAttemptRestore() || _anotherEditableHasFocus()) {
-      return;
-    }
-    reconnectComposerKeyboard(focusNode);
   }
 
   void handleLifecycleState(AppLifecycleState state) {
@@ -125,11 +73,10 @@ class KeyboardFocusRestoreHandle {
     if (!_canAttemptRestore() || _anotherEditableHasFocus()) {
       return;
     }
-    if (!focusNode.hasFocus) {
-      focusNode.requestFocus();
+    if (focusNode.hasFocus) {
       return;
     }
-    reconnectComposerKeyboard(focusNode);
+    focusNode.requestFocus();
   }
 
   bool _canAttemptRestore() {

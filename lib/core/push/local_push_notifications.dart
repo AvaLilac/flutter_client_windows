@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:fluxer_app/core/badge/push_badge_count_parser.dart';
 import 'package:fluxer_app/core/push/android_notification_reply_bridge.dart';
+import 'package:fluxer_app/core/push/android_push_channels.dart';
+import 'package:fluxer_app/core/push/android_push_conversation_history.dart';
+import 'package:fluxer_app/core/push/android_push_conversation_notification.dart';
 import 'package:fluxer_app/core/push/push_message.dart';
 import 'package:fluxer_app/core/push/push_notification_ids.dart'
     show
@@ -19,44 +22,16 @@ import 'package:fluxer_app/core/push/push_notification_reply_background.dart';
 import 'package:fluxer_app/core/push/push_notification_sound.dart';
 import 'package:fluxer_app/core/push/push_notification_time.dart';
 
+export 'package:fluxer_app/core/push/android_push_channels.dart'
+    show androidPushChannelId;
+
 const int _kReplyFailedNotificationId = 900001;
 const String _kReplyFailedNotificationTag = 'fluxer_reply_failed';
-const String _kMessageChannelId = 'fluxer_messages';
-const String _kDirectMessageChannelId = 'fluxer_direct_messages';
-const String _kMessageChannelName = 'Messages';
-const String _kDirectMessageChannelName = 'Direct messages';
-const String _kForumThreadCreatedChannelId = 'fluxer_forum_thread_created';
-const String _kForumThreadCreatedChannelName = 'New forum posts';
-const String _kChannelDescription = 'Messages and alerts';
-
-@visibleForTesting
-String androidPushChannelId(Map<String, String> payload) {
-  if (isDmPushPayload(payload)) {
-    return _kDirectMessageChannelId;
-  }
-  if (isForumThreadCreatedPushPayload(payload)) {
-    return _kForumThreadCreatedChannelId;
-  }
-  return _kMessageChannelId;
-}
-
-String _androidChannelName(Map<String, String> payload) {
-  if (isDmPushPayload(payload)) {
-    return _kDirectMessageChannelName;
-  }
-  if (isForumThreadCreatedPushPayload(payload)) {
-    return _kForumThreadCreatedChannelName;
-  }
-  return _kMessageChannelName;
-}
 
 final class LocalPushNotifications {
   factory LocalPushNotifications() => _instance;
   LocalPushNotifications._();
   static final LocalPushNotifications _instance = LocalPushNotifications._();
-
-  static const String _androidNotificationIcon =
-      '@drawable/fluxer_logo_monochrome';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -130,7 +105,7 @@ final class LocalPushNotifications {
       );
       final InitializationSettings settings = InitializationSettings(
         android: defaultTargetPlatform == TargetPlatform.android
-            ? const AndroidInitializationSettings(_androidNotificationIcon)
+            ? const AndroidInitializationSettings(kAndroidPushNotificationIcon)
             : null,
         iOS: defaultTargetPlatform == TargetPlatform.iOS ? darwin : null,
         macOS: defaultTargetPlatform == TargetPlatform.macOS ? darwin : null,
@@ -174,18 +149,18 @@ final class LocalPushNotifications {
     }
     await android.createNotificationChannel(
       const AndroidNotificationChannel(
-        _kMessageChannelId,
-        _kMessageChannelName,
-        description: _kChannelDescription,
+        kAndroidPushMessageChannelId,
+        kAndroidPushMessageChannelName,
+        description: kAndroidPushChannelDescription,
         importance: Importance.high,
         sound: kPushNotificationMessageAndroidSound,
       ),
     );
     await android.createNotificationChannel(
       const AndroidNotificationChannel(
-        _kDirectMessageChannelId,
-        _kDirectMessageChannelName,
-        description: _kChannelDescription,
+        kAndroidPushDirectMessageChannelId,
+        kAndroidPushDirectMessageChannelName,
+        description: kAndroidPushChannelDescription,
         importance: Importance.high,
         sound: kPushNotificationDirectMessageAndroidSound,
       ),
@@ -202,9 +177,9 @@ final class LocalPushNotifications {
         >()
         ?.createNotificationChannel(
           const AndroidNotificationChannel(
-            _kForumThreadCreatedChannelId,
-            _kForumThreadCreatedChannelName,
-            description: _kChannelDescription,
+            kAndroidPushForumThreadCreatedChannelId,
+            kAndroidPushForumThreadCreatedChannelName,
+            description: kAndroidPushChannelDescription,
             importance: Importance.high,
             sound: kPushNotificationMessageAndroidSound,
           ),
@@ -220,6 +195,7 @@ final class LocalPushNotifications {
 
   Future<void> _attachAndroidReply({
     required int id,
+    required String? tag,
     required Map<String, String> payload,
   }) async {
     final AndroidNotificationReplyTarget? target =
@@ -229,7 +205,7 @@ final class LocalPushNotifications {
     }
     await attachAndroidNotificationReply(
       id: id,
-      tag: resolvePushDisplayTag(payload),
+      tag: tag,
       channelId: target.channelId,
       messageId: target.messageId,
       userId: target.userId,
@@ -248,14 +224,14 @@ final class LocalPushNotifications {
     try {
       await _plugin.show(
         id: _kReplyFailedNotificationId,
-        title: _kMessageChannelName,
+        title: kAndroidPushMessageChannelName,
         body: pushReplyFailedBody(),
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
-            _kMessageChannelId,
-            _kMessageChannelName,
-            channelDescription: _kChannelDescription,
-            icon: _androidNotificationIcon,
+            kAndroidPushMessageChannelId,
+            kAndroidPushMessageChannelName,
+            channelDescription: kAndroidPushChannelDescription,
+            icon: kAndroidPushNotificationIcon,
             playSound: false,
             enableVibration: false,
             silent: true,
@@ -302,15 +278,25 @@ final class LocalPushNotifications {
         return;
       }
     }
-    final String title = message.title ?? _kMessageChannelName;
+    final String title = message.title ?? kAndroidPushMessageChannelName;
     final String body = (message.body != null && message.body!.isNotEmpty)
         ? message.body!
         : 'New message';
-    final int id = pushMessageNotificationId(message.id);
-    final int? badgeCount = parsePushBadgeCount(message.payload);
     final Map<String, String> enrichedPayload = enrichPushPayload(
       message.payload,
     );
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await _showAndroidConversationPush(
+        messageId: message.id,
+        title: title,
+        body: body,
+        payload: enrichedPayload,
+        alert: true,
+      );
+      return;
+    }
+    final int id = pushMessageNotificationId(message.id);
+    final int? badgeCount = parsePushBadgeCount(message.payload);
     final NotificationDetails details = await _notificationDetailsForPlatform(
       title: title,
       body: body,
@@ -334,37 +320,130 @@ final class LocalPushNotifications {
       if (kDebugMode) {
         debugPrint('[LocalPushNotifications] show failed: $e\n$st');
       }
-      if (!_androidDetailsHaveMedia(details)) {
-        return;
-      }
-      try {
-        await _plugin.show(
-          id: id,
-          title: title,
-          body: body,
-          notificationDetails: _notificationDetailsWithoutMedia(
-            title: title,
-            body: body,
-            badgeCount: badgeCount,
-            payload: enrichedPayload,
-          ),
-          payload: payloadJson,
+    }
+  }
+
+  Future<void> _showAndroidConversationPush({
+    required String messageId,
+    required String title,
+    required String body,
+    required Map<String, String> payload,
+    required bool alert,
+  }) async {
+    final String? conversationTag = resolvePushGroupTag(payload);
+    if (conversationTag == null || conversationTag.isEmpty) {
+      return;
+    }
+    final int? badgeCount = parsePushBadgeCount(payload);
+    final int? whenMillis = resolvePushNotificationWhenMillis(
+      Map<String, String>.from(payload)
+        ..[kLocalNotificationMessageIdKey] = messageId,
+    );
+    final List<String?> media = await Future.wait<String?>(<Future<String?>>[
+      _downloadOptional(
+        pushAuthorAvatarUrl(payload),
+        maxEdge: kPushAvatarMaxEdge,
+      ),
+      _downloadOptional(pushAttachmentImageUrl(payload)),
+    ]);
+    final String senderName = resolvePushSenderName(title);
+    final PushConversationLine line = PushConversationLine(
+      messageId: messageId,
+      senderName: senderName,
+      senderKey: resolvePushSenderKey(payload, senderName: senderName),
+      body: body,
+      timestampMs: whenMillis ?? DateTime.now().millisecondsSinceEpoch,
+      avatarPath: media[0],
+      imagePath: media[1],
+    );
+    final PushConversationState state =
+        await AndroidPushConversationHistoryStore.appendLine(
+          conversationTag: conversationTag,
+          line: line,
+          payload: payload,
         );
-      } on Object catch (retryError, retryStack) {
-        if (kDebugMode) {
-          debugPrint(
-            '[LocalPushNotifications] show retry failed: $retryError\n$retryStack',
+    await _publishAndroidConversationNotification(
+      conversationTag: conversationTag,
+      payload: state.payload,
+      lines: state.lines,
+      title: title,
+      badgeCount: badgeCount,
+      whenMillis: whenMillis,
+      alert: alert,
+    );
+  }
+
+  Future<void> _publishAndroidConversationNotification({
+    required String conversationTag,
+    required Map<String, String> payload,
+    required List<PushConversationLine> lines,
+    required bool alert,
+    String? title,
+    int? badgeCount,
+    int? whenMillis,
+  }) async {
+    if (lines.isEmpty) {
+      return;
+    }
+    final PushConversationLine latest = lines.last;
+    final String displayTitle = resolvePushNotificationDisplayTitle(
+      payload,
+      title: title,
+    );
+    final int notificationId = pushGroupSummaryNotificationId(conversationTag);
+    final Map<String, String> replyPayload = Map<String, String>.from(payload);
+    replyPayload['message_id'] = latest.messageId;
+    replyPayload[kLocalNotificationMessageIdKey] = latest.messageId;
+    final String payloadJson = jsonEncode(replyPayload);
+    final AndroidNotificationDetails androidDetails =
+        buildAndroidConversationNotificationDetails(
+          androidChannelId: androidPushChannelId(payload),
+          androidChannelName: androidPushChannelName(payload),
+          payload: payload,
+          lines: lines,
+          title: title,
+          badgeCount: badgeCount,
+          whenMillis: whenMillis,
+          conversationTag: conversationTag,
+          alert: alert,
+        );
+    final bool shown = await _showAndroidConversationNotification(
+      notificationId: notificationId,
+      displayTitle: displayTitle,
+      body: latest.body,
+      androidDetails: androidDetails,
+      payloadJson: payloadJson,
+    );
+    if (!shown) {
+      final List<PushConversationLine> plainLines =
+          pushConversationLinesWithoutMedia(lines);
+      final AndroidNotificationDetails plainDetails =
+          buildAndroidConversationNotificationDetails(
+            androidChannelId: androidPushChannelId(payload),
+            androidChannelName: androidPushChannelName(payload),
+            payload: payload,
+            lines: plainLines,
+            title: title,
+            badgeCount: badgeCount,
+            whenMillis: whenMillis,
+            conversationTag: conversationTag,
+            alert: alert,
           );
-        }
+      final bool retryShown = await _showAndroidConversationNotification(
+        notificationId: notificationId,
+        displayTitle: displayTitle,
+        body: latest.body,
+        androidDetails: plainDetails,
+        payloadJson: payloadJson,
+      );
+      if (!retryShown) {
         return;
       }
     }
-    await _attachAndroidReply(id: id, payload: enrichedPayload);
-    await _showAndroidGroupSummary(
-      title: title,
-      body: body,
-      payload: enrichedPayload,
-      payloadJson: payloadJson,
+    await _attachAndroidReply(
+      id: notificationId,
+      tag: conversationTag,
+      payload: replyPayload,
     );
   }
 
@@ -382,7 +461,50 @@ final class LocalPushNotifications {
       }
     }
     final String channelTag = buildChannelTag(channelId);
-    final int summaryId = pushGroupSummaryNotificationId(channelTag);
+    final int conversationId = pushGroupSummaryNotificationId(channelTag);
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final PushConversationState? remaining =
+          await AndroidPushConversationHistoryStore.trimAck(
+            conversationTag: channelTag,
+            upToMessageId: upToMessageId,
+          );
+      if (remaining == null) {
+        try {
+          await _plugin.cancel(id: conversationId, tag: channelTag);
+        } on Object catch (e, st) {
+          if (kDebugMode) {
+            debugPrint(
+              '[LocalPushNotifications] cancel conversation failed: $e\n$st',
+            );
+          }
+        }
+      } else {
+        await _publishAndroidConversationNotification(
+          conversationTag: channelTag,
+          payload: enrichPushPayload(remaining.payload),
+          lines: remaining.lines,
+          title: remaining.lines.last.senderName,
+          alert: false,
+        );
+      }
+    }
+    await _cancelLegacyAndroidChannelMessages(
+      channelId: channelId,
+      channelTag: channelTag,
+      conversationId: conversationId,
+      upToMessageId: upToMessageId,
+    );
+  }
+
+  Future<void> _cancelLegacyAndroidChannelMessages({
+    required String channelId,
+    required String channelTag,
+    required int conversationId,
+    String? upToMessageId,
+  }) async {
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
     var unreadRemain = false;
     try {
       final List<ActiveNotification> active = await _plugin
@@ -390,6 +512,10 @@ final class LocalPushNotifications {
       final List<ActiveNotification> covered = <ActiveNotification>[];
       for (final ActiveNotification notification in active) {
         if (notification.id == null) {
+          continue;
+        }
+        if (notification.id == conversationId &&
+            notification.tag == channelTag) {
           continue;
         }
         final bool tagMatch = pushNotificationTagMatchesChannel(
@@ -407,11 +533,10 @@ final class LocalPushNotifications {
           notification,
           channelId,
         );
-        final bool isSummary =
-            notification.id == summaryId ||
-            (messageId == null && notification.tag == channelTag);
-        if (isSummary) {
-          continue;
+        if (messageId == null) {
+          if (notification.tag == channelTag) {
+            continue;
+          }
         }
         if (pushMessageIsCoveredByAck(messageId, upToMessageId)) {
           covered.add(notification);
@@ -431,22 +556,6 @@ final class LocalPushNotifications {
     }
     if (unreadRemain) {
       return;
-    }
-    final AndroidFlutterLocalNotificationsPlugin? android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    if (android == null) {
-      return;
-    }
-    try {
-      await android.cancel(tag: channelTag, id: summaryId);
-    } on Object catch (e, st) {
-      if (kDebugMode) {
-        debugPrint(
-          '[LocalPushNotifications] cancel channel tag failed: $e\n$st',
-        );
-      }
     }
   }
 
@@ -488,12 +597,41 @@ final class LocalPushNotifications {
     if (!_initialized) {
       return;
     }
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await AndroidPushConversationHistoryStore.clearAll();
+    }
     try {
       await _plugin.cancelAll();
     } on Object catch (e, st) {
       if (kDebugMode) {
         debugPrint('[LocalPushNotifications] cancelAll failed: $e\n$st');
       }
+    }
+  }
+
+  Future<bool> _showAndroidConversationNotification({
+    required int notificationId,
+    required String displayTitle,
+    required String body,
+    required AndroidNotificationDetails androidDetails,
+    required String payloadJson,
+  }) async {
+    try {
+      await _plugin.show(
+        id: notificationId,
+        title: displayTitle,
+        body: body,
+        notificationDetails: NotificationDetails(android: androidDetails),
+        payload: payloadJson,
+      );
+      return true;
+    } on Object catch (e, st) {
+      if (kDebugMode) {
+        debugPrint(
+          '[LocalPushNotifications] conversation show failed: $e\n$st',
+        );
+      }
+      return false;
     }
   }
 
@@ -504,16 +642,14 @@ final class LocalPushNotifications {
         return;
       }
     }
-    final Set<String?> tags = <String?>{resolvePushDisplayTag(payload)};
     final String? channelId = resolvePushChannelId(payload);
-    final String? messageId = payload['message_id'];
-    if (channelId != null &&
-        channelId.isNotEmpty &&
-        messageId != null &&
-        messageId.isNotEmpty) {
-      tags.add('${buildChannelTag(channelId)}:$messageId');
+    if (channelId != null && channelId.isNotEmpty) {
+      await cancelForChannel(channelId, upToMessageId: payload['message_id']);
+      return;
     }
-    for (final int id in pushNotificationCancelIds(payload)) {
+    final Set<String?> tags = <String?>{resolvePushDisplayTag(payload)};
+    final Set<int> ids = <int>{...pushNotificationCancelIds(payload)};
+    for (final int id in ids) {
       for (final String? tag in tags) {
         try {
           await _plugin.cancel(id: id, tag: tag);
@@ -534,32 +670,7 @@ final class LocalPushNotifications {
     int? badgeCount,
     Map<String, String> payload = const <String, String>{},
   }) async {
-    final String? groupKey = resolvePushGroupTag(payload);
-    final String? messageTag = resolvePushDisplayTag(payload);
-    final int? whenMillis = resolvePushNotificationWhenMillis(payload);
     switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        final List<String?> images =
-            await Future.wait<String?>(<Future<String?>>[
-              _downloadOptional(
-                pushAuthorAvatarUrl(payload),
-                maxEdge: kPushAvatarMaxEdge,
-              ),
-              _downloadOptional(pushAttachmentImageUrl(payload)),
-            ]);
-        return NotificationDetails(
-          android: _androidMessageDetails(
-            title: title,
-            body: body,
-            payload: payload,
-            badgeCount: badgeCount,
-            groupKey: groupKey,
-            messageTag: messageTag,
-            whenMillis: whenMillis,
-            avatarPath: images[0],
-            imagePath: images[1],
-          ),
-        );
       case TargetPlatform.iOS:
         return NotificationDetails(
           iOS: DarwinNotificationDetails(
@@ -582,130 +693,8 @@ final class LocalPushNotifications {
         return const NotificationDetails(windows: WindowsNotificationDetails());
       case TargetPlatform.fuchsia:
         return const NotificationDetails();
-    }
-  }
-
-  NotificationDetails _notificationDetailsWithoutMedia({
-    required String title,
-    required String body,
-    required Map<String, String> payload,
-    int? badgeCount,
-  }) {
-    return NotificationDetails(
-      android: _androidMessageDetails(
-        title: title,
-        body: body,
-        payload: payload,
-        badgeCount: badgeCount,
-        groupKey: resolvePushGroupTag(payload),
-        messageTag: resolvePushDisplayTag(payload),
-        whenMillis: resolvePushNotificationWhenMillis(payload),
-      ),
-    );
-  }
-
-  AndroidNotificationDetails _androidMessageDetails({
-    required String title,
-    required String body,
-    required Map<String, String> payload,
-    required int? badgeCount,
-    required String? groupKey,
-    required String? messageTag,
-    required int? whenMillis,
-    String? avatarPath,
-    String? imagePath,
-  }) {
-    final AndroidNotificationSound? androidSound =
-        resolvePushNotificationAndroidSound(payload);
-    final FilePathAndroidBitmap? largeIcon = avatarPath == null
-        ? null
-        : FilePathAndroidBitmap(avatarPath);
-    final StyleInformation style = imagePath == null
-        ? BigTextStyleInformation(body)
-        : BigPictureStyleInformation(
-            FilePathAndroidBitmap(imagePath),
-            contentTitle: title,
-            summaryText: body,
-            hideExpandedLargeIcon: true,
-          );
-    return AndroidNotificationDetails(
-      androidPushChannelId(payload),
-      _androidChannelName(payload),
-      channelDescription: _kChannelDescription,
-      importance: Importance.high,
-      priority: Priority.high,
-      category: AndroidNotificationCategory.message,
-      icon: _androidNotificationIcon,
-      largeIcon: largeIcon,
-      styleInformation: style,
-      number: badgeCount,
-      groupKey: groupKey,
-      groupAlertBehavior: GroupAlertBehavior.children,
-      tag: messageTag,
-      sound: androidSound,
-      playSound: androidSound != null,
-      when: whenMillis,
-      showWhen: whenMillis != null,
-    );
-  }
-
-  bool _androidDetailsHaveMedia(NotificationDetails details) {
-    final AndroidNotificationDetails? android = details.android;
-    if (android == null) {
-      return false;
-    }
-    return android.largeIcon != null ||
-        android.styleInformation is BigPictureStyleInformation;
-  }
-
-  Future<void> _showAndroidGroupSummary({
-    required String title,
-    required String body,
-    required Map<String, String> payload,
-    required String payloadJson,
-  }) async {
-    if (defaultTargetPlatform != TargetPlatform.android) {
-      return;
-    }
-    final String? groupKey = resolvePushGroupTag(payload);
-    if (groupKey == null || groupKey.isEmpty) {
-      return;
-    }
-    final int? whenMillis = resolvePushNotificationWhenMillis(payload);
-    final String summaryTitle =
-        resolvePushConversationName(payload, title: title) ?? title;
-    try {
-      await _plugin.show(
-        id: pushGroupSummaryNotificationId(groupKey),
-        title: summaryTitle,
-        body: body,
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            androidPushChannelId(payload),
-            _androidChannelName(payload),
-            channelDescription: _kChannelDescription,
-            importance: Importance.high,
-            priority: Priority.high,
-            category: AndroidNotificationCategory.message,
-            icon: _androidNotificationIcon,
-            styleInformation: BigTextStyleInformation(body),
-            groupKey: groupKey,
-            setAsGroupSummary: true,
-            groupAlertBehavior: GroupAlertBehavior.children,
-            tag: groupKey,
-            playSound: false,
-            enableVibration: false,
-            silent: true,
-            when: whenMillis,
-            showWhen: whenMillis != null,
-          ),
-        ),
-        payload: payloadJson,
-      );
-    } on Object catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[LocalPushNotifications] group summary failed: $e\n$st');
-      }
+      case TargetPlatform.android:
+        return const NotificationDetails();
     }
   }
 

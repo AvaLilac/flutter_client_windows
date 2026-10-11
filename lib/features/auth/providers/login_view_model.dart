@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/core/providers/app_startup_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/push/push_account_lifecycle.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/talker.dart';
@@ -19,6 +18,7 @@ import 'package:fluxer_app/features/auth/domain/login_result.dart';
 import 'package:fluxer_app/features/auth/domain/mfa_challenge.dart';
 import 'package:fluxer_app/features/auth/domain/registration_result.dart';
 import 'package:fluxer_app/features/auth/providers/add_account_instance_guard_provider.dart';
+import 'package:fluxer_app/features/auth/providers/auth_instance_runtime_config_provider.dart';
 import 'package:fluxer_app/features/auth/providers/auth_providers.dart';
 import 'package:fluxer_app/features/auth/providers/ban_view_provider.dart';
 import 'package:fluxer_app/features/auth/providers/instance_selector_provider.dart';
@@ -392,7 +392,7 @@ class LoginViewModel extends _$LoginViewModel {
         return;
       }
       state = state.copyWith(showRegister: false, isLoggingIn: false);
-      if (ref.read(instanceRuntimeConfigProvider).usernameSignIn) {
+      if (ref.read(authInstanceRuntimeConfigProvider).usernameSignIn) {
         unawaited(_offerRecoveryKitAfterSignUp(password));
       }
     } on AuthFailure catch (error) {
@@ -668,7 +668,7 @@ class LoginViewModel extends _$LoginViewModel {
     }
 
     final bool usernameSignIn = ref
-        .read(instanceRuntimeConfigProvider)
+        .read(authInstanceRuntimeConfigProvider)
         .usernameSignIn;
     if (!usernameSignIn && !_emailRegex.hasMatch(state.email.trim())) {
       state = state.copyWith(

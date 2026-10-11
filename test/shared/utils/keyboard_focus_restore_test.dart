@@ -122,7 +122,7 @@ void main() {
     expect(handle.hasPendingRestore, isFalse);
   });
 
-  testWidgets('reconnects the keyboard when the field stays focused', (
+  testWidgets('does not restart the text input when the field stays focused', (
     tester,
   ) async {
     final FocusNode focusNode = FocusNode();
@@ -154,41 +154,7 @@ void main() {
     expect(handle.hasPendingRestore, isFalse);
     expect(
       tester.testTextInput.log.map((call) => call.method),
-      contains('TextInput.show'),
-    );
-  });
-
-  testWidgets('reconnectOpenField restores a focused connection', (
-    tester,
-  ) async {
-    final FocusNode focusNode = FocusNode();
-    addTearDown(focusNode.dispose);
-    final KeyboardFocusRestoreHandle handle = KeyboardFocusRestoreHandle(
-      focusNode: focusNode,
-      shouldTrackOnBackground: () => true,
-      canRestoreFocus: () => true,
-    );
-    addTearDown(handle.dispose);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: TextField(focusNode: focusNode)),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    focusNode.requestFocus();
-    await tester.pumpAndSettle();
-    tester.testTextInput.log.clear();
-
-    handle.reconnectOpenField();
-    await tester.pump();
-    await tester.pump();
-
-    expect(focusNode.hasFocus, isTrue);
-    expect(
-      tester.testTextInput.log.map((call) => call.method),
-      contains('TextInput.show'),
+      isNot(contains('TextInput.show')),
     );
   });
 
@@ -277,36 +243,7 @@ void main() {
     expect(isAppBackgroundLifecycleState(AppLifecycleState.resumed), isFalse);
   });
 
-  testWidgets('reconnectOpenField refocuses after unfocus nudge', (
-    tester,
-  ) async {
-    final FocusNode focusNode = FocusNode();
-    addTearDown(focusNode.dispose);
-    final KeyboardFocusRestoreHandle handle = KeyboardFocusRestoreHandle(
-      focusNode: focusNode,
-      shouldTrackOnBackground: () => true,
-      canRestoreFocus: () => true,
-    );
-    addTearDown(handle.dispose);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: TextField(focusNode: focusNode)),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    focusNode.requestFocus();
-    await tester.pumpAndSettle();
-    expect(focusNode.hasFocus, isTrue);
-
-    handle.reconnectOpenField();
-    await tester.pump();
-    await tester.pump();
-    expect(focusNode.hasFocus, isTrue);
-  });
-
-  testWidgets('cancelImeReconnect drops pending background restore', (
+  testWidgets('cancelPendingRestore drops pending background restore', (
     tester,
   ) async {
     final FocusNode focusNode = FocusNode();
@@ -333,7 +270,7 @@ void main() {
     await tester.pump();
     expect(handle.hasPendingRestore, isTrue);
 
-    handle.cancelImeReconnect();
+    handle.cancelPendingRestore();
     expect(handle.hasPendingRestore, isFalse);
   });
 }

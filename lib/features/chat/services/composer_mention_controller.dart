@@ -98,6 +98,12 @@ class ComposerMentionController extends InlineTokenTextEditingController {
 
   int _applyWireTextGeneration = 0;
 
+  void _endComposingForForcedApply(bool force) {
+    if (force && value.composing.isValid) {
+      super.value = value.copyWith(composing: TextRange.empty);
+    }
+  }
+
   /// Rebuilds the field from a wire string, re-chipping mentions, custom
   /// emoji, and registry-resolvable emoji (shortcodes, skin-tone forms, raw
   /// unicode). Unresolvable shortcodes stay literal text so typed colons like
@@ -111,6 +117,7 @@ class ComposerMentionController extends InlineTokenTextEditingController {
     }
     if (wire.isEmpty) {
       _applyWireTextGeneration++;
+      _endComposingForForcedApply(force);
       replaceWireDisplay(
         displayText: '',
         tokens: const <String, InlineToken>{},
@@ -136,6 +143,7 @@ class ComposerMentionController extends InlineTokenTextEditingController {
     if (!force && value.composing.isValid) {
       return;
     }
+    _endComposingForForcedApply(force);
     replaceWireDisplay(
       displayText: bundle.display,
       tokens: bundle.tokens,

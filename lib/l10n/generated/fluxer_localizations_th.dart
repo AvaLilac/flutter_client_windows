@@ -6620,34 +6620,41 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get doubleTapReactionEditSubtitle => 'เลือกอิโมจิแตะสองครั้ง';
 
   @override
-  String get messagesMediaDoubleTapSectionTitle => 'Double tap';
+  String get messagesMediaGesturesSectionTitle => 'Gestures';
 
   @override
-  String get messagesMediaDoubleTapSectionDescription =>
-      'Choose what happens when you double tap a message.';
+  String get messagesMediaGesturesSectionDescription =>
+      'Configure double tap on messages.';
 
   @override
-  String get messagesMediaDoubleTapActionLabel => 'Double tap action';
+  String get messagesMediaGesturesReactionLabel => 'Reaction emoji';
 
   @override
-  String get messagesMediaDoubleTapActionReactName => 'Add reaction';
+  String get messagesMediaGesturesReactionDescription =>
+      'Used when double tap is set to add a reaction.';
 
   @override
-  String get messagesMediaDoubleTapActionReactDescription =>
+  String get messagesMediaGesturesDoubleTapActionLabel => 'Double tap action';
+
+  @override
+  String get messagesMediaGesturesDoubleTapActionReactName => 'Add reaction';
+
+  @override
+  String get messagesMediaGesturesDoubleTapActionReactDescription =>
       'Adds your default double-tap emoji as a reaction.';
 
   @override
-  String get messagesMediaDoubleTapActionEditName => 'Edit message';
+  String get messagesMediaGesturesDoubleTapActionEditName => 'Edit message';
 
   @override
-  String get messagesMediaDoubleTapActionEditDescription =>
+  String get messagesMediaGesturesDoubleTapActionEditDescription =>
       'Opens the editor on messages you sent. Other messages are unchanged.';
 
   @override
-  String get messagesMediaDoubleTapActionNoneName => 'Nothing';
+  String get messagesMediaGesturesDoubleTapActionNoneName => 'Nothing';
 
   @override
-  String get messagesMediaDoubleTapActionNoneDescription =>
+  String get messagesMediaGesturesDoubleTapActionNoneDescription =>
       'Double tap is disabled.';
 
   @override
@@ -8821,6 +8828,12 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get userSettingsSearchNoResults => 'ไม่พบการตั้งค่า';
 
   @override
+  String get userSettingsCopyLinkToSection => 'Copy link to section';
+
+  @override
+  String get userSettingsCopyLinkToPage => 'Copy link to page';
+
+  @override
   String get userSettingsNavProfile => 'โปรไฟล์';
 
   @override
@@ -9921,6 +9934,20 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
       'เลือกไอคอนที่จะแสดงบนหน้าจอหลักของคุณ';
 
   @override
+  String get appIconSectionDescriptionAndroid =>
+      'Choose which icon appears on your home screen. Changing the icon restarts the app.';
+
+  @override
+  String get appIconAndroidChangeTitle => 'Change app icon?';
+
+  @override
+  String get appIconAndroidChangeDescription =>
+      'Fluxer will restart to apply the new home screen icon.';
+
+  @override
+  String get appIconAndroidChangeConfirm => 'Change icon';
+
+  @override
   String get appIconOptionDefault => 'ค่าเริ่มต้น';
 
   @override
@@ -10518,6 +10545,9 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get userSettingsJoinFluxerLabs => 'เข้าร่วม Fluxer Labs';
+
+  @override
+  String get userSettingsGiveFeedback => 'Give feedback';
 
   @override
   String get userSettingsNavAppLicenses => 'ใบอนุญาตแอป';
@@ -14839,5 +14869,94 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
       one: 'You can post again in 1 second.',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get voiceP2pStartTitle => 'Start in P2P mode?';
+
+  @override
+  String voiceP2pStartDescription(int maxParticipants) {
+    return 'Audio and video go directly between participants, with lower latency. Other participants can see your IP address. Up to $maxParticipants people can take part. Anyone who cannot connect directly cannot take part until someone switches to a standard call.';
+  }
+
+  @override
+  String get voiceP2pStartConfirm => 'Start in P2P mode';
+
+  @override
+  String get voiceP2pStartStandard => 'Start standard call';
+
+  @override
+  String get voiceP2pJoinTitle => 'Join a P2P call?';
+
+  @override
+  String voiceP2pJoinDescription(int maxParticipants) {
+    return 'This call connects participants directly. Other participants can see your IP address. Up to $maxParticipants people can take part. If you cannot connect directly, you cannot take part until someone switches to a standard call.';
+  }
+
+  @override
+  String voiceP2pPinnedJoinDescription(int maxParticipants) {
+    return 'This channel only allows P2P calls. Participants connect directly and can see your IP address. Up to $maxParticipants people can take part. If you cannot connect directly, you cannot take part.';
+  }
+
+  @override
+  String get voiceP2pJoinConfirm => 'Join';
+
+  @override
+  String get voiceP2pAlwaysAgreeLabel => 'Do not ask again, always agree';
+
+  @override
+  String get voiceP2pAlwaysAgreeSettingLabel =>
+      'Always agree to join P2P calls';
+
+  @override
+  String get voiceP2pAlwaysAgreeSettingDescription =>
+      'Join P2P calls without asking. Other participants can see your IP address.';
+
+  @override
+  String get voiceP2pIndicatorLabel => 'P2P';
+
+  @override
+  String get voiceP2pIndicatorDescription =>
+      'Direct connection. Media is encrypted between participants.';
+
+  @override
+  String get voiceP2pSwitchToStandard => 'Switch to standard call';
+
+  @override
+  String get voiceP2pSwitchToStandardDescription =>
+      'Everyone in the call moves to a standard call through the server.';
+
+  @override
+  String get voiceP2pPeerFailedDescription =>
+      'A direct connection could not be made. Leave the call or switch everyone to a standard call.';
+
+  @override
+  String get voiceP2pUnavailableError => 'P2P calls are unavailable right now.';
+
+  @override
+  String get voiceP2pConsentRequiredError =>
+      'This call is P2P and needs your agreement to join.';
+
+  @override
+  String get voiceChannelFullError => 'This call is full.';
+
+  @override
+  String get voiceP2pScreenShareUnavailable =>
+      'Screen sharing from this device is not available in P2P calls.';
+
+  @override
+  String get channelMenuJoinP2p => 'Start P2P call';
+
+  @override
+  String get channelSettingsRtcP2pLabel => 'P2P calls only';
+
+  @override
+  String channelSettingsRtcP2pDescription(int maxParticipants) {
+    return 'Participants connect directly and can see each other\'s IP addresses. Everyone must agree before joining. Up to $maxParticipants people can take part.';
+  }
+
+  @override
+  String voiceP2pPeerFailedTitle(String name) {
+    return 'Cannot connect directly to $name';
   }
 }

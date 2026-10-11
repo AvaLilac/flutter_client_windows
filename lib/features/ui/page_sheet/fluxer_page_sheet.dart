@@ -43,6 +43,7 @@ class FluxerPageSheet {
     BuildContext context, {
     required FluxerScrollablePageSheetBuilder builder,
     String? title,
+    Widget? titleTrailing,
     Color? backgroundColor,
     Color? foregroundColor,
     FluxerPageSheetPresentation presentation =
@@ -56,6 +57,7 @@ class FluxerPageSheet {
           context,
           builder: builder,
           title: title,
+          titleTrailing: titleTrailing,
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
           presentation: presentation,
@@ -67,6 +69,7 @@ class FluxerPageSheet {
         context,
         builder: builder,
         title: title,
+        titleTrailing: titleTrailing,
         backgroundColor: backgroundColor,
         foregroundColor: foregroundColor,
         presentation: presentation,
@@ -82,6 +85,7 @@ class FluxerPageSheet {
     required FluxerPageSheetPresentation presentation,
     required bool useRootNavigator,
     String? title,
+    Widget? titleTrailing,
     Color? backgroundColor,
     Color? foregroundColor,
     ValueNotifier<bool>? canDismissNotifier,
@@ -92,6 +96,7 @@ class FluxerPageSheet {
         context,
         builder: builder,
         title: title,
+        titleTrailing: titleTrailing,
         backgroundColor: backgroundColor,
         foregroundColor: foregroundColor,
         presentation: presentation,
@@ -119,6 +124,7 @@ class FluxerPageSheet {
               canDismissNotifier: canDismissNotifier,
               child: _FluxerPageSheetScaffold(
                 title: title,
+                titleTrailing: titleTrailing,
                 backgroundColor: backgroundColor,
                 foregroundColor: foregroundColor,
                 presentation: presentation,
@@ -135,6 +141,7 @@ class FluxerPageSheet {
     required FluxerScrollablePageSheetBuilder builder,
     required FluxerPageSheetPresentation presentation,
     String? title,
+    Widget? titleTrailing,
     Color? backgroundColor,
     Color? foregroundColor,
     ValueNotifier<bool>? canDismissNotifier,
@@ -145,6 +152,7 @@ class FluxerPageSheet {
           return _FluxerPageSheetScrollableHost<T>(
             builder: builder,
             title: title,
+            titleTrailing: titleTrailing,
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             presentation: presentation,
@@ -161,6 +169,7 @@ class FluxerPageSheet {
     required FluxerPageSheetPresentation presentation,
     required bool useRootNavigator,
     String? title,
+    Widget? titleTrailing,
     Color? backgroundColor,
     Color? foregroundColor,
     ValueNotifier<bool>? canDismissNotifier,
@@ -172,6 +181,7 @@ class FluxerPageSheet {
           return _FluxerPageSheetScrollableHost<T>(
             builder: builder,
             title: title,
+            titleTrailing: titleTrailing,
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             presentation: presentation,
@@ -188,6 +198,7 @@ class _FluxerPageSheetScrollableHost<T> extends StatefulWidget {
     required this.builder,
     required this.presentation,
     this.title,
+    this.titleTrailing,
     this.backgroundColor,
     this.foregroundColor,
     this.canDismissNotifier,
@@ -195,6 +206,7 @@ class _FluxerPageSheetScrollableHost<T> extends StatefulWidget {
 
   final FluxerScrollablePageSheetBuilder builder;
   final String? title;
+  final Widget? titleTrailing;
   final Color? backgroundColor;
   final Color? foregroundColor;
   final FluxerPageSheetPresentation presentation;
@@ -223,6 +235,7 @@ class _FluxerPageSheetScrollableHostState<T>
       canDismissNotifier: widget.canDismissNotifier,
       child: _FluxerPageSheetScaffold(
         title: widget.title,
+        titleTrailing: widget.titleTrailing,
         backgroundColor: widget.backgroundColor,
         foregroundColor: widget.foregroundColor,
         presentation: widget.presentation,
@@ -239,11 +252,13 @@ class _FluxerPageSheetScaffold extends StatelessWidget {
     required this.onClose,
     required this.child,
     this.title,
+    this.titleTrailing,
     this.backgroundColor,
     this.foregroundColor,
   });
 
   final String? title;
+  final Widget? titleTrailing;
   final Color? backgroundColor;
   final Color? foregroundColor;
   final FluxerPageSheetPresentation presentation;
@@ -265,7 +280,14 @@ class _FluxerPageSheetScaffold extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: title == null ? null : Text(title!),
+        title: title == null && titleTrailing == null
+            ? null
+            : Row(
+                children: [
+                  if (title != null) Expanded(child: Text(title!)),
+                  ?titleTrailing,
+                ],
+              ),
         leading: IconButton(
           icon: PhosphorIcon(
             isRoot ? PhosphorIconsBold.x : PhosphorIconsBold.arrowLeft,

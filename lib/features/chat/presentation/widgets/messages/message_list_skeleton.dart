@@ -11,11 +11,13 @@ import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 class MessageListMismatchPlaceholder extends StatelessWidget {
-  const MessageListMismatchPlaceholder({super.key});
+  const MessageListMismatchPlaceholder({required this.channelId, super.key});
+
+  final String channelId;
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(color: context.colors.chatBackground);
+    return MessageListSkeleton(channelId: channelId);
   }
 }
 

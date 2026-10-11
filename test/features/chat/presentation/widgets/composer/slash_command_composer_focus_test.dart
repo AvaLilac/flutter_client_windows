@@ -72,7 +72,7 @@ void main() {
     expect(slotFocus.hasFocus, isTrue);
     expect(
       tester.testTextInput.log.map((call) => call.method),
-      contains('TextInput.show'),
+      isNot(contains('TextInput.show')),
     );
   });
 }

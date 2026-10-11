@@ -53,7 +53,7 @@ void main() {
       );
     });
 
-    test('uses focus when a tile is pinned', () {
+    test('uses pinned grid when a tile is pinned in grid mode', () {
       expect(
         resolveVoiceCallVisualLayout(
           isFocusMode: false,
@@ -61,7 +61,7 @@ void main() {
           tileCount: 2,
           visibleTileCount: 9,
         ),
-        VoiceCallVisualLayout.focus,
+        VoiceCallVisualLayout.pinnedGrid,
       );
     });
 

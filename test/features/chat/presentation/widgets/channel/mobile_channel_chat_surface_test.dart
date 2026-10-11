@@ -191,7 +191,7 @@ void main() {
         await tester.pump();
 
         expect(find.byType(MessageListMismatchPlaceholder), findsOneWidget);
-        expect(find.byType(MessageListSkeleton), findsNothing);
+        expect(find.byType(MessageListSkeleton), findsOneWidget);
         expect(find.text('After sync'), findsNothing);
 
         chatViewModel.harnessState = _loadedState(

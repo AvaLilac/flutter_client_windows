@@ -8422,40 +8422,48 @@
     "@doubleTapReactionEditSubtitle": {
         "description": "Subtitle of the double-tap default emoji picker sheet."
     },
-    "messagesMediaDoubleTapSectionTitle": "Double tap",
-    "@messagesMediaDoubleTapSectionTitle": {
-        "description": "Title for double-tap message action settings on mobile."
+    "messagesMediaGesturesSectionTitle": "Gestures",
+    "@messagesMediaGesturesSectionTitle": {
+        "description": "Title for message gesture settings on mobile."
     },
-    "messagesMediaDoubleTapSectionDescription": "Choose what happens when you double tap a message.",
-    "@messagesMediaDoubleTapSectionDescription": {
-        "description": "Description for double-tap message action settings on mobile."
+    "messagesMediaGesturesSectionDescription": "Configure double tap on messages.",
+    "@messagesMediaGesturesSectionDescription": {
+        "description": "Description for message gesture settings on mobile."
     },
-    "messagesMediaDoubleTapActionLabel": "Double tap action",
-    "@messagesMediaDoubleTapActionLabel": {
+    "messagesMediaGesturesReactionLabel": "Reaction emoji",
+    "@messagesMediaGesturesReactionLabel": {
+        "description": "Label for choosing the default double-tap reaction emoji."
+    },
+    "messagesMediaGesturesReactionDescription": "Used when double tap is set to add a reaction.",
+    "@messagesMediaGesturesReactionDescription": {
+        "description": "Help text for the double-tap reaction emoji setting."
+    },
+    "messagesMediaGesturesDoubleTapActionLabel": "Double tap action",
+    "@messagesMediaGesturesDoubleTapActionLabel": {
         "description": "Label for the double-tap action radio group."
     },
-    "messagesMediaDoubleTapActionReactName": "Add reaction",
-    "@messagesMediaDoubleTapActionReactName": {
+    "messagesMediaGesturesDoubleTapActionReactName": "Add reaction",
+    "@messagesMediaGesturesDoubleTapActionReactName": {
         "description": "Double tap adds the default reaction emoji."
     },
-    "messagesMediaDoubleTapActionReactDescription": "Adds your default double-tap emoji as a reaction.",
-    "@messagesMediaDoubleTapActionReactDescription": {
+    "messagesMediaGesturesDoubleTapActionReactDescription": "Adds your default double-tap emoji as a reaction.",
+    "@messagesMediaGesturesDoubleTapActionReactDescription": {
         "description": "Help text for the react double-tap action."
     },
-    "messagesMediaDoubleTapActionEditName": "Edit message",
-    "@messagesMediaDoubleTapActionEditName": {
+    "messagesMediaGesturesDoubleTapActionEditName": "Edit message",
+    "@messagesMediaGesturesDoubleTapActionEditName": {
         "description": "Double tap edits your own message."
     },
-    "messagesMediaDoubleTapActionEditDescription": "Opens the editor on messages you sent. Other messages are unchanged.",
-    "@messagesMediaDoubleTapActionEditDescription": {
+    "messagesMediaGesturesDoubleTapActionEditDescription": "Opens the editor on messages you sent. Other messages are unchanged.",
+    "@messagesMediaGesturesDoubleTapActionEditDescription": {
         "description": "Help text for the edit double-tap action."
     },
-    "messagesMediaDoubleTapActionNoneName": "Nothing",
-    "@messagesMediaDoubleTapActionNoneName": {
+    "messagesMediaGesturesDoubleTapActionNoneName": "Nothing",
+    "@messagesMediaGesturesDoubleTapActionNoneName": {
         "description": "Double tap does nothing."
     },
-    "messagesMediaDoubleTapActionNoneDescription": "Double tap is disabled.",
-    "@messagesMediaDoubleTapActionNoneDescription": {
+    "messagesMediaGesturesDoubleTapActionNoneDescription": "Double tap is disabled.",
+    "@messagesMediaGesturesDoubleTapActionNoneDescription": {
         "description": "Help text for the none double-tap action."
     },
     "chatMessageEdit": "Edit message",
@@ -11277,6 +11285,14 @@
     "@userSettingsSearchNoResults": {
         "description": "Empty state shown when user settings search has no matches."
     },
+    "userSettingsCopyLinkToSection": "Copy link to section",
+    "@userSettingsCopyLinkToSection": {
+        "description": "Tooltip and accessibility label for copying a deep link to a settings section."
+    },
+    "userSettingsCopyLinkToPage": "Copy link to page",
+    "@userSettingsCopyLinkToPage": {
+        "description": "Tooltip and accessibility label for copying a deep link to a settings page."
+    },
     "userSettingsNavProfile": "Profile",
     "@userSettingsNavProfile": {
         "description": "User settings navigation item for profile settings."
@@ -12253,6 +12269,22 @@
     "@appIconSectionDescription": {
         "description": "Description for the app icon settings section."
     },
+    "appIconSectionDescriptionAndroid": "Choose which icon appears on your home screen. Changing the icon restarts the app.",
+    "@appIconSectionDescriptionAndroid": {
+        "description": "Description for the app icon settings section on Android."
+    },
+    "appIconAndroidChangeTitle": "Change app icon?",
+    "@appIconAndroidChangeTitle": {
+        "description": "Title for the confirmation sheet before changing the app icon on Android."
+    },
+    "appIconAndroidChangeDescription": "Fluxer will restart to apply the new home screen icon.",
+    "@appIconAndroidChangeDescription": {
+        "description": "Body for the confirmation sheet before changing the app icon on Android."
+    },
+    "appIconAndroidChangeConfirm": "Change icon",
+    "@appIconAndroidChangeConfirm": {
+        "description": "Confirm button for changing the app icon on Android."
+    },
     "appIconOptionDefault": "Default",
     "@appIconOptionDefault": {
         "description": "App icon option for the build default icon (release or canary)."
@@ -12509,6 +12541,10 @@
     "userSettingsJoinFluxerLabs": "Join Fluxer Labs",
     "@userSettingsJoinFluxerLabs": {
         "description": "User settings What's New action to join the Fluxer Labs community."
+    },
+    "userSettingsGiveFeedback": "Give feedback",
+    "@userSettingsGiveFeedback": {
+        "description": "User settings navigation action to open the Fluxer feedback site."
     },
     "userSettingsNavAppLicenses": "App licenses",
     "@userSettingsNavAppLicenses": {
@@ -17575,6 +17611,127 @@
         "placeholders": {
             "seconds": {
                 "type": "int"
+            }
+        }
+    },
+    "voiceP2pStartTitle": "Start in P2P mode?",
+    "@voiceP2pStartTitle": {
+        "description": "Title of the sheet offering to start a call in P2P mode."
+    },
+    "voiceP2pStartDescription": "Audio and video go directly between participants, with lower latency. Other participants can see your IP address. Up to {maxParticipants} people can take part. Anyone who cannot connect directly cannot take part until someone switches to a standard call.",
+    "@voiceP2pStartDescription": {
+        "description": "Explains the costs of starting a P2P call. maxParticipants is the participant cap, for example 4.",
+        "placeholders": {
+            "maxParticipants": {
+                "type": "int"
+            }
+        }
+    },
+    "voiceP2pStartConfirm": "Start in P2P mode",
+    "@voiceP2pStartConfirm": {
+        "description": "Button that starts a call in P2P mode."
+    },
+    "voiceP2pStartStandard": "Start standard call",
+    "@voiceP2pStartStandard": {
+        "description": "Button that starts an ordinary call through the server."
+    },
+    "voiceP2pJoinTitle": "Join a P2P call?",
+    "@voiceP2pJoinTitle": {
+        "description": "Title of the sheet asking for agreement before joining a P2P call."
+    },
+    "voiceP2pJoinDescription": "This call connects participants directly. Other participants can see your IP address. Up to {maxParticipants} people can take part. If you cannot connect directly, you cannot take part until someone switches to a standard call.",
+    "@voiceP2pJoinDescription": {
+        "description": "Explains the costs of joining a P2P call. maxParticipants is the participant cap, for example 4.",
+        "placeholders": {
+            "maxParticipants": {
+                "type": "int"
+            }
+        }
+    },
+    "voiceP2pPinnedJoinDescription": "This channel only allows P2P calls. Participants connect directly and can see your IP address. Up to {maxParticipants} people can take part. If you cannot connect directly, you cannot take part.",
+    "@voiceP2pPinnedJoinDescription": {
+        "description": "Explains the costs of joining a channel that only allows P2P calls. maxParticipants is the participant cap, for example 4.",
+        "placeholders": {
+            "maxParticipants": {
+                "type": "int"
+            }
+        }
+    },
+    "voiceP2pJoinConfirm": "Join",
+    "@voiceP2pJoinConfirm": {
+        "description": "Button that agrees to join a P2P call."
+    },
+    "voiceP2pAlwaysAgreeLabel": "Do not ask again, always agree",
+    "@voiceP2pAlwaysAgreeLabel": {
+        "description": "Checkbox on the P2P join sheet that skips the sheet in future."
+    },
+    "voiceP2pAlwaysAgreeSettingLabel": "Always agree to join P2P calls",
+    "@voiceP2pAlwaysAgreeSettingLabel": {
+        "description": "Settings toggle that skips the P2P join agreement."
+    },
+    "voiceP2pAlwaysAgreeSettingDescription": "Join P2P calls without asking. Other participants can see your IP address.",
+    "@voiceP2pAlwaysAgreeSettingDescription": {
+        "description": "Description of the setting that skips the P2P join agreement."
+    },
+    "voiceP2pIndicatorLabel": "P2P",
+    "@voiceP2pIndicatorLabel": {
+        "description": "Short label shown while a call is in P2P mode."
+    },
+    "voiceP2pIndicatorDescription": "Direct connection. Media is encrypted between participants.",
+    "@voiceP2pIndicatorDescription": {
+        "description": "Status line shown while a call is in P2P mode."
+    },
+    "voiceP2pSwitchToStandard": "Switch to standard call",
+    "@voiceP2pSwitchToStandard": {
+        "description": "Action that moves a P2P call to the server for everyone."
+    },
+    "voiceP2pSwitchToStandardDescription": "Everyone in the call moves to a standard call through the server.",
+    "@voiceP2pSwitchToStandardDescription": {
+        "description": "Explains what switching a P2P call to a standard call does."
+    },
+    "voiceP2pPeerFailedDescription": "A direct connection could not be made. Leave the call or switch everyone to a standard call.",
+    "@voiceP2pPeerFailedDescription": {
+        "description": "Shown on a participant tile when a direct connection failed."
+    },
+    "voiceP2pUnavailableError": "P2P calls are unavailable right now.",
+    "@voiceP2pUnavailableError": {
+        "description": "Shown when the server rejects a P2P call."
+    },
+    "voiceP2pConsentRequiredError": "This call is P2P and needs your agreement to join.",
+    "@voiceP2pConsentRequiredError": {
+        "description": "Shown when the server rejects a join because P2P agreement is missing."
+    },
+    "voiceChannelFullError": "This call is full.",
+    "@voiceChannelFullError": {
+        "description": "Shown when the server rejects a join because the call is full."
+    },
+    "voiceP2pScreenShareUnavailable": "Screen sharing from this device is not available in P2P calls.",
+    "@voiceP2pScreenShareUnavailable": {
+        "description": "Explains why the screen share button is disabled in a P2P call."
+    },
+    "channelMenuJoinP2p": "Start P2P call",
+    "@channelMenuJoinP2p": {
+        "description": "Voice channel menu item that starts a call in P2P mode."
+    },
+    "channelSettingsRtcP2pLabel": "P2P calls only",
+    "@channelSettingsRtcP2pLabel": {
+        "description": "Channel setting that makes every call in the channel a P2P call."
+    },
+    "channelSettingsRtcP2pDescription": "Participants connect directly and can see each other's IP addresses. Everyone must agree before joining. Up to {maxParticipants} people can take part.",
+    "@channelSettingsRtcP2pDescription": {
+        "description": "Description of the P2P calls only channel setting. maxParticipants is the participant cap, for example 4.",
+        "placeholders": {
+            "maxParticipants": {
+                "type": "int"
+            }
+        }
+    },
+    "voiceP2pPeerFailedTitle": "Cannot connect directly to {name}",
+    "@voiceP2pPeerFailedTitle": {
+        "description": "Shown on a participant tile when a direct connection to them failed.",
+        "placeholders": {
+            "name": {
+                "type": "String"
             }
         }
     }

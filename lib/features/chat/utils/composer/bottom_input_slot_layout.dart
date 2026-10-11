@@ -110,6 +110,7 @@ bool shouldClearUnmeasuredKeyboardReservation({
   required double mergedHeight,
   required bool hadKeyboardInsetWhileReserved,
   bool composerEntryFocused = false,
+  bool nativeKeyboardVisible = false,
 }) {
   if (!unmeasuredKeyboardReserved) {
     return false;
@@ -118,6 +119,9 @@ bool shouldClearUnmeasuredKeyboardReservation({
     return true;
   }
   if (previousLiveHeight > 0 && mergedHeight <= 0) {
+    if (!nativeKeyboardVisible) {
+      return true;
+    }
     return !composerEntryFocused;
   }
   if (composerEntryFocused) {
@@ -240,6 +244,21 @@ double resolveTransitionLockHeight({
   required double anchorHeight,
 }) {
   return math.max(liveKeyboardHeight, anchorHeight);
+}
+
+double resolveKeyboardSpacerRawHeight({
+  required double viewInsetBottom,
+  required double slotHeight,
+  required bool keyboardLayoutActive,
+}) {
+  if (!keyboardLayoutActive) {
+    if (viewInsetBottom <= 0) {
+      return 0;
+    }
+    return viewInsetBottom;
+  }
+  final double resolved = math.max(viewInsetBottom, slotHeight);
+  return resolved > 0 ? resolved : 0;
 }
 
 bool hasKeyboardFullyDismissed({

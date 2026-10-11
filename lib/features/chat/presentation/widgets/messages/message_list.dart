@@ -72,7 +72,6 @@ import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/chat/providers/core/message_pagination_coordinator.dart';
 import 'package:fluxer_app/features/chat/providers/messages/channel_spoiler_sync_provider.dart';
 import 'package:fluxer_app/features/chat/providers/messages/spoiler_reveal_provider.dart';
-import 'package:fluxer_app/features/chat/providers/pickers/bottom_input_slot_provider.dart';
 import 'package:fluxer_app/features/chat/utils/messages/channel_message_stream.dart';
 import 'package:fluxer_app/features/chat/utils/messages/message_action_permissions.dart';
 import 'package:fluxer_app/features/chat/utils/messages/message_grouping_utils.dart';
@@ -607,7 +606,7 @@ class _MessageListState extends ConsumerState<MessageList>
           channelId: channelId,
           messages: messages,
         )) {
-      return const MessageListMismatchPlaceholder();
+      return MessageListMismatchPlaceholder(channelId: expectedChannelId);
     }
     final String? stickyUnreadId = ref.watch(
       chatViewModelProvider.select(
@@ -830,13 +829,7 @@ class _MessageListState extends ConsumerState<MessageList>
         }
       });
     }
-    // Rebuild when the view or composer slot changes height.
     MediaQuery.sizeOf(context);
-    ref.watch(
-      bottomInputSlotProvider.select(
-        (BottomInputSlotState slot) => slot.slotHeight,
-      ),
-    );
     final int unreadCount = unreadSummary.displayUnreadCount;
     final bool viewportNearTail = ref.watch(
       chatReadViewportProvider.select(
@@ -1786,6 +1779,10 @@ class _MessageListState extends ConsumerState<MessageList>
     if (_liveTailFollowAnimated && entranceMessageIds.isNotEmpty) {
       _armLiveTailEntrance(entranceMessageIds);
     }
+    final List<Message> messages = ref.read(chatViewModelProvider).messages;
+    if (messages.isNotEmpty) {
+      _tailGlueRowId = messages.last.id;
+    }
     _schedulePinnedTailGlue();
   }
 
@@ -2135,7 +2132,10 @@ class _MessageListState extends ConsumerState<MessageList>
       if (_liveTailFollowAnimated &&
           _tailFollowOwnsScroll() &&
           position is MessageListScrollPosition) {
-        position.followTailTo(tail);
+        position.followTailTo(
+          tail,
+          resolveTarget: () => _loadedTailExtent(position),
+        );
         return;
       }
       position.jumpTo(tail);
@@ -2147,7 +2147,10 @@ class _MessageListState extends ConsumerState<MessageList>
     if (_liveTailFollowAnimated &&
         _tailFollowOwnsScroll() &&
         position is MessageListScrollPosition) {
-      position.followTailTo(tail);
+      position.followTailTo(
+        tail,
+        resolveTarget: () => _loadedTailExtent(position),
+      );
       return;
     }
     position.jumpTo(tail);
@@ -2876,7 +2879,7 @@ class _MessageListState extends ConsumerState<MessageList>
       if (extentGrew || extentShrank) {
         if (_suppressPinnedTailReconcileExtentChanges > 0) {
           _suppressPinnedTailReconcileExtentChanges -= 1;
-        } else if (_tailGlueRowId != null) {
+        } else {
           _reconcilePinnedLiveTailScroll();
         }
       }
@@ -3231,6 +3234,10 @@ class _MessageListState extends ConsumerState<MessageList>
       _pinnedTailGlueIgnorePin = _pinnedTailGlueIgnorePin || ignorePin;
       return;
     }
+    final List<Message> messages = ref.read(chatViewModelProvider).messages;
+    if (messages.isNotEmpty) {
+      _tailGlueRowId = messages.last.id;
+    }
     _pinnedTailGlueScheduled = true;
     _pinnedTailGlueIgnorePin = ignorePin;
     final int glueEpoch = _uiEpoch;
@@ -3286,6 +3293,7 @@ class _MessageListState extends ConsumerState<MessageList>
     }
     tailPosition.followTailTo(
       tail,
+      resolveTarget: () => _loadedTailExtent(position),
       onComplete: () {
         if (mounted) {
           _finishTailGlueSideEffects();

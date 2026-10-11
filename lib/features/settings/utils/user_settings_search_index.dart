@@ -399,9 +399,22 @@ final List<_UserSettingsSearchOption> _userSettingsSearchOptions = [
   _UserSettingsSearchOption(
     id: 'chat:double-tap-action',
     section: UserSettingsSection.chat,
-    fieldId: 'media',
-    label: _l((l10n) => l10n.messagesMediaDoubleTapActionLabel),
-    keywords: [_l((l10n) => l10n.messagesMediaDoubleTapSectionTitle)],
+    fieldId: 'gestures',
+    label: _l((l10n) => l10n.messagesMediaGesturesDoubleTapActionLabel),
+    keywords: [
+      _l((l10n) => l10n.messagesMediaGesturesSectionTitle),
+      _l((l10n) => l10n.doubleTapReactionEditSubtitle),
+    ],
+  ),
+  _UserSettingsSearchOption(
+    id: 'chat:double-tap-reaction',
+    section: UserSettingsSection.chat,
+    fieldId: 'gestures',
+    label: _l((l10n) => l10n.messagesMediaGesturesReactionLabel),
+    keywords: [
+      _l((l10n) => l10n.messagesMediaGesturesSectionTitle),
+      _l((l10n) => l10n.doubleTapReactionEditTitle),
+    ],
   ),
   _UserSettingsSearchOption(
     id: 'chat:expression-autocomplete',

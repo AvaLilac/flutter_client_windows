@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fluxer_app/core/push/android_push_conversation_notification.dart';
 import 'package:fluxer_app/core/push/push_notification_payload.dart';
 
 void main() {
@@ -91,6 +92,12 @@ void main() {
         }),
         'channel:dm-9',
       );
+    });
+  });
+
+  group('resolvePushSenderName', () {
+    test('matches conversation title parsing for guild messages', () {
+      expect(resolvePushSenderName('Alice (#general, My Server)'), 'Alice');
     });
   });
 

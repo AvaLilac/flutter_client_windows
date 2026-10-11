@@ -10,17 +10,18 @@ class ComposerTextSession {
   ComposerTextSession({
     required this._ref,
     required this._controller,
-    required this._focusNode,
+    required this.focusNode,
   });
 
   final WidgetRef _ref;
   final ComposerMentionController _controller;
-  final FocusNode _focusNode;
+  FocusNode focusNode;
 
   bool _isApplyingWireText = false;
   bool _suppressControllerToStateSync = false;
   bool _disposed = false;
   int _channelApplyGeneration = 0;
+  int _wireApplyGeneration = 0;
   String? _lastWireTextPushedToState;
   Timer? _wireSyncDebounceTimer;
   String? _wireSyncPendingWire;
@@ -30,6 +31,7 @@ class ComposerTextSession {
   void dispose() {
     _disposed = true;
     _channelApplyGeneration++;
+    _wireApplyGeneration++;
     _wireSyncDebounceTimer?.cancel();
     _wireSyncDebounceTimer = null;
     _wireSyncPendingWire = null;
@@ -58,7 +60,7 @@ class ComposerTextSession {
     if (_isApplyingWireText) {
       return;
     }
-    if (_focusNode.hasFocus && _controller.value.composing.isValid) {
+    if (focusNode.hasFocus && _controller.value.composing.isValid) {
       return;
     }
     final String wire = stripPrivateUseCharacters(
@@ -84,7 +86,7 @@ class ComposerTextSession {
   }
 
   bool _shouldDeferComposerStateWriteBack(String wireFromState) {
-    if (!_focusNode.hasFocus) {
+    if (!focusNode.hasFocus) {
       return false;
     }
     final String localWire = stripPrivateUseCharacters(
@@ -119,6 +121,7 @@ class ComposerTextSession {
     if (_disposed) {
       return;
     }
+    _wireApplyGeneration++;
     _wireSyncDebounceTimer?.cancel();
     _wireSyncPendingWire = null;
     _suppressControllerToStateSync = true;
@@ -140,17 +143,23 @@ class ComposerTextSession {
   }
 
   Future<void> applyWireTextFromState(String wire, {bool force = false}) async {
-    if (!force && _focusNode.hasFocus && _controller.value.composing.isValid) {
+    if (!force && focusNode.hasFocus && _controller.value.composing.isValid) {
       return;
     }
+    final int generation = ++_wireApplyGeneration;
     _isApplyingWireText = true;
     try {
       await _controller
           .applyWireText(wire, force: force)
           .timeout(const Duration(seconds: 1), onTimeout: () {});
+      if (_disposed || generation != _wireApplyGeneration) {
+        return;
+      }
       _lastWireTextPushedToState = wire;
     } finally {
-      _isApplyingWireText = false;
+      if (generation == _wireApplyGeneration) {
+        _isApplyingWireText = false;
+      }
     }
   }
 

@@ -45,6 +45,7 @@ UserSettingsDeepLinkPresentation buildUserSettingsDeepLinkPresentation({
       : iconForUserSettingsSection(
               target.section!,
               showBilling: showBilling,
+              showGiveFeedback: false,
               showJoinFluxerLabs: false,
               isTouchPrimary: isTouchPrimary,
             ) ??

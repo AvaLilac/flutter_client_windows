@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/auth/domain/login_error.dart';
 import 'package:fluxer_app/features/auth/presentation/sheets/instance_selector_sheet.dart';
@@ -10,6 +9,7 @@ import 'package:fluxer_app/features/auth/presentation/widgets/auth_form_error_te
 import 'package:fluxer_app/features/auth/presentation/widgets/instance_selector.dart';
 import 'package:fluxer_app/features/auth/presentation/widgets/offline_account_switcher_link.dart';
 import 'package:fluxer_app/features/auth/presentation/widgets/sso_button.dart';
+import 'package:fluxer_app/features/auth/providers/auth_instance_runtime_config_provider.dart';
 import 'package:fluxer_app/features/auth/providers/auth_instance_snapshot_provider.dart';
 import 'package:fluxer_app/features/auth/providers/instance_selector_provider.dart';
 import 'package:fluxer_app/features/auth/providers/login_error_l10n.dart';
@@ -183,10 +183,14 @@ class _LoginFormState extends ConsumerState<LoginForm>
         .watch(authInstanceSnapshotProvider)
         .ssoConfig;
     final bool emailsEnabled = ref.watch(
-      instanceRuntimeConfigProvider.select((config) => config.emailsEnabled),
+      authInstanceRuntimeConfigProvider.select(
+        (config) => config.emailsEnabled,
+      ),
     );
     final bool usernameSignIn = ref.watch(
-      instanceRuntimeConfigProvider.select((config) => config.usernameSignIn),
+      authInstanceRuntimeConfigProvider.select(
+        (config) => config.usernameSignIn,
+      ),
     );
     final String ssoProviderName = ssoConfig?.displayName ?? 'Single Sign-On';
 

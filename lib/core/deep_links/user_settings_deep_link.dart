@@ -1,6 +1,7 @@
 import 'package:fluxer_app/core/build/app_build_config.dart';
 import 'package:fluxer_app/core/deep_links/deep_link_path_policy.dart';
 import 'package:fluxer_app/features/settings/domain/user_settings_section.dart';
+import 'package:fluxer_app/features/settings/utils/user_settings_deep_link_scope.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_field_registry.dart';
 
 final RegExp _safeSettingsParamRegex = RegExp(r'^[A-Za-z0-9_-]+$');
@@ -28,6 +29,8 @@ const Set<String> _userSettingsTabTypes = {
   'language',
   'shortcuts',
   'linked_accounts',
+  'default_apps',
+  'app_icon',
 };
 
 class UserSettingsDeepLinkTarget {
@@ -223,7 +226,87 @@ UserSettingsSection? mapUserSettingsDeepLinkToSection(
         return null;
       }
       return UserSettingsSection.developerTools;
+    case 'default_apps':
+      return UserSettingsSection.defaultApps;
+    case 'app_icon':
+      return UserSettingsSection.appIcon;
     default:
       return null;
   }
+}
+
+bool _isAccountNestedSettingsTab(String tab) {
+  switch (tab) {
+    case 'authorized_apps':
+    case 'blocked_users':
+    case 'devices':
+      return true;
+    default:
+      return false;
+  }
+}
+
+String buildUserSettingsDeepLink(String tabType, [String? sectionId]) {
+  final String? accountSection =
+      _accountSectionForNestedTab(tabType) ??
+      _accountSectionForLegacySection(sectionId);
+  final bool shouldUseAccountTab =
+      accountSection != null || _isAccountNestedSettingsTab(tabType);
+  final String resolvedTab = shouldUseAccountTab ? 'account_security' : tabType;
+  final String? resolvedSection = accountSection ?? sectionId;
+  final query = StringBuffer('tab=$resolvedTab');
+  if (resolvedSection != null && resolvedSection.isNotEmpty) {
+    query.write('&section=$resolvedSection');
+  }
+  return '$appProtocolScheme://settings/user?$query';
+}
+
+bool tabHasMultipleLinkableUserSettingsSections({
+  required String tab,
+  required bool isTouchPrimary,
+  required UserSettingsSection pageSection,
+}) {
+  var count = 0;
+  for (final String sectionId in knownUserSettingsFieldIdsForTab(tab)) {
+    if (!isUserSettingsScrollFieldVisible(
+      isTouchPrimary: isTouchPrimary,
+      section: pageSection,
+      scrollFieldId: sectionId,
+    )) {
+      continue;
+    }
+    count++;
+    if (count > 1) {
+      return true;
+    }
+  }
+  return false;
+}
+
+String? userSettingsSectionDeepLinkHref({
+  required String sectionId,
+  required String tab,
+  required bool isTouchPrimary,
+  required UserSettingsSection pageSection,
+  bool linkable = true,
+}) {
+  if (!linkable || !isKnownUserSettingsFieldId(tab, sectionId)) {
+    return null;
+  }
+  if (!tabHasMultipleLinkableUserSettingsSections(
+    tab: tab,
+    isTouchPrimary: isTouchPrimary,
+    pageSection: pageSection,
+  )) {
+    return null;
+  }
+  return buildUserSettingsDeepLink(tab, sectionId);
+}
+
+String? userSettingsPageDeepLinkHref(UserSettingsSection section) {
+  final String? tab = userSettingsDeepLinkTabForPage(section);
+  if (tab == null) {
+    return null;
+  }
+  return buildUserSettingsDeepLink(tab);
 }

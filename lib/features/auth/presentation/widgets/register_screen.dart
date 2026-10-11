@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/instance/instance_config_snapshot.dart';
 import 'package:fluxer_app/core/instance/instance_runtime_config.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/auth/presentation/widgets/auth_form_error_text.dart';
+import 'package:fluxer_app/features/auth/providers/auth_instance_runtime_config_provider.dart';
 import 'package:fluxer_app/features/auth/providers/auth_instance_snapshot_provider.dart';
 import 'package:fluxer_app/features/auth/providers/auth_providers.dart';
 import 'package:fluxer_app/features/auth/providers/login_error_l10n.dart';
@@ -214,7 +214,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void _scheduleAvailabilityCheck() {
     _availabilityTimer?.cancel();
     final String username = _trimmedUsername;
-    if (!ref.read(uniqueUsernamesProvider) ||
+    if (!ref.read(authInstanceRuntimeConfigProvider).uniqueUsernames ||
         username.isEmpty ||
         !_usernameFormatValid) {
       return;
@@ -303,7 +303,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       authInstanceSnapshotProvider,
     );
     final InstanceRuntimeConfig runtime = ref.read(
-      instanceRuntimeConfigProvider,
+      authInstanceRuntimeConfigProvider,
     );
     final String? registrationUrlCode = ref.read(
       pendingRegistrationUrlCodeProvider,
@@ -359,7 +359,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final String? privacyUrl = instance.privacyUrl;
     final bool requiresConsent = _requiresConsent(instance);
     final bool collectDateOfBirth = ref.watch(
-      instanceRuntimeConfigProvider.select(
+      authInstanceRuntimeConfigProvider.select(
         (InstanceRuntimeConfig config) => config.collectDateOfBirth,
       ),
     );
@@ -367,18 +367,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       pendingRegistrationUrlCodeProvider,
     );
     final bool canRegister = ref.watch(
-      instanceRuntimeConfigProvider.select(
+      authInstanceRuntimeConfigProvider.select(
         (InstanceRuntimeConfig config) =>
             config.canPublicRegister(registrationUrlCode: registrationUrlCode),
       ),
     );
     final bool isRegistrationClosed = !canRegister;
     final bool usernameSignIn = ref.watch(
-      instanceRuntimeConfigProvider.select(
+      authInstanceRuntimeConfigProvider.select(
         (InstanceRuntimeConfig config) => config.usernameSignIn,
       ),
     );
-    final bool uniqueUsernames = ref.watch(uniqueUsernamesProvider);
+    final bool uniqueUsernames = ref.watch(
+      authInstanceRuntimeConfigProvider.select(
+        (InstanceRuntimeConfig config) => config.uniqueUsernames,
+      ),
+    );
     final _UsernameAvailability availability = _currentAvailability;
     final String? usernameStatus = switch (availability) {
       _UsernameAvailability.taken => l10n.registerUsernameTaken,

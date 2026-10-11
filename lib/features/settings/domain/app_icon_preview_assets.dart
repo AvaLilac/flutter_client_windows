@@ -2,6 +2,7 @@ import 'package:fluxer_app/core/build/app_build_config.dart';
 
 abstract final class AppIconPreviewAssets {
   static const String iosRoot = 'assets/images/app_icon_previews/ios';
+  static const String androidRoot = 'assets/images/app_icon_previews/android';
 
   static const String iosStarfield = '$iosRoot/starfield.png';
   static const String iosSweden = '$iosRoot/sweden.png';
@@ -15,6 +16,24 @@ abstract final class AppIconPreviewAssets {
       '$iosRoot/greyscale_brutalist.png';
   static const String iosCanaryBrutalist =
       '$iosRoot/default_canary_brutalist.png';
+
+  static const String androidGreyscale = '$androidRoot/greyscale.png';
+  static const String androidRainbow = '$androidRoot/rainbow.png';
+  static const String androidChromaticAberration =
+      '$androidRoot/chromatic_aberration.png';
+  static const String androidDefaultBrutalist =
+      '$androidRoot/default_brutalist.png';
+  static const String androidGreyscaleBrutalist =
+      '$androidRoot/greyscale_brutalist.png';
+  static const String androidCanaryBrutalist =
+      '$androidRoot/default_canary_brutalist.png';
+}
+
+String appIconPreviewAndroidDefault() {
+  if (AppBuildConfig.isCanary) {
+    return '${AppIconPreviewAssets.androidRoot}/default_canary.png';
+  }
+  return '${AppIconPreviewAssets.androidRoot}/default.png';
 }
 
 String appIconPreviewIosDefault() {

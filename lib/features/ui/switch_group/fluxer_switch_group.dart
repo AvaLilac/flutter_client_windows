@@ -322,6 +322,84 @@ class FluxerSettingsSwitchItem extends StatelessWidget {
   }
 }
 
+class FluxerSettingsAccessoryRow extends StatelessWidget {
+  const FluxerSettingsAccessoryRow({
+    required this.label,
+    required this.trailing,
+    required this.onTap,
+    this.description,
+    super.key,
+  });
+
+  final String label;
+  final String? description;
+  final Widget trailing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final textStyles = context.textStyles;
+    final layout = context.layout;
+    final minHeight = layout.settingsSwitchRowMinHeight;
+
+    return SizedBox(
+      width: double.infinity,
+      child: FluxerTappable(
+        minSize: Size(layout.touchTargetMin, minHeight),
+        onTap: onTap,
+        semanticLabel: description != null ? '$label. $description' : label,
+        excludeChildSemantics: true,
+        builder: (context, states) {
+          final isPressed = states.contains(WidgetState.pressed);
+
+          return AnimatedContainer(
+            duration: context.motion.fast,
+            curve: context.motion.curve,
+            color: isPressed
+                ? colors.backgroundModifierHover.withValues(alpha: 0.45)
+                : Colors.transparent,
+            constraints: BoxConstraints(minHeight: minHeight),
+            padding: EdgeInsets.symmetric(vertical: layout.s1),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        label,
+                        style: textStyles.bodySmall.copyWith(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
+                        ),
+                      ),
+                      if (description != null) ...[
+                        SizedBox(height: layout.s1),
+                        Text(
+                          description!,
+                          style: textStyles.bodySmall.copyWith(
+                            color: colors.textPrimaryMuted,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                SizedBox(width: layout.s4),
+                trailing,
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 List<Widget> _intersperseGroupDividers(
   List<Widget> items,
   FluxerColorTheme colors,

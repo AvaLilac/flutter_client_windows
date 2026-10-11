@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/settings/domain/app_icon_choice.dart';
@@ -33,9 +34,13 @@ class UserAppIconSettings extends ConsumerWidget {
             return _unsupportedMessage(context, l10n);
           }
           final AppIconChoice selected = state.selectedChoice()!;
+          final String sectionDescription =
+              defaultTargetPlatform == TargetPlatform.android
+              ? l10n.appIconSectionDescriptionAndroid
+              : l10n.appIconSectionDescription;
           return FluxerSettingsSection(
             title: l10n.appIconSectionTitle,
-            description: l10n.appIconSectionDescription,
+            description: sectionDescription,
             isFirst: true,
             children: [
               Semantics(
@@ -44,7 +49,7 @@ class UserAppIconSettings extends ConsumerWidget {
                 child: FluxerRadioGroup<AppIconChoice>(
                   value: selected,
                   onChanged: (AppIconChoice value) => unawaited(
-                    ref.read(appIconSettingsProvider.notifier).setChoice(value),
+                    _onAppIconChoiceChanged(context, ref, l10n, value),
                   ),
                   items: [
                     for (final AppIconChoice choice in state.choices)
@@ -62,6 +67,30 @@ class UserAppIconSettings extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _onAppIconChoiceChanged(
+  BuildContext context,
+  WidgetRef ref,
+  FluxerLocalizations l10n,
+  AppIconChoice value,
+) async {
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    final bool? confirmed = await showFluxerSettingsConfirmSheet(
+      context,
+      title: l10n.appIconAndroidChangeTitle,
+      description: l10n.appIconAndroidChangeDescription,
+      confirmLabel: l10n.appIconAndroidChangeConfirm,
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+    await ref
+        .read(appIconSettingsProvider.notifier)
+        .setChoiceWithRestart(value);
+    return;
+  }
+  await ref.read(appIconSettingsProvider.notifier).setChoice(value);
 }
 
 Widget _unsupportedMessage(BuildContext context, FluxerLocalizations l10n) {

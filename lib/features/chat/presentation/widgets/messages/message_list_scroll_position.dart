@@ -37,6 +37,7 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
   Curve _tailFollowCurve = Curves.linear;
   Duration? _tailFollowStartedAt;
   VoidCallback? _tailFollowOnComplete;
+  double Function()? _tailFollowResolveTarget;
 
   bool get _signalScrolling => activity is _PointerSignalScrollActivity;
 
@@ -47,9 +48,20 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
     Duration duration = kMessageListLiveTailMotionDuration,
     Curve curve = Curves.easeOutCubic,
     VoidCallback? onComplete,
+    double Function()? resolveTarget,
   }) {
+    _tailFollowResolveTarget = resolveTarget;
     final double clampedTarget = target.clamp(minScrollExtent, maxScrollExtent);
     if (clampedTarget <= pixels + _kSnapEpsilon) {
+      if (_tailFollowActive) {
+        _tailFollowActive = false;
+        _tailFollowStartedAt = null;
+        _tailFollowOnComplete = null;
+        _tailFollowResolveTarget = null;
+        if (!_signalScrolling) {
+          _stopTicker();
+        }
+      }
       if (pixels < clampedTarget) {
         _applyPixels(clampedTarget);
       }
@@ -57,10 +69,6 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
       return;
     }
     if (_tailFollowActive) {
-      if (clampedTarget > _tailFollowTo + _kSnapEpsilon) {
-        _tailFollowFrom = pixels;
-        _tailFollowStartedAt = null;
-      }
       _tailFollowTo = clampedTarget;
       if (onComplete != null) {
         _tailFollowOnComplete = onComplete;
@@ -89,15 +97,42 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
     _tailFollowActive = false;
     _tailFollowStartedAt = null;
     _tailFollowOnComplete = null;
+    _tailFollowResolveTarget = null;
     if (!_signalScrolling) {
       _stopTicker();
     }
   }
 
+  void _abortTailFollow() {
+    if (!_tailFollowActive) {
+      return;
+    }
+    _tailFollowActive = false;
+    _tailFollowStartedAt = null;
+    _tailFollowResolveTarget = null;
+    final VoidCallback? callback = _tailFollowOnComplete;
+    _tailFollowOnComplete = null;
+    if (!_signalScrolling) {
+      _stopTicker();
+    }
+    callback?.call();
+  }
+
+  void _refreshTailFollowTarget() {
+    final double Function()? resolve = _tailFollowResolveTarget;
+    if (resolve == null) {
+      return;
+    }
+    final double latest = resolve().clamp(minScrollExtent, maxScrollExtent);
+    _tailFollowTo = latest;
+  }
+
   void _finishTailFollow() {
+    _refreshTailFollowTarget();
     _applyPixels(_tailFollowTo.clamp(minScrollExtent, maxScrollExtent));
     _tailFollowActive = false;
     _tailFollowStartedAt = null;
+    _tailFollowResolveTarget = null;
     final VoidCallback? callback = _tailFollowOnComplete;
     _tailFollowOnComplete = null;
     if (!_signalScrolling) {
@@ -107,6 +142,7 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
   }
 
   void _tickTailFollow(Duration elapsed) {
+    _refreshTailFollowTarget();
     _tailFollowStartedAt ??= elapsed;
     final Duration sinceStart = elapsed - _tailFollowStartedAt!;
     final double t = _tailFollowDuration.inMicroseconds <= 0
@@ -125,7 +161,7 @@ class MessageListScrollPosition extends ScrollPositionWithSingleContext {
   @override
   void beginActivity(ScrollActivity? newActivity) {
     if (newActivity != null && newActivity is! _PointerSignalScrollActivity) {
-      _stopTailFollow();
+      _abortTailFollow();
       _stopTicker();
       _cancelSettle();
     }

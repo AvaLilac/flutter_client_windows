@@ -315,7 +315,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(MessageListMismatchPlaceholder), findsOneWidget);
-    expect(find.byType(MessageListSkeleton), findsNothing);
+    expect(find.byType(MessageListSkeleton), findsOneWidget);
     expect(find.byType(ChatLoadingSpinner), findsNothing);
     await _disposeWidgetTree(tester);
   });
@@ -363,6 +363,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(MessageListMismatchPlaceholder), findsOneWidget);
+      expect(find.byType(MessageListSkeleton), findsOneWidget);
       expect(find.text('stale-from-other-chat'), findsNothing);
       await _disposeWidgetTree(tester);
     },

@@ -66,6 +66,7 @@ android {
         manifestPlaceholders["appLabel"] = "Fluxer"
         manifestPlaceholders["buildEnvironment"] = "stable"
         manifestPlaceholders["pushProvider"] = "fcm"
+        manifestPlaceholders["appIconAliasPrefix"] = "com.fluxer.MainActivity"
     }
 
     productFlavors {
@@ -75,6 +76,7 @@ android {
             versionNameSuffix = "-canary"
             manifestPlaceholders["appLabel"] = "Fluxer Canary"
             manifestPlaceholders["buildEnvironment"] = "canary"
+            manifestPlaceholders["appIconAliasPrefix"] = "com.fluxer.canary.MainActivity"
         }
         create("stable") {
             dimension = "environment"

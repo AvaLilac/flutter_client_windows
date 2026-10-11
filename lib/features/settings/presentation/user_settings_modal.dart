@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/build/app_build_config.dart';
 import 'package:fluxer_app/core/build/app_diagnostic_clipboard_text.dart';
+import 'package:fluxer_app/core/deep_links/user_settings_deep_link.dart';
 import 'package:fluxer_app/core/gateway/providers/gateway_event_providers.dart';
 import 'package:fluxer_app/core/platform/alternate_app_icon_settings.dart';
 import 'package:fluxer_app/core/platform/fluxer_platform.dart';
@@ -59,6 +60,7 @@ import 'package:fluxer_app/features/settings/providers/user_settings_view_model.
 import 'package:fluxer_app/features/settings/utils/confirm_user_settings_logout.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_billing_nav.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_billing_utils.dart';
+import 'package:fluxer_app/features/settings/utils/user_settings_deep_link_scope.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_nav_l10n.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_search.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_section_scroll.dart';
@@ -67,6 +69,7 @@ import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/external_links/external_link_handler.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 import 'package:fluxer_app/shared/utils/clipboard_utils.dart';
 import 'package:fluxer_app/shared/utils/relative_time.dart';
@@ -181,6 +184,7 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
   void initState() {
     super.initState();
     final bool showBilling = userSettingsShowBillingNav(ref);
+    final bool showGiveFeedback = userSettingsShowGiveFeedbackNav(ref);
     final bool showJoinFluxerLabs = userSettingsShowJoinFluxerLabsNav(ref);
     final bool isTouchPrimary = ref.read(inputModalityProvider);
     final int? sectionIndex = widget.initialSection == null
@@ -189,6 +193,7 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
             widget.initialSection!,
             showBilling: showBilling,
             showGifts: userSettingsShowGiftBillingNav(ref),
+            showGiveFeedback: showGiveFeedback,
             showJoinFluxerLabs: showJoinFluxerLabs,
             isTouchPrimary: isTouchPrimary,
           );
@@ -232,12 +237,14 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
   Widget build(BuildContext context) {
     final state = ref.watch(userSettingsViewModelProvider);
     final bool showBilling = userSettingsShowBillingNav(ref);
+    final bool showGiveFeedback = userSettingsShowGiveFeedbackNav(ref);
     final bool showJoinFluxerLabs = userSettingsShowJoinFluxerLabsNav(ref);
     final bool isTouchPrimary = isTouchPrimaryInput(ref);
     final List<UserSettingsDesktopNavEntry> desktopNav =
         buildUserSettingsDesktopNav(
           showBilling: showBilling,
           showGifts: userSettingsShowGiftBillingNav(ref),
+          showGiveFeedback: showGiveFeedback,
           showJoinFluxerLabs: showJoinFluxerLabs,
           isTouchPrimary: isTouchPrimary,
         );
@@ -349,6 +356,28 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
                                     )
                                   : context.textStyles.heading,
                             ),
+                            if (!isSettingsSearchActive &&
+                                selectedEntry.section != null) ...[
+                              Builder(
+                                builder: (context) {
+                                  final String? pageLink =
+                                      userSettingsPageDeepLinkHref(
+                                        selectedEntry.section!,
+                                      );
+                                  if (pageLink == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: FluxerSettingsHeadingLinkButton(
+                                      href: pageLink,
+                                      target:
+                                          FluxerSettingsHeadingLinkTarget.page,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                             const Spacer(),
                             _buildCloseButton(
                               color: storePane ? PremiumStoreStyle.ink : null,
@@ -393,6 +422,10 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
       unawaited(_joinFluxerLabs());
       return;
     }
+    if (entry.isGiveFeedback) {
+      unawaited(_openFeedback());
+      return;
+    }
     if (entry.isSeparator) {
       return;
     }
@@ -407,6 +440,10 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
     Navigator.of(context).pop();
   }
 
+  Future<void> _openFeedback() async {
+    await handleExternalLinkTap(context, kFluxerFeedbackUrl);
+  }
+
   void _onSearchHitSelected(UserSettingsSearchHit? hit) {
     if (hit == null) {
       return;
@@ -416,12 +453,14 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
       return;
     }
     final bool showBilling = userSettingsShowBillingNav(ref);
+    final bool showGiveFeedback = userSettingsShowGiveFeedbackNav(ref);
     final bool showJoinFluxerLabs = userSettingsShowJoinFluxerLabsNav(ref);
     final bool isTouchPrimary = ref.read(inputModalityProvider);
     final int? index = indexForUserSettingsSection(
       hit.section,
       showBilling: showBilling,
       showGifts: userSettingsShowGiftBillingNav(ref),
+      showGiveFeedback: showGiveFeedback,
       showJoinFluxerLabs: showJoinFluxerLabs,
       isTouchPrimary: isTouchPrimary,
     );
@@ -495,12 +534,14 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
       isTouchPrimary: isTouchPrimary,
       onNavigateSection: (UserSettingsSection target) {
         final bool showBilling = userSettingsShowBillingNav(ref);
+        final bool showGiveFeedback = userSettingsShowGiveFeedbackNav(ref);
         final bool showJoinFluxerLabs = userSettingsShowJoinFluxerLabsNav(ref);
         final bool isTouchPrimary = ref.read(inputModalityProvider);
         final int? index = indexForUserSettingsSection(
           target,
           showBilling: showBilling,
           showGifts: userSettingsShowGiftBillingNav(ref),
+          showGiveFeedback: showGiveFeedback,
           showJoinFluxerLabs: showJoinFluxerLabs,
           isTouchPrimary: isTouchPrimary,
         );
@@ -605,6 +646,7 @@ class _MobileSettingsNavBodyState extends ConsumerState<_MobileSettingsNavBody>
     final l10n = FluxerLocalizations.of(context);
     final layout = context.layout;
     final bool showBilling = userSettingsShowBillingNav(ref);
+    final bool showGiveFeedback = userSettingsShowGiveFeedbackNav(ref);
     final bool showJoinFluxerLabs = userSettingsShowJoinFluxerLabsNav(ref);
     final bool isTouchPrimary = isTouchPrimaryInput(ref);
     final List<UserSettingsSearchHit> hits = searchVisibleUserSettings(
@@ -656,9 +698,11 @@ class _MobileSettingsNavBodyState extends ConsumerState<_MobileSettingsNavBody>
               onOpenSection: _openSettingsPage,
               onOpenAppLogs: _openAppLogs,
               onJoinFluxerLabs: () => unawaited(_joinFluxerLabs()),
+              onGiveFeedback: () => unawaited(_openFeedback()),
               onLogout: _logout,
               showBilling: showBilling,
               showGifts: userSettingsShowGiftBillingNav(ref),
+              showGiveFeedback: showGiveFeedback,
               showJoinFluxerLabs: showJoinFluxerLabs,
               isTouchPrimary: isTouchPrimary,
             ),
@@ -699,11 +743,18 @@ class _MobileSettingsNavBodyState extends ConsumerState<_MobileSettingsNavBody>
     final bool storePage =
         section == UserSettingsSection.fluxerPlutonium &&
         isPremiumStorePageActive();
+    final String? pageLink = userSettingsPageDeepLinkHref(section);
     final canDismiss = ValueNotifier<bool>(true);
     unawaited(
       FluxerPageSheet.showScrollable<void>(
         context,
         title: userSettingsSectionLabel(l10n, section),
+        titleTrailing: pageLink == null
+            ? null
+            : FluxerSettingsHeadingLinkButton(
+                href: pageLink,
+                target: FluxerSettingsHeadingLinkTarget.page,
+              ),
         backgroundColor: storePage ? PremiumStoreStyle.spaceTop : null,
         foregroundColor: storePage ? PremiumStoreStyle.ink : null,
         canDismissNotifier: canDismiss,
@@ -724,6 +775,10 @@ class _MobileSettingsNavBodyState extends ConsumerState<_MobileSettingsNavBody>
       return;
     }
     widget.onClose();
+  }
+
+  Future<void> _openFeedback() async {
+    await handleExternalLinkTap(context, kFluxerFeedbackUrl);
   }
 
   void _openAppLogs() {
@@ -849,6 +904,43 @@ Widget _buildUserSettingsSectionContent({
   )) {
     return const SizedBox.shrink();
   }
+  final String? settingsTab = userSettingsDeepLinkTabForPage(section);
+  if (settingsTab == null) {
+    return _buildUserSettingsSectionBody(
+      context: context,
+      ref: ref,
+      state: state,
+      section: section,
+      isTouchPrimary: isTouchPrimary,
+      scrollController: scrollController,
+      onNavigateSection: onNavigateSection,
+    );
+  }
+  return UserSettingsDeepLinkScope(
+    settingsTab: settingsTab,
+    pageSection: section,
+    isTouchPrimary: isTouchPrimary,
+    child: _buildUserSettingsSectionBody(
+      context: context,
+      ref: ref,
+      state: state,
+      section: section,
+      isTouchPrimary: isTouchPrimary,
+      scrollController: scrollController,
+      onNavigateSection: onNavigateSection,
+    ),
+  );
+}
+
+Widget _buildUserSettingsSectionBody({
+  required BuildContext context,
+  required WidgetRef ref,
+  required UserSettingsViewState state,
+  required UserSettingsSection section,
+  required bool isTouchPrimary,
+  ScrollController? scrollController,
+  void Function(UserSettingsSection section)? onNavigateSection,
+}) {
   switch (section) {
     case UserSettingsSection.profile:
       return FluxerSettingsSheet(

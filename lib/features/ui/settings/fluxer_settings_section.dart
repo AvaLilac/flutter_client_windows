@@ -1,6 +1,9 @@
+import 'package:fluxer_app/core/deep_links/user_settings_deep_link.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/settings/utils/user_settings_deep_link_scope.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_section_scroll.dart';
 import 'package:fluxer_app/features/ui/preview/fluxer_widget_preview.dart';
+import 'package:fluxer_app/features/ui/settings/fluxer_settings_heading_link_button.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 /// Vertical density of the section's children.
@@ -19,6 +22,7 @@ class FluxerSettingsSection extends StatelessWidget {
     this.density = FluxerSettingsSectionDensity.comfortable,
     this.sectionId,
     this.titleTrailing,
+    this.linkable = true,
   });
 
   final String title;
@@ -28,6 +32,7 @@ class FluxerSettingsSection extends StatelessWidget {
   final FluxerSettingsSectionDensity density;
   final String? sectionId;
   final Widget? titleTrailing;
+  final bool linkable;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +43,34 @@ class FluxerSettingsSection extends StatelessWidget {
     final childGap = switch (density) {
       FluxerSettingsSectionDensity.comfortable => layout.s8,
       FluxerSettingsSectionDensity.compact => layout.s2,
+    };
+
+    final UserSettingsDeepLinkScope? linkScope =
+        UserSettingsDeepLinkScope.maybeOf(context);
+    final String? sectionLinkHref = sectionId == null || linkScope == null
+        ? null
+        : userSettingsSectionDeepLinkHref(
+            sectionId: sectionId!,
+            tab: linkScope.settingsTab,
+            isTouchPrimary: linkScope.isTouchPrimary,
+            pageSection: linkScope.pageSection,
+            linkable: linkable,
+          );
+    final Widget? sectionLinkButton = sectionLinkHref == null
+        ? null
+        : FluxerSettingsHeadingLinkButton(href: sectionLinkHref);
+    final Widget? headerTrailing = switch ((sectionLinkButton, titleTrailing)) {
+      (null, null) => null,
+      (final Widget link, null) => link,
+      (null, final Widget trailing) => trailing,
+      (final Widget link, final Widget trailing) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          link,
+          SizedBox(width: layout.s1),
+          trailing,
+        ],
+      ),
     };
 
     return KeyedSubtree(
@@ -65,7 +98,7 @@ class FluxerSettingsSection extends StatelessWidget {
                   ),
                 ),
               ),
-              ?titleTrailing,
+              ?headerTrailing,
             ],
           ),
           if (description != null) ...[

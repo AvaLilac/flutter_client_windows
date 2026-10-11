@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply dart fixes and format source files before committing.
+# Apply dart fixes, format, and analyze before committing
 if [ -z "${BASH_VERSION:-}" ]; then
   exec bash "$0" "$@"
 fi
@@ -59,6 +59,14 @@ dart_fix_root_for() {
   esac
 }
 
+run_analyze() {
+  if [[ "${BEFORE_COMMIT_SKIP_ANALYZE:-}" == 1 ]]; then
+    _log "Skipping analyze (BEFORE_COMMIT_SKIP_ANALYZE=1)."
+    return 0
+  fi
+  flutter analyze --no-fatal-warnings --no-fatal-infos
+}
+
 apply_dart_fix() {
   local count="${#dart_files[@]}"
   if ((count == 0)); then
@@ -114,6 +122,7 @@ if ((${#dart_files[@]} == 0)); then
     _step "Resolving package dependencies" bash "${ROOT}/tool/pub_get_packages.sh"
     _step "Applying dart fix (full project)" dart fix --apply
     _step "Formatting tracked Dart files" bash "${ROOT}/tool/format_dart.sh"
+    _step "Analyzing project" run_analyze
     _log "All steps finished ($((SECONDS - total_start))s total)."
     exit 0
   fi
@@ -137,5 +146,7 @@ fi
 _step "${fix_label}" apply_dart_fix
 
 _step "Formatting ${#dart_files[@]} Dart files" dart format "${dart_files[@]}"
+
+_step "Analyzing project" run_analyze
 
 _log "All steps finished ($((SECONDS - total_start))s total)."

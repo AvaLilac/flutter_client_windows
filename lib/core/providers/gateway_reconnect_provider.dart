@@ -254,6 +254,9 @@ Raw<StreamSubscription<GatewayState>?> gatewayStateListener(Ref ref) {
   }
 
   void markFailed() {
+    if (!ref.read(appUiForegroundProvider)) {
+      return;
+    }
     clearFailureTimer();
     failureTimeoutPasses = 0;
     reconnectingState = null;
@@ -361,9 +364,9 @@ Raw<StreamSubscription<GatewayState>?> gatewayStateListener(Ref ref) {
     if ((previous ?? false) || !next) {
       return;
     }
-    final GatewayState? pending = reconnectingState;
-    if (pending == GatewayState.connecting ||
-        pending == GatewayState.reconnecting) {
+    final GatewayState state = reconnectingState ?? connection.state;
+    if (state == GatewayState.connecting ||
+        state == GatewayState.reconnecting) {
       scheduleFailureTimeout();
     }
   });

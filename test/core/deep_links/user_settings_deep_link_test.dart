@@ -114,6 +114,37 @@ void main() {
     });
   });
 
+  group('buildUserSettingsDeepLink', () {
+    test('builds appearance section links', () {
+      expect(
+        buildUserSettingsDeepLink('appearance', 'theme'),
+        'fluxer://settings/user?tab=appearance&section=theme',
+      );
+    });
+
+    test('maps nested account tabs to account security', () {
+      expect(
+        buildUserSettingsDeepLink('authorized_apps'),
+        'fluxer://settings/user?tab=account_security&section=security',
+      );
+      expect(
+        buildUserSettingsDeepLink('blocked_users'),
+        'fluxer://settings/user?tab=account_security&section=blocked_users',
+      );
+    });
+
+    test('builds mobile-only settings page links', () {
+      expect(
+        buildUserSettingsDeepLink('default_apps'),
+        'fluxer://settings/user?tab=default_apps',
+      );
+      expect(
+        buildUserSettingsDeepLink('app_icon'),
+        'fluxer://settings/user?tab=app_icon',
+      );
+    });
+  });
+
   group('mapUserSettingsDeepLinkToSection', () {
     test('maps plutonium and gift inventory tabs', () {
       expect(
@@ -134,6 +165,27 @@ void main() {
       expect(
         mapUserSettingsDeepLinkToSection('client_developer_settings', null),
         isNull,
+      );
+    });
+
+    test('maps mobile-only settings tabs', () {
+      expect(
+        mapUserSettingsDeepLinkToSection('default_apps', null),
+        UserSettingsSection.defaultApps,
+      );
+      expect(
+        mapUserSettingsDeepLinkToSection('app_icon', null),
+        UserSettingsSection.appIcon,
+      );
+      expect(
+        parseUserSettingsDeepLink(
+          uri('/settings/user?tab=default_apps'),
+        )?.section,
+        UserSettingsSection.defaultApps,
+      );
+      expect(
+        parseUserSettingsDeepLink(uri('/settings/user?tab=app_icon'))?.section,
+        UserSettingsSection.appIcon,
       );
     });
   });

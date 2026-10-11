@@ -140,9 +140,11 @@ VoiceChannelParticipantData connectingSelfVoiceParticipant({
   required String channelId,
   String? guildId,
   String? connectionId,
+  database.User? user,
 }) {
   return VoiceChannelParticipantData(
     userId: currentUserId,
+    user: user,
     voice: VoiceState(
       userId: currentUserId,
       channelId: channelId,
@@ -150,6 +152,28 @@ VoiceChannelParticipantData connectingSelfVoiceParticipant({
       connectionId: connectionId,
     ),
   );
+}
+
+List<VoiceChannelParticipantData> voiceParticipantsWithSelfProfile({
+  required List<VoiceChannelParticipantData> participants,
+  required String? currentUserId,
+  required database.User? selfUser,
+}) {
+  if (currentUserId == null || selfUser == null) {
+    return participants;
+  }
+  return participants
+      .map(
+        (VoiceChannelParticipantData participant) =>
+            participant.userId == currentUserId && participant.user == null
+            ? VoiceChannelParticipantData(
+                userId: participant.userId,
+                voice: participant.voice,
+                user: selfUser,
+              )
+            : participant,
+      )
+      .toList();
 }
 
 class VoiceChannelParticipantData {

@@ -39,6 +39,7 @@ import 'package:fluxer_app/features/chat/presentation/widgets/composer/wide_comp
 import 'package:fluxer_app/features/chat/presentation/widgets/message_actions/reply_preview.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/expression_picker.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_message_permissions_provider.dart';
+import 'package:fluxer_app/features/chat/providers/composer/composer_watch_provider.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/chat/providers/guild/guild_composer_access_provider.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_length_limits_provider.dart';
@@ -46,7 +47,6 @@ import 'package:fluxer_app/features/chat/providers/pickers/attachment_panel_prov
 import 'package:fluxer_app/features/chat/providers/pickers/bottom_input_slot_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/emoji_picker_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/expression_panel_provider.dart';
-import 'package:fluxer_app/features/chat/providers/pickers/mobile_keyboard_metrics_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/sticker_picker_provider.dart';
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_indicator_shake_provider.dart';
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_rate_limited_alert_provider.dart';
@@ -71,7 +71,6 @@ import 'package:fluxer_app/features/chat/utils/composer/composer_scroll.dart';
 import 'package:fluxer_app/features/chat/utils/composer/composer_sendable_content.dart';
 import 'package:fluxer_app/features/chat/utils/composer/composer_upload_file.dart';
 import 'package:fluxer_app/features/dm/domain/dm_channel_types.dart';
-import 'package:fluxer_app/features/dm/domain/dm_conversation.dart';
 import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
 import 'package:fluxer_app/features/friends/providers/blocked_user_ids_provider.dart';
 import 'package:fluxer_app/features/friends/providers/friend_providers.dart';
@@ -250,7 +249,7 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
     with WidgetsBindingObserver {
   late final ComposerMentionController _controller;
   final ComposerSlashSession _slashSession = ComposerSlashSession();
-  final FocusNode _focusNode = FocusNode();
+  late FocusNode _focusNode;
   late final ComposerTextSession _textSession;
   late final ComposerKeyboardSession _keyboardSession;
   final ScrollController _composerScrollController = ScrollController();
@@ -263,6 +262,7 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
   final _stickerPickerKey = GlobalKey<FluxerEmojiPickerPopoutState>();
 
   bool _composerFocused = false;
+  bool _requestComposerFocusAfterChannelCatchUp = false;
   final ValueNotifier<bool> _showComposerCounter = ValueNotifier<bool>(false);
 
   Widget _wideComposerIconButton({
@@ -352,6 +352,7 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
   @override
   void initState() {
     super.initState();
+    _focusNode = FocusNode();
     _composerFocus = ref.read(composerFocusCoordinatorProvider);
     _requestComposerFocus = () {
       if (_focusNode.canRequestFocus) {
@@ -450,6 +451,9 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
   }
 
   void _onComposerChannelChanged() {
+    if (_voiceRecording.isActive) {
+      unawaited(_voiceRecording.cancel());
+    }
     _keyboardSession.onChannelChanged();
     _textSession.onChannelChanged();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -457,7 +461,59 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
         return;
       }
       _keyboardSession.resyncViewInsetsFromContext(context);
+      if (_requestComposerFocusAfterChannelCatchUp) {
+        _requestComposerFocusAfterChannelCatchUp = false;
+        if (!_focusNode.hasFocus) {
+          _requestComposerFocus();
+        }
+      }
     });
+  }
+
+  void _replaceComposerFocusNode({bool requestFocusAfterReplace = true}) {
+    final FocusNode previous = _focusNode
+      ..removeListener(_handleComposerFocusChange)
+      ..onKeyEvent = null;
+    final FocusNode next = FocusNode()
+      ..onKeyEvent = _handleComposerFieldKeyEvent
+      ..addListener(_handleComposerFocusChange);
+    _focusNode = next;
+    _keyboardSession.focusNode = next;
+    _textSession.focusNode = next;
+    if (mounted) {
+      setState(() {});
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      previous.dispose();
+      if (!mounted || !requestFocusAfterReplace) {
+        return;
+      }
+      if (!_focusNode.hasFocus) {
+        _requestComposerFocus();
+      }
+    });
+  }
+
+  void _dropComposerFocusWhileChatWindowCatchesUp() {
+    _keyboardSession.cancelPendingFocusRestore();
+    if (!_focusNode.hasFocus) {
+      return;
+    }
+    _requestComposerFocusAfterChannelCatchUp = true;
+    _replaceComposerFocusNode(requestFocusAfterReplace: false);
+  }
+
+  String _composerDisplayChannelId() {
+    final String vmChannelId = ref.read(
+      chatViewModelProvider.select((ChatViewState state) => state.channelId),
+    );
+    final String? routeChannelId = ref.read(activeChannelIdProvider);
+    if (routeChannelId != null &&
+        routeChannelId.isNotEmpty &&
+        routeChannelId != vmChannelId) {
+      return routeChannelId;
+    }
+    return vmChannelId;
   }
 
   void _onSlashSessionChanged() {
@@ -757,22 +813,6 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
       ref.watch(physicalKeyboardConnectedProvider);
     }
     ref
-      ..listen<MobileKeyboardMetricsState>(mobileKeyboardMetricsProvider, (
-        _,
-        _,
-      ) {
-        _keyboardSession.onKeyboardMetricsChanged();
-      })
-      ..listen<int>(
-        chatViewModelProvider.select(
-          (ChatViewState state) => state.messages.length,
-        ),
-        (int? previous, int next) {
-          if (previous != null && next > previous && _focusNode.hasFocus) {
-            _keyboardSession.onComposerLayoutChurn();
-          }
-        },
-      )
       ..listen<String>(
         chatViewModelProvider.select((state) => state.messageText),
         (_, String _) => _textSession.syncFromViewModelIfNeeded(),
@@ -838,11 +878,8 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
     final channelId = ref.watch(
       chatViewModelProvider.select((s) => s.channelId),
     );
-    final dm = findDmById(
-      ref.watch(dmViewModelProvider.select((s) => s.conversations)),
-      channelId,
-    );
-    if (dm != null && isSystemDmConversation(dm)) {
+    final ComposerWatch? dm = ref.watch(composerWatchProvider(channelId));
+    if (dm != null && dm.isSystemDm) {
       return const SystemDmComposerBarrier();
     }
     final bool directMessagesDisabled = ref.watch(
@@ -875,6 +912,22 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
           _clearComposerForBlockedAccess();
         }
       })
+      ..listen<String?>(activeChannelIdProvider, (
+        String? previous,
+        String? next,
+      ) {
+        if (!mounted || next == null || next.isEmpty) {
+          return;
+        }
+        final String vmChannelId = ref.read(
+          chatViewModelProvider.select(
+            (ChatViewState state) => state.channelId,
+          ),
+        );
+        if (vmChannelId != next) {
+          _dropComposerFocusWhileChatWindowCatchesUp();
+        }
+      })
       ..listen<String>(
         chatViewModelProvider.select((ChatViewState state) => state.channelId),
         (String? previous, String next) {
@@ -882,14 +935,7 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
             _clearSlashSession();
             _onComposerChannelChanged();
           }
-          final DmConversation? nextDm = findDmById(
-            ref.read(
-              dmViewModelProvider.select(
-                (DmViewState state) => state.conversations,
-              ),
-            ),
-            next,
-          );
+          final ComposerWatch? nextDm = ref.read(composerWatchProvider(next));
           if (nextDm == null || nextDm.isGroup || nextDm.isPersonalNotes) {
             return;
           }
@@ -1198,17 +1244,12 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
     if (isEditing) {
       return l10n.chatEditMessageHint;
     }
-    final channelId = ref.read(
-      chatViewModelProvider.select((s) => s.channelId),
-    );
+    final String channelId = _composerDisplayChannelId();
     final Channel? channel = resolveGuildChannel(ref, channelId);
     if (channel != null) {
       return l10n.channelComposerHint(channel.name);
     }
-    final conversations = ref.read(
-      dmViewModelProvider.select((s) => s.conversations),
-    );
-    final dm = findDmById(conversations, channelId);
+    final ComposerWatch? dm = ref.read(composerWatchProvider(channelId));
     if (dm != null) {
       if (dm.isPersonalNotes) {
         return l10n.personalNotesComposerHint;

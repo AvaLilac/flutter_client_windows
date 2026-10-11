@@ -625,6 +625,27 @@ void main() {
   });
 
   group('gatewayStateListener failure screen recovery', () {
+    test('fatal close does not mark failed while backgrounded', () {
+      final _TestGatewayConnection connection = _TestGatewayConnection();
+      final ProviderContainer container = ProviderContainer(
+        overrides: <Override>[
+          gatewayConnectionProvider.overrideWithValue(connection),
+          appUiForegroundProvider.overrideWith(AppUiForeground.new),
+        ],
+      )..read(gatewayStateListenerProvider);
+
+      container.read(appUiForegroundProvider.notifier).setResumed(false);
+      connection.emit(GatewayState.failed);
+      expect(container.read(gatewayConnectionFailedProvider), isFalse);
+
+      container.read(appUiForegroundProvider.notifier).setResumed(true);
+      connection.emit(GatewayState.failed);
+      expect(container.read(gatewayConnectionFailedProvider), isTrue);
+
+      container.dispose();
+      unawaited(connection.dispose());
+    });
+
     test(
       'schedules another timeout while reconnecting on the failure screen',
       () {

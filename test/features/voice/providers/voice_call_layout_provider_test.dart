@@ -17,17 +17,24 @@ void main() {
   VoiceCallLayout notifier() =>
       container.read(voiceCallLayoutProvider.notifier);
 
-  test('pin sets focus mode', () {
+  test('pin keeps grid mode and sets pinned tile', () {
     notifier().pin('tile-1');
-    expect(state().mode, VoiceCallLayoutMode.focus);
+    expect(state().mode, VoiceCallLayoutMode.grid);
     expect(state().pinnedTileId, 'tile-1');
   });
 
-  test('pin is a no-op when that tile is already focused', () {
+  test('pin again in grid clears the pin', () {
     notifier().pin('tile-1');
-    final VoiceCallLayoutState first = state();
     notifier().pin('tile-1');
-    expect(identical(state(), first), isTrue);
+    expect(state().mode, VoiceCallLayoutMode.grid);
+    expect(state().pinnedTileId, isNull);
+  });
+
+  test('pin in focus mode sets pinned tile without leaving focus', () {
+    notifier().setMode(VoiceCallLayoutMode.focus);
+    notifier().pin('tile-1');
+    expect(state().mode, VoiceCallLayoutMode.focus);
+    expect(state().pinnedTileId, 'tile-1');
   });
 
   test('setMode grid clears pin and keeps expanded users', () {
@@ -39,8 +46,9 @@ void main() {
     expect(state().expandedUserIds, <String>{'user-1'});
   });
 
-  test('unpin from focus leaves focus without wiping expanded users', () {
+  test('unpin from focus returns to grid', () {
     notifier().toggleExpandedUser('user-1');
+    notifier().setMode(VoiceCallLayoutMode.focus);
     notifier().pin('tile-1');
     notifier().unpin();
     expect(state().mode, VoiceCallLayoutMode.grid);
@@ -48,10 +56,17 @@ void main() {
     expect(state().expandedUserIds, <String>{'user-1'});
   });
 
+  test('unpin in grid clears pin only', () {
+    notifier().pin('tile-1');
+    notifier().unpin();
+    expect(state().mode, VoiceCallLayoutMode.grid);
+    expect(state().pinnedTileId, isNull);
+  });
+
   test('clearStalePin drops the pin without flipping mode', () {
     notifier().pin('tile-1');
     notifier().clearStalePin();
-    expect(state().mode, VoiceCallLayoutMode.focus);
+    expect(state().mode, VoiceCallLayoutMode.grid);
     expect(state().pinnedTileId, isNull);
   });
 

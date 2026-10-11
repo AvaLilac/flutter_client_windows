@@ -160,11 +160,25 @@ void main() {
             mergedHeight: 0,
             hadKeyboardInsetWhileReserved: true,
             composerEntryFocused: true,
+            nativeKeyboardVisible: true,
           ),
           isFalse,
         );
       },
     );
+
+    test('clears when keyboard is dismissed with composer still focused', () {
+      expect(
+        shouldClearUnmeasuredKeyboardReservation(
+          unmeasuredKeyboardReserved: true,
+          previousLiveHeight: 302,
+          mergedHeight: 0,
+          hadKeyboardInsetWhileReserved: true,
+          composerEntryFocused: true,
+        ),
+        isTrue,
+      );
+    });
 
     test(
       'clears when inset was seen then keyboard hides without live height',

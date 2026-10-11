@@ -134,12 +134,12 @@ void main() {
           302,
         );
 
-        // viewInsets dropped first. Keep the gross native height, not the
-        // stripped IME-only value, until the plugin also reports hidden.
+        // viewInsets dropped first. Keep IME-only native height until the
+        // plugin also reports hidden.
         notifier.syncViewInsets(0, safeAreaBottom: 34);
         expect(
           container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
-          336,
+          302,
         );
 
         notifier.debugApplyNativeMetrics(
@@ -176,7 +176,7 @@ void main() {
             ..syncViewInsets(0, safeAreaBottom: 0);
       expect(
         container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
-        336,
+        302,
       );
 
       await Future<void>.delayed(kUnmeasuredKeyboardReservationTimeout);

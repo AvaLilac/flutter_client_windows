@@ -51,7 +51,6 @@ class _ChannelChatContentState extends ConsumerState<ChannelChatContent> {
   _lastSwitchRequest;
   ({String channelId, String? targetMessageId})? _lastClosedPanelRequest;
   bool? _lastMobileLayout;
-  String? _mismatchResyncChannelId;
   String? _strandedEmptyResyncChannelId;
 
   @override
@@ -70,7 +69,6 @@ class _ChannelChatContentState extends ConsumerState<ChannelChatContent> {
       return;
     }
     _lastSwitchRequest = null;
-    _mismatchResyncChannelId = null;
     _strandedEmptyResyncChannelId = null;
     _scheduleSyncChannelIfNeeded();
   }
@@ -213,17 +211,19 @@ class _ChannelChatContentState extends ConsumerState<ChannelChatContent> {
       widgetChannelId: widget.channelId,
       state: state,
     )) {
-      _mismatchResyncChannelId = null;
+      return;
+    }
+    if (!shouldScheduleMismatchedChatWindowResync(state: state)) {
       return;
     }
     if (!_canSyncForRoute()) {
       return;
     }
-    if (_mismatchResyncChannelId == widget.channelId) {
-      return;
-    }
-    _mismatchResyncChannelId = widget.channelId;
     _lastSwitchRequest = null;
+    talker.debug(
+      '[ChannelChatContent] resync mismatched window channel=${widget.channelId} '
+      'vm=${state.channelId}',
+    );
     _scheduleSyncChannelIfNeeded();
   }
 
@@ -466,6 +466,11 @@ bool shouldResyncMismatchedChatWindow({
     channelId: state.channelId,
     messages: state.messages,
   );
+}
+
+@visibleForTesting
+bool shouldScheduleMismatchedChatWindowResync({required ChatViewState state}) {
+  return !state.isLoading && !state.isSyncingMessages;
 }
 
 @visibleForTesting

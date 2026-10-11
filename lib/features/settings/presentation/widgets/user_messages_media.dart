@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/platform/fluxer_platform.dart';
 import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/chat/presentation/sheets/double_tap_reaction_picker_sheet.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/message_actions/double_tap_reaction_hint.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/wide_settings_content_layout.dart';
 import 'package:fluxer_app/features/settings/providers/chat_input_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
@@ -12,6 +17,7 @@ import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/external_links/external_link_utils.dart';
 import 'package:fluxer_dart/export.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class UserMessagesMedia extends ConsumerWidget {
   const UserMessagesMedia({super.key, this.scrollController});
@@ -33,6 +39,10 @@ class UserMessagesMedia extends ConsumerWidget {
       doubleTapActionPreferencesProvider.notifier,
     );
     final l10n = FluxerLocalizations.of(context);
+    final doubleTapAction =
+        doubleTapActionPrefs.action == DoubleTapActionPreference.unspecified
+        ? DoubleTapActionPreference.react
+        : doubleTapActionPrefs.action;
 
     final mediaSizeItems = [
       FluxerRadioItem(
@@ -193,44 +203,72 @@ class UserMessagesMedia extends ConsumerWidget {
                     ),
                   ],
                 ),
-              if (isFluxerNativeMobileOs)
-                FluxerSettingsSubsection(
-                  title: l10n.messagesMediaDoubleTapSectionTitle,
-                  description: l10n.messagesMediaDoubleTapSectionDescription,
+            ],
+          ),
+          if (isFluxerNativeMobileOs)
+            FluxerSettingsSection(
+              sectionId: 'gestures',
+              title: l10n.messagesMediaGesturesSectionTitle,
+              description: l10n.messagesMediaGesturesSectionDescription,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     FluxerRadioGroup<DoubleTapActionPreference>(
-                      label: l10n.messagesMediaDoubleTapActionLabel,
-                      value:
-                          doubleTapActionPrefs.action ==
-                              DoubleTapActionPreference.unspecified
-                          ? DoubleTapActionPreference.react
-                          : doubleTapActionPrefs.action,
+                      label: l10n.messagesMediaGesturesDoubleTapActionLabel,
+                      value: doubleTapAction,
                       onChanged: doubleTapActionPrefsNotifier.setAction,
                       items: [
                         FluxerRadioItem(
                           value: DoubleTapActionPreference.react,
-                          label: l10n.messagesMediaDoubleTapActionReactName,
-                          description:
-                              l10n.messagesMediaDoubleTapActionReactDescription,
+                          label: l10n
+                              .messagesMediaGesturesDoubleTapActionReactName,
+                          description: l10n
+                              .messagesMediaGesturesDoubleTapActionReactDescription,
                         ),
                         FluxerRadioItem(
                           value: DoubleTapActionPreference.edit,
-                          label: l10n.messagesMediaDoubleTapActionEditName,
-                          description:
-                              l10n.messagesMediaDoubleTapActionEditDescription,
+                          label:
+                              l10n.messagesMediaGesturesDoubleTapActionEditName,
+                          description: l10n
+                              .messagesMediaGesturesDoubleTapActionEditDescription,
                         ),
                         FluxerRadioItem(
                           value: DoubleTapActionPreference.none,
-                          label: l10n.messagesMediaDoubleTapActionNoneName,
-                          description:
-                              l10n.messagesMediaDoubleTapActionNoneDescription,
+                          label:
+                              l10n.messagesMediaGesturesDoubleTapActionNoneName,
+                          description: l10n
+                              .messagesMediaGesturesDoubleTapActionNoneDescription,
                         ),
                       ],
                     ),
+                    if (doubleTapAction == DoubleTapActionPreference.react) ...[
+                      SizedBox(height: context.layout.s4),
+                      FluxerSettingsAccessoryRow(
+                        label: l10n.messagesMediaGesturesReactionLabel,
+                        description:
+                            l10n.messagesMediaGesturesReactionDescription,
+                        onTap: () => unawaited(
+                          showDoubleTapReactionPicker(context, ref),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const DoubleTapReactionGlyph(size: 24),
+                            SizedBox(width: context.layout.s2),
+                            PhosphorIcon(
+                              PhosphorIconsBold.caretRight,
+                              size: 18,
+                              color: context.colors.textPrimaryMuted,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-            ],
-          ),
+              ],
+            ),
           FluxerSettingsSection(
             sectionId: 'input',
             title: l10n.messagesMediaInputGroupTitle,

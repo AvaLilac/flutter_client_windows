@@ -434,6 +434,26 @@ void main() {
     });
   });
 
+  group('shouldScheduleMismatchedChatWindowResync', () {
+    test('waits while the view model is loading', () {
+      expect(
+        shouldScheduleMismatchedChatWindowResync(
+          state: _chatState(channelId: 'channel-2', isLoading: true),
+        ),
+        isFalse,
+      );
+    });
+
+    test('schedules when the view model is idle', () {
+      expect(
+        shouldScheduleMismatchedChatWindowResync(
+          state: _chatState(channelId: 'channel-2'),
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('shouldResyncStrandedEmptyChannel', () {
     test('requests resync for matched empty idle channel', () {
       expect(
