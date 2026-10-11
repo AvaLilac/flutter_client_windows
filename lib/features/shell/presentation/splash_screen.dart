@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/api/dio_error_message.dart';
 import 'package:fluxer_app/core/api/service_unavailable.dart';
 import 'package:fluxer_app/core/constants/external_urls.dart';
+import 'package:fluxer_app/core/instance/instance_compatibility_messages.dart';
+import 'package:fluxer_app/core/instance/instance_discovery_service.dart';
+import 'package:fluxer_app/core/providers/active_instance_compatibility_provider.dart';
 import 'package:fluxer_app/core/providers/active_instance_provider.dart';
 import 'package:fluxer_app/core/providers/app_startup_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
 import 'package:fluxer_app/core/providers/splash_exit_allowed_provider.dart';
+import 'package:fluxer_app/core/providers/well_known_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/theme/color_utils.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
@@ -302,15 +306,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final AsyncError<dynamic>? startupError = startup is AsyncError<dynamic>
         ? startup
         : null;
-    final bool showStartupError = startupError != null && !serviceUnavailable;
-    final String statusText = strings.splashStartupFailed(
-      startupError?.error == null
-          ? ''
-          : userFacingErrorMessage(
-              startupError!.error,
-              strings.networkErrorMessage,
-            ),
+    final String displayDomain = ref.watch(activeInstanceDisplayDomainProvider);
+    final ActiveInstanceCompatibilityIssue? compatibilityIssue = ref.watch(
+      activeInstanceCompatibilityProvider,
     );
+    final bool showCompatibilityIssue =
+        compatibilityIssue != null && !serviceUnavailable;
+    final bool showStartupError =
+        startupError != null && !serviceUnavailable && !showCompatibilityIssue;
+    final String compatibilityStatusText = compatibilityIssue == null
+        ? ''
+        : instanceCompatibilityBody(
+            compatibilityIssue.reason,
+            compatibilityIssue.domain,
+            strings,
+          );
+    final String statusText = compatibilityIssue != null
+        ? compatibilityStatusText
+        : strings.splashStartupFailed(
+            startupError?.error == null
+                ? ''
+                : _startupErrorMessage(
+                    startupError!.error,
+                    strings,
+                    displayDomain,
+                  ),
+          );
     final bool isStartupComplete = startup is AsyncData<void>;
     final bool isGatewayReady = ref.watch(gatewayReadyProvider);
     final bool isReady = isStartupComplete && isGatewayReady;
@@ -368,7 +389,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         : _frozenIncident;
     final String displayText = isReady ? liveText : _frozenDisplayText;
     final bool isOfficialInstance = ref.watch(isActiveInstanceOfficialProvider);
-    final String displayDomain = ref.watch(activeInstanceDisplayDomainProvider);
     final bool showConnectionProblemsFooter =
         !isReady &&
         (serviceUnavailable || (_showProblems && visibleIncident == null));
@@ -378,7 +398,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         showConnectionProblemsFooter &&
         !isOfficialInstance &&
         !serviceUnavailable &&
-        !showStartupError;
+        !showStartupError &&
+        !showCompatibilityIssue;
     final TextStyle footerPromptStyle = context.textStyles.bodySmall.copyWith(
       fontSize: 13,
       height: 1.4,
@@ -504,7 +525,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                       ),
                                     ],
                                   )
-                                : showStartupError
+                                : showStartupError || showCompatibilityIssue
                                 ? Text(
                                     statusText,
                                     style: context.textStyles.smallText
@@ -525,7 +546,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           ),
                         ),
                       ),
-                      if (serviceUnavailable || showStartupError)
+                      if (serviceUnavailable ||
+                          showStartupError ||
+                          showCompatibilityIssue)
                         _fadeExitContent(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -533,6 +556,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               const SizedBox(height: 16),
                               FluxerButton.primary(
                                 onPressed: () {
+                                  if (showCompatibilityIssue) {
+                                    unawaited(
+                                      ref
+                                          .read(wellKnownProvider.notifier)
+                                          .refresh(silent: false),
+                                    );
+                                    return;
+                                  }
                                   if (serviceUnavailable) {
                                     _scheduleOutageRetry();
                                   }
@@ -682,4 +713,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ],
     );
   }
+}
+
+String _startupErrorMessage(
+  Object error,
+  FluxerLocalizations strings,
+  String displayDomain,
+) {
+  if (error is InstanceDiscoveryException) {
+    final InstanceDiscoveryFailureReason? reason = error.reason;
+    if (reason != null && isInstanceCompatibilityError(error)) {
+      return instanceCompatibilityBody(reason, displayDomain, strings);
+    }
+  }
+  return userFacingErrorMessage(error, strings.networkErrorMessage);
 }

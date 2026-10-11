@@ -10970,8 +10970,39 @@ class FluxerLocalizationsRo extends FluxerLocalizations {
   String get instanceConnectFailed => 'Nu s-a putut conecta la instanță';
 
   @override
+  String instanceConnectFailedDomain(String domain) {
+    return 'Couldn\'t connect to $domain. Try again.';
+  }
+
+  @override
   String get instanceInvalidDiscoveryResponse =>
-      'This client cannot connect to this instance. The instance is likely out of date. If the instance is up to date, try updating this app.';
+      'Couldn\'t read this instance\'s configuration. Check the address and try again.';
+
+  @override
+  String instanceOutdatedForClient(String domain) {
+    return 'This instance is out of date for this app. Ask whoever runs $domain to update Fluxer.';
+  }
+
+  @override
+  String instanceRequiresNewerClient(String domain) {
+    return '$domain runs a newer version of Fluxer than this app. Update the app, then try again.';
+  }
+
+  @override
+  String get instanceCompatibilityTitle => 'Can\'t use this instance';
+
+  @override
+  String get instanceCompatibilityRetry => 'Try again';
+
+  @override
+  String get instanceCompatibilityUpdateApp => 'Update app';
+
+  @override
+  String get instanceCompatibilityStatusPagePrompt =>
+      'Check the status page for updates.';
+
+  @override
+  String get instanceCompatibilityStatusPageLink => 'status page';
 
   @override
   String get recentInstances => 'Instanțe recente';
