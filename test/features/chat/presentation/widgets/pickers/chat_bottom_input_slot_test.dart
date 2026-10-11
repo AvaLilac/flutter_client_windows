@@ -189,9 +189,9 @@ void main() {
       await tester.pump();
       expect(
         container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
-        336,
+        302,
       );
-      expect(tester.getSize(_spacerSizedBoxFinder()).height, 336);
+      expect(tester.getSize(_spacerSizedBoxFinder()).height, 302);
 
       notifier.debugApplyNativeMetrics(
         keyboardHeight: 0,

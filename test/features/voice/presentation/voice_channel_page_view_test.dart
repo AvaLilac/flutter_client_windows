@@ -98,6 +98,7 @@ void main() {
       );
       expect(find.byType(VoiceCallAvatar), findsOneWidget);
       expect(find.text('Connecting…'), findsOneWidget);
+      await releaseTestWidgetTree(tester);
     });
 
     testWidgets('hides connecting pill after connected', (
@@ -129,6 +130,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Connecting…'), findsNothing);
+      await releaseTestWidgetTree(tester);
     });
 
     testWidgets('shows join error banner when session has errorMessage', (
