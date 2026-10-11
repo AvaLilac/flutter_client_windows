@@ -157,7 +157,11 @@ class ComposerKeyboardSession {
       maybeReserveUnmeasuredKeyboard();
     } else {
       cancelPendingFocusRestore();
-      if (_isMounted()) {
+      if (_isMounted() &&
+          !isComposerPanelOpen(
+            expressionPanelOpen: _ref.read(expressionPanelProvider),
+            attachmentPanelOpen: _ref.read(attachmentPanelProvider),
+          )) {
         _ref
             .read(mobileKeyboardMetricsProvider.notifier)
             .onComposerEntryFocusLost();
