@@ -262,7 +262,6 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
   final _stickerPickerKey = GlobalKey<FluxerEmojiPickerPopoutState>();
 
   bool _composerFocused = false;
-  bool _requestComposerFocusAfterChannelCatchUp = false;
   final ValueNotifier<bool> _showComposerCounter = ValueNotifier<bool>(false);
 
   Widget _wideComposerIconButton({
@@ -409,6 +408,7 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
       ref: ref,
       onPrepareUi: _prepareVoiceRecordingUi,
     );
+    _textSession.onChannelChanged();
     unawaited(FluxerHaptics.warmSend());
   }
 
@@ -461,46 +461,7 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
         return;
       }
       _keyboardSession.resyncViewInsetsFromContext(context);
-      if (_requestComposerFocusAfterChannelCatchUp) {
-        _requestComposerFocusAfterChannelCatchUp = false;
-        if (!_focusNode.hasFocus) {
-          _requestComposerFocus();
-        }
-      }
     });
-  }
-
-  void _replaceComposerFocusNode({bool requestFocusAfterReplace = true}) {
-    final FocusNode previous = _focusNode
-      ..removeListener(_handleComposerFocusChange)
-      ..onKeyEvent = null;
-    final FocusNode next = FocusNode()
-      ..onKeyEvent = _handleComposerFieldKeyEvent
-      ..addListener(_handleComposerFocusChange);
-    _focusNode = next;
-    _keyboardSession.focusNode = next;
-    _textSession.focusNode = next;
-    if (mounted) {
-      setState(() {});
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      previous.dispose();
-      if (!mounted || !requestFocusAfterReplace) {
-        return;
-      }
-      if (!_focusNode.hasFocus) {
-        _requestComposerFocus();
-      }
-    });
-  }
-
-  void _dropComposerFocusWhileChatWindowCatchesUp() {
-    _keyboardSession.cancelPendingFocusRestore();
-    if (!_focusNode.hasFocus) {
-      return;
-    }
-    _requestComposerFocusAfterChannelCatchUp = true;
-    _replaceComposerFocusNode(requestFocusAfterReplace: false);
   }
 
   String _composerDisplayChannelId() {
@@ -910,22 +871,6 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
         final bool isBlocked = next.contains(dm.recipientId);
         if (!wasBlocked && isBlocked) {
           _clearComposerForBlockedAccess();
-        }
-      })
-      ..listen<String?>(activeChannelIdProvider, (
-        String? previous,
-        String? next,
-      ) {
-        if (!mounted || next == null || next.isEmpty) {
-          return;
-        }
-        final String vmChannelId = ref.read(
-          chatViewModelProvider.select(
-            (ChatViewState state) => state.channelId,
-          ),
-        );
-        if (vmChannelId != next) {
-          _dropComposerFocusWhileChatWindowCatchesUp();
         }
       })
       ..listen<String>(

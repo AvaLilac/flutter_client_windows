@@ -155,7 +155,29 @@ void main() {
         throwsA(
           predicate<InstanceDiscoveryException>(
             (InstanceDiscoveryException error) =>
-                error.message.contains('Incompatible server'),
+                error.reason == InstanceDiscoveryFailureReason.instanceOutdated,
+          ),
+        ),
+      );
+    });
+
+    test('connectToEndpoint throws on unsupported codename', () {
+      final InstanceDiscoveryService service = InstanceDiscoveryService(
+        dio: buildDio(
+          responseJson: <String, dynamic>{
+            ...buildDiscovery(),
+            'codename': 'future-gen',
+          },
+        ),
+      );
+
+      expect(
+        () => service.connectToEndpoint('chat.example.com'),
+        throwsA(
+          predicate<InstanceDiscoveryException>(
+            (InstanceDiscoveryException error) =>
+                error.reason ==
+                InstanceDiscoveryFailureReason.requiresNewerClient,
           ),
         ),
       );

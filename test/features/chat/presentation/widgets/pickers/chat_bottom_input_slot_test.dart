@@ -20,13 +20,19 @@ const MediaQueryData _mobileMediaQuery = MediaQueryData(
   viewPadding: EdgeInsets.only(bottom: _homeInset),
 );
 
-Finder _spacerSizedBoxFinder() {
+Finder _spacerAnimatedContainerFinder() {
   return find.descendant(
     of: find.byType(BottomInputSpacer),
-    matching: find.byWidgetPredicate(
-      (Widget widget) => widget is SizedBox && widget.height != null,
-    ),
+    matching: find.byType(AnimatedContainer),
   );
+}
+
+double _spacerBodyHeight(WidgetTester tester) {
+  return tester.getSize(_spacerAnimatedContainerFinder()).height;
+}
+
+double _spacerTotalHeight(WidgetTester tester) {
+  return tester.getSize(find.byType(BottomInputSpacer)).height;
 }
 
 Widget _buildSpacerHarness(ProviderContainer container) {
@@ -129,14 +135,8 @@ void main() {
       await tester.pump();
 
       expect(container.read(bottomInputSlotProvider).slotHeight, 336);
-      expect(
-        find.descendant(
-          of: find.byType(BottomInputSpacer),
-          matching: find.byType(AnimatedContainer),
-        ),
-        findsNothing,
-      );
-      expect(tester.getSize(_spacerSizedBoxFinder()).height, 336);
+      expect(_spacerTotalHeight(tester), 336);
+      expect(_spacerBodyHeight(tester), 336);
 
       await tester.pump(const Duration(milliseconds: 500));
     },
@@ -157,7 +157,7 @@ void main() {
     for (final double height in <double>[300, 310, 302]) {
       notifier.syncViewInsets(height, safeAreaBottom: 0);
       await tester.pump();
-      expect(tester.getSize(_spacerSizedBoxFinder()).height, height);
+      expect(_spacerBodyHeight(tester), height);
     }
 
     await tester.pump(const Duration(milliseconds: 500));
@@ -183,15 +183,15 @@ void main() {
         )
         ..syncViewInsets(302, safeAreaBottom: 0);
       await tester.pump();
-      expect(tester.getSize(_spacerSizedBoxFinder()).height, 302);
+      expect(_spacerBodyHeight(tester), 302);
 
       notifier.syncViewInsets(0, safeAreaBottom: 34);
       await tester.pump();
       expect(
         container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
-        336,
+        302,
       );
-      expect(tester.getSize(_spacerSizedBoxFinder()).height, 336);
+      expect(_spacerBodyHeight(tester), 302);
 
       notifier.debugApplyNativeMetrics(
         keyboardHeight: 0,
@@ -223,7 +223,7 @@ void main() {
       notifier.syncViewInsets(height, safeAreaBottom: 0);
       await tester.pump();
       expect(
-        tester.getSize(_spacerSizedBoxFinder()).height,
+        _spacerTotalHeight(tester),
         height > _homeInset ? height : _homeInset,
       );
     }
@@ -326,8 +326,9 @@ void main() {
               ),
             )
             .height,
-        kIosFallbackKeyboardHeight,
+        kIosFallbackKeyboardHeight - _homeInset,
       );
+      expect(_spacerTotalHeight(tester), kIosFallbackKeyboardHeight);
     },
   );
 }

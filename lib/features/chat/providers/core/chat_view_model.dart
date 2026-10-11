@@ -5024,35 +5024,37 @@ class ChatViewModel extends _$ChatViewModel {
             ref: ref,
             channelId: channelId,
           );
-      if (!permissionOutcome.shouldCache) {
-        talker.debug(
-          '[ChatViewModel] send blocked: permissions_unresolved channelId=$channelId',
+      if (permissionOutcome.shouldCache) {
+        ref
+            .read(channelPermissionCacheProvider.notifier)
+            .cacheEffectiveBits(
+              channelId: channelId,
+              outcome: permissionOutcome,
+            );
+        final bool canSendMessages = hasPermission(
+          permissionOutcome.value,
+          Permission.sendMessages,
         );
-        _notifySendBlocked(_SendBlockReason.channelNotReady);
-        return;
-      }
-      ref
-          .read(channelPermissionCacheProvider.notifier)
-          .cacheEffectiveBits(channelId: channelId, outcome: permissionOutcome);
-      final bool canSendMessages = hasPermission(
-        permissionOutcome.value,
-        Permission.sendMessages,
-      );
-      final bool lockedThread =
-          channelRow != null &&
-          isThreadChannelType(channelRow.type) &&
-          (channelRow.threadLocked ?? false) &&
-          !isThreadModerator(
-            withImplicitThreadBits(permissionOutcome.value),
-            isOwner: false,
-            timedOut: false,
+        final bool lockedThread =
+            channelRow != null &&
+            isThreadChannelType(channelRow.type) &&
+            (channelRow.threadLocked ?? false) &&
+            !isThreadModerator(
+              withImplicitThreadBits(permissionOutcome.value),
+              isOwner: false,
+              timedOut: false,
+            );
+        if (!canSendMessages || lockedThread) {
+          talker.debug(
+            '[ChatViewModel] send blocked: no_permission channelId=$channelId',
           );
-      if (!canSendMessages || lockedThread) {
+          _notifySendBlocked(_SendBlockReason.noPermission);
+          return;
+        }
+      } else {
         talker.debug(
-          '[ChatViewModel] send blocked: no_permission channelId=$channelId',
+          '[ChatViewModel] send permissions unresolved channelId=$channelId',
         );
-        _notifySendBlocked(_SendBlockReason.noPermission);
-        return;
       }
     }
     final rateLimit = channelRow?.rateLimitPerUser ?? 0;

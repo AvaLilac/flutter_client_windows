@@ -18,6 +18,7 @@ import 'package:fluxer_app/features/accessibility/providers/effective_motion_pre
 import 'package:fluxer_app/features/recovery_kit/presentation/recovery_kit_gate.dart';
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/shell/presentation/gateway_reconnect_banner.dart';
+import 'package:fluxer_app/features/shell/presentation/instance_compatibility_gate.dart';
 import 'package:fluxer_app/features/shell/presentation/native_titlebar.dart';
 import 'package:fluxer_app/features/ui/toast/fluxer_toast_overlay.dart';
 import 'package:fluxer_app/features/voice/presentation/widgets/incoming_voice_call_layer.dart';
@@ -134,7 +135,9 @@ class _FluxerAppState extends ConsumerState<FluxerApp> {
         );
         Widget overlayStack(Widget child) {
           return FluxerToastOverlay(
-            child: GatewayReconnectBannerOverlay(child: child),
+            child: InstanceCompatibilityGate(
+              child: GatewayReconnectBannerOverlay(child: child),
+            ),
           );
         }
 

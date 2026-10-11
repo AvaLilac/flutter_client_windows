@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
+import 'package:fluxer_app/core/instance/instance_compatibility.dart';
 import 'package:fluxer_app/core/instance/instance_config_snapshot.dart';
+import 'package:fluxer_app/core/instance/instance_discovery_service.dart';
 import 'package:fluxer_app/core/instance/instance_endpoints.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/auth/providers/auth_providers.dart';
@@ -19,6 +21,7 @@ class WellKnown extends _$WellKnown {
     final InstanceConfigSnapshot snapshot = ref.watch(activeInstanceProvider);
     final WellKnownFluxerResponse? cached = snapshot.wellKnown;
     if (cached != null) {
+      InstanceCompatibility.validateWellKnownDocument(cached);
       InstanceEndpoints.apply(cached);
       return cached;
     }
@@ -45,6 +48,11 @@ class WellKnown extends _$WellKnown {
       }
       state = AsyncData<WellKnownFluxerResponse>(response);
       await _persistSnapshot(response);
+    } on InstanceDiscoveryException catch (error, stackTrace) {
+      if (silent && state.hasValue && !_isCompatibilityFailure(error)) {
+        return;
+      }
+      state = AsyncError<WellKnownFluxerResponse>(error, stackTrace);
     } on Object catch (error, stackTrace) {
       if (silent && state.hasValue) {
         return;
@@ -53,10 +61,27 @@ class WellKnown extends _$WellKnown {
     }
   }
 
+  static bool _isCompatibilityFailure(InstanceDiscoveryException error) {
+    return error.reason == InstanceDiscoveryFailureReason.instanceOutdated ||
+        error.reason == InstanceDiscoveryFailureReason.requiresNewerClient;
+  }
+
   Future<WellKnownFluxerResponse> _fetch(Dio dio) async {
     final Response<Map<String, dynamic>> result = await dio
         .get<Map<String, dynamic>>('/.well-known/fluxer');
-    return InstanceConfigSnapshot.parseWellKnown(result.data!);
+    final Map<String, dynamic>? data = result.data;
+    if (data == null) {
+      throw const InstanceDiscoveryException(
+        'Invalid instance discovery response',
+        reason: InstanceDiscoveryFailureReason.invalidDiscoveryResponse,
+      );
+    }
+    final Map<String, dynamic> payload = Map<String, dynamic>.from(data);
+    InstanceCompatibility.validateDiscoveryPayload(payload);
+    final WellKnownFluxerResponse parsed =
+        InstanceConfigSnapshot.parseWellKnown(payload);
+    InstanceCompatibility.validateWellKnownDocument(parsed);
+    return parsed;
   }
 
   bool _applyIfMounted(WellKnownFluxerResponse response) {

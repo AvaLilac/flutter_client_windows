@@ -455,19 +455,6 @@ class ChatExpressionExpandableSheetState
       playExpandableSheetDismissHaptic();
     }
 
-    if (animateSlotFrom > 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_isClosing) {
-          return;
-        }
-        if (ref.read(bottomInputSlotProvider).transition ==
-            BottomInputTransition.lockingToKeyboard) {
-          return;
-        }
-        ref.read(bottomInputSlotProvider.notifier).holdSlotHeight(0);
-      });
-    }
-
     final Duration duration = expandableSheetSnapDuration(
       context,
       isDragging: false,
@@ -592,67 +579,71 @@ class ChatExpressionExpandableSheetState
             required bool isDragging,
             required Widget child,
           }) {
+            final double totalHeight = _totalHeightFor(height);
+            final bool showSheetBody = totalHeight > widget.dragHandleHeight;
             return expandableSheetAnimatedSize(
               context: context,
               isDragging: isDragging,
-              height: _totalHeightFor(height),
+              height: totalHeight,
               decoration: BoxDecoration(color: sheetBackground),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-                child: DecoratedBox(
-                  decoration: const BoxDecoration(
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: Color.fromRGBO(0, 0, 0, 0.15),
-                        blurRadius: 12,
-                        offset: Offset(0, -2),
+              child: showSheetBody
+                  ? ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
                       ),
-                    ],
-                  ),
-                  child: Opacity(
-                    opacity: _isClosing ? 0 : 1,
-                    child: IgnorePointer(
-                      ignoring: _isClosing,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
-                          ExpandableSheetDragTarget(
-                            key: kChatExpressionSheetDragHeaderKey,
-                            onVerticalDragStart: _onHeaderDragStart,
-                            onVerticalDragUpdate: _onHeaderDragUpdate,
-                            onVerticalDragEnd: _onHeaderDragEnd,
-                            child: SizedBox(
-                              key: kChatExpressionSheetDragHandleKey,
-                              height: widget.dragHandleHeight,
-                              width: double.infinity,
-                              child: const IgnorePointer(
-                                child: FluxerBottomSheetDragHandle(
-                                  includeTopPadding: false,
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color: Color.fromRGBO(0, 0, 0, 0.15),
+                              blurRadius: 12,
+                              offset: Offset(0, -2),
+                            ),
+                          ],
+                        ),
+                        child: Opacity(
+                          opacity: _isClosing ? 0 : 1,
+                          child: IgnorePointer(
+                            ignoring: _isClosing,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: <Widget>[
+                                ExpandableSheetDragTarget(
+                                  key: kChatExpressionSheetDragHeaderKey,
+                                  onVerticalDragStart: _onHeaderDragStart,
+                                  onVerticalDragUpdate: _onHeaderDragUpdate,
+                                  onVerticalDragEnd: _onHeaderDragEnd,
+                                  child: SizedBox(
+                                    key: kChatExpressionSheetDragHandleKey,
+                                    height: widget.dragHandleHeight,
+                                    width: double.infinity,
+                                    child: const IgnorePointer(
+                                      child: FluxerBottomSheetDragHandle(
+                                        includeTopPadding: false,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                Expanded(
+                                  child: ClipRect(
+                                    child: OverflowBox(
+                                      alignment: Alignment.topCenter,
+                                      maxHeight: double.infinity,
+                                      child: SizedBox(
+                                        height: math.max(height, _minHeight),
+                                        width: double.infinity,
+                                        child: child,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          Expanded(
-                            child: ClipRect(
-                              child: OverflowBox(
-                                alignment: Alignment.topCenter,
-                                maxHeight: double.infinity,
-                                child: SizedBox(
-                                  height: math.max(height, _minHeight),
-                                  width: double.infinity,
-                                  child: child,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-              ),
+                    )
+                  : const SizedBox.shrink(),
             );
           },
       child: RepaintBoundary(
@@ -681,10 +672,11 @@ class ChatExpressionExpandableSheetState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         sheetBody,
-        ColoredBox(
-          color: sheetBackground,
-          child: SizedBox(height: homeIndicatorInset),
-        ),
+        if (!_isClosing && homeIndicatorInset > 0)
+          ColoredBox(
+            color: sheetBackground,
+            child: SizedBox(height: homeIndicatorInset),
+          ),
       ],
     );
   }

@@ -37,9 +37,6 @@ Future<Guild?> _guildForPermissionResolution({
       return g;
     }
   }
-  if (guilds.isNotEmpty) {
-    return null;
-  }
   final Server? row = await db.guildDao.getServerById(guildId);
   if (row == null) {
     return null;

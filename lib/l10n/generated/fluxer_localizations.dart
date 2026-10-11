@@ -18059,11 +18059,59 @@ abstract class FluxerLocalizations {
   /// **'Failed to connect to instance'**
   String get instanceConnectFailed;
 
-  /// Error when the instance discovery document cannot be read, usually because the instance is behind this client.
+  /// Error when instance discovery fails for a specific domain.
   ///
   /// In en, this message translates to:
-  /// **'This client cannot connect to this instance. The instance is likely out of date. If the instance is up to date, try updating this app.'**
+  /// **'Couldn\'t connect to {domain}. Try again.'**
+  String instanceConnectFailedDomain(String domain);
+
+  /// Error when the instance discovery document cannot be parsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read this instance\'s configuration. Check the address and try again.'**
   String get instanceInvalidDiscoveryResponse;
+
+  /// Error when the instance api_code_version is below what this client requires.
+  ///
+  /// In en, this message translates to:
+  /// **'This instance is out of date for this app. Ask whoever runs {domain} to update Fluxer.'**
+  String instanceOutdatedForClient(String domain);
+
+  /// Error when the instance speaks a protocol generation this client does not support.
+  ///
+  /// In en, this message translates to:
+  /// **'{domain} runs a newer version of Fluxer than this app. Update the app, then try again.'**
+  String instanceRequiresNewerClient(String domain);
+
+  /// Title on the full-screen instance compatibility blocker.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t use this instance'**
+  String get instanceCompatibilityTitle;
+
+  /// Button to re-fetch instance discovery on the compatibility blocker.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get instanceCompatibilityRetry;
+
+  /// Button to open the app store or download page when the client is too old.
+  ///
+  /// In en, this message translates to:
+  /// **'Update app'**
+  String get instanceCompatibilityUpdateApp;
+
+  /// Hint below compatibility error copy when a status page URL is available.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the status page for updates.'**
+  String get instanceCompatibilityStatusPagePrompt;
+
+  /// Link label for the instance status page on the compatibility blocker.
+  ///
+  /// In en, this message translates to:
+  /// **'status page'**
+  String get instanceCompatibilityStatusPageLink;
 
   /// Label for the recent self-hosted instances list.
   ///

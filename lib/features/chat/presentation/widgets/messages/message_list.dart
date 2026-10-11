@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as drift_db;
 import 'package:fluxer_app/core/permissions/channel_permission_cache_provider.dart';
@@ -298,6 +299,7 @@ class _MessageListState extends ConsumerState<MessageList>
   final ValueNotifier<bool> _deferHorizontalWhileCoasting = ValueNotifier<bool>(
     false,
   );
+  bool? _deferHorizontalWhileCoastingAfterFrame;
   final _LiveDouble _openPad = _LiveDouble(0);
   bool _settleDeferredForHold = false;
   Timer? _detachedTrimTimer;
@@ -2034,12 +2036,37 @@ class _MessageListState extends ConsumerState<MessageList>
   /// coasting flag cannot be driven from start notifications alone. While the
   /// position is still scrolling, horizontal competitors must drop out so a
   /// catch-fling can keep the hold's velocity.
+  void _setDeferHorizontalWhileCoasting(bool value) {
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+      _deferHorizontalWhileCoastingAfterFrame = null;
+      if (_deferHorizontalWhileCoasting.value != value) {
+        _deferHorizontalWhileCoasting.value = value;
+      }
+      return;
+    }
+    final bool schedule = _deferHorizontalWhileCoastingAfterFrame == null;
+    _deferHorizontalWhileCoastingAfterFrame = value;
+    if (!schedule) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final bool? pending = _deferHorizontalWhileCoastingAfterFrame;
+      _deferHorizontalWhileCoastingAfterFrame = null;
+      if (!mounted || pending == null) {
+        return;
+      }
+      if (_deferHorizontalWhileCoasting.value != pending) {
+        _deferHorizontalWhileCoasting.value = pending;
+      }
+    });
+  }
+
   void _syncCoastingDefer() {
     if (!_scrollController.hasClients) {
       return;
     }
     if (_scrollController.position.isScrollingNotifier.value) {
-      _deferHorizontalWhileCoasting.value = true;
+      _setDeferHorizontalWhileCoasting(true);
     }
   }
 
@@ -2322,7 +2349,7 @@ class _MessageListState extends ConsumerState<MessageList>
       _settleDeferredForHold = false;
       _cancelDetachedTrim();
       if (notification.dragDetails == null) {
-        _deferHorizontalWhileCoasting.value = true;
+        _setDeferHorizontalWhileCoasting(true);
       }
       _syncCoastingDefer();
       // Drag, ballistic, or programmatic - each pairs with an End, and the
@@ -2338,7 +2365,7 @@ class _MessageListState extends ConsumerState<MessageList>
       }
     } else if (notification is ScrollUpdateNotification) {
       if (notification.dragDetails == null) {
-        _deferHorizontalWhileCoasting.value = true;
+        _setDeferHorizontalWhileCoasting(true);
       }
       final double? delta = notification.scrollDelta;
       if (delta != null && delta != 0) {
@@ -2406,7 +2433,7 @@ class _MessageListState extends ConsumerState<MessageList>
   /// A depth-0 scroll settled: update the pin latch, apply the re-center
   /// policy, trim the window at the tail, and republish the read viewport.
   void _onUserScrollSettled() {
-    _deferHorizontalWhileCoasting.value = false;
+    _setDeferHorizontalWhileCoasting(false);
     if (!_anchorResolved || !_scrollController.hasClients) {
       _chatViewModel.setUserScrollActive(
         channelId: _viewportChannelId,

@@ -12881,9 +12881,56 @@
     "@instanceConnectFailed": {
         "description": "Fallback error when instance discovery fails."
     },
-    "instanceInvalidDiscoveryResponse": "This client cannot connect to this instance. The instance is likely out of date. If the instance is up to date, try updating this app.",
+    "instanceConnectFailedDomain": "Couldn't connect to {domain}. Try again.",
+    "@instanceConnectFailedDomain": {
+        "description": "Error when instance discovery fails for a specific domain.",
+        "placeholders": {
+            "domain": {
+                "type": "String"
+            }
+        }
+    },
+    "instanceInvalidDiscoveryResponse": "Couldn't read this instance's configuration. Check the address and try again.",
     "@instanceInvalidDiscoveryResponse": {
-        "description": "Error when the instance discovery document cannot be read, usually because the instance is behind this client."
+        "description": "Error when the instance discovery document cannot be parsed."
+    },
+    "instanceOutdatedForClient": "This instance is out of date for this app. Ask whoever runs {domain} to update Fluxer.",
+    "@instanceOutdatedForClient": {
+        "description": "Error when the instance api_code_version is below what this client requires.",
+        "placeholders": {
+            "domain": {
+                "type": "String"
+            }
+        }
+    },
+    "instanceRequiresNewerClient": "{domain} runs a newer version of Fluxer than this app. Update the app, then try again.",
+    "@instanceRequiresNewerClient": {
+        "description": "Error when the instance speaks a protocol generation this client does not support.",
+        "placeholders": {
+            "domain": {
+                "type": "String"
+            }
+        }
+    },
+    "instanceCompatibilityTitle": "Can't use this instance",
+    "@instanceCompatibilityTitle": {
+        "description": "Title on the full-screen instance compatibility blocker."
+    },
+    "instanceCompatibilityRetry": "Try again",
+    "@instanceCompatibilityRetry": {
+        "description": "Button to re-fetch instance discovery on the compatibility blocker."
+    },
+    "instanceCompatibilityUpdateApp": "Update app",
+    "@instanceCompatibilityUpdateApp": {
+        "description": "Button to open the app store or download page when the client is too old."
+    },
+    "instanceCompatibilityStatusPagePrompt": "Check the status page for updates.",
+    "@instanceCompatibilityStatusPagePrompt": {
+        "description": "Hint below compatibility error copy when a status page URL is available."
+    },
+    "instanceCompatibilityStatusPageLink": "status page",
+    "@instanceCompatibilityStatusPageLink": {
+        "description": "Link label for the instance status page on the compatibility blocker."
     },
     "recentInstances": "Recent instances",
     "@recentInstances": {

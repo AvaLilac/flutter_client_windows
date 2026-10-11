@@ -8,6 +8,7 @@ import 'package:fluxer_app/core/database/fluxer_database.dart'
 import 'package:fluxer_app/core/providers/app_startup_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/splash_exit_allowed_provider.dart';
+import 'package:fluxer_app/core/providers/well_known_provider.dart';
 import 'package:fluxer_app/features/auth/domain/stored_account.dart';
 import 'package:fluxer_app/features/auth/providers/account_manager_provider.dart';
 import 'package:fluxer_app/features/shell/domain/service_status_incident.dart';
@@ -17,6 +18,7 @@ import 'package:fluxer_app/features/ui/icons/instance_branding_image.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:riverpod/src/framework.dart' show Override;
 
+import '../../../helpers/fake_well_known.dart';
 import '../../../helpers/open_test_database.dart';
 import '../../../helpers/pump_fluxer_app.dart';
 import '../../../helpers/test_l10n.dart';
@@ -67,6 +69,13 @@ class _AccountsPresent extends AccountManager {
 
 late FluxerDatabase _database;
 
+List<Override> _splashOverrides(List<Override> overrides) {
+  return <Override>[
+    wellKnownProvider.overrideWith(FakeWellKnown.new),
+    ...overrides,
+  ];
+}
+
 void main() {
   setUp(() {
     _database = openTestDatabase();
@@ -75,10 +84,10 @@ void main() {
   testWidgets('unmounting before the reveal releases the gateway gate', (
     tester,
   ) async {
-    final List<Override> overrides = <Override>[
+    final List<Override> overrides = _splashOverrides(<Override>[
       fluxerDatabaseProvider.overrideWithValue(_database),
       appStartupProvider.overrideWith(_PendingAppStartup.new),
-    ];
+    ]);
     await tester.pumpWidget(
       pumpFluxerApp(overrides: overrides, child: const SplashScreen()),
     );
@@ -102,11 +111,11 @@ void main() {
     await tester.pumpWidget(
       pumpFluxerApp(
         retry: (int retryCount, Object error) => null,
-        overrides: <Override>[
+        overrides: _splashOverrides(<Override>[
           fluxerDatabaseProvider.overrideWithValue(_database),
           appStartupProvider.overrideWith(_UnavailableAppStartup.new),
           serviceStatusIncidentReadProvider.overrideWith(_NoopIncidentRead.new),
-        ],
+        ]),
         child: const SplashScreen(),
       ),
     );
@@ -126,12 +135,12 @@ void main() {
     await tester.pumpWidget(
       pumpFluxerApp(
         retry: (int retryCount, Object error) => null,
-        overrides: <Override>[
+        overrides: _splashOverrides(<Override>[
           fluxerDatabaseProvider.overrideWithValue(_database),
           appStartupProvider.overrideWith(_UnavailableAppStartup.new),
           serviceStatusIncidentReadProvider.overrideWith(_NoopIncidentRead.new),
           accountManagerProvider.overrideWith(_AccountsPresent.new),
-        ],
+        ]),
         child: const SplashScreen(),
       ),
     );
@@ -148,14 +157,14 @@ void main() {
       await tester.pumpWidget(
         pumpFluxerApp(
           retry: (int retryCount, Object error) => null,
-          overrides: <Override>[
+          overrides: _splashOverrides(<Override>[
             fluxerDatabaseProvider.overrideWithValue(_database),
             appStartupProvider.overrideWith(_GenericFailAppStartup.new),
             serviceStatusIncidentReadProvider.overrideWith(
               _NoopIncidentRead.new,
             ),
             accountManagerProvider.overrideWith(_AccountsPresent.new),
-          ],
+          ]),
           child: const SplashScreen(),
         ),
       );
@@ -173,13 +182,13 @@ void main() {
       await tester.pumpWidget(
         pumpFluxerApp(
           retry: (int retryCount, Object error) => null,
-          overrides: <Override>[
+          overrides: _splashOverrides(<Override>[
             fluxerDatabaseProvider.overrideWithValue(_database),
             appStartupProvider.overrideWith(_GenericFailAppStartup.new),
             serviceStatusIncidentReadProvider.overrideWith(
               _NoopIncidentRead.new,
             ),
-          ],
+          ]),
           child: const SplashScreen(),
         ),
       );
@@ -198,10 +207,10 @@ void main() {
 
     await tester.pumpWidget(
       pumpFluxerApp(
-        overrides: <Override>[
+        overrides: _splashOverrides(<Override>[
           fluxerDatabaseProvider.overrideWithValue(_database),
           appStartupProvider.overrideWith(_PendingAppStartup.new),
-        ],
+        ]),
         child: const SplashScreen(),
       ),
     );

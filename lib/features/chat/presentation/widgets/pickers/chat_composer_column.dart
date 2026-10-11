@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/channel_textarea.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/composer_autocomplete_field.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/chat_bottom_input_slot.dart';
+import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/mobile_keyboard_metrics_provider.dart';
 import 'package:fluxer_app/features/chat/utils/composer/bottom_input_slot_layout.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
@@ -28,6 +29,7 @@ class ChatComposerColumn extends ConsumerStatefulWidget {
 
 class _ChatComposerColumnState extends ConsumerState<ChatComposerColumn>
     with WidgetsBindingObserver {
+  String _composerChannelKey = '';
   bool _syncScheduled = false;
   int _resumeInsetSyncFramesRemaining = 0;
   int _metricsSyncGeneration = 0;
@@ -145,12 +147,19 @@ class _ChatComposerColumnState extends ConsumerState<ChatComposerColumn>
         _scheduleKeyboardMetricsSync();
       }
     }
+    final String channelId = ref.watch(
+      chatViewModelProvider.select((ChatViewState state) => state.channelId),
+    );
+    if (channelId.isNotEmpty) {
+      _composerChannelKey = channelId;
+    }
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         RepaintBoundary(
           child: ThreadComposerGate(
             child: ChannelTextarea(
+              key: ValueKey<String>(_composerChannelKey),
               autocompletePanelHost: widget.autocompletePanelHost,
               autocompletePanelScrollController:
                   widget.autocompletePanelScrollController,

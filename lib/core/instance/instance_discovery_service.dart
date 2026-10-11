@@ -1,17 +1,28 @@
 import 'package:dio/dio.dart';
+import 'package:fluxer_app/core/instance/instance_compatibility.dart';
 import 'package:fluxer_app/core/instance/instance_config_snapshot.dart';
-import 'package:fluxer_app/core/instance/instance_constants.dart';
 import 'package:fluxer_app/core/instance/instance_endpoint_normalizer.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_dart/export.dart';
 
-enum InstanceDiscoveryFailureReason { invalidDiscoveryResponse }
+enum InstanceDiscoveryFailureReason {
+  invalidDiscoveryResponse,
+  instanceOutdated,
+  requiresNewerClient,
+}
 
 class InstanceDiscoveryException implements Exception {
-  const InstanceDiscoveryException(this.message, {this.reason});
+  const InstanceDiscoveryException(
+    this.message, {
+    this.reason,
+    this.reportedApiCodeVersion,
+    this.reportedCodename,
+  });
 
   final String message;
   final InstanceDiscoveryFailureReason? reason;
+  final int? reportedApiCodeVersion;
+  final String? reportedCodename;
 
   @override
   String toString() => message;
@@ -66,6 +77,7 @@ class InstanceDiscoveryService {
         );
       }
       final Map<String, dynamic> payload = Map<String, dynamic>.from(data);
+      InstanceCompatibility.validateDiscoveryPayload(payload);
       final WellKnownFluxerResponse wellKnown;
       try {
         wellKnown = InstanceConfigSnapshot.parseWellKnown(payload);
@@ -81,7 +93,7 @@ class InstanceDiscoveryService {
           reason: InstanceDiscoveryFailureReason.invalidDiscoveryResponse,
         );
       }
-      _assertCodeVersion(wellKnown.apiCodeVersion);
+      InstanceCompatibility.validateWellKnownDocument(wellKnown);
       final InstanceConfigSnapshot snapshot =
           InstanceConfigSnapshot.fromWellKnown(
             wellKnown: wellKnown,
@@ -119,18 +131,5 @@ class InstanceDiscoveryService {
       return text;
     }
     return '${text.substring(0, maxLength)}…';
-  }
-
-  void _assertCodeVersion(int instanceVersion) {
-    if (instanceVersion < InstanceConstants.apiCodeVersion) {
-      talker.warning(
-        '[InstanceDiscovery] Incompatible api_code_version=$instanceVersion '
-        'required=${InstanceConstants.apiCodeVersion}',
-      );
-      throw InstanceDiscoveryException(
-        'Incompatible server (code version $instanceVersion); '
-        'this client requires ${InstanceConstants.apiCodeVersion}.',
-      );
-    }
   }
 }

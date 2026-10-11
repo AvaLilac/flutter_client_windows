@@ -166,6 +166,9 @@ class BottomInputSlot extends _$BottomInputSlot {
       return;
     }
     _heldSlotHeightOverride = null;
+    if (!ref.mounted) {
+      return;
+    }
     state = _resolveState();
   }
 

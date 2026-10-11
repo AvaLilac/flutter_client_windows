@@ -23,41 +23,66 @@ class BottomInputSpacer extends ConsumerWidget {
       expressionPanelOpen: ref.watch(expressionPanelProvider),
       attachmentPanelOpen: ref.watch(attachmentPanelProvider),
     );
-    final BottomInputSlotState slotState = ref.watch(bottomInputSlotProvider);
-    final double slotHeight = slotState.slotHeight;
-
     if (isPanelOpen) {
-      final ({double? anchoredKeyboardHeight, double fallbackKeyboardHeight})
-      panelMetrics = ref.watch(
-        mobileKeyboardMetricsProvider.select(
-          (MobileKeyboardMetricsState metrics) => (
-            anchoredKeyboardHeight: metrics.anchoredKeyboardHeight,
-            fallbackKeyboardHeight: metrics.fallbackKeyboardHeight,
-          ),
-        ),
+      return _buildPanelSpacer(context, ref);
+    }
+    return _buildKeyboardSpacer(context, ref);
+  }
+
+  Widget _buildPanelSpacer(BuildContext context, WidgetRef ref) {
+    final bool panelClosing = ref.watch(composerPanelClosingProvider);
+    final double homeIndicatorInset = _homeIndicatorInset(context);
+    if (panelClosing) {
+      return _animatedSpacer(
+        context,
+        totalHeight: homeIndicatorInset,
+        splitHomeIndicator: true,
       );
-      final double anchorHeight = inlineExpressionPanelAnchorHeight(
-        anchoredKeyboardHeight: panelMetrics.anchoredKeyboardHeight,
-        fallbackHeight: panelMetrics.fallbackKeyboardHeight,
-      );
-      final double reservedHeight = resolvePanelReservedLayoutHeight(
-        slotHeight: slotHeight,
-        netAnchorHeight: anchorHeight,
-        grossAnchorHeight: anchorHeight,
-        useExactSlotHeight: slotState.slotHeightHeld,
-      );
-      if (reservedHeight <= 0) {
-        return const SizedBox.shrink();
-      }
-      return _animatedSpacer(context, reservedHeight);
     }
 
-    final ({double liveKeyboardHeight, bool unmeasuredKeyboardReserved})
+    final BottomInputSlotState slotState = ref.watch(bottomInputSlotProvider);
+    final ({double? anchoredKeyboardHeight, double fallbackKeyboardHeight})
+    panelMetrics = ref.watch(
+      mobileKeyboardMetricsProvider.select(
+        (MobileKeyboardMetricsState metrics) => (
+          anchoredKeyboardHeight: metrics.anchoredKeyboardHeight,
+          fallbackKeyboardHeight: metrics.fallbackKeyboardHeight,
+        ),
+      ),
+    );
+    final double anchorHeight = inlineExpressionPanelAnchorHeight(
+      anchoredKeyboardHeight: panelMetrics.anchoredKeyboardHeight,
+      fallbackHeight: panelMetrics.fallbackKeyboardHeight,
+    );
+    final double reservedHeight = resolvePanelReservedLayoutHeight(
+      slotHeight: slotState.slotHeight,
+      netAnchorHeight: anchorHeight,
+      grossAnchorHeight: anchorHeight,
+      useExactSlotHeight: slotState.slotHeightHeld,
+    );
+    if (reservedHeight <= 0) {
+      return const SizedBox.shrink();
+    }
+    return _animatedSpacer(
+      context,
+      totalHeight: reservedHeight,
+      splitHomeIndicator: true,
+    );
+  }
+
+  Widget _buildKeyboardSpacer(BuildContext context, WidgetRef ref) {
+    final BottomInputSlotState slotState = ref.watch(bottomInputSlotProvider);
+    final ({
+      double liveKeyboardHeight,
+      bool unmeasuredKeyboardReserved,
+      bool isKeyboardVisible,
+    })
     metrics = ref.watch(
       mobileKeyboardMetricsProvider.select(
         (MobileKeyboardMetricsState state) => (
           liveKeyboardHeight: state.liveKeyboardHeight,
           unmeasuredKeyboardReserved: state.unmeasuredKeyboardReserved,
+          isKeyboardVisible: state.isKeyboardVisible,
         ),
       ),
     );
@@ -68,13 +93,49 @@ class BottomInputSpacer extends ConsumerWidget {
         slotState.slotHeightHeld;
     final double spacerHeight = _keyboardSpacerHeight(
       context,
-      slotHeight,
+      slotState.slotHeight,
       keyboardLayoutActive: keyboardLayoutActive,
     );
     if (spacerHeight <= 0) {
       return const SizedBox.shrink();
     }
-    return _coloredSpacer(context, spacerHeight);
+
+    final double homeIndicatorInset = _homeIndicatorInset(context);
+    final double viewInsetBottom = resolvedKeyboardInsetBottom(context);
+    final bool trackLiveKeyboardHeight =
+        metrics.isKeyboardVisible && metrics.liveKeyboardHeight > 0;
+    final double paintHeight = resolveBottomInputAnimatedSpacerPaintHeight(
+      spacerHeight: spacerHeight,
+      viewInsetBottom: viewInsetBottom,
+      homeIndicatorInset: homeIndicatorInset,
+      trackLiveKeyboardHeight: trackLiveKeyboardHeight,
+    );
+    if (paintHeight <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    final bool trackInset = shouldTrackKeyboardInsetForAnimatedSpacer(
+      spacerHeight: spacerHeight,
+      viewInsetBottom: viewInsetBottom,
+      paintHeight: paintHeight,
+      trackLiveKeyboardHeight: trackLiveKeyboardHeight,
+    );
+    return _animatedSpacer(
+      context,
+      totalHeight: paintHeight,
+      splitHomeIndicator: shouldSplitBottomInputSpacerHomeIndicator(
+        totalHeight: paintHeight,
+        spacerHeight: spacerHeight,
+        homeIndicatorInset: homeIndicatorInset,
+        liveKeyboardHeight: metrics.liveKeyboardHeight,
+        trackLiveKeyboardHeight: trackLiveKeyboardHeight,
+      ),
+      isDragging: trackLiveKeyboardHeight || trackInset,
+    );
+  }
+
+  double _homeIndicatorInset(BuildContext context) {
+    return bottomInputHomeIndicatorInset(MediaQuery.of(context));
   }
 
   double _keyboardSpacerHeight(
@@ -82,6 +143,7 @@ class BottomInputSpacer extends ConsumerWidget {
     double slotHeight, {
     required bool keyboardLayoutActive,
   }) {
+    final double homeIndicatorInset = _homeIndicatorInset(context);
     final double inset = resolvedKeyboardInsetBottom(context);
     final double resolved = resolveKeyboardSpacerRawHeight(
       viewInsetBottom: inset,
@@ -93,24 +155,44 @@ class BottomInputSpacer extends ConsumerWidget {
     }
     return bottomInputKeyboardSpacerHeight(
       slotHeight: resolved,
-      homeIndicatorInset: MediaQuery.viewPaddingOf(context).bottom,
+      homeIndicatorInset: homeIndicatorInset,
     );
   }
 
-  Widget _animatedSpacer(BuildContext context, double height) {
-    return expandableSheetAnimatedSize(
-      context: context,
-      isDragging: false,
-      height: height,
-      decoration: BoxDecoration(color: context.colors.chatInputBackground),
-      child: const SizedBox.shrink(),
-    );
-  }
-
-  Widget _coloredSpacer(BuildContext context, double height) {
-    return ColoredBox(
-      color: context.colors.chatInputBackground,
-      child: SizedBox(height: height),
+  Widget _animatedSpacer(
+    BuildContext context, {
+    required double totalHeight,
+    required bool splitHomeIndicator,
+    bool isDragging = false,
+  }) {
+    final Color background = context.colors.chatInputBackground;
+    final double homeIndicatorInset = _homeIndicatorInset(context);
+    final ({double bodyHeight, double indicatorHeight}) split =
+        splitBottomInputSpacerHeights(
+          totalHeight: totalHeight,
+          homeIndicatorInset: homeIndicatorInset,
+          splitHomeIndicator: splitHomeIndicator,
+        );
+    if (split.bodyHeight <= 0 && split.indicatorHeight <= 0) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (split.bodyHeight > 0)
+          expandableSheetAnimatedSize(
+            context: context,
+            isDragging: isDragging,
+            height: split.bodyHeight,
+            decoration: BoxDecoration(color: background),
+            child: const SizedBox.shrink(),
+          ),
+        if (split.indicatorHeight > 0)
+          ColoredBox(
+            color: background,
+            child: SizedBox(height: split.indicatorHeight),
+          ),
+      ],
     );
   }
 }
