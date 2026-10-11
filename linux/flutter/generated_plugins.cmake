@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links_linux
   audioplayers_linux
   desktop_drop
   desktop_webview_window
@@ -10,7 +11,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_inappwebview_linux
   flutter_secure_storage_linux
   flutter_webrtc
-  gtk
   irondash_engine_context
   livekit_client
   media_kit_libs_linux
