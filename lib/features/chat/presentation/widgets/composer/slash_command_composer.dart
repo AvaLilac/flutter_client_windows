@@ -72,7 +72,7 @@ class _SlashCommandComposerState extends State<SlashCommandComposer>
       return;
     }
     _pendingSlotRestore = false;
-    _restoreFocusedSlot();
+    _restoreFocus();
   }
 
   void _disposeEditors() {
@@ -128,11 +128,7 @@ class _SlashCommandComposerState extends State<SlashCommandComposer>
   }
 
   void _restoreFocus() {
-    _afterFrame(() => _focusActiveSlot(reconnectIfFocused: false));
-  }
-
-  void _restoreFocusedSlot() {
-    _afterFrame(() => _focusActiveSlot(reconnectIfFocused: true));
+    _afterFrame(_focusActiveSlot);
   }
 
   void _afterFrame(VoidCallback action) {
@@ -146,14 +142,13 @@ class _SlashCommandComposerState extends State<SlashCommandComposer>
       });
   }
 
-  void _focusActiveSlot({required bool reconnectIfFocused}) {
+  void _focusActiveSlot() {
     if (widget.session.focus != ComposerSlashFocus.slot ||
         widget.session.focusedSlotIndex >= _focusNodes.length) {
       return;
     }
     final FocusNode node = _focusNodes[widget.session.focusedSlotIndex];
-    if (reconnectIfFocused && node.hasFocus) {
-      reconnectComposerKeyboard(node);
+    if (node.hasFocus) {
       return;
     }
     node.requestFocus();

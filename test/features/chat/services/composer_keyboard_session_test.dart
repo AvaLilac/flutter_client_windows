@@ -7,7 +7,9 @@ import 'package:fluxer_app/features/chat/services/composer_keyboard_session.dart
 import 'package:fluxer_app/features/chat/utils/composer/bottom_input_slot_layout.dart';
 
 void main() {
-  testWidgets('cancelImeReconnect ends ime reconnect state', (tester) async {
+  testWidgets('cancelPendingFocusRestore drops pending background restore', (
+    tester,
+  ) async {
     final FocusNode focusNode = FocusNode();
     addTearDown(focusNode.dispose);
     late ComposerKeyboardSession session;
@@ -37,12 +39,13 @@ void main() {
     focusNode.requestFocus();
     await tester.pumpAndSettle();
 
-    session.reconnectOpenField();
+    session.handleAppLifecycle(AppLifecycleState.paused);
+    focusNode.unfocus();
     await tester.pump();
-    expect(session.keyboardState, ComposerKeyboardState.imeReconnecting);
+    expect(session.hasPendingRestore, isTrue);
 
-    session.cancelImeReconnect();
-    expect(session.keyboardState, isNot(ComposerKeyboardState.imeReconnecting));
+    session.cancelPendingFocusRestore();
+    expect(session.hasPendingRestore, isFalse);
     session.dispose();
   });
 
@@ -139,53 +142,52 @@ void main() {
     session.dispose();
   });
 
-  testWidgets(
-    'composer tap nudges keyboard when metrics show open but insets are zero',
-    (tester) async {
-      final FocusNode focusNode = FocusNode();
-      addTearDown(focusNode.dispose);
-      late ComposerKeyboardSession session;
+  testWidgets('composer tap does not restart an already focused field', (
+    tester,
+  ) async {
+    final FocusNode focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+    late ComposerKeyboardSession session;
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            mobileKeyboardMetricsProvider.overrideWith(
-              _OpenKeyboardMetrics.new,
-            ),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: Consumer(
-                builder: (BuildContext context, WidgetRef ref, Widget? _) {
-                  session = ComposerKeyboardSession(
-                    ref: ref,
-                    focusNode: focusNode,
-                    isMounted: () => true,
-                    isMobileLayout: () => true,
-                    isSlashSessionActive: () => false,
-                    composerEntryFocused: () => focusNode.hasFocus,
-                  );
-                  return TextField(focusNode: focusNode);
-                },
-              ),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          mobileKeyboardMetricsProvider.overrideWith(_OpenKeyboardMetrics.new),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Consumer(
+              builder: (BuildContext context, WidgetRef ref, Widget? _) {
+                session = ComposerKeyboardSession(
+                  ref: ref,
+                  focusNode: focusNode,
+                  isMounted: () => true,
+                  isMobileLayout: () => true,
+                  isSlashSessionActive: () => false,
+                  composerEntryFocused: () => focusNode.hasFocus,
+                );
+                return TextField(focusNode: focusNode);
+              },
             ),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      focusNode.requestFocus();
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
+    focusNode.requestFocus();
+    await tester.pumpAndSettle();
+    tester.testTextInput.log.clear();
 
-      session.onComposerFieldTap(tester.element(find.byType(TextField)));
-      await tester.pump();
+    session.onComposerFieldTap(tester.element(find.byType(TextField)));
+    await tester.pump();
 
-      expect(
-        session.keyboardState,
-        isNot(ComposerKeyboardState.imeReconnecting),
-      );
-      session.dispose();
-    },
-  );
+    expect(focusNode.hasFocus, isTrue);
+    expect(
+      tester.testTextInput.log.map((call) => call.method),
+      isNot(contains('TextInput.show')),
+    );
+    session.dispose();
+  });
 
   testWidgets('a closed keyboard stays closed while the composer keeps focus', (
     tester,
