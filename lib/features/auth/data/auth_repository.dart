@@ -54,48 +54,7 @@ class AuthRepository {
 
     try {
       final response = await _client.auth.loginUser(body: request);
-
-      try {
-        final tokenResponse = response.toAuthTokenWithUserIdResponse();
-        final session = AuthSession(
-          token: tokenResponse.token,
-          userId: tokenResponse.userId,
-        );
-
-        await _saveSession(session);
-
-        return LoginSuccess(session);
-      } on Object {
-        // Not a token response — try MFA
-      }
-
-      try {
-        final mfaResponse = response.toVariant2();
-        return LoginMfaRequired(
-          MfaChallenge(
-            ticket: mfaResponse.ticket,
-            totp: mfaResponse.totp,
-            webauthn: mfaResponse.webauthn,
-          ),
-        );
-      } on Object {
-        // Not an MFA response either
-      }
-
-      // Check for account suspension (ban_view_token in raw JSON).
-      final json = response.toJson();
-      final banViewToken = json['ban_view_token'] as String?;
-      final banType = json['ban_type'] as String?;
-      if (banViewToken != null && banType != null) {
-        return LoginSuspended(
-          BanViewInfo(
-            token: banViewToken,
-            banType: BanType.fromString(banType),
-          ),
-        );
-      }
-
-      throw const AuthFailure('Unexpected login response from Fluxer API.');
+      return await _loginResultFromAuthLoginResponse(response);
     } on AuthFailure {
       rethrow;
     } on DioException catch (error) {
@@ -129,27 +88,7 @@ class AuthRepository {
       final response = await _client.auth.resetPassword(
         body: ResetPasswordRequest(token: token, password: password),
       );
-
-      try {
-        final tokenResponse = response.toAuthTokenWithUserIdResponse();
-        final session = AuthSession(
-          token: tokenResponse.token,
-          userId: tokenResponse.userId,
-        );
-        await _saveSession(session);
-        return LoginSuccess(session);
-      } on Object {
-        // Not a token response — try MFA
-      }
-
-      final mfaResponse = response.toVariant2();
-      return LoginMfaRequired(
-        MfaChallenge(
-          ticket: mfaResponse.ticket,
-          totp: mfaResponse.totp,
-          webauthn: mfaResponse.webauthn,
-        ),
-      );
+      return await _loginResultFromAuthLoginResponse(response);
     } on DioException catch (error) {
       throw _failureFromDio(error);
     }
@@ -702,6 +641,40 @@ class AuthRepository {
   Future<void> removeStoredAccount(String userId) async {
     await _db.authSessionDao.removeSession(userId);
     await _tokenStorage.deleteToken(userId);
+  }
+
+  Future<LoginResult> _loginResultFromAuthLoginResponse(
+    AuthLoginResponse response,
+  ) async {
+    final Map<String, dynamic> json = response.toJson();
+    if (json['mfa'] == true) {
+      final AuthLoginResponseVariant2 mfaResponse = response.toVariant2();
+      return LoginMfaRequired(
+        MfaChallenge(
+          ticket: mfaResponse.ticket,
+          totp: mfaResponse.totp,
+          webauthn: mfaResponse.webauthn,
+        ),
+      );
+    }
+
+    final banViewToken = json['ban_view_token'] as String?;
+    final banType = json['ban_type'] as String?;
+    if (banViewToken != null && banType != null) {
+      return LoginSuspended(
+        BanViewInfo(token: banViewToken, banType: BanType.fromString(banType)),
+      );
+    }
+
+    final String token = json['token'] as String? ?? '';
+    final Object? userIdRaw = json['user_id'];
+    final String userId = userIdRaw == null ? '' : userIdRaw.toString();
+    if (token.isEmpty || userId.isEmpty) {
+      throw const AuthFailure('Unexpected login response from Fluxer API.');
+    }
+    final AuthSession session = AuthSession(token: token, userId: userId);
+    await _saveSession(session);
+    return LoginSuccess(session);
   }
 
   Future<AuthSession?> _resolveSessionForUserId(String userId) async {
