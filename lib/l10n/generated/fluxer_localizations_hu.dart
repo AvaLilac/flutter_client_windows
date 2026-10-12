@@ -1531,6 +1531,9 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get userTagSystem => 'Rendszer';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Keresd meg álmaid emojiját';
 
   @override

@@ -1523,6 +1523,9 @@ class FluxerLocalizationsHr extends FluxerLocalizations {
   String get userTagSystem => 'Sustav';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Pronađite emoji iz snova';
 
   @override

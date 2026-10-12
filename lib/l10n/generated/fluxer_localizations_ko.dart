@@ -1458,6 +1458,9 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get userTagSystem => '시스템';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => '원하는 이모티콘을 찾아보세요';
 
   @override

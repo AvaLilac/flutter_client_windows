@@ -1521,6 +1521,9 @@ class FluxerLocalizationsNl extends FluxerLocalizations {
   String get userTagSystem => 'Systeem';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Vind de emoji van je dromen';
 
   @override

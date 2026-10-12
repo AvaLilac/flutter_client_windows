@@ -1433,6 +1433,9 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get userTagSystem => '系统';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => '搜索你喜欢的表情';
 
   @override

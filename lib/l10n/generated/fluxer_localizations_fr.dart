@@ -1542,6 +1542,9 @@ class FluxerLocalizationsFr extends FluxerLocalizations {
   String get userTagSystem => 'Système';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Trouvez l\'emoji de vos rêves';
 
   @override

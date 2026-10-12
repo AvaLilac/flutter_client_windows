@@ -1525,6 +1525,9 @@ class FluxerLocalizationsBg extends FluxerLocalizations {
   String get userTagSystem => 'Система';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Намери емоджито на мечтите си';
 
   @override

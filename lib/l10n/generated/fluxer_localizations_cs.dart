@@ -1520,6 +1520,9 @@ class FluxerLocalizationsCs extends FluxerLocalizations {
   String get userTagSystem => 'Systém';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Najděte emoji svých snů';
 
   @override

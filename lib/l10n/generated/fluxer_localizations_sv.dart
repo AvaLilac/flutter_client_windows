@@ -1520,6 +1520,9 @@ class FluxerLocalizationsSv extends FluxerLocalizations {
   String get userTagSystem => 'System';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Hitta emojin du drömmer om';
 
   @override

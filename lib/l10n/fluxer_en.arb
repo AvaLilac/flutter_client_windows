@@ -1993,6 +1993,10 @@
     "@userTagSystem": {
         "description": "Tag label shown next to system user names."
     },
+    "userTagOp": "OP",
+    "@userTagOp": {
+        "description": "Tag next to the author of a forum post on their own messages in that post. Short for original poster, keep it to two or three letters."
+    },
     "emojiSearchPlaceholder": "Find the emoji of your dreams",
     "@emojiSearchPlaceholder": {
         "description": "Emoji picker search bar placeholder."

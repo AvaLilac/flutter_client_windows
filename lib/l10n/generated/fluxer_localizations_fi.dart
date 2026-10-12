@@ -1522,6 +1522,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get userTagSystem => 'Järjestelmä';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Etsi unelmiesi emoji';
 
   @override

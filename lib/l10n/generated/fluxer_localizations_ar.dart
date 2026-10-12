@@ -1510,6 +1510,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get userTagSystem => 'النظام';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'ابحث عن الرمز التعبيري الذي تحلم به';
 
   @override

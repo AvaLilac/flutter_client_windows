@@ -1516,6 +1516,9 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get userTagSystem => 'Hệ thống';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Tìm biểu tượng cảm xúc bạn thích';
 
   @override

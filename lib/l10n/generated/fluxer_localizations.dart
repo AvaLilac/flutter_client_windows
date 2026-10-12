@@ -2744,6 +2744,12 @@ abstract class FluxerLocalizations {
   /// **'System'**
   String get userTagSystem;
 
+  /// Tag next to the author of a forum post on their own messages in that post. Short for original poster, keep it to two or three letters.
+  ///
+  /// In en, this message translates to:
+  /// **'OP'**
+  String get userTagOp;
+
   /// Emoji picker search bar placeholder.
   ///
   /// In en, this message translates to:

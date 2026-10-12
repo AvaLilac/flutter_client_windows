@@ -54,6 +54,7 @@ import 'package:fluxer_app/features/chat/utils/messages/message_timestamp_format
 import 'package:fluxer_app/features/chat/utils/messages/spoiler_utils.dart';
 import 'package:fluxer_app/features/dm/domain/dm_channel_types.dart';
 import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
+import 'package:fluxer_app/features/forum/domain/forum_channel.dart';
 import 'package:fluxer_app/features/input/providers/focused_message_provider.dart';
 import 'package:fluxer_app/features/input/providers/keyboard_mode_provider.dart';
 import 'package:fluxer_app/features/profile/presentation/user_profile_sheet.dart';
@@ -316,24 +317,40 @@ class _MessageItemState extends ConsumerState<MessageItem> {
     );
   }
 
-  Widget? _authorTag(BuildContext context, Message msg) {
+  List<Widget> _authorTags(BuildContext context, Message msg) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final List<Widget> tags = <Widget>[];
     if (msg.isCrosspostCopy) {
-      return FluxerUserTag(
-        isSystem: false,
-        label: FluxerLocalizations.of(context).userTagCommunity,
-      );
-    }
-    if (!messageAuthorShowsUserTag(
+      tags.add(FluxerUserTag(isSystem: false, label: l10n.userTagCommunity));
+    } else if (messageAuthorShowsUserTag(
       authorIsBot: msg.authorIsBot,
       authorIsSystem: msg.authorIsSystem,
     )) {
-      return null;
+      tags.add(
+        FluxerUserTag(
+          isSystem: messageAuthorUserTagIsSystem(
+            authorIsSystem: msg.authorIsSystem,
+          ),
+        ),
+      );
     }
-    return FluxerUserTag(
-      isSystem: messageAuthorUserTagIsSystem(
-        authorIsSystem: msg.authorIsSystem,
-      ),
-    );
+    final Channel? channel = ref
+        .watch(channelByIdProvider(msg.channelId))
+        .value;
+    if (channel != null && channel.isThread) {
+      final String? parentId = channel.parentId;
+      if (parentId != null) {
+        final Channel? parent = ref.watch(channelByIdProvider(parentId)).value;
+        if (isForumPostOriginalPoster(
+          thread: channel,
+          parentChannel: parent,
+          authorId: msg.authorId,
+        )) {
+          tags.add(FluxerUserTag(isSystem: false, label: l10n.userTagOp));
+        }
+      }
+    }
+    return tags;
   }
 
   bool _canPublish(Message message) {
@@ -1557,7 +1574,7 @@ class _MessageItemState extends ConsumerState<MessageItem> {
       runSpacing: 2,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        if (_authorTag(context, msg) case final Widget tag) tag,
+        ..._authorTags(context, msg),
         if (showAvatar)
           FluxerGestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -1898,7 +1915,7 @@ class _MessageItemState extends ConsumerState<MessageItem> {
                             ),
                           ),
                         ),
-                        if (_authorTag(context, msg) case final Widget tag) ...[
+                        for (final Widget tag in _authorTags(context, msg)) ...[
                           const SizedBox(width: 6),
                           tag,
                         ],
@@ -2001,7 +2018,7 @@ class _MessageItemState extends ConsumerState<MessageItem> {
                             maxLines: 1,
                           ),
                         ),
-                        if (_authorTag(context, msg) case final Widget tag) ...[
+                        for (final Widget tag in _authorTags(context, msg)) ...[
                           const SizedBox(width: 6),
                           tag,
                         ],
