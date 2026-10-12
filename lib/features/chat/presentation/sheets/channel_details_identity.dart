@@ -57,16 +57,19 @@ class _DetailsIdentityHeader extends ConsumerWidget {
       subtitle: subtitle,
       onClose: onClose,
       closeOnLeading: closeOnLeading,
-      titlePrefix: switch (channelEntity) {
-        null => null,
-        final Channel c => ChannelIcon(
-          type: c.type,
-          channel: c,
-          effectivePermissionBits: effectivePermissionBits,
-          size: 16,
-          color: context.colors.textPrimary,
-        ),
-      },
+      hideLeading: closeOnLeading,
+      titlePrefix: closeOnLeading
+          ? null
+          : switch (channelEntity) {
+              null => null,
+              final Channel c => ChannelIcon(
+                type: c.type,
+                channel: c,
+                effectivePermissionBits: effectivePermissionBits,
+                size: 16,
+                color: context.colors.textPrimary,
+              ),
+            },
       titleAdornments: [if (showUserTag) FluxerUserTag(isSystem: dm!.isSystem)],
       body: hasTopic
           ? _TopicCard(

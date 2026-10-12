@@ -302,16 +302,13 @@ class _ChannelDetailsDrawerOverlayState
     }
 
     final bool deferPanelToChatGestures = _interactiveDragActive;
-    final ChannelDetailsDrawerState? sheetState = deferPanelToChatGestures
-        ? null
-        : panel;
-    final Widget panelChild = sheetState == null
+    final Widget panelChild = panel == null
         ? const SizedBox.shrink()
         : ChannelDetailsSheet(
-            channel: sheetState.channel,
-            dm: sheetState.dm,
-            initialTab: sheetState.initialTab,
-            openSearchImmediately: sheetState.openSearchImmediately,
+            channel: panel.channel,
+            dm: panel.dm,
+            initialTab: panel.initialTab,
+            openSearchImmediately: panel.openSearchImmediately,
             scrollController: _scrollController,
             close: _dismissDrawer,
             closeOnLeading: true,
