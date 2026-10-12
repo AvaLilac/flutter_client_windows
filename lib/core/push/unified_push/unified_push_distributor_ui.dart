@@ -18,14 +18,18 @@ Future<void> showUnifiedPushDistributorSetup(
   if (!context.mounted) {
     return;
   }
+  final List<String> instances =
+      UnifiedPushService.instance.distributorInstances;
+  if (instances.isEmpty) {
+    return;
+  }
   await UnifiedPushUi(
     context: context,
-    instances: const <String>[kFluxerUnifiedPushInstance],
+    instances: instances,
     unifiedPushFunctions: FluxerUnifiedPushFunctions(),
     showNoDistribDialog: !dismissed,
     onNoDistribDialogDismissed: () {
       unawaited(dismissalStorage.dismiss());
     },
   ).registerAppWithDialog();
-  await UnifiedPushService.instance.syncRegistration(force: true);
 }

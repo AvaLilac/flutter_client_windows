@@ -222,6 +222,7 @@ class AccountManager extends _$AccountManager {
       }
     }
 
+    await PushAccountLifecycle.forgetStoredAccount(ref, userId);
     await authRepository.removeStoredAccount(userId);
     await loadAccounts();
   }

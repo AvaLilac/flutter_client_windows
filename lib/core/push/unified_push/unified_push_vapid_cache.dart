@@ -1,28 +1,31 @@
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 
-typedef UnifiedPushVapidResolver = Future<String?> Function();
-
 bool hasUnifiedPushVapid(String? vapid) => vapid != null && vapid.isNotEmpty;
 
-/// Reads the cached VAPID public key without Riverpod (background UP isolate).
-Future<String?> readCachedUnifiedPushVapidPublicKey() async {
+/// Background isolate has no Riverpod database.
+Future<String?> readCachedUnifiedPushVapidPublicKey(String instanceId) async {
   final FluxerDatabase database = FluxerDatabase();
   try {
-    return await database.mobilePushRegistrationDao.getCachedVapidPublicKey();
+    return await database.mobilePushRegistrationDao.getVapidForInstance(
+      instanceId,
+    );
   } finally {
     await database.close();
   }
 }
 
-/// Persists the VAPID key for the background isolate and later register calls.
-Future<void> writeCachedUnifiedPushVapidPublicKey(String vapidPublicKey) async {
-  if (vapidPublicKey.isEmpty) {
+Future<void> writeCachedUnifiedPushVapidPublicKey(
+  String instanceId,
+  String vapidPublicKey,
+) async {
+  if (instanceId.isEmpty || vapidPublicKey.isEmpty) {
     return;
   }
   final FluxerDatabase database = FluxerDatabase();
   try {
-    await database.mobilePushRegistrationDao.saveGlobalVapidPublicKey(
-      vapidPublicKey,
+    await database.mobilePushRegistrationDao.saveVapidForInstance(
+      instanceId: instanceId,
+      vapidPublicKey: vapidPublicKey,
     );
   } finally {
     await database.close();

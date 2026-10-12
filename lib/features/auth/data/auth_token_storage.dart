@@ -16,6 +16,8 @@ abstract interface class AuthTokenStorage {
   Future<String?> readApiBaseUrl(String userId);
 
   Future<void> deleteToken(String userId);
+
+  Future<List<({String userId, String apiBaseUrl})>> readAccountApiBases();
 }
 
 class SecureAuthTokenStorage implements AuthTokenStorage {
@@ -68,6 +70,29 @@ class SecureAuthTokenStorage implements AuthTokenStorage {
     await _storage.delete(key: _keyFor(userId));
     await _storage.delete(key: _apiBaseKeyFor(userId));
   }
+
+  @override
+  Future<List<({String userId, String apiBaseUrl})>>
+  readAccountApiBases() async {
+    final Map<String, String> stored = await _storage.readAll();
+    final List<({String userId, String apiBaseUrl})> accounts =
+        <({String userId, String apiBaseUrl})>[];
+    for (final MapEntry<String, String> entry in stored.entries) {
+      if (!entry.key.startsWith(_kAuthApiBaseKeyPrefix)) {
+        continue;
+      }
+      final String userId = entry.key.substring(_kAuthApiBaseKeyPrefix.length);
+      if (userId.isEmpty || entry.value.isEmpty) {
+        continue;
+      }
+      final String? token = stored['$_kAuthTokenKeyPrefix$userId'];
+      if (token == null || token.isEmpty) {
+        continue;
+      }
+      accounts.add((userId: userId, apiBaseUrl: entry.value));
+    }
+    return accounts;
+  }
 }
 
 class MapAuthTokenStorage implements AuthTokenStorage {
@@ -104,5 +129,20 @@ class MapAuthTokenStorage implements AuthTokenStorage {
   Future<void> deleteToken(String userId) async {
     tokens.remove(userId);
     apiBaseUrls.remove(userId);
+  }
+
+  @override
+  Future<List<({String userId, String apiBaseUrl})>>
+  readAccountApiBases() async {
+    final List<({String userId, String apiBaseUrl})> accounts =
+        <({String userId, String apiBaseUrl})>[];
+    for (final MapEntry<String, String> entry in apiBaseUrls.entries) {
+      final String? token = tokens[entry.key];
+      if (token == null || token.isEmpty || entry.value.isEmpty) {
+        continue;
+      }
+      accounts.add((userId: entry.key, apiBaseUrl: entry.value));
+    }
+    return accounts;
   }
 }

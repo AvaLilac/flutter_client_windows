@@ -4,31 +4,54 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:fluxer_app/core/api/fluxer_api_features.dart';
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
+import 'package:fluxer_app/core/api/session_authorization_header.dart';
 import 'package:fluxer_app/core/build/app_build_config.dart';
 import 'package:fluxer_app/core/build/push_provider_guard.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
+import 'package:fluxer_app/core/instance/instance_config_snapshot.dart';
+import 'package:fluxer_app/core/instance/instance_endpoint_normalizer.dart';
+import 'package:fluxer_app/core/instance/well_known_compat.dart';
 import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/push_provider.dart';
-import 'package:fluxer_app/core/providers/well_known_provider.dart';
 import 'package:fluxer_app/core/push/services/unified_push_service.dart';
+import 'package:fluxer_app/core/push/unified_push/unified_push_instance_id.dart';
 import 'package:fluxer_app/core/push/unified_push/unified_push_registration_logic.dart';
 import 'package:fluxer_app/core/push/unified_push/unified_push_vapid_cache.dart';
 import 'package:fluxer_app/core/push/web_push/web_push_key_store.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
+import 'package:fluxer_app/features/auth/data/auth_token_storage.dart';
+import 'package:fluxer_app/features/auth/providers/auth_providers.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:unifiedpush/unifiedpush.dart' as up;
 
 part 'unified_push_mobile_device_registration.g.dart';
+
+class _PushAccount {
+  const _PushAccount({
+    required this.userId,
+    required this.token,
+    required this.apiBaseUrl,
+    this.cachedVapid,
+  });
+
+  final String userId;
+  final String token;
+  final String apiBaseUrl;
+  final String? cachedVapid;
+
+  String get instanceId => unifiedPushInstanceIdForApiBase(apiBaseUrl);
+}
 
 @Riverpod(keepAlive: true)
 class UnifiedPushMobileDeviceRegistration
     extends _$UnifiedPushMobileDeviceRegistration {
-  StreamSubscription<up.PushEndpoint>? _endpointSubscription;
-  String? _trackedUserId;
+  StreamSubscription<UnifiedPushEndpoint>? _endpointSubscription;
   Future<void>? _authSyncFuture;
+  bool _authSyncAgain = false;
+  final Set<String> _blockedUserIds = <String>{};
+  Future<void> _registerQueue = Future<void>.value();
   final WebPushKeyStore _keyStore = WebPushKeyStore();
 
   @override
@@ -38,38 +61,36 @@ class UnifiedPushMobileDeviceRegistration
     }
     ref
       ..listen<String?>(fluxerAuthTokenProvider, (_, _) {
-        unawaited(_onAuthOrUserChanged());
+        unawaited(syncAllAccounts());
       })
       ..listen<bool>(authStateProvider, (_, _) {
-        unawaited(_onAuthOrUserChanged());
+        unawaited(syncAllAccounts());
       })
       ..listen<String?>(currentUserIdProvider, (
         String? previous,
         String? next,
       ) {
         if (previous != next) {
-          unawaited(_onAuthOrUserChanged());
+          unawaited(syncAllAccounts());
         }
       })
       ..listen<bool>(appUiForegroundProvider, (bool? previous, bool next) {
         if (next && previous == false) {
-          unawaited(_onAppResumed());
+          unawaited(syncAllAccounts());
         }
       });
     unawaited(_endpointSubscription?.cancel());
     _endpointSubscription = UnifiedPushService.instance.endpointStream.listen((
-      up.PushEndpoint endpoint,
+      UnifiedPushEndpoint update,
     ) {
-      unawaited(_registerEndpoint(endpoint));
+      unawaited(_registerInstanceEndpoint(update));
     });
     ref.onDispose(() {
       unawaited(_endpointSubscription?.cancel());
       _endpointSubscription = null;
     });
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      UnifiedPushService.instance.vapidNetworkResolver =
-          _fetchVapidFromWellKnown;
-      unawaited(_onAuthOrUserChanged());
+      unawaited(syncAllAccounts());
     });
     return 0;
   }
@@ -99,12 +120,13 @@ class UnifiedPushMobileDeviceRegistration
     return PushProviderGuard.isUnifiedPush;
   }
 
-  Future<void> _onAuthOrUserChanged() {
+  Future<void> syncAllAccounts() {
     final Future<void>? inFlight = _authSyncFuture;
     if (inFlight != null) {
+      _authSyncAgain = true;
       return inFlight;
     }
-    final Future<void> sync = _runAuthSync();
+    final Future<void> sync = _drainAuthSync();
     _authSyncFuture = sync;
     return sync.whenComplete(() {
       if (identical(_authSyncFuture, sync)) {
@@ -113,91 +135,249 @@ class UnifiedPushMobileDeviceRegistration
     });
   }
 
-  Future<void> _runAuthSync() async {
-    if (!_shouldRun) {
-      return;
-    }
-    if (!ref.read(authStateProvider)) {
-      return;
-    }
-    final String? bearer = ref.read(fluxerAuthTokenProvider);
-    if (bearer == null || bearer.isEmpty) {
-      return;
-    }
-    final String? userId = ref.read(currentUserIdProvider);
-    if (userId == null || userId.isEmpty) {
-      return;
-    }
-    _trackedUserId = userId;
-    final MobilePushRegistration? persisted = await _loadPersistedForUser(
-      userId,
-    );
-    final bool hasPersistedSubscription =
-        persisted?.pushSubscriptionId.isNotEmpty ?? false;
-    final String? vapid = await UnifiedPushService.instance
-        .ensureVapidPublicKey();
-    if (hasUnifiedPushVapid(vapid)) {
-      await UnifiedPushService.instance.applyVapidAndReregisterIfNeeded(vapid);
-    }
-    await UnifiedPushService.instance.syncRegistration(
-      hasPersistedSubscription: hasPersistedSubscription,
-    );
-    await syncFromCurrentEndpoint();
+  Future<void> _drainAuthSync() async {
+    do {
+      _authSyncAgain = false;
+      try {
+        await _syncStoredAccounts();
+      } on Object catch (e, st) {
+        if (kDebugMode) {
+          debugPrint(
+            '[UnifiedPushMobileDeviceRegistration] auth sync failed: $e\n$st',
+          );
+        }
+      }
+    } while (_authSyncAgain && ref.mounted);
   }
 
-  Future<void> _onAppResumed() async {
-    if (!_shouldRun || !ref.read(appUiForegroundProvider)) {
+  Future<void> _syncStoredAccounts() async {
+    if (!_shouldRun || !ref.mounted) {
       return;
     }
-    await _refreshVapidIfRotated();
-    await _onAuthOrUserChanged();
+    final List<_PushAccount> accounts = await _loadAccounts();
+    if (!ref.mounted) {
+      return;
+    }
+    final Set<String> loadedIds = <String>{
+      for (final _PushAccount account in accounts) account.userId,
+    };
+    _blockedUserIds.removeWhere((String userId) => !loadedIds.contains(userId));
+    final List<_PushAccount> active = accounts
+        .where(
+          (_PushAccount account) => !_blockedUserIds.contains(account.userId),
+        )
+        .toList();
+    await UnifiedPushService.instance.initialize();
+    final Map<String, List<_PushAccount>> byInstance =
+        <String, List<_PushAccount>>{};
+    for (final _PushAccount account in active) {
+      if (account.instanceId.isEmpty) {
+        continue;
+      }
+      byInstance
+          .putIfAbsent(account.instanceId, () => <_PushAccount>[])
+          .add(account);
+    }
+    for (final MapEntry<String, List<_PushAccount>> entry
+        in byInstance.entries) {
+      final String? vapid = await _vapidForInstance(entry.value);
+      if (!ref.mounted) {
+        return;
+      }
+      final bool hasPersisted = await _instanceHasPersistedSubscription(
+        entry.value,
+      );
+      await UnifiedPushService.instance.syncInstance(
+        instance: entry.key,
+        vapid: vapid,
+        hasPersistedSubscription: hasPersisted,
+      );
+      final upEndpoint = UnifiedPushService.instance.endpointFor(entry.key);
+      if (upEndpoint == null) {
+        continue;
+      }
+      await _registerAccounts(
+        UnifiedPushEndpoint(instance: entry.key, endpoint: upEndpoint),
+        entry.value,
+        vapid,
+      );
+    }
+    await UnifiedPushService.instance.retainInstances(<String>{
+      for (final _PushAccount account in accounts)
+        if (account.instanceId.isNotEmpty) account.instanceId,
+    });
   }
 
-  Future<void> _refreshVapidIfRotated() async {
-    final String? freshVapid = await _fetchVapidFromWellKnown();
-    if (!hasUnifiedPushVapid(freshVapid) ||
-        freshVapid == UnifiedPushService.instance.pendingVapid) {
-      return;
+  Future<List<_PushAccount>> _loadAccounts() async {
+    final sessions = await ref
+        .read(fluxerDatabaseProvider)
+        .authSessionDao
+        .getAllSessions();
+    final AuthTokenStorage storage = ref.read(authTokenStorageProvider);
+    final List<_PushAccount> accounts = <_PushAccount>[];
+    for (final session in sessions) {
+      if (!session.isValid) {
+        continue;
+      }
+      final String? token = await storage.readToken(session.userId);
+      if (token == null || token.isEmpty) {
+        continue;
+      }
+      InstanceConfigSnapshot? snapshot;
+      try {
+        snapshot = await ref
+            .read(authRepositoryProvider)
+            .resolveInstanceSnapshotForUser(session.userId);
+      } on Object {
+        snapshot = null;
+      }
+      final String apiBaseUrl = snapshot == null || snapshot.apiBaseUrl.isEmpty
+          ? await storage.readApiBaseUrl(session.userId) ?? ''
+          : snapshot.apiBaseUrl;
+      if (apiBaseUrl.isEmpty) {
+        continue;
+      }
+      accounts.add(
+        _PushAccount(
+          userId: session.userId,
+          token: token,
+          apiBaseUrl: apiBaseUrl,
+          cachedVapid: snapshot?.wellKnown?.push.publicVapidKey,
+        ),
+      );
     }
-    await UnifiedPushService.instance.persistVapidPublicKey(freshVapid!);
-    await UnifiedPushService.instance.applyVapidAndReregisterIfNeeded(
-      freshVapid,
+    return accounts;
+  }
+
+  Future<bool> _instanceHasPersistedSubscription(
+    List<_PushAccount> accounts,
+  ) async {
+    for (final _PushAccount account in accounts) {
+      final MobilePushRegistration? persisted = await _loadPersistedForUser(
+        account.userId,
+      );
+      if (persisted != null && persisted.pushSubscriptionId.isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<String?> _storedVapid(List<_PushAccount> accounts) async {
+    final String? cached = await ref
+        .read(fluxerDatabaseProvider)
+        .mobilePushRegistrationDao
+        .getVapidForInstance(accounts.first.instanceId);
+    if (hasUnifiedPushVapid(cached)) {
+      return cached;
+    }
+    for (final _PushAccount account in accounts) {
+      if (hasUnifiedPushVapid(account.cachedVapid)) {
+        return account.cachedVapid;
+      }
+    }
+    return null;
+  }
+
+  Future<String?> _vapidForInstance(List<_PushAccount> accounts) async {
+    final String instanceId = accounts.first.instanceId;
+    final String? fetched = await _fetchVapid(accounts.first.apiBaseUrl);
+    if (hasUnifiedPushVapid(fetched)) {
+      if (ref.mounted) {
+        await ref
+            .read(fluxerDatabaseProvider)
+            .mobilePushRegistrationDao
+            .saveVapidForInstance(
+              instanceId: instanceId,
+              vapidPublicKey: fetched!,
+            );
+      }
+      return fetched;
+    }
+    return _storedVapid(accounts);
+  }
+
+  Future<String?> _fetchVapid(String apiBaseUrl) async {
+    final Dio dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ),
     );
-  }
-
-  Future<String?> _fetchVapidFromWellKnown() async {
     try {
-      return (await ref.read(wellKnownProvider.future)).push.publicVapidKey;
+      final String url = const InstanceEndpointNormalizer().buildWellKnownUrl(
+        apiBaseUrl,
+      );
+      final Response<dynamic> response = await dio.get<dynamic>(url);
+      final Object? data = response.data;
+      if (data is! Map) {
+        return null;
+      }
+      return parseWellKnownFluxer(
+        Map<String, dynamic>.from(data),
+      ).push.publicVapidKey;
     } on Object {
       return null;
+    } finally {
+      dio.close();
     }
   }
 
-  Future<bool> hasPersistedSubscriptionForCurrentUser() async {
-    if (!_shouldRun) {
-      return false;
+  Future<void> _registerInstanceEndpoint(UnifiedPushEndpoint update) async {
+    if (!_shouldRun || !ref.mounted || update.endpoint.url.isEmpty) {
+      return;
     }
-    final String? userId = ref.read(currentUserIdProvider);
-    if (userId == null || userId.isEmpty) {
-      return false;
+    final List<_PushAccount> accounts = await _loadAccounts();
+    if (!ref.mounted) {
+      return;
     }
-    final MobilePushRegistration? persisted = await _loadPersistedForUser(
-      userId,
+    final List<_PushAccount> matched = accounts
+        .where(
+          (_PushAccount account) =>
+              account.instanceId == update.instance &&
+              !_blockedUserIds.contains(account.userId),
+        )
+        .toList();
+    if (matched.isEmpty) {
+      return;
+    }
+    final String? vapid =
+        await _storedVapid(matched) ?? await _vapidForInstance(matched);
+    if (!ref.mounted) {
+      return;
+    }
+    await _registerAccounts(update, matched, vapid);
+  }
+
+  Future<void> _registerAccounts(
+    UnifiedPushEndpoint update,
+    List<_PushAccount> accounts,
+    String? vapid,
+  ) {
+    final Future<void> run = _registerQueue.then((_) async {
+      if (!ref.mounted) {
+        return;
+      }
+      for (final _PushAccount account in accounts) {
+        if (_blockedUserIds.contains(account.userId)) {
+          continue;
+        }
+        try {
+          await _registerAccount(account, update, vapid);
+        } on Object catch (e, st) {
+          if (kDebugMode) {
+            debugPrint(
+              '[UnifiedPushMobileDeviceRegistration] register failed: $e\n$st',
+            );
+          }
+        }
+      }
+    });
+    _registerQueue = run.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
     );
-    final String? id = persisted?.pushSubscriptionId;
-    return id != null && id.isNotEmpty;
-  }
-
-  Future<void> syncFromCurrentEndpoint() async {
-    if (!_shouldRun) {
-      return;
-    }
-    final up.PushEndpoint? endpoint =
-        UnifiedPushService.instance.currentEndpoint;
-    if (endpoint == null) {
-      return;
-    }
-    await _registerEndpoint(endpoint);
+    return run;
   }
 
   Future<MobilePushRegistration?> _loadPersistedForUser(String userId) {
@@ -207,72 +387,34 @@ class UnifiedPushMobileDeviceRegistration
         .getForUser(userId);
   }
 
-  Future<void> _moveSecretsToSecureStorage(
-    String userId,
-    MobilePushRegistration? persisted,
+  Future<void> _registerAccount(
+    _PushAccount account,
+    UnifiedPushEndpoint update,
+    String? vapid,
   ) async {
-    if (persisted == null) {
+    if (_blockedUserIds.contains(account.userId) || !ref.mounted) {
       return;
     }
-    if (persisted.encryptionKey.isEmpty && persisted.authSecret.isEmpty) {
-      return;
-    }
-    final WebPushAccountKeys? existing = await _keyStore.read(userId);
-    if (existing == null) {
-      await _keyStore.write(
-        WebPushAccountKeys(
-          userId: userId,
-          publicKey: persisted.encryptionKey,
-          authSecret: persisted.authSecret,
-        ),
-      );
-    }
-    await ref
-        .read(fluxerDatabaseProvider)
-        .mobilePushRegistrationDao
-        .upsert(
-          userId: userId,
-          pushSubscriptionId: persisted.pushSubscriptionId,
-          endpointUrl: persisted.endpointUrl,
-          encryptionKey: '',
-          authSecret: '',
-          vapidPublicKey: persisted.vapidPublicKey,
-        );
-  }
-
-  Future<void> _registerEndpoint(up.PushEndpoint endpoint) async {
-    if (!_shouldRun) {
-      return;
-    }
-    final String? bearer = ref.read(fluxerAuthTokenProvider);
-    if (bearer == null || bearer.isEmpty) {
-      return;
-    }
-    if (!ref.read(authStateProvider)) {
-      return;
-    }
-    final String? userId = ref.read(currentUserIdProvider);
-    if (userId == null || userId.isEmpty) {
-      return;
-    }
-    final String url = endpoint.url;
-    final String? pubKey = endpoint.pubKeySet?.pubKey;
-    final String? auth = endpoint.pubKeySet?.auth;
-    if (url.isEmpty || pubKey == null || auth == null) {
-      if (kDebugMode) {
-        debugPrint(
-          '[UnifiedPushMobileDeviceRegistration] incomplete endpoint keys',
-        );
-      }
+    final String url = update.endpoint.url;
+    final String? pubKey = update.endpoint.pubKeySet?.pubKey;
+    final String? auth = update.endpoint.pubKeySet?.auth;
+    if (url.isEmpty ||
+        pubKey == null ||
+        pubKey.isEmpty ||
+        auth == null ||
+        auth.isEmpty) {
       return;
     }
     final MobilePushRegistration? persisted = await _loadPersistedForUser(
-      userId,
+      account.userId,
     );
-    await _moveSecretsToSecureStorage(userId, persisted);
-    final WebPushAccountKeys? storedKeys = await _keyStore.read(userId);
+    if (_blockedUserIds.contains(account.userId) || !ref.mounted) {
+      return;
+    }
+    await _moveSecretsToSecureStorage(account.userId, persisted);
+    final storedKeys = await _keyStore.read(account.userId);
     if (shouldSkipMobilePushRegistration(
-      currentUserId: userId,
+      currentUserId: account.userId,
       persistedUserId: persisted?.userId,
       pushSubscriptionId: persisted?.pushSubscriptionId,
       endpointUrl: url,
@@ -297,87 +439,106 @@ class UnifiedPushMobileDeviceRegistration
       if (oldSubscriptionId != null &&
           oldSubscriptionId.isNotEmpty &&
           oldEndpointUrl != null &&
-          oldEndpointUrl.isNotEmpty) {
+          oldEndpointUrl.isNotEmpty &&
+          !_blockedUserIds.contains(account.userId)) {
         await ref
             .read(fluxerDatabaseProvider)
             .mobilePushRegistrationDao
-            .clearForUser(userId);
+            .clearForUser(account.userId);
         await _deleteServerRegistration(
+          account: account,
           pushSubscriptionId: oldSubscriptionId,
           endpointUrl: oldEndpointUrl,
         );
       }
     }
+    if (_blockedUserIds.contains(account.userId) || !ref.mounted) {
+      return;
+    }
+    final String? deviceId = await _postDeviceRegistration(
+      account: account,
+      endpointUrl: url,
+      encryptionKey: pubKey,
+      authSecret: auth,
+    );
+    if (deviceId == null ||
+        deviceId.isEmpty ||
+        _blockedUserIds.contains(account.userId) ||
+        !ref.mounted) {
+      return;
+    }
+    await ref
+        .read(fluxerDatabaseProvider)
+        .mobilePushRegistrationDao
+        .upsert(
+          userId: account.userId,
+          pushSubscriptionId: deviceId,
+          endpointUrl: url,
+          encryptionKey: '',
+          authSecret: '',
+          vapidPublicKey: vapid,
+        );
+    await _keyStore.write(
+      WebPushAccountKeys(
+        userId: account.userId,
+        publicKey: pubKey,
+        authSecret: auth,
+      ),
+    );
+    if (kDebugMode) {
+      debugPrint(
+        '[UnifiedPushMobileDeviceRegistration] registered device $deviceId '
+        'for ${account.userId}',
+      );
+    }
+  }
+
+  Future<String?> _postDeviceRegistration({
+    required _PushAccount account,
+    required String endpointUrl,
+    required String encryptionKey,
+    required String authSecret,
+  }) async {
+    final Dio dio = _dioFor(account);
     try {
-      final RegisterMobileDeviceResponse response = await ref
-          .read(fluxerClientProvider)
-          .users
-          .registerMobilePushDevice(
+      final RegisterMobileDeviceResponse response =
+          await UsersApi(
+            dio,
+            baseUrl: account.apiBaseUrl,
+          ).registerMobilePushDevice(
             body: RegisterMobileDeviceRequest(
               platform: RegisterMobileDeviceRequestPlatformPlatform
                   .androidUnifiedPush,
-              token: url,
+              token: endpointUrl,
               userAgent: ref.read(fluxerClientPropertiesProvider).userAgent,
               appId: AppBuildConfig.mobilePushAppId,
               providerEnvironment: _registerProviderEnvironment,
-              encryptionKey: pubKey,
-              authSecret: auth,
+              encryptionKey: encryptionKey,
+              authSecret: authSecret,
             ),
           );
-      final String? vapid = await _fetchVapidFromWellKnown();
-      await ref
-          .read(fluxerDatabaseProvider)
-          .mobilePushRegistrationDao
-          .upsert(
-            userId: userId,
-            pushSubscriptionId: response.deviceId,
-            endpointUrl: url,
-            encryptionKey: '',
-            authSecret: '',
-            vapidPublicKey: vapid,
-          );
-      await _keyStore.write(
-        WebPushAccountKeys(userId: userId, publicKey: pubKey, authSecret: auth),
-      );
-      if (hasUnifiedPushVapid(vapid)) {
-        await UnifiedPushService.instance.applyVapidAndReregisterIfNeeded(
-          vapid,
-        );
-      }
-      if (kDebugMode) {
-        debugPrint(
-          '[UnifiedPushMobileDeviceRegistration] registered device '
-          '${response.deviceId}',
-        );
-      }
+      return response.deviceId;
     } on DioException catch (e, st) {
       if (kDebugMode) {
         debugPrint(
           '[UnifiedPushMobileDeviceRegistration] register failed: $e\n$st',
         );
       }
+      return null;
+    } finally {
+      dio.close();
     }
   }
 
   Future<void> _deleteServerRegistration({
+    required _PushAccount account,
     required String pushSubscriptionId,
     required String endpointUrl,
   }) async {
-    final String? bearer = ref.read(fluxerAuthTokenProvider);
-    if (bearer == null || bearer.isEmpty) {
-      return;
-    }
+    final Dio dio = _dioFor(account);
+    final UsersApi users = UsersApi(dio, baseUrl: account.apiBaseUrl);
     try {
-      await ref
-          .read(fluxerClientProvider)
-          .users
-          .deleteMobilePushDevice(deviceId: pushSubscriptionId);
-      if (kDebugMode) {
-        debugPrint(
-          '[UnifiedPushMobileDeviceRegistration] deleted device '
-          '$pushSubscriptionId',
-        );
-      }
+      await users.deleteMobilePushDevice(deviceId: pushSubscriptionId);
     } on DioException catch (e) {
       if (kDebugMode) {
         debugPrint(
@@ -386,18 +547,15 @@ class UnifiedPushMobileDeviceRegistration
         );
       }
       try {
-        await ref
-            .read(fluxerClientProvider)
-            .users
-            .unregisterMobilePushDevice(
-              body: UnregisterMobileDeviceRequest(
-                platform: UnregisterMobileDeviceRequestPlatformPlatform
-                    .androidUnifiedPush,
-                token: endpointUrl,
-                appId: AppBuildConfig.mobilePushAppId,
-                providerEnvironment: _unregisterProviderEnvironment,
-              ),
-            );
+        await users.unregisterMobilePushDevice(
+          body: UnregisterMobileDeviceRequest(
+            platform: UnregisterMobileDeviceRequestPlatformPlatform
+                .androidUnifiedPush,
+            token: endpointUrl,
+            appId: AppBuildConfig.mobilePushAppId,
+            providerEnvironment: _unregisterProviderEnvironment,
+          ),
+        );
       } on DioException catch (e2, st) {
         if (kDebugMode) {
           debugPrint(
@@ -406,58 +564,144 @@ class UnifiedPushMobileDeviceRegistration
           );
         }
       }
+    } finally {
+      dio.close();
     }
   }
 
-  Future<void> unregisterCurrentEndpoint() async {
+  Dio _dioFor(_PushAccount account) {
+    return Dio(
+      BaseOptions(
+        baseUrl: account.apiBaseUrl,
+        contentType: 'application/json',
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: <String, dynamic>{
+          'Authorization': formatSessionAuthorizationHeader(account.token),
+          'User-Agent': ref.read(fluxerClientPropertiesProvider).userAgent,
+          'X-Fluxer-Client-Properties': ref.read(
+            fluxerClientPropertiesHeaderProvider,
+          ),
+          fluxerApiFeaturesHeaderName: buildFluxerApiFeaturesHeaderValue(),
+        },
+      ),
+    );
+  }
+
+  Future<void> _moveSecretsToSecureStorage(
+    String userId,
+    MobilePushRegistration? persisted,
+  ) async {
+    if (persisted == null) {
+      return;
+    }
+    if (persisted.encryptionKey.isEmpty && persisted.authSecret.isEmpty) {
+      return;
+    }
+    final existing = await _keyStore.read(userId);
+    if (existing == null) {
+      await _keyStore.write(
+        WebPushAccountKeys(
+          userId: userId,
+          publicKey: persisted.encryptionKey,
+          authSecret: persisted.authSecret,
+        ),
+      );
+    }
+    await ref
+        .read(fluxerDatabaseProvider)
+        .mobilePushRegistrationDao
+        .upsert(
+          userId: userId,
+          pushSubscriptionId: persisted.pushSubscriptionId,
+          endpointUrl: persisted.endpointUrl,
+          encryptionKey: '',
+          authSecret: '',
+          vapidPublicKey: persisted.vapidPublicKey,
+        );
+  }
+
+  Future<void> unregisterCurrentEndpoint() {
+    final String? userId = ref.read(currentUserIdProvider);
+    if (userId == null || userId.isEmpty) {
+      return Future<void>.value();
+    }
+    return unregisterUser(userId);
+  }
+
+  Future<void> unregisterUser(String userId) {
+    if (userId.isEmpty) {
+      return Future<void>.value();
+    }
+    _blockedUserIds.add(userId);
+    final Future<void> run = _registerQueue.then((_) async {
+      if (!ref.mounted) {
+        return;
+      }
+      await _unregisterUserNow(userId);
+    });
+    _registerQueue = run.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return run;
+  }
+
+  Future<void> _unregisterUserNow(String userId) async {
     if (!_shouldRun) {
       return;
     }
-    final String? userId = _trackedUserId ?? ref.read(currentUserIdProvider);
-    if (userId == null || userId.isEmpty) {
-      return;
+    final List<_PushAccount> accounts = await _loadAccounts();
+    _PushAccount? account;
+    for (final _PushAccount candidate in accounts) {
+      if (candidate.userId == userId) {
+        account = candidate;
+        break;
+      }
     }
-    final String? bearer = ref.read(fluxerAuthTokenProvider);
-    if (bearer == null || bearer.isEmpty) {
+    if (account == null || !ref.mounted) {
+      if (!ref.mounted) {
+        return;
+      }
+      await ref
+          .read(fluxerDatabaseProvider)
+          .mobilePushRegistrationDao
+          .clearForUser(userId);
+      final String apiBaseUrl =
+          await ref.read(authTokenStorageProvider).readApiBaseUrl(userId) ?? '';
+      final String instanceId = unifiedPushInstanceIdForApiBase(apiBaseUrl);
+      final bool stillUsed = accounts.any(
+        (_PushAccount other) => other.instanceId == instanceId,
+      );
+      if (instanceId.isNotEmpty && !stillUsed) {
+        await UnifiedPushService.instance.unregisterInstance(instanceId);
+      }
       return;
     }
     final MobilePushRegistration? persisted = await _loadPersistedForUser(
       userId,
     );
-    if (persisted != null) {
+    if (persisted != null && persisted.pushSubscriptionId.isNotEmpty) {
       await _deleteServerRegistration(
+        account: account,
         pushSubscriptionId: persisted.pushSubscriptionId,
         endpointUrl: persisted.endpointUrl,
       );
-      await ref
-          .read(fluxerDatabaseProvider)
-          .mobilePushRegistrationDao
-          .clearForUser(userId);
+    }
+    if (!ref.mounted) {
       return;
     }
-    final String? url = await ref.read(pushServiceProvider).getToken();
-    if (url == null || url.isEmpty) {
-      return;
-    }
-    try {
-      await ref
-          .read(fluxerClientProvider)
-          .users
-          .unregisterMobilePushDevice(
-            body: UnregisterMobileDeviceRequest(
-              platform: UnregisterMobileDeviceRequestPlatformPlatform
-                  .androidUnifiedPush,
-              token: url,
-              appId: AppBuildConfig.mobilePushAppId,
-              providerEnvironment: _unregisterProviderEnvironment,
-            ),
-          );
-    } on DioException catch (e, st) {
-      if (kDebugMode) {
-        debugPrint(
-          '[UnifiedPushMobileDeviceRegistration] unregister failed: $e\n$st',
-        );
-      }
+    await ref
+        .read(fluxerDatabaseProvider)
+        .mobilePushRegistrationDao
+        .clearForUser(userId);
+    final String instanceId = account.instanceId;
+    final bool stillUsed = accounts.any(
+      (_PushAccount other) =>
+          other.userId != userId && other.instanceId == instanceId,
+    );
+    if (!stillUsed) {
+      await UnifiedPushService.instance.unregisterInstance(instanceId);
     }
   }
 }

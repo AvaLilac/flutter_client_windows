@@ -29,7 +29,7 @@ bool hasUnifiedPushEndpointRotated({
   required String? persistedEncryptionKey,
   required String? persistedAuthSecret,
 }) {
-  if (persistedEndpointUrl == null) {
+  if (persistedEndpointUrl == null || persistedEndpointUrl.isEmpty) {
     return false;
   }
   return persistedEndpointUrl != endpointUrl ||

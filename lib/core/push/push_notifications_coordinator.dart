@@ -5,7 +5,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:fluxer_app/core/build/push_provider_guard.dart';
 import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/core/providers/push_provider.dart';
-import 'package:fluxer_app/core/providers/well_known_provider.dart';
 import 'package:fluxer_app/core/push/android/android_push_pipeline.dart';
 import 'package:fluxer_app/core/push/apns/apns_mobile_device_registration.dart';
 import 'package:fluxer_app/core/push/apns/apns_voip_mobile_device_registration.dart';
@@ -25,8 +24,6 @@ import 'package:fluxer_app/core/push/services/apple_push_service.dart';
 import 'package:fluxer_app/core/push/services/unified_push_service.dart';
 import 'package:fluxer_app/core/push/unified_push/unified_push_distributor_setup.dart';
 import 'package:fluxer_app/core/push/unified_push/unified_push_mobile_device_registration.dart';
-import 'package:fluxer_app/core/push/unified_push/unified_push_no_distributor_dismissal_provider.dart';
-import 'package:fluxer_app/core/push/unified_push/unified_push_vapid_cache.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/voice/utils/voice_call_ring.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -36,6 +33,7 @@ part 'push_notifications_coordinator.g.dart';
 @Riverpod(keepAlive: true)
 class PushNotificationsCoordinator extends _$PushNotificationsCoordinator {
   StreamSubscription<PushMessage>? _messageSubscription;
+  StreamSubscription<void>? _pickerSubscription;
   final LocalPushNotifications _localPush = LocalPushNotifications();
   bool _bootstrapScheduled = false;
 
@@ -47,6 +45,15 @@ class PushNotificationsCoordinator extends _$PushNotificationsCoordinator {
       ..listen<String?>(currentUserIdProvider, (String? _, String? next) {
         unawaited(ApplePushService.syncActiveUserId(next));
       }, fireImmediately: true);
+    if (PushProviderGuard.isUnifiedPush) {
+      unawaited(_pickerSubscription?.cancel());
+      _pickerSubscription = UnifiedPushService
+          .instance
+          .distributorPickerRequests
+          .listen((_) {
+            _requestUnifiedPushDistributorPicker();
+          });
+    }
     if (!_bootstrapScheduled) {
       _bootstrapScheduled = true;
       SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -56,6 +63,8 @@ class PushNotificationsCoordinator extends _$PushNotificationsCoordinator {
     ref.onDispose(() {
       unawaited(_messageSubscription?.cancel());
       _messageSubscription = null;
+      unawaited(_pickerSubscription?.cancel());
+      _pickerSubscription = null;
     });
     return false;
   }
@@ -84,12 +93,11 @@ class PushNotificationsCoordinator extends _$PushNotificationsCoordinator {
           }
         },
       );
+      await pushService.initialize();
       if (PushProviderGuard.isUnifiedPush) {
-        final UnifiedPushService unifiedPush =
-            pushService as UnifiedPushService;
-        await _initializeUnifiedPush(unifiedPush);
-      } else {
-        await pushService.initialize();
+        await ref
+            .read(unifiedPushMobileDeviceRegistrationProvider.notifier)
+            .syncAllAccounts();
       }
       if (PushProviderGuard.isApple) {
         unawaited(
@@ -102,13 +110,6 @@ class PushNotificationsCoordinator extends _$PushNotificationsCoordinator {
       if (PushProviderGuard.isFirebaseMessaging) {
         unawaited(
           ref.read(fcmMobileDeviceRegistrationProvider.notifier).sync(),
-        );
-      }
-      if (PushProviderGuard.isUnifiedPush) {
-        unawaited(
-          ref
-              .read(unifiedPushMobileDeviceRegistrationProvider.notifier)
-              .syncFromCurrentEndpoint(),
         );
       }
     } on Object catch (e, st) {
@@ -171,43 +172,10 @@ class PushNotificationsCoordinator extends _$PushNotificationsCoordinator {
     await _localPush.showPushMessage(message);
   }
 
-  Future<void> _initializeUnifiedPush(UnifiedPushService pushService) async {
-    pushService.vapidNetworkResolver = () async {
-      try {
-        return (await ref.read(wellKnownProvider.future)).push.publicVapidKey;
-      } on Object catch (e) {
-        if (kDebugMode) {
-          debugPrint('[PushNotificationsCoordinator] VAPID fetch failed: $e');
-        }
-        return null;
-      }
-    };
-    final String? vapid = await pushService.ensureVapidPublicKey();
-    if (hasUnifiedPushVapid(vapid)) {
-      final String? userId = ref.read(currentUserIdProvider);
-      if (userId != null) {
-        await pushService.persistVapidForUser(
-          userId: userId,
-          vapidPublicKey: vapid!,
-        );
-      }
+  void _requestUnifiedPushDistributorPicker() {
+    if (!ref.mounted || !UnifiedPushService.instance.needsDistributorPicker) {
+      return;
     }
-    await pushService.initializeWithOptions(vapid: vapid);
-    await pushService.applyVapidAndReregisterIfNeeded(vapid);
-    if (pushService.needsDistributorPicker) {
-      final bool dismissed = await ref
-          .read(unifiedPushNoDistributorDismissalStorageProvider)
-          .isDismissed();
-      if (!dismissed) {
-        ref.read(unifiedPushDistributorSetupProvider.notifier).requestPicker();
-      }
-    } else {
-      final bool hasPersisted = await ref
-          .read(unifiedPushMobileDeviceRegistrationProvider.notifier)
-          .hasPersistedSubscriptionForCurrentUser();
-      await pushService.syncRegistration(
-        hasPersistedSubscription: hasPersisted,
-      );
-    }
+    ref.read(unifiedPushDistributorSetupProvider.notifier).requestPicker();
   }
 }
