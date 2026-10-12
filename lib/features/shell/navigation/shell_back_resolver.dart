@@ -6,6 +6,7 @@ enum ShellBackAction {
   popOverlay,
   closePanel,
   blockManualGesture,
+  closeChannelDetailsDrawer,
   closeDrawer,
   revealDrawer,
   leaveChat,
@@ -17,6 +18,7 @@ ShellBackAction resolveShellBackAction({
   required bool hasPopupOverlay,
   required bool hasManualGestureBlock,
   required bool hasExpressionPanelOpen,
+  required bool hasChannelDetailsDrawerOpen,
   required RevealSide revealSide,
   required String shellLocation,
   bool minimizePhoneVoiceCall = false,
@@ -29,6 +31,9 @@ ShellBackAction resolveShellBackAction({
   }
   if (hasExpressionPanelOpen) {
     return ShellBackAction.closePanel;
+  }
+  if (hasChannelDetailsDrawerOpen) {
+    return ShellBackAction.closeChannelDetailsDrawer;
   }
   if (minimizePhoneVoiceCall) {
     return ShellBackAction.minimizePhoneVoiceCall;

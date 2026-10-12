@@ -7,6 +7,7 @@ class _DetailsIdentityHeader extends ConsumerWidget {
     required this.topicExpanded,
     required this.onToggleTopic,
     required this.onClose,
+    this.closeOnLeading = false,
   });
 
   final Channel? channel;
@@ -14,6 +15,7 @@ class _DetailsIdentityHeader extends ConsumerWidget {
   final bool topicExpanded;
   final VoidCallback onToggleTopic;
   final VoidCallback onClose;
+  final bool closeOnLeading;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,6 +56,7 @@ class _DetailsIdentityHeader extends ConsumerWidget {
       title: title,
       subtitle: subtitle,
       onClose: onClose,
+      closeOnLeading: closeOnLeading,
       titlePrefix: switch (channelEntity) {
         null => null,
         final Channel c => ChannelIcon(

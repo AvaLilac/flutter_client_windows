@@ -16,6 +16,7 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
     this.titlePrefix,
     this.titleAdornments,
     this.onClose,
+    this.closeOnLeading = false,
     this.body,
     super.key,
   });
@@ -26,6 +27,7 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
   final Widget? titlePrefix;
   final List<Widget>? titleAdornments;
   final VoidCallback? onClose;
+  final bool closeOnLeading;
 
   final Widget? body;
 
@@ -48,7 +50,10 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
             Stack(
               children: [
                 Padding(
-                  padding: EdgeInsets.only(right: onClose != null ? 40 : 0),
+                  padding: EdgeInsets.only(
+                    left: onClose != null && closeOnLeading ? 40 : 0,
+                    right: onClose != null && !closeOnLeading ? 40 : 0,
+                  ),
                   child: Row(
                     children: [
                       leading,
@@ -96,7 +101,8 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
                 ),
                 if (onClose != null)
                   Positioned(
-                    right: 0,
+                    left: closeOnLeading ? 0 : null,
+                    right: closeOnLeading ? null : 0,
                     top: 0,
                     child: FluxerSheetCloseButton(onTap: onClose!),
                   ),

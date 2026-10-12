@@ -40,7 +40,10 @@ Future<void> showChannelSearchPageAndJump(
   if (request == null) {
     return;
   }
-  await _jumpFromChannelDetailsRequest(container: container, request: request);
+  await executeChannelDetailsJumpRequest(
+    container: container,
+    request: request,
+  );
 }
 
 class ChannelSearchPage extends ConsumerStatefulWidget {

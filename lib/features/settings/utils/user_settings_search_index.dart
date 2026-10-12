@@ -407,6 +407,19 @@ final List<_UserSettingsSearchOption> _userSettingsSearchOptions = [
     ],
   ),
   _UserSettingsSearchOption(
+    id: 'chat:swipe-right-to-left',
+    section: UserSettingsSection.chat,
+    fieldId: 'gestures',
+    label: _l((l10n) => l10n.messagesMediaGesturesSwipeRightToLeftLabel),
+    keywords: [
+      _l((l10n) => l10n.messagesMediaGesturesSectionTitle),
+      _l((l10n) => l10n.messagesMediaGesturesSwipeRightToLeftReplyName),
+      _l(
+        (l10n) => l10n.messagesMediaGesturesSwipeRightToLeftChannelDetailsName,
+      ),
+    ],
+  ),
+  _UserSettingsSearchOption(
     id: 'chat:double-tap-reaction',
     section: UserSettingsSection.chat,
     fieldId: 'gestures',

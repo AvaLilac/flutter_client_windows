@@ -64,6 +64,7 @@ class SyncedPreferences extends $pb.GeneratedMessage {
     ChannelFrecencyState? channelFrecency,
     AnnouncementPromptsState? announcementPrompts,
     DoubleTapAction? doubleTapAction,
+    SwipeAction? swipeRightToLeftAction,
   }) {
     final result = SyncedPreferences._();
     if (accessibility != null) result.accessibility = accessibility;
@@ -111,6 +112,8 @@ class SyncedPreferences extends $pb.GeneratedMessage {
     if (announcementPrompts != null)
       result.announcementPrompts = announcementPrompts;
     if (doubleTapAction != null) result.doubleTapAction = doubleTapAction;
+    if (swipeRightToLeftAction != null)
+      result.swipeRightToLeftAction = swipeRightToLeftAction;
     return result;
   }
 
@@ -214,6 +217,8 @@ class SyncedPreferences extends $pb.GeneratedMessage {
         subBuilder: AnnouncementPromptsState.$_createMessage)
     ..aE<DoubleTapAction>(117, _omitFieldNames ? '' : 'doubleTapAction',
         enumValues: DoubleTapAction.values)
+    ..aE<SwipeAction>(118, _omitFieldNames ? '' : 'swipeRightToLeftAction',
+        enumValues: SwipeAction.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -669,6 +674,15 @@ class SyncedPreferences extends $pb.GeneratedMessage {
   $core.bool hasDoubleTapAction() => $_has(38);
   @$pb.TagNumber(117)
   void clearDoubleTapAction() => $_clearField(117);
+
+  @$pb.TagNumber(118)
+  SwipeAction get swipeRightToLeftAction => $_getN(39);
+  @$pb.TagNumber(118)
+  set swipeRightToLeftAction(SwipeAction value) => $_setField(118, value);
+  @$pb.TagNumber(118)
+  $core.bool hasSwipeRightToLeftAction() => $_has(39);
+  @$pb.TagNumber(118)
+  void clearSwipeRightToLeftAction() => $_clearField(118);
 }
 
 class SpellcheckSettings extends $pb.GeneratedMessage {

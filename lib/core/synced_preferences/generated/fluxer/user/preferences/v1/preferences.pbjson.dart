@@ -95,6 +95,21 @@ final $typed_data.Uint8List doubleTapActionDescriptor = $convert.base64Decode(
     'dET1VCTEVfVEFQX0FDVElPTl9SRUFDVBABEhoKFkRPVUJMRV9UQVBfQUNUSU9OX0VESVQQAhIa'
     'ChZET1VCTEVfVEFQX0FDVElPTl9OT05FEAM=');
 
+@$core.Deprecated('Use swipeActionDescriptor instead')
+const SwipeAction$json = {
+  '1': 'SwipeAction',
+  '2': [
+    {'1': 'SWIPE_ACTION_UNSPECIFIED', '2': 0},
+    {'1': 'SWIPE_ACTION_CHANNEL_DETAILS', '2': 1},
+    {'1': 'SWIPE_ACTION_REPLY', '2': 2},
+  ],
+};
+
+/// Descriptor for `SwipeAction`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List swipeActionDescriptor = $convert.base64Decode(
+    'CgtTd2lwZUFjdGlvbhIcChhTV0lQRV9BQ1RJT05fVU5TUEVDSUZJRUQQABIgChxTV0lQRV9BQ1'
+    'RJT05fQ0hBTk5FTF9ERVRBSUxTEAESFgoSU1dJUEVfQUNUSU9OX1JFUExZEAI=');
+
 @$core.Deprecated('Use syncedPreferencesDescriptor instead')
 const SyncedPreferences$json = {
   '1': 'SyncedPreferences',
@@ -404,6 +419,14 @@ const SyncedPreferences$json = {
       '6': '.fluxer.user.preferences.v1.DoubleTapAction',
       '10': 'doubleTapAction'
     },
+    {
+      '1': 'swipe_right_to_left_action',
+      '3': 118,
+      '4': 1,
+      '5': 14,
+      '6': '.fluxer.user.preferences.v1.SwipeAction',
+      '10': 'swipeRightToLeftAction'
+    },
   ],
 };
 
@@ -469,7 +492,9 @@ final $typed_data.Uint8List syncedPreferencesDescriptor = $convert.base64Decode(
     'NlbmN5U3RhdGVSD2NoYW5uZWxGcmVjZW5jeRJnChRhbm5vdW5jZW1lbnRfcHJvbXB0cxh0IAEo'
     'CzI0LmZsdXhlci51c2VyLnByZWZlcmVuY2VzLnYxLkFubm91bmNlbWVudFByb21wdHNTdGF0ZV'
     'ITYW5ub3VuY2VtZW50UHJvbXB0cxJXChFkb3VibGVfdGFwX2FjdGlvbhh1IAEoDjIrLmZsdXhl'
-    'ci51c2VyLnByZWZlcmVuY2VzLnYxLkRvdWJsZVRhcEFjdGlvblIPZG91YmxlVGFwQWN0aW9u');
+    'ci51c2VyLnByZWZlcmVuY2VzLnYxLkRvdWJsZVRhcEFjdGlvblIPZG91YmxlVGFwQWN0aW9uEm'
+    'MKGnN3aXBlX3JpZ2h0X3RvX2xlZnRfYWN0aW9uGHYgASgOMicuZmx1eGVyLnVzZXIucHJlZmVy'
+    'ZW5jZXMudjEuU3dpcGVBY3Rpb25SFnN3aXBlUmlnaHRUb0xlZnRBY3Rpb24=');
 
 @$core.Deprecated('Use spellcheckSettingsDescriptor instead')
 const SpellcheckSettings$json = {

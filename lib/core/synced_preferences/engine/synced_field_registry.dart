@@ -16,6 +16,7 @@ import 'package:fluxer_app/core/synced_preferences/fields/privacy_synced_field.d
 import 'package:fluxer_app/core/synced_preferences/fields/search_engines_synced_field.dart';
 import 'package:fluxer_app/core/synced_preferences/fields/sidebar_synced_field.dart';
 import 'package:fluxer_app/core/synced_preferences/fields/sound_synced_field.dart';
+import 'package:fluxer_app/core/synced_preferences/fields/swipe_right_to_left_action_synced_field.dart';
 import 'package:fluxer_app/core/synced_preferences/fields/textual_preview_synced_field.dart';
 import 'package:fluxer_app/core/synced_preferences/fields/unread_channels_synced_field.dart';
 import 'package:fluxer_app/core/synced_preferences/fields/voice_prompts_synced_field.dart';
@@ -47,4 +48,5 @@ void registerDefaultSyncedFieldAdapters({
   registerAdapter(ChatInputSyncedField(ref));
   registerAdapter(DoubleTapReactionSyncedField(ref));
   registerAdapter(DoubleTapActionSyncedField(ref));
+  registerAdapter(SwipeRightToLeftActionSyncedField(ref));
 }

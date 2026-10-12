@@ -8426,7 +8426,7 @@
     "@messagesMediaGesturesSectionTitle": {
         "description": "Title for message gesture settings on mobile."
     },
-    "messagesMediaGesturesSectionDescription": "Configure double tap on messages.",
+    "messagesMediaGesturesSectionDescription": "Configure double tap and swipe on messages.",
     "@messagesMediaGesturesSectionDescription": {
         "description": "Description for message gesture settings on mobile."
     },
@@ -8465,6 +8465,26 @@
     "messagesMediaGesturesDoubleTapActionNoneDescription": "Double tap is disabled.",
     "@messagesMediaGesturesDoubleTapActionNoneDescription": {
         "description": "Help text for the none double-tap action."
+    },
+    "messagesMediaGesturesSwipeRightToLeftLabel": "Swipe right to left",
+    "@messagesMediaGesturesSwipeRightToLeftLabel": {
+        "description": "Label for the swipe right to left action radio group."
+    },
+    "messagesMediaGesturesSwipeRightToLeftReplyName": "Swipe-to-reply",
+    "@messagesMediaGesturesSwipeRightToLeftReplyName": {
+        "description": "Swipe opens reply on the message."
+    },
+    "messagesMediaGesturesSwipeRightToLeftReplyDescription": "Swipe a message to reply, with hold to edit your own messages.",
+    "@messagesMediaGesturesSwipeRightToLeftReplyDescription": {
+        "description": "Help text for swipe to reply."
+    },
+    "messagesMediaGesturesSwipeRightToLeftChannelDetailsName": "Show channel details",
+    "@messagesMediaGesturesSwipeRightToLeftChannelDetailsName": {
+        "description": "Swipe opens channel details in a side panel."
+    },
+    "messagesMediaGesturesSwipeRightToLeftChannelDetailsDescription": "Swipe a message or tap the channel header to open channel details in a side panel.",
+    "@messagesMediaGesturesSwipeRightToLeftChannelDetailsDescription": {
+        "description": "Help text for swipe to channel details."
     },
     "chatMessageEdit": "Edit message",
     "@chatMessageEdit": {

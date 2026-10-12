@@ -26,6 +26,7 @@ import 'package:fluxer_app/features/chat/presentation/'
     'widgets/message_actions/message_context_menu.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/message_actions/quick_reaction_row.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/message_actions/reply_preview.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/message_actions/swipe_to_open_channel_details.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/message_actions/swipe_to_reply.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/crosspost_publish_nudge.dart';
 import 'package:fluxer_app/features/chat/presentation/'
@@ -38,11 +39,13 @@ import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_r
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_sticker_image.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_translation_indicator.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/expression_picker.dart';
+import 'package:fluxer_app/features/chat/providers/channel/channel_details_drawer_provider.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/chat/providers/messages/channel_spoiler_sync_provider.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_translation_provider.dart';
 import 'package:fluxer_app/features/chat/providers/messages/spoiler_reveal_provider.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/uploading_attachment_utils.dart';
+import 'package:fluxer_app/features/chat/utils/channel_details_handheld.dart';
 import 'package:fluxer_app/features/chat/utils/embeds/embed_gallery_utils.dart';
 import 'package:fluxer_app/features/chat/utils/messages/double_tap_reaction.dart';
 import 'package:fluxer_app/features/chat/utils/messages/message_accessibility_summary.dart';
@@ -50,6 +53,7 @@ import 'package:fluxer_app/features/chat/utils/messages/message_action_permissio
 import 'package:fluxer_app/features/chat/utils/messages/message_timestamp_format.dart';
 import 'package:fluxer_app/features/chat/utils/messages/spoiler_utils.dart';
 import 'package:fluxer_app/features/dm/domain/dm_channel_types.dart';
+import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
 import 'package:fluxer_app/features/input/providers/focused_message_provider.dart';
 import 'package:fluxer_app/features/input/providers/keyboard_mode_provider.dart';
 import 'package:fluxer_app/features/profile/presentation/user_profile_sheet.dart';
@@ -57,6 +61,7 @@ import 'package:fluxer_app/features/settings/providers/advanced_preferences_prov
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/double_tap_action_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/swipe_right_to_left_action_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/use_12_hour_time_format_provider.dart';
 import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
@@ -68,6 +73,7 @@ import 'package:fluxer_app/shared/markdown/message_markdown_settings.dart';
 import 'package:fluxer_app/shared/providers/guild_user_display_provider.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 import 'package:fluxer_app/shared/providers/member_role_color.dart';
+import 'package:fluxer_app/shared/utils/chat_context_utils.dart';
 import 'package:fluxer_app/shared/utils/fluxer_haptics.dart';
 import 'package:fluxer_app/shared/utils/guild_user_display.dart';
 import 'package:fluxer_app/shared/utils/user_date_formatting.dart';
@@ -911,7 +917,52 @@ class _MessageItemState extends ConsumerState<MessageItem> {
       ),
       child: body,
     );
-    if (!isTouch || onReply == null || widget.inboxPreviewMode) {
+    final bool hasChannelDetailsSession =
+        ref.watch(channelDetailsDrawerProvider) != null;
+    final double channelDetailsReveal = ref.watch(
+      channelDetailsDrawerRevealProvider,
+    );
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool channelDetailsDrawerBlocksSwipe =
+        channelDetailsDrawerBlocksMessageSwipe(
+          hasDrawerSession: hasChannelDetailsSession,
+          revealPixels: channelDetailsReveal,
+          screenWidth: screenWidth,
+        );
+    final bool swipeToOpenChannelDetails =
+        handheldChannelDetailsGesturesApply(context) &&
+        ref.watch(swipeRightToLeftActionPreferencesProvider).effectiveAction ==
+            SwipeRightToLeftActionPreference.channelDetails;
+    if (!isTouch || widget.inboxPreviewMode) {
+      return _wrapMessageSendingDim(
+        dim: dimEntireMessage,
+        child: _wrapKeyboardFocus(
+          focused: isKeyboardFocused,
+          child: semanticBody,
+        ),
+      );
+    }
+    if (swipeToOpenChannelDetails) {
+      return _wrapMessageSendingDim(
+        dim: dimEntireMessage,
+        child: _wrapKeyboardFocus(
+          focused: isKeyboardFocused,
+          child: SwipeToOpenChannelDetails(
+            enabled:
+                !channelDetailsDrawerBlocksSwipe &&
+                widget.canSendMessages &&
+                widget.swipeToReplyEnabled,
+            channel: ref.read(channelByIdProvider(msg.channelId)).value,
+            dm: findDmById(
+              ref.read(dmViewModelProvider.select((s) => s.conversations)),
+              msg.channelId,
+            ),
+            child: semanticBody,
+          ),
+        ),
+      );
+    }
+    if (onReply == null) {
       return _wrapMessageSendingDim(
         dim: dimEntireMessage,
         child: _wrapKeyboardFocus(

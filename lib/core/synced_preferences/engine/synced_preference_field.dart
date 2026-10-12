@@ -35,7 +35,8 @@ enum SyncedPreferenceField {
   keybinds(111),
   chatInput(112),
   doubleTapReaction(114),
-  doubleTapAction(117);
+  doubleTapAction(117),
+  swipeRightToLeftAction(118);
 
   const SyncedPreferenceField(this.fieldNumber);
 

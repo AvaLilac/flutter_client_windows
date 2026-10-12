@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/router/route_kind.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
@@ -14,7 +12,7 @@ import 'package:fluxer_app/features/shell/providers/drawer_reveal_sync_trigger_p
 import 'package:fluxer_app/features/shell/providers/reveal_side_provider.dart';
 import 'package:fluxer_app/features/shell/providers/shell_blocks_horizontal_gestures_provider.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:fluxer_app/shared/gestures/directional_horizontal_drag_recognizer.dart';
+import 'package:fluxer_app/shared/gestures/horizontal_reveal_physics.dart';
 import 'package:fluxer_app/shared/gestures/nested_horizontal_scrollable.dart';
 
 /// Compact wide mobile peeks the drawer at the channel list edge.
@@ -62,14 +60,10 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
   void initState() {
     super.initState();
     _currentSide = ref.read(currentRevealSideProvider);
-    _animationController =
-        AnimationController.unbounded(
-            vsync: this,
-            duration: kHorizontalSwipeRevealDuration,
-          )
-          ..addListener(_schedulePublishPastHalf)
-          ..addListener(_syncPaneTickers)
-          ..addStatusListener((AnimationStatus _) => _syncPaneTickers());
+    _animationController = createHorizontalRevealController(vsync: this)
+      ..addListener(_schedulePublishPastHalf)
+      ..addListener(_syncPaneTickers)
+      ..addStatusListener((AnimationStatus _) => _syncPaneTickers());
   }
 
   @override
@@ -190,40 +184,12 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
     if (writeBack) {
       ref.read(currentRevealSideProvider.notifier).set(side);
     }
-    await _animateToPosition(
+    await animateHorizontalReveal(
+      _animationController,
       goal,
       isReveal ? _revealDuration(context) : _snapBackDuration(context),
       isReveal ? widget.revealCurve : widget.snapBackCurve,
     );
-  }
-
-  Future<void> _animateToPosition(
-    double goal,
-    Duration duration,
-    Curve curve,
-  ) async {
-    final current = _animationController.value;
-    if (current == goal && !_animationController.isAnimating) {
-      return;
-    }
-    _animationController.stop();
-    await _animationController.animateTo(
-      goal,
-      duration: duration,
-      curve: curve,
-    );
-  }
-
-  void _handleDragStart(DragStartDetails details) {
-    _animationController.stop();
-  }
-
-  void _handleDragUpdate(DragUpdateDetails details) {
-    _onTranslate(details.delta.dx);
-  }
-
-  Future<void> _handleDragEnd(DragEndDetails details) async {
-    await _onApplyTranslation(details);
   }
 
   void _onTranslate(double delta) {
@@ -236,11 +202,13 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
     }
     final maxTranslate = _maxRevealTranslate(width);
     final minTranslate = _isSidebarDrawerLocked() ? maxTranslate : 0.0;
-    final newTranslate = (_animationController.value + delta).clamp(
-      minTranslate,
-      maxTranslate,
+    _animationController.value = applyHorizontalRevealDrag(
+      edge: HorizontalRevealEdge.left,
+      translate: _animationController.value,
+      deltaDx: delta,
+      min: minTranslate,
+      max: maxTranslate,
     );
-    _animationController.value = newTranslate;
   }
 
   Future<void> _onApplyTranslation(DragEndDetails details) async {
@@ -251,9 +219,7 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
     if (width <= 0) {
       return;
     }
-    final completionThreshold = defaultTargetPlatform == TargetPlatform.iOS
-        ? kHorizontalSwipeCompletionThresholdCupertino
-        : kHorizontalSwipeCompletionThresholdMaterial;
+    final completionThreshold = horizontalSwipeCompletionThreshold();
     final double? peekWidth = _usesPeekReveal() ? _peekWidth(width) : null;
     final targetSide = sidebarDrawerTargetForDrag(
       translate: _animationController.value,
@@ -292,7 +258,8 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
     if (writeBack) {
       ref.read(currentRevealSideProvider.notifier).set(side);
     }
-    await _animateToPosition(
+    await animateHorizontalReveal(
+      _animationController,
       _goalForSide(side, width),
       _snapBackDuration(context),
       widget.snapBackCurve,
@@ -347,27 +314,15 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
     final Map<Type, GestureRecognizerFactory> drawerGestures =
         blocksHorizontalGestures
         ? <Type, GestureRecognizerFactory>{}
-        : <Type, GestureRecognizerFactory>{
-            DirectionalHorizontalDragRecognizer:
-                GestureRecognizerFactoryWithHandlers<
-                  DirectionalHorizontalDragRecognizer
-                >(
-                  () => DirectionalHorizontalDragRecognizer(
-                    directions: () => <HorizontalClaimDirection>{
-                      HorizontalClaimDirection.right,
-                      if (_animationController.value > 0)
-                        HorizontalClaimDirection.left,
-                    },
-                    shouldDefer: _shouldDeferDrawerGesture,
-                  ),
-                  (recognizer) {
-                    recognizer
-                      ..onStart = _handleDragStart
-                      ..onUpdate = _handleDragUpdate
-                      ..onEnd = _handleDragEnd;
-                  },
-                ),
-          };
+        : horizontalRevealDragGestures(
+            translateController: _animationController,
+            edge: HorizontalRevealEdge.left,
+            shouldDefer: _shouldDeferDrawerGesture,
+            onDragUpdate: _onTranslate,
+            onDragEnd: (DragEndDetails details) {
+              unawaited(_onApplyTranslation(details));
+            },
+          );
 
     final RevealSide revealSide = ref.watch(currentRevealSideProvider);
     final bool peek = isCompactWideDrawerPeekMode(
@@ -532,13 +487,15 @@ RevealSide sidebarDrawerTargetForDrag({
   if (maxReveal <= 0) {
     return RevealSide.main;
   }
-  if (primaryVelocity.abs() >= flingVelocity) {
-    return primaryVelocity > 0 ? RevealSide.left : RevealSide.main;
-  }
-  final positionFraction = translate / maxReveal;
-  return positionFraction >= completionThreshold
-      ? RevealSide.left
-      : RevealSide.main;
+  final bool open = horizontalRevealShouldOpen(
+    edge: HorizontalRevealEdge.left,
+    translate: translate,
+    maxExtent: maxReveal,
+    primaryVelocity: primaryVelocity,
+    completionThreshold: completionThreshold,
+    flingVelocity: flingVelocity,
+  );
+  return open ? RevealSide.left : RevealSide.main;
 }
 
 /// True once the chat slider has moved past half the viewport.

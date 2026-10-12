@@ -10864,7 +10864,7 @@ abstract class FluxerLocalizations {
   /// Description for message gesture settings on mobile.
   ///
   /// In en, this message translates to:
-  /// **'Configure double tap on messages.'**
+  /// **'Configure double tap and swipe on messages.'**
   String get messagesMediaGesturesSectionDescription;
 
   /// Label for choosing the default double-tap reaction emoji.
@@ -10920,6 +10920,36 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Double tap is disabled.'**
   String get messagesMediaGesturesDoubleTapActionNoneDescription;
+
+  /// Label for the swipe right to left action radio group.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe right to left'**
+  String get messagesMediaGesturesSwipeRightToLeftLabel;
+
+  /// Swipe opens reply on the message.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe-to-reply'**
+  String get messagesMediaGesturesSwipeRightToLeftReplyName;
+
+  /// Help text for swipe to reply.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe a message to reply, with hold to edit your own messages.'**
+  String get messagesMediaGesturesSwipeRightToLeftReplyDescription;
+
+  /// Swipe opens channel details in a side panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show channel details'**
+  String get messagesMediaGesturesSwipeRightToLeftChannelDetailsName;
+
+  /// Help text for swipe to channel details.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe a message or tap the channel header to open channel details in a side panel.'**
+  String get messagesMediaGesturesSwipeRightToLeftChannelDetailsDescription;
 
   /// Action label for editing a sent message.
   ///
