@@ -188,7 +188,7 @@ Post your design to [feedback.fluxer.com](https://feedback.fluxer.com) with the 
 The post must include
 
 - A title for you would like the icon to be called in the app.
-- How you would like to be credited (Fluxer handle or social media handle).
+- How you would like to be credited Fluxer handle + discriminator (or social media handle/link).
 
 If your design gets enough upvotes (not set requirement), we will review it and, if accepted, add it to the app.
 
