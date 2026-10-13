@@ -33,17 +33,17 @@ Join here: [Join Link](https://fluxer.gg/fluxer-labs)
 
 ## Download
 
-**Apple App Store**: Coming when V1 is finished (join the TestFlight for now).
+**Apple App Store**: *Coming once out of beta* (join the TestFlight for now).
 
-**Google Play Store**: Join the [Early access link](https://play.google.com/store/apps/details?id=com.fluxer)
+**Google Play Store**: Join the [Early access](https://play.google.com/store/apps/details?id=com.fluxer)
 
-**Accrescent**: This is something we are interested in doing after V1 and they allow app submissions again.
+**Accrescent (GrapheneOS)**: This is something we are interested in doing after V1 and they allow app submissions again.
 
-**F-Droid**: Coming when V1 is finished.
+**F-Droid**: *Coming once out of beta*
 
 **iOS TestFlight**: Join with the [TestFlight link](https://testflight.apple.com/join/PKZR6pK9).
 
-**Obtainium**: This is currently the best way to install and keep the Android betas installed and updated. [Find out more here](#auto-updates-with-obtainium).
+**Obtainium**: Download OSS and FCM builds automatically directly from the Github builds. [Find out more here](#auto-updates-with-obtainium).
 
 ### Android (APK)
 
