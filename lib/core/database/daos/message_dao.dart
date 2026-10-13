@@ -217,6 +217,17 @@ class MessageDao extends DatabaseAccessor<FluxerDatabase>
   Future<Message?> getMessage(String id) =>
       (select(messages)..where((m) => m.id.equals(id))).getSingleOrNull();
 
+  Future<Set<String>> getExistingMessageIds(Iterable<String> ids) async {
+    final List<String> idList = ids.toList();
+    if (idList.isEmpty) {
+      return const <String>{};
+    }
+    final List<Message> rows = await (select(
+      messages,
+    )..where((m) => m.id.isIn(idList))).get();
+    return <String>{for (final Message row in rows) row.id};
+  }
+
   Stream<Message?> watchMessage(String id) =>
       (select(messages)..where((m) => m.id.equals(id)))
           .watchSingleOrNull()

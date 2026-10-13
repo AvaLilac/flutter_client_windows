@@ -8,11 +8,17 @@ import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_performance_providers.dart';
 import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
+import 'package:fluxer_app/features/channels/data/read_state_effective.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
+import 'package:fluxer_app/features/channels/data/read_state_write_batcher.dart';
 import 'package:fluxer_app/features/channels/data/unread_permission_utils.dart';
 import 'package:fluxer_app/features/channels/data/unread_settings_resolver.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
     show isGuildTextBasedChannel, isThreadChannelType, isThreadOnlyChannelType;
+import 'package:fluxer_app/features/channels/providers/guild_channel_unread_snapshot_provider.dart'
+    show guildChannelUnreadFoldProvider;
+import 'package:fluxer_app/features/channels/providers/read_state_write_batcher_provider.dart';
+import 'package:fluxer_app/features/channels/providers/unread_provider.dart';
 import 'package:fluxer_app/features/forum/domain/forum_channel.dart'
     show forumNewPostsUnreadEnabled;
 import 'package:fluxer_app/features/guilds/domain/guild_read_state_contribution.dart';
@@ -105,7 +111,7 @@ class GuildReadState extends _$GuildReadState {
   final Set<String> _pendingTrustIndex = <String>{};
   StreamSubscription<Map<String, String>>? _lastMessageIndexSub;
   Map<String, ThreadMember> _joinedThreadMembers = <String, ThreadMember>{};
-
+  final Map<String, List<String>> _channelIdsByGuild = <String, List<String>>{};
   @override
   Map<String, GuildReadStateEntry> build() {
     final db = ref.watch(fluxerDatabaseProvider);
@@ -119,6 +125,12 @@ class GuildReadState extends _$GuildReadState {
       final next = <String, ReadState>{for (final r in rows) r.channelId: r};
       final touched = _diffReadStates(_readStateSnapshot, next);
       _readStateSnapshot = next;
+      final ReadStateWriteBatcher batcher = ref.read(
+        readStateWriteBatcherProvider,
+      );
+      for (final String channelId in touched) {
+        batcher.reconcilePersisted(channelId, next[channelId]);
+      }
       if (touched.isNotEmpty) {
         _enqueueChannels(touched, db, currentUserId, refreshLatest: false);
       }
@@ -156,6 +168,7 @@ class GuildReadState extends _$GuildReadState {
             next,
           );
           _channelSnapshot = next;
+          _rebuildChannelIdsByGuild();
           final allTouched = <String>{...touched, ...staleLastMessageIds};
           if (allTouched.isNotEmpty) {
             _enqueueChannels(
@@ -231,6 +244,26 @@ class GuildReadState extends _$GuildReadState {
       _requestSeed(db, currentUserId);
     }
 
+    ref.listen<int>(readStateOverlayVersionProvider, (int? prev, int next) {
+      if (!_isInitialSeedComplete) {
+        return;
+      }
+      final ReadStateWriteBatcher batcher = ref.read(
+        readStateWriteBatcherProvider,
+      );
+      final Set<String> overlayIds = batcher.overlayChannelIds();
+      if (overlayIds.isEmpty) {
+        return;
+      }
+      _enqueueChannels(
+        overlayIds,
+        db,
+        currentUserId,
+        refreshLatest: false,
+        trustIndex: true,
+      );
+    });
+
     ref.onDispose(() {
       unawaited(readStateSub.cancel());
       unawaited(channelSub.cancel());
@@ -264,6 +297,7 @@ class GuildReadState extends _$GuildReadState {
     _recomputeGeneration++;
     _clearCaches();
     final guilds = await db.guildDao.getServers();
+    ref.read(guildChannelUnreadFoldProvider.notifier).reset();
     final allChannels = await db.channelDao.getAllChannels(
       includeThreads: true,
     );
@@ -289,48 +323,73 @@ class GuildReadState extends _$GuildReadState {
           ),
         ),
       );
-    final now = DateTime.now();
-    for (final channel in _channelSnapshot.values) {
-      if (!_tracksUnread(channel.type)) {
-        continue;
+    if (currentUserId != null && currentUserId.isNotEmpty) {
+      for (final Server guild in guilds) {
+        if (_guildJoinedAtFetched.contains(guild.id)) {
+          continue;
+        }
+        final Member? member = await db.memberDao.getMemberByUserId(
+          currentUserId,
+          guild.id,
+        );
+        _guildJoinedAtMs[guild.id] = member?.joinedAt?.millisecondsSinceEpoch;
+        _guildJoinedAtFetched.add(guild.id);
       }
-      final canRead = await canReadChannelForUnread(
-        database: db,
-        channel: channel,
-        currentUserId: currentUserId,
-      );
-      if (!canRead) {
+    }
+
+    final List<Channel> trackableChannels = <Channel>[
+      for (final Channel channel in _channelSnapshot.values)
+        if (_tracksUnread(channel.type)) channel,
+    ];
+    _rebuildChannelIdsByGuild();
+    final ChannelUnreadPermissionSeedCache permissionCache =
+        await buildChannelUnreadPermissionSeedCache(
+          database: db,
+          currentUserId: currentUserId,
+          channels: trackableChannels,
+          guilds: guilds,
+          channelSnapshot: _channelSnapshot,
+        );
+    final Map<String, ChannelLatestMessageResolution> latestByChannel =
+        await resolveLatestMessageIdsForChannelsBulk(db, trackableChannels);
+    final now = DateTime.now();
+    final Map<String, UnreadState> unreadPatch = <String, UnreadState>{};
+    for (final Channel channel in trackableChannels) {
+      if (!permissionCache.canReadForUnread(channel)) {
         _channelContributions[channel.id] = const _Contribution(
           unreadEligible: false,
           hasPlainUnread: false,
+          hasUnreadMessages: false,
           mentions: 0,
         );
         _contributionGuild[channel.id] = channel.guildId;
+        unreadPatch[channel.id] = const UnreadState();
         continue;
       }
-      final resolved = await resolveLatestMessageIdForChannel(
-        db,
-        channel.id,
-        channelLastMessageId: channel.lastMessageId,
-      );
+      final ChannelLatestMessageResolution resolved =
+          latestByChannel[channel.id] ?? (id: null, existsInCache: false);
       _latestMessageIdByChannel[channel.id] = resolved.id;
       _channelLastExistsInCacheByChannel[channel.id] = resolved.existsInCache;
-      final fallbackAckMs = await _resolveFallbackAckMs(
-        channel,
-        db,
-        currentUserId,
-      );
-      _channelContributions[channel.id] = _computeChannelContribution(
+      final int fallbackAckMs = _fallbackAckMsForChannel(channel);
+      final _Contribution contribution = _computeChannelContribution(
         channel: channel,
-        readState: _readStateSnapshot[channel.id],
+        readState: _effectiveReadState(channel.id),
         guildSettings: _guildSettings[channel.guildId],
         now: now,
         fallbackAckMs: fallbackAckMs,
         strictLatestMessageId: resolved.id,
         channelLastMessageExistsInCache: resolved.existsInCache,
       );
+      _channelContributions[channel.id] = contribution;
       _contributionGuild[channel.id] = channel.guildId;
+      unreadPatch[channel.id] = _unreadStateFromContribution(
+        channel: channel,
+        contribution: contribution,
+        guildSettings: _guildSettings[channel.guildId],
+        now: now,
+      );
     }
+    _publishChannelUnreadPatch(unreadPatch);
     _emitForGuilds(guilds.map((g) => g.id).toSet());
     _isInitialSeedComplete = true;
     if (_pendingSeedChannelIds.isNotEmpty) {
@@ -424,6 +483,7 @@ class GuildReadState extends _$GuildReadState {
     }
     final now = DateTime.now();
     final affectedGuilds = <String>{};
+    final Map<String, UnreadState> unreadPatch = <String, UnreadState>{};
     for (final id in pending) {
       final channel = _channelSnapshot[id];
       final guildId = channel?.guildId ?? _contributionGuild[id];
@@ -444,9 +504,11 @@ class GuildReadState extends _$GuildReadState {
         _channelContributions[id] = const _Contribution(
           unreadEligible: false,
           hasPlainUnread: false,
+          hasUnreadMessages: false,
           mentions: 0,
         );
         _contributionGuild[id] = channel.guildId;
+        unreadPatch[id] = const UnreadState();
         continue;
       }
       final fallbackAckMs = await _resolveFallbackAckMs(
@@ -454,9 +516,9 @@ class GuildReadState extends _$GuildReadState {
         db,
         currentUserId,
       );
-      _channelContributions[id] = _computeChannelContribution(
+      final _Contribution contribution = _computeChannelContribution(
         channel: channel,
-        readState: _readStateSnapshot[id],
+        readState: _effectiveReadState(channel.id),
         guildSettings: _guildSettings[channel.guildId],
         now: now,
         fallbackAckMs: fallbackAckMs,
@@ -464,12 +526,27 @@ class GuildReadState extends _$GuildReadState {
         channelLastMessageExistsInCache:
             _channelLastExistsInCacheByChannel[id] ?? false,
       );
+      _channelContributions[id] = contribution;
       _contributionGuild[id] = channel.guildId;
+      unreadPatch[id] = _unreadStateFromContribution(
+        channel: channel,
+        contribution: contribution,
+        guildSettings: _guildSettings[channel.guildId],
+        now: now,
+      );
     }
     if (generation != _recomputeGeneration) {
       return;
     }
+    _publishChannelUnreadPatch(unreadPatch);
     _emitForGuilds(affectedGuilds);
+  }
+
+  void _publishChannelUnreadPatch(Map<String, UnreadState> patch) {
+    if (patch.isEmpty) {
+      return;
+    }
+    ref.read(guildChannelUnreadFoldProvider.notifier).apply(patch);
   }
 
   void _emitForGuilds(Set<String> guildIds) {
@@ -522,16 +599,19 @@ class GuildReadState extends _$GuildReadState {
     String? firstUnreadChannelId;
     var firstUnreadPosition = 0;
     final mentionCountByChannel = <String, int>{};
-    for (final channel in _channelSnapshot.values) {
-      if (channel.guildId != guildId || !_tracksUnread(channel.type)) {
+    final List<String> channelIds =
+        _channelIdsByGuild[guildId] ?? const <String>[];
+    for (final String channelId in channelIds) {
+      final Channel? channel = _channelSnapshot[channelId];
+      if (channel == null) {
         continue;
       }
-      final contribution = _channelContributions[channel.id];
+      final _Contribution? contribution = _channelContributions[channelId];
       if (contribution == null) {
         continue;
       }
       if (contribution.mentions > 0) {
-        mentionCountByChannel[channel.id] = contribution.mentions;
+        mentionCountByChannel[channelId] = contribution.mentions;
         totalMentions += contribution.mentions;
       }
       if (contribution.unreadEligible) {
@@ -539,7 +619,7 @@ class GuildReadState extends _$GuildReadState {
         if (!isThreadChannelType(channel.type) &&
             (firstUnreadChannelId == null ||
                 channel.position < firstUnreadPosition)) {
-          firstUnreadChannelId = channel.id;
+          firstUnreadChannelId = channelId;
           firstUnreadPosition = channel.position;
         }
       }
@@ -638,6 +718,7 @@ class GuildReadState extends _$GuildReadState {
     _contributionGuild.clear();
     _latestMessageIdByChannel.clear();
     _channelLastExistsInCacheByChannel.clear();
+    _channelIdsByGuild.clear();
     _guildJoinedAtMs.clear();
     _guildJoinedAtFetched.clear();
     _guildSettings.clear();
@@ -646,6 +727,82 @@ class GuildReadState extends _$GuildReadState {
     _pendingChannelIds.clear();
     _pendingLatestRefresh.clear();
     _pendingTrustIndex.clear();
+  }
+
+  void _rebuildChannelIdsByGuild() {
+    _channelIdsByGuild.clear();
+    for (final Channel channel in _channelSnapshot.values) {
+      if (channel.guildId.isEmpty || !_tracksUnread(channel.type)) {
+        continue;
+      }
+      (_channelIdsByGuild[channel.guildId] ??= <String>[]).add(channel.id);
+    }
+  }
+
+  int _fallbackAckMsForChannel(Channel channel) {
+    final int? ms = _guildJoinedAtMs[channel.guildId];
+    if (ms != null) {
+      return ms;
+    }
+    return snowflakeTimestampMs(channel.id);
+  }
+
+  ReadState? _effectiveReadState(String channelId) {
+    final ReadState? persisted = _readStateSnapshot[channelId];
+    final ReadStateEffectiveFields effective = ref
+        .read(readStateWriteBatcherProvider)
+        .effectiveFields(channelId, persisted);
+    if (persisted == null &&
+        effective.mentionCount == 0 &&
+        (effective.lastMessageId == null || effective.lastMessageId!.isEmpty)) {
+      return null;
+    }
+    if (persisted == null) {
+      return ReadState(
+        channelId: channelId,
+        lastMessageId: effective.lastMessageId,
+        mentionCount: effective.mentionCount,
+        manual: false,
+      );
+    }
+    return persisted.copyWith(
+      lastMessageId: Value(effective.lastMessageId),
+      mentionCount: effective.mentionCount,
+    );
+  }
+
+  UnreadState _unreadStateFromContribution({
+    required Channel channel,
+    required _Contribution contribution,
+    required UserGuildSettingsResponse? guildSettings,
+    required DateTime now,
+  }) {
+    final bool isThread = isThreadChannelType(channel.type);
+    final bool isMutedForUnread =
+        isGuildOrCategoryOrChannelMuted(
+          channel: channel,
+          guildSettings: guildSettings,
+          now: now,
+        ) ||
+        (isThread && _isThreadMuted(channel, guildSettings, now));
+    final UserNotificationSettings? unreadBadgesLevel = isMutedForUnread
+        ? UserNotificationSettings.noMessages
+        : resolveGuildUnreadBadgesLevel(
+            channel: channel,
+            guildSettings: guildSettings,
+            guildContext: _guildNotificationContexts[channel.guildId],
+          );
+    final ReadState? readState = _readStateSnapshot[channel.id];
+    return UnreadState(
+      hasUnread: contribution.unreadEligible || contribution.mentions > 0,
+      hasUnreadMessages: contribution.hasUnreadMessages,
+      mentionCount: contribution.mentions,
+      hasUnreadPins: hasUnreadPins(
+        channelLastPinTimestamp: channel.lastPinTimestamp,
+        ackLastPinTimestamp: readState?.lastPinTimestamp,
+      ),
+      unreadBadgesLevel: unreadBadgesLevel,
+    );
   }
 
   _Contribution _computeChannelContribution({
@@ -709,6 +866,7 @@ class GuildReadState extends _$GuildReadState {
     return _Contribution(
       unreadEligible: contribution.unreadAllowed,
       hasPlainUnread: hasPlainUnread,
+      hasUnreadMessages: contribution.unreadAllowed && hasUnreadMessage,
       mentions: contribution.mentionAllowed ? rawMentions : 0,
     );
   }
@@ -824,10 +982,12 @@ class _Contribution {
   const _Contribution({
     required this.unreadEligible,
     required this.hasPlainUnread,
+    required this.hasUnreadMessages,
     required this.mentions,
   });
 
   final bool unreadEligible;
   final bool hasPlainUnread;
+  final bool hasUnreadMessages;
   final int mentions;
 }

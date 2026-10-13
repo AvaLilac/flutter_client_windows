@@ -13,6 +13,8 @@ import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_app/features/channels/data/unread_settings_resolver.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
     show isThreadChannelType, isThreadOnlyChannelType;
+import 'package:fluxer_app/features/channels/providers/guild_channel_unread_snapshot_provider.dart';
+import 'package:fluxer_app/features/channels/providers/read_state_write_batcher_provider.dart';
 import 'package:fluxer_app/features/forum/domain/forum_channel.dart'
     show forumNewPostsUnreadEnabled;
 import 'package:fluxer_app/features/guilds/providers/user_guild_settings_data_provider.dart';
@@ -64,6 +66,13 @@ Map<String, UnreadState> channelUnreadLastKnown(Ref ref) {
 
 @riverpod
 UnreadState? channelUnreadOrLastKnown(Ref ref, String channelId) {
+  ref.watch(readStateOverlayVersionProvider);
+  final UnreadState? fromFold = ref.watch(
+    guildChannelUnreadFoldProvider,
+  )[channelId];
+  if (fromFold != null) {
+    return fromFold;
+  }
   return ref.watch(channelUnreadProvider(channelId)).value ??
       ref.watch(channelUnreadLastKnownProvider)[channelId];
 }
@@ -140,7 +149,9 @@ Stream<UnreadState> channelUnread(Ref ref, String channelId) {
   final Map<String, UnreadState> lastKnown = ref.watch(
     channelUnreadLastKnownProvider,
   );
-  ref.watch(gatewayReadyProvider);
+  ref
+    ..watch(gatewayReadyProvider)
+    ..watch(readStateOverlayVersionProvider);
   final bool? canView = ref.watch(channelUnreadCanViewProvider(channelId));
 
   final controller = StreamController<UnreadState>();
@@ -174,12 +185,16 @@ Stream<UnreadState> channelUnread(Ref ref, String channelId) {
       return;
     }
     final readState = await db.readStateDao.getReadState(channelId);
-    final mentionCount = readState?.mentionCount ?? 0;
+    final effective = ref
+        .read(readStateWriteBatcherProvider)
+        .effectiveFields(channelId, readState);
+    final mentionCount = effective.mentionCount;
+    final ackLastMessageId = effective.lastMessageId;
     final latestMessageId = await resolveLatestMessageIdForUnreadDisplay(
       db,
       channelId,
       channelLastMessageId: channel?.lastMessageId,
-      ackLastMessageId: readState?.lastMessageId,
+      ackLastMessageId: ackLastMessageId,
       mentionCount: mentionCount,
     );
     if (disposed) {
@@ -231,7 +246,7 @@ Stream<UnreadState> channelUnread(Ref ref, String channelId) {
         unreadTracked &&
         hasUnreadByReadState(
           channelLastMessageId: latestMessageId,
-          ackLastMessageId: readState?.lastMessageId,
+          ackLastMessageId: ackLastMessageId,
           fallbackAckMs: fallbackAckMs,
           mentionCount: 0,
           isGuildChannel: channel != null,

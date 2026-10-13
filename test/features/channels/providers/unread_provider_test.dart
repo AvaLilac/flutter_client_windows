@@ -14,9 +14,11 @@ import 'package:fluxer_app/core/providers/gateway_performance_providers.dart';
 import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
+import 'package:fluxer_app/features/channels/providers/read_state_write_batcher_provider.dart';
 import 'package:fluxer_app/features/channels/providers/unread_provider.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_list_view_model.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_read_state_provider.dart';
 import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
 import 'package:fluxer_app/shared/utils/snowflake_time.dart';
 import 'package:fluxer_dart/gateway.dart' show PassiveUpdatesEvent;
@@ -742,4 +744,61 @@ void main() {
       isFalse,
     );
   });
+
+  test(
+    'channel unread includes pending batcher mentions before persistence',
+    () async {
+      final FluxerDatabase db = openTestDatabase();
+      const guildId = 'guild-1';
+      const channelId = 'channel-1';
+      const userId = 'me';
+      final String lastMessageId = _snowflakeForUtc(
+        DateTime.now().toUtc().subtract(const Duration(hours: 1)),
+      );
+      await _seedUnreadChannel(
+        db: db,
+        guildId: guildId,
+        channelId: channelId,
+        userId: userId,
+        lastMessageId: lastMessageId,
+        ackId: snowflakeAtPreviousMillisecond(lastMessageId),
+      );
+      final ProviderContainer container = _container(
+        db: db,
+        userId: userId,
+        guildId: guildId,
+      );
+      addTearDown(container.dispose);
+      container.read(gatewayReadyProvider.notifier).setReady();
+      final ProviderSubscription<Map<String, GuildReadStateEntry>> guildSub =
+          container.listen(
+            guildReadStateProvider,
+            (_, _) {},
+            fireImmediately: true,
+          );
+      addTearDown(guildSub.close);
+      await _waitFor(
+        () => container.read(guildReadStateProvider)[guildId] != null,
+      );
+
+      container
+          .read(readStateWriteBatcherProvider)
+          .enqueueUnread(
+            channelId: channelId,
+            messageId: _snowflakeForUtc(DateTime.now().toUtc()),
+            shouldMention: true,
+            isDm: false,
+            seedAckCandidate: lastMessageId,
+          );
+
+      await _waitFor(
+        () =>
+            (container
+                    .read(channelUnreadOrLastKnownProvider(channelId))
+                    ?.mentionCount ??
+                0) >
+            0,
+      );
+    },
+  );
 }

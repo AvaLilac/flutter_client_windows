@@ -14,6 +14,7 @@ import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/channels/data/read_state_repository.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
+import 'package:fluxer_app/features/channels/providers/read_state_write_batcher_provider.dart';
 import 'package:fluxer_app/features/chat/data/message_write_batcher.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_read_state_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_read_state_ready_provider.dart';
@@ -1425,6 +1426,62 @@ void main() {
       );
     });
   });
+
+  test(
+    'guild mention count includes pending read-state overlay before flush',
+    () async {
+      final FluxerDatabase db = openTestDatabase();
+      final String readMessageId = _recentSnowflake(
+        ago: const Duration(hours: 2),
+      );
+      await _seedGuild(
+        db,
+        'guild-1',
+        channels: [
+          (
+            id: 'channel-1',
+            name: 'general',
+            type: 0,
+            lastMessageId: readMessageId,
+          ),
+        ],
+      );
+      await db.readStateDao.upsertReadState(
+        ReadStatesCompanion(
+          channelId: const Value('channel-1'),
+          lastMessageId: Value(readMessageId),
+        ),
+      );
+      final ProviderContainer container = _container(db);
+      addTearDown(container.dispose);
+      container.read(gatewayReadyProvider.notifier).setReady();
+      final ProviderSubscription<Map<String, GuildReadStateEntry>> sub =
+          container.listen(
+            guildReadStateProvider,
+            (_, _) {},
+            fireImmediately: true,
+          );
+      addTearDown(sub.close);
+      await _waitUntilReady(container);
+
+      container
+          .read(readStateWriteBatcherProvider)
+          .enqueueUnread(
+            channelId: 'channel-1',
+            messageId: _recentSnowflake(),
+            shouldMention: true,
+            isDm: false,
+            seedAckCandidate: readMessageId,
+          );
+
+      await _waitFor(
+        () =>
+            (container.read(guildReadStateProvider)['guild-1']?.mentionCount ??
+                0) >
+            0,
+      );
+    },
+  );
 }
 
 Future<void> _bumpMentionCount(FluxerDatabase db, String channelId) async {

@@ -9,9 +9,23 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'read_state_write_batcher_provider.g.dart';
 
 @Riverpod(keepAlive: true)
+class ReadStateOverlayVersion extends _$ReadStateOverlayVersion {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
+@Riverpod(keepAlive: true)
 ReadStateWriteBatcher readStateWriteBatcher(Ref ref) {
   final batcher = ReadStateWriteBatcher(
     database: ref.watch(fluxerDatabaseProvider),
+    onOverlayChanged: () {
+      if (!ref.mounted) {
+        return;
+      }
+      ref.read(readStateOverlayVersionProvider.notifier).bump();
+    },
   );
 
   ref

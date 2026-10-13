@@ -79,6 +79,51 @@ Future<({String? id, bool existsInCache})> resolveLatestMessageIdForChannel(
   return (id: id, existsInCache: channelLastExists);
 }
 
+typedef ChannelLatestMessageResolution = ({String? id, bool existsInCache});
+
+Future<Map<String, ChannelLatestMessageResolution>>
+resolveLatestMessageIdsForChannelsBulk(
+  FluxerDatabase db,
+  Iterable<Channel> channels,
+) async {
+  final List<Channel> channelList = channels.toList();
+  if (channelList.isEmpty) {
+    return const <String, ChannelLatestMessageResolution>{};
+  }
+  final Map<String, Message> lastByChannel = await db.messageDao
+      .getLastMessageForChannels(channelList.map((Channel c) => c.id).toList());
+  final Set<String> pointersToVerify = <String>{};
+  for (final Channel channel in channelList) {
+    final String? pointer = channel.lastMessageId;
+    if (pointer == null || pointer.isEmpty) {
+      continue;
+    }
+    final String? cachedId = lastByChannel[channel.id]?.id;
+    if (cachedId != pointer) {
+      pointersToVerify.add(pointer);
+    }
+  }
+  final Set<String> existingPointers = await db.messageDao
+      .getExistingMessageIds(pointersToVerify);
+  final Map<String, ChannelLatestMessageResolution> out =
+      <String, ChannelLatestMessageResolution>{};
+  for (final Channel channel in channelList) {
+    final String? pointer = channel.lastMessageId;
+    var existsInCache = false;
+    if (pointer != null && pointer.isNotEmpty) {
+      final String? cachedId = lastByChannel[channel.id]?.id;
+      existsInCache = pointer == cachedId || existingPointers.contains(pointer);
+    }
+    final String? id = resolveLatestMessageId(
+      channelLastMessageId: pointer,
+      cachedLastMessageId: lastByChannel[channel.id]?.id,
+      channelLastMessageExistsInCache: existsInCache,
+    );
+    out[channel.id] = (id: id, existsInCache: existsInCache);
+  }
+  return out;
+}
+
 String? resolveLatestMessageIdForUnread({
   required String? strictLatestMessageId,
   required String? channelLastMessageId,

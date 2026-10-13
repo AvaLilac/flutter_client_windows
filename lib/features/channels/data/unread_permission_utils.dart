@@ -89,6 +89,148 @@ Future<ChannelUnreadPermissionOutcome> evaluateChannelUnreadPermission({
   );
 }
 
+List<String?> permissionOverwriteLayersFromSnapshot(
+  db.Channel channel,
+  Map<String, db.Channel> snapshot,
+) {
+  final List<db.Channel> bottomUp = <db.Channel>[];
+  String? currentId = channel.id;
+  while (currentId != null) {
+    final db.Channel? row = snapshot[currentId];
+    if (row == null) {
+      break;
+    }
+    bottomUp.add(row);
+    currentId = row.parentId;
+  }
+  return <String?>[
+    for (final db.Channel row in bottomUp.reversed)
+      row.permissionOverwritesJson,
+  ];
+}
+
+class ChannelUnreadPermissionSeedCache {
+  ChannelUnreadPermissionSeedCache(this.byChannelId);
+
+  final Map<String, ChannelUnreadPermissionOutcome> byChannelId;
+
+  bool canReadForUnread(db.Channel channel) {
+    final ChannelUnreadPermissionOutcome? outcome = byChannelId[channel.id];
+    if (outcome == null || !outcome.isDefinitive) {
+      return true;
+    }
+    return outcome.canRead;
+  }
+}
+
+Future<ChannelUnreadPermissionSeedCache> buildChannelUnreadPermissionSeedCache({
+  required db.FluxerDatabase database,
+  required String? currentUserId,
+  required Iterable<db.Channel> channels,
+  required List<db.Server> guilds,
+  required Map<String, db.Channel> channelSnapshot,
+}) async {
+  final Map<String, ChannelUnreadPermissionOutcome> byChannelId =
+      <String, ChannelUnreadPermissionOutcome>{};
+  if (currentUserId == null || currentUserId.isEmpty) {
+    for (final db.Channel channel in channels) {
+      byChannelId[channel.id] = const ChannelUnreadPermissionOutcome(
+        canRead: true,
+        isDefinitive: true,
+      );
+    }
+    return ChannelUnreadPermissionSeedCache(byChannelId);
+  }
+
+  final Map<String, db.Server> guildById = <String, db.Server>{
+    for (final db.Server guild in guilds) guild.id: guild,
+  };
+  final Set<String> guildIds = <String>{
+    for (final db.Channel channel in channels)
+      if (channel.guildId.isNotEmpty) channel.guildId,
+  };
+  final Map<String, db.Member?> membersByGuild = <String, db.Member?>{};
+  final Map<String, List<db.Role>> rolesByGuild = <String, List<db.Role>>{};
+  for (final String guildId in guildIds) {
+    membersByGuild[guildId] = await database.memberDao.getMemberByUserId(
+      currentUserId,
+      guildId,
+    );
+    rolesByGuild[guildId] = await database.roleDao.getRoles(guildId);
+  }
+
+  for (final db.Channel channel in channels) {
+    if (channel.guildId.isEmpty) {
+      byChannelId[channel.id] = const ChannelUnreadPermissionOutcome(
+        canRead: true,
+        isDefinitive: true,
+      );
+      continue;
+    }
+    final db.Server? guild = guildById[channel.guildId];
+    if (guild == null) {
+      byChannelId[channel.id] = const ChannelUnreadPermissionOutcome(
+        canRead: true,
+        isDefinitive: false,
+      );
+      continue;
+    }
+    if (guild.ownerId == currentUserId) {
+      byChannelId[channel.id] = const ChannelUnreadPermissionOutcome(
+        canRead: true,
+        isDefinitive: true,
+      );
+      continue;
+    }
+    final db.Member? member = membersByGuild[channel.guildId];
+    if (member == null) {
+      byChannelId[channel.id] = const ChannelUnreadPermissionOutcome(
+        canRead: true,
+        isDefinitive: false,
+      );
+      continue;
+    }
+    final List<db.Role> roles = rolesByGuild[channel.guildId] ?? const [];
+    final List<String> memberRoleIds = member.roleIdsJson.isNotEmpty
+        ? List<String>.from(jsonDecode(member.roleIdsJson) as List<dynamic>)
+        : <String>[];
+    final db.Role? everyoneRole = roles
+        .where((db.Role role) => role.id == channel.guildId)
+        .firstOrNull;
+    if (everyoneRole == null && roles.isEmpty) {
+      byChannelId[channel.id] = const ChannelUnreadPermissionOutcome(
+        canRead: true,
+        isDefinitive: true,
+      );
+      continue;
+    }
+    final int everyonePermissions =
+        int.tryParse(everyoneRole?.permissions ?? '0') ?? 0;
+    final List<MemberRole> memberRoles = roles
+        .where((db.Role role) => memberRoleIds.contains(role.id))
+        .map(MemberRole.fromRow)
+        .toList();
+    final List<String?> layers = permissionOverwriteLayersFromSnapshot(
+      channel,
+      channelSnapshot,
+    );
+    final int bits = evaluateChannelEffectivePermissionBits(
+      guildOwnerId: guild.ownerId ?? '',
+      guildId: channel.guildId,
+      currentUserId: currentUserId,
+      everyonePermissions: everyonePermissions,
+      memberRoles: memberRoles,
+      memberRecordPresent: true,
+      overwriteJsonLayersRootToLeaf: layers,
+    );
+    byChannelId[channel.id] = ChannelUnreadPermissionOutcome(
+      canRead: hasPermission(bits, Permission.viewChannel),
+      isDefinitive: true,
+    );
+  }
+  return ChannelUnreadPermissionSeedCache(byChannelId);
+}
+
 Future<bool> canReadChannelForUnread({
   required db.FluxerDatabase database,
   required db.Channel channel,

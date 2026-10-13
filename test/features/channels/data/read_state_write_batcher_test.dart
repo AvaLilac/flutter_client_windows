@@ -121,6 +121,30 @@ void main() {
     expect(readState?.lastMessageId, isNull);
   });
 
+  test('pending overlay reflects mention increments before flush', () {
+    const channelId = 'guild-channel-overlay';
+    enqueue(channelId, '200', mention: true, seed: '100');
+
+    final overlay = batcher.effectiveFields(channelId, null);
+    expect(overlay.mentionCount, 1);
+    expect(batcher.hasPending(channelId), isTrue);
+  });
+
+  test(
+    'held overlay clears after reconcile matches persisted read state',
+    () async {
+      const channelId = 'guild-channel-reconcile';
+      enqueue(channelId, '200', mention: true, seed: '100');
+      await batcher.flush(channelId);
+
+      batcher.reconcilePersisted(
+        channelId,
+        await db.readStateDao.getReadState(channelId),
+      );
+      expect(batcher.overlayChannelIds(), isEmpty);
+    },
+  );
+
   test('discard drops pending increments without writing', () async {
     const channelId = 'guild-channel-4';
     enqueue(channelId, '200', mention: true, seed: '100');
