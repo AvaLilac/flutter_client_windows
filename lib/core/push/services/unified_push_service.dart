@@ -8,11 +8,12 @@ import 'package:fluxer_app/core/push/android/android_push_pipeline.dart';
 import 'package:fluxer_app/core/push/local_push_notifications.dart';
 import 'package:fluxer_app/core/push/push_message.dart';
 import 'package:fluxer_app/core/push/push_service.dart';
+import 'package:fluxer_app/core/push/unified_push/unified_push_account_index.dart';
 import 'package:fluxer_app/core/push/unified_push/unified_push_message_mapper.dart';
 import 'package:fluxer_app/core/push/unified_push/unified_push_vapid_cache.dart';
 import 'package:unifiedpush/unifiedpush.dart' as up;
 
-/// Fixed UnifiedPush instance id for this app.
+/// Instance id from before per-server registrations.
 const String kFluxerUnifiedPushInstance = 'fluxer';
 
 const Duration _kEndpointWaitTimeout = Duration(seconds: 12);
@@ -23,6 +24,13 @@ const Duration _kBackgroundMessageWait = Duration(seconds: 25);
 bool _isUnifiedPushAndroid() =>
     PushProviderGuard.isUnifiedPush && Platform.isAndroid;
 
+class UnifiedPushEndpoint {
+  const UnifiedPushEndpoint({required this.instance, required this.endpoint});
+
+  final String instance;
+  final up.PushEndpoint endpoint;
+}
+
 class UnifiedPushService implements PushService {
   factory UnifiedPushService() => instance;
 
@@ -32,66 +40,48 @@ class UnifiedPushService implements PushService {
 
   final StreamController<PushMessage> _messages =
       StreamController<PushMessage>.broadcast();
-  final StreamController<up.PushEndpoint> _endpoints =
-      StreamController<up.PushEndpoint>.broadcast();
+  final StreamController<UnifiedPushEndpoint> _endpointEvents =
+      StreamController<UnifiedPushEndpoint>.broadcast();
+  final Map<String, up.PushEndpoint> _endpointsByInstance =
+      <String, up.PushEndpoint>{};
+  final Map<String, String> _vapidByInstance = <String, String>{};
+  final Map<String, String> _registeredVapidByInstance = <String, String>{};
+  final Map<String, up.FailedReason> _failureByInstance =
+      <String, up.FailedReason>{};
+  final Map<String, DateTime> _healAtByInstance = <String, DateTime>{};
+  final Set<String> _desiredInstances = <String>{};
+  final Set<String> _retryingInstances = <String>{};
 
-  up.PushEndpoint? _endpoint;
   bool _initialized = false;
   bool _needsDistributorPicker = false;
-  String? _pendingVapid;
-  String? _lastRegisteredVapid;
-  bool _registrationRetryScheduled = false;
-  DateTime? _lastDecryptionHealAt;
-  UnifiedPushVapidResolver? vapidNetworkResolver;
-  Future<String?>? _ensureVapidFuture;
+  bool _retiredLegacyInstance = false;
   FluxerDatabase? _database;
   static bool _backgroundMode = false;
   Future<void>? _initializeFuture;
   Completer<void>? _backgroundMessageHandled;
+  Future<void> _registrationQueue = Future<void>.value();
+  final StreamController<void> _pickerRequests =
+      StreamController<void>.broadcast();
+  int _backgroundWork = 0;
 
-  Stream<up.PushEndpoint> get endpointStream => _endpoints.stream;
+  Stream<UnifiedPushEndpoint> get endpointStream => _endpointEvents.stream;
 
-  up.PushEndpoint? get currentEndpoint => _endpoint;
+  Stream<void> get distributorPickerRequests => _pickerRequests.stream;
 
   bool get needsDistributorPicker => _needsDistributorPicker;
 
-  String? get pendingVapid => _pendingVapid;
+  List<String> get distributorInstances =>
+      List<String>.unmodifiable(_desiredInstances);
 
-  bool get _hasEndpoint => _endpoint != null && _endpoint!.url.isNotEmpty;
+  up.PushEndpoint? endpointFor(String instance) =>
+      _endpointsByInstance[instance];
 
-  /// Resolves VAPID from memory, cache, then the stored network resolver.
-  Future<String?> ensureVapidPublicKey() {
-    if (hasUnifiedPushVapid(_pendingVapid)) {
-      return Future<String?>.value(_pendingVapid);
-    }
-    return _ensureVapidFuture ??= _resolveVapidPublicKey().whenComplete(() {
-      _ensureVapidFuture = null;
-    });
+  bool _hasEndpoint(String instance) {
+    final up.PushEndpoint? endpoint = _endpointsByInstance[instance];
+    return endpoint != null && endpoint.url.isNotEmpty;
   }
 
-  Future<String?> _resolveVapidPublicKey() async {
-    await loadCachedVapidPublicKey();
-    if (hasUnifiedPushVapid(_pendingVapid)) {
-      return _pendingVapid;
-    }
-    final UnifiedPushVapidResolver? resolve = vapidNetworkResolver;
-    if (resolve == null) {
-      return _pendingVapid;
-    }
-    try {
-      final String? fetched = await resolve();
-      if (hasUnifiedPushVapid(fetched)) {
-        await persistVapidPublicKey(fetched!);
-      }
-    } on Object {
-      // Network fetch is best-effort.
-    }
-    return _pendingVapid;
-  }
-
-  /// Reuses the main isolate's Riverpod database so cache reads and writes do
-  /// not open a second connection. Stays null on the background isolate, which
-  /// has no Riverpod and falls back to the standalone cache helpers.
+  /// App database for VAPID reads. The background isolate leaves this unset.
   void attachDatabase(FluxerDatabase database) {
     _database ??= database;
   }
@@ -110,169 +100,185 @@ class UnifiedPushService implements PushService {
     );
   }
 
-  Future<void> loadCachedVapidPublicKey() async {
-    if (hasUnifiedPushVapid(_pendingVapid)) {
+  @override
+  Future<void> initialize() async {
+    if (!_isUnifiedPushAndroid()) {
       return;
     }
-    final FluxerDatabase? database = _database;
-    final String? cached = database != null
-        ? await database.mobilePushRegistrationDao.getCachedVapidPublicKey()
-        : await readCachedUnifiedPushVapidPublicKey();
-    if (hasUnifiedPushVapid(cached)) {
-      _pendingVapid = cached;
-      if (kDebugMode) {
-        debugPrint('[UnifiedPushService] loaded cached VAPID key');
-      }
-    }
+    await _ensureUnifiedPushInitialized();
   }
 
-  Future<void> persistVapidPublicKey(String vapidPublicKey) async {
-    if (!hasUnifiedPushVapid(vapidPublicKey)) {
-      return;
-    }
-    _pendingVapid = vapidPublicKey;
-    final FluxerDatabase? database = _database;
-    if (database != null) {
-      await database.mobilePushRegistrationDao.saveGlobalVapidPublicKey(
-        vapidPublicKey,
-      );
-    } else {
-      await writeCachedUnifiedPushVapidPublicKey(vapidPublicKey);
-    }
-  }
-
-  Future<void> persistVapidForUser({
-    required String userId,
-    required String vapidPublicKey,
-  }) async {
-    await persistVapidPublicKey(vapidPublicKey);
-    final FluxerDatabase? database = _database;
-    if (database == null) {
-      return;
-    }
-    await database.mobilePushRegistrationDao.saveVapidForUser(
-      userId: userId,
-      vapidPublicKey: vapidPublicKey,
+  Future<void> syncInstance({
+    required String instance,
+    String? vapid,
+    bool force = false,
+    bool hasPersistedSubscription = false,
+  }) {
+    return _enqueue(
+      () => _syncInstance(
+        instance: instance,
+        vapid: vapid,
+        force: force,
+        hasPersistedSubscription: hasPersistedSubscription,
+      ),
     );
   }
 
-  /// Updates cached VAPID and re-registers with the distributor when needed.
-  Future<void> applyVapidAndReregisterIfNeeded(String? vapid) async {
-    if (!_isUnifiedPushAndroid() || !hasUnifiedPushVapid(vapid)) {
-      return;
-    }
-    await persistVapidPublicKey(vapid!);
-    final String? distributor = await up.UnifiedPush.getDistributor();
-    if (distributor == null || distributor.isEmpty) {
-      return;
-    }
-    final bool vapidChanged = _lastRegisteredVapid != vapid;
-    if (!vapidChanged && _hasEndpoint) {
-      return;
-    }
-    await _ensureUnifiedPushInitialized();
-    await registerWithSavedDistributor(vapid: vapid);
-  }
-
-  @override
-  Future<void> initialize() async {
-    await initializeWithOptions();
-  }
-
-  Future<void> initializeWithOptions({String? vapid}) async {
-    if (!_isUnifiedPushAndroid()) {
-      return;
-    }
-    if (hasUnifiedPushVapid(vapid)) {
-      if (_pendingVapid != vapid) {
-        await persistVapidPublicKey(vapid!);
+  Future<void> unregisterInstance(String instance) {
+    return _enqueue(() async {
+      await _dropDistributorInstance(instance);
+      _desiredInstances.remove(instance);
+      if (_desiredInstances.isEmpty) {
+        _needsDistributorPicker = false;
       }
-    } else {
-      await loadCachedVapidPublicKey();
-    }
-    await _ensureUnifiedPushInitialized();
+    });
   }
 
-  /// Registers with the saved distributor and waits for an endpoint
-  Future<void> syncRegistration({
+  /// Drops distributor instances that no stored account still uses.
+  Future<void> retainInstances(Set<String> keep) {
+    return _enqueue(() => _retainInstances(keep));
+  }
+
+  Future<void> _syncInstance({
+    required String instance,
+    String? vapid,
     bool force = false,
     bool hasPersistedSubscription = false,
   }) async {
-    if (!_isUnifiedPushAndroid()) {
+    if (!_isUnifiedPushAndroid() || instance.isEmpty) {
       return;
     }
+    _desiredInstances.add(instance);
     await _ensureUnifiedPushInitialized();
-    if (!hasUnifiedPushVapid(await ensureVapidPublicKey())) {
+    if (!await _ensureDistributor()) {
+      return;
+    }
+    final String? resolved = await _resolveVapid(instance, vapid);
+    if (!hasUnifiedPushVapid(resolved)) {
       if (kDebugMode) {
         debugPrint(
-          '[UnifiedPushService] deferring registration until VAPID is available',
+          '[UnifiedPushService] deferring $instance until VAPID is available',
         );
       }
       return;
     }
-    if (!force && hasPersistedSubscription && _hasEndpoint) {
+    final bool vapidChanged = _registeredVapidByInstance[instance] != resolved;
+    if (!force &&
+        !vapidChanged &&
+        hasPersistedSubscription &&
+        _hasEndpoint(instance)) {
       return;
     }
-    await _registerWithDistributor();
-    if (await _waitForEndpoint()) {
+    await _registerInstance(instance, resolved!);
+    if (await _waitForEndpoint(instance)) {
       return;
     }
-    if (!force && hasPersistedSubscription && _endpoint != null) {
-      return;
-    }
-    if (_backgroundMode) {
+    if (_backgroundMode ||
+        _needsDistributorPicker ||
+        _failureByInstance[instance] == up.FailedReason.actionRequired) {
       return;
     }
     if (kDebugMode) {
       debugPrint(
-        '[UnifiedPushService] no endpoint after register; '
+        '[UnifiedPushService] no endpoint for $instance; '
         'unregister+register fallback',
       );
     }
-    await unregisterFromDistributor();
-    await _registerWithDistributor();
-    await _waitForEndpoint();
+    await _dropDistributorInstance(instance);
+    if (!await _ensureDistributor()) {
+      return;
+    }
+    await _registerInstance(instance, resolved);
+    await _waitForEndpoint(instance);
   }
 
-  Future<void> registerWithSavedDistributor({String? vapid}) async {
-    if (!_isUnifiedPushAndroid()) {
-      return;
-    }
-    if (hasUnifiedPushVapid(vapid)) {
-      await persistVapidPublicKey(vapid!);
-    } else {
-      await loadCachedVapidPublicKey();
-    }
-    if (!hasUnifiedPushVapid(_pendingVapid)) {
-      if (kDebugMode) {
-        debugPrint(
-          '[UnifiedPushService] skipping register without VAPID public key',
-        );
-      }
-      return;
-    }
-    await up.UnifiedPush.register(
-      instance: kFluxerUnifiedPushInstance,
-      vapid: _pendingVapid,
-    );
-    _lastRegisteredVapid = _pendingVapid;
+  Future<void> _registerInstance(String instance, String vapid) async {
+    _failureByInstance.remove(instance);
+    await up.UnifiedPush.register(instance: instance, vapid: vapid);
+    _registeredVapidByInstance[instance] = vapid;
     _needsDistributorPicker = false;
   }
 
-  Future<void> unregisterFromDistributor() async {
-    if (!_isUnifiedPushAndroid()) {
+  Future<void> _dropDistributorInstance(String instance) async {
+    if (!_isUnifiedPushAndroid() || instance.isEmpty) {
       return;
     }
     await _ensureUnifiedPushInitialized();
-    await up.UnifiedPush.unregister(kFluxerUnifiedPushInstance);
-    _endpoint = null;
-    _lastRegisteredVapid = null;
-    _needsDistributorPicker = false;
+    await up.UnifiedPush.unregister(instance);
+    _endpointsByInstance.remove(instance);
+    _registeredVapidByInstance.remove(instance);
+    _failureByInstance.remove(instance);
+  }
+
+  Future<void> _retainInstances(Set<String> keep) async {
+    if (keep.isEmpty && _desiredInstances.isEmpty) {
+      return;
+    }
+    if (!_isUnifiedPushAndroid()) {
+      return;
+    }
+    final Set<String> remove = <String>{
+      ..._desiredInstances,
+      ..._endpointsByInstance.keys,
+    };
+    if (!_retiredLegacyInstance) {
+      remove.add(kFluxerUnifiedPushInstance);
+    }
+    remove.removeAll(keep);
+    for (final String instance in remove) {
+      if (instance == kFluxerUnifiedPushInstance) {
+        _retiredLegacyInstance = true;
+      }
+      await _dropDistributorInstance(instance);
+      _desiredInstances.remove(instance);
+    }
+    if (_desiredInstances.isEmpty) {
+      _needsDistributorPicker = false;
+    }
+  }
+
+  Future<String?> _resolveVapid(String instance, String? vapid) async {
+    if (hasUnifiedPushVapid(vapid)) {
+      await _persistVapid(instance, vapid!);
+      return vapid;
+    }
+    final String? memory = _vapidByInstance[instance];
+    if (hasUnifiedPushVapid(memory)) {
+      return memory;
+    }
+    final FluxerDatabase? database = _database;
+    final String? cached = database != null
+        ? await database.mobilePushRegistrationDao.getVapidForInstance(instance)
+        : await readCachedUnifiedPushVapidPublicKey(instance);
+    if (!hasUnifiedPushVapid(cached)) {
+      return null;
+    }
+    _vapidByInstance[instance] = cached!;
+    return cached;
+  }
+
+  Future<void> _persistVapid(String instance, String vapid) async {
+    _vapidByInstance[instance] = vapid;
+    final FluxerDatabase? database = _database;
+    if (database != null) {
+      await database.mobilePushRegistrationDao.saveVapidForInstance(
+        instanceId: instance,
+        vapidPublicKey: vapid,
+      );
+      return;
+    }
+    await writeCachedUnifiedPushVapidPublicKey(instance, vapid);
   }
 
   @override
   Future<String?> getToken() async {
-    return _endpoint?.url;
+    final List<up.PushEndpoint> endpoints = _endpointsByInstance.values
+        .where((up.PushEndpoint endpoint) => endpoint.url.isNotEmpty)
+        .toList();
+    if (endpoints.length != 1) {
+      return null;
+    }
+    return endpoints.single.url;
   }
 
   @override
@@ -304,121 +310,187 @@ class UnifiedPushService implements PushService {
     }
   }
 
-  Future<void> _registerWithDistributor() async {
+  Future<void> _enqueue(Future<void> Function() action) {
+    final Future<void> run = _registrationQueue.then((_) => action());
+    _registrationQueue = run.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return run;
+  }
+
+  Future<bool> _hasSavedDistributor() async {
     final String? distributor = await up.UnifiedPush.getDistributor();
-    if (distributor != null && distributor.isNotEmpty) {
-      await registerWithSavedDistributor();
-      return;
+    return distributor != null && distributor.isNotEmpty;
+  }
+
+  Future<bool> _ensureDistributor() async {
+    if (await _hasSavedDistributor()) {
+      return true;
     }
     final bool usedDefault =
         await up.UnifiedPush.tryUseCurrentOrDefaultDistributor();
     if (usedDefault) {
-      await registerWithSavedDistributor();
-      return;
+      return true;
     }
-    _needsDistributorPicker = true;
+    _markDistributorPickerNeeded();
+    return false;
   }
 
-  Future<bool> _waitForEndpoint({
+  void _markDistributorPickerNeeded() {
+    final bool changed = !_needsDistributorPicker;
+    _needsDistributorPicker = true;
+    if (!changed || _backgroundMode || _pickerRequests.isClosed) {
+      return;
+    }
+    _pickerRequests.add(null);
+  }
+
+  Future<bool> _waitForEndpoint(
+    String instance, {
     Duration timeout = _kEndpointWaitTimeout,
   }) async {
-    if (_hasEndpoint) {
+    if (_hasEndpoint(instance)) {
       return true;
     }
-    final Future<up.PushEndpoint> next = _endpoints.stream
-        .where((up.PushEndpoint endpoint) => endpoint.url.isNotEmpty)
-        .first;
-    if (_hasEndpoint) {
-      return true;
-    }
+    final Completer<void> arrived = Completer<void>();
+    final StreamSubscription<UnifiedPushEndpoint> subscription = _endpointEvents
+        .stream
+        .listen((UnifiedPushEndpoint update) {
+          if (update.instance != instance ||
+              update.endpoint.url.isEmpty ||
+              arrived.isCompleted) {
+            return;
+          }
+          arrived.complete();
+        });
     try {
-      await next.timeout(timeout);
+      if (_hasEndpoint(instance)) {
+        return true;
+      }
+      await arrived.future.timeout(timeout);
       return true;
     } on TimeoutException {
-      return _hasEndpoint;
+      return _hasEndpoint(instance);
+    } finally {
+      await subscription.cancel();
     }
   }
 
   void _onNewEndpoint(up.PushEndpoint endpoint, String instance) {
-    if (instance != kFluxerUnifiedPushInstance) {
+    if (instance.isEmpty) {
+      _finishBackgroundEvent();
       return;
     }
-    _endpoint = endpoint;
+    _holdBackgroundEvent();
+    _failureByInstance.remove(instance);
+    _endpointsByInstance[instance] = endpoint;
     _needsDistributorPicker = false;
-    _endpoints.add(endpoint);
+    _endpointEvents.add(
+      UnifiedPushEndpoint(instance: instance, endpoint: endpoint),
+    );
     if (kDebugMode) {
       debugPrint(
-        '[UnifiedPushService] endpoint (temp=${endpoint.temporary}): '
-        '${endpoint.url}',
+        '[UnifiedPushService] endpoint $instance '
+        '(temp=${endpoint.temporary}): ${endpoint.url}',
       );
     }
+    _endBackgroundEvent();
   }
 
   void _onRegistrationFailed(up.FailedReason reason, String instance) {
-    if (instance != kFluxerUnifiedPushInstance) {
+    if (instance.isEmpty) {
+      _finishBackgroundEvent();
       return;
     }
+    _failureByInstance[instance] = reason;
     if (kDebugMode) {
-      debugPrint('[UnifiedPushService] registration failed: $reason');
+      debugPrint(
+        '[UnifiedPushService] registration failed ($instance): $reason',
+      );
     }
-    _onUnregistered(instance);
-    switch (reason) {
-      case up.FailedReason.network:
-      case up.FailedReason.internalError:
-      case up.FailedReason.vapidRequired:
-        unawaited(_retryRegistrationAfterFailure(reason));
-      case up.FailedReason.actionRequired:
-        _needsDistributorPicker = true;
+    if (reason == up.FailedReason.actionRequired || !_backgroundMode) {
+      if (reason != up.FailedReason.actionRequired) {
+        unawaited(_retryRegistrationAfterFailure(instance, reason));
+      }
+      _finishBackgroundEvent();
+      return;
     }
+    _holdBackgroundEvent();
+    unawaited(
+      _retryRegistrationAfterFailure(
+        instance,
+        reason,
+      ).whenComplete(_endBackgroundEvent),
+    );
   }
 
-  Future<void> _retryRegistrationAfterFailure(up.FailedReason reason) async {
-    if (reason == up.FailedReason.vapidRequired &&
-        hasUnifiedPushVapid(await ensureVapidPublicKey())) {
-      await applyVapidAndReregisterIfNeeded(_pendingVapid);
+  Future<void> _retryRegistrationAfterFailure(
+    String instance,
+    up.FailedReason reason,
+  ) async {
+    await Future<void>.delayed(Duration.zero);
+    if (!_desiredInstances.contains(instance)) {
+      return;
     }
-    _scheduleRegistrationRetry();
+    if (reason == up.FailedReason.vapidRequired &&
+        hasUnifiedPushVapid(await _resolveVapid(instance, null))) {
+      await syncInstance(instance: instance, force: true);
+      return;
+    }
+    _scheduleRegistrationRetry(instance);
   }
 
   void _onTempUnavailable(String instance) {
-    if (instance != kFluxerUnifiedPushInstance) {
+    if (instance.isEmpty) {
+      _finishBackgroundEvent();
       return;
     }
     if (kDebugMode) {
-      debugPrint('[UnifiedPushService] distributor temporarily unavailable');
+      debugPrint(
+        '[UnifiedPushService] distributor temporarily unavailable ($instance)',
+      );
     }
-    _scheduleRegistrationRetry();
+    _scheduleRegistrationRetry(instance);
+    _finishBackgroundEvent();
   }
 
-  void _scheduleRegistrationRetry() {
-    if (_backgroundMode || _registrationRetryScheduled) {
+  void _scheduleRegistrationRetry(String instance) {
+    if (_backgroundMode || !_retryingInstances.add(instance)) {
       return;
     }
-    _registrationRetryScheduled = true;
     Future<void>.delayed(_kRegistrationRetryDelay, () async {
-      _registrationRetryScheduled = false;
-      if (!_isUnifiedPushAndroid()) {
+      _retryingInstances.remove(instance);
+      if (!_desiredInstances.contains(instance) || !_isUnifiedPushAndroid()) {
         return;
       }
-      await syncRegistration(force: true);
+      await syncInstance(instance: instance, force: true);
     });
   }
 
   void _onUnregistered(String instance) {
-    if (instance != kFluxerUnifiedPushInstance) {
+    if (instance.isEmpty) {
+      _finishBackgroundEvent();
       return;
     }
-    _endpoint = null;
+    _endpointsByInstance.remove(instance);
+    _registeredVapidByInstance.remove(instance);
     if (kDebugMode) {
-      debugPrint('[UnifiedPushService] unregistered');
+      debugPrint('[UnifiedPushService] unregistered $instance');
     }
+    _finishBackgroundEvent();
   }
 
   Future<void> _onMessage(up.PushMessage message, String instance) async {
+    if (instance.isEmpty) {
+      _finishBackgroundEvent();
+      return;
+    }
+    _holdBackgroundEvent();
     try {
       await _handleIncomingMessage(message, instance);
     } finally {
-      _completeBackgroundMessageHandled();
+      _endBackgroundEvent();
     }
   }
 
@@ -426,14 +498,21 @@ class UnifiedPushService implements PushService {
     up.PushMessage message,
     String instance,
   ) async {
-    if (instance != kFluxerUnifiedPushInstance) {
+    if (message.content.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('[UnifiedPushService] skip empty push');
+      }
       return;
     }
     if (!message.decrypted) {
       if (kDebugMode) {
         debugPrint('[UnifiedPushService] skip undecrypted push');
       }
-      unawaited(_healDecryptionFailure());
+      if (_backgroundMode) {
+        await _healDecryptionFailure(instance);
+      } else {
+        unawaited(_healDecryptionFailure(instance));
+      }
       return;
     }
     final PushMessage mapped;
@@ -445,11 +524,20 @@ class UnifiedPushService implements PushService {
       }
       return;
     }
-    final PushMessage? emitted = await AndroidPushPipeline.dispatch(
-      message: mapped,
-      backgroundMode: _backgroundMode,
-      decrypted: true,
-    );
+    await _stampTargetUser(mapped, instance);
+    final PushMessage? emitted;
+    try {
+      emitted = await AndroidPushPipeline.dispatch(
+        message: mapped,
+        backgroundMode: _backgroundMode,
+        decrypted: true,
+      );
+    } on Object catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UnifiedPushService] push dispatch failed: $e\n$st');
+      }
+      return;
+    }
     if (emitted != null) {
       if (kDebugMode) {
         debugPrint(
@@ -461,8 +549,40 @@ class UnifiedPushService implements PushService {
     }
   }
 
-  void _completeBackgroundMessageHandled() {
+  Future<void> _stampTargetUser(PushMessage message, String instance) async {
+    final String? existing = message.payload['target_user_id'];
+    if (existing != null && existing.isNotEmpty) {
+      return;
+    }
+    try {
+      final String? userId = await unifiedPushTargetUserForInstance(instance);
+      if (userId != null) {
+        message.payload['target_user_id'] = userId;
+      }
+    } on Object {
+      // Show the notification anyway.
+    }
+  }
+
+  void _holdBackgroundEvent() {
     if (!_backgroundMode) {
+      return;
+    }
+    _backgroundWork++;
+  }
+
+  void _endBackgroundEvent() {
+    if (!_backgroundMode) {
+      return;
+    }
+    if (_backgroundWork > 0) {
+      _backgroundWork--;
+    }
+    _finishBackgroundEvent();
+  }
+
+  void _finishBackgroundEvent() {
+    if (!_backgroundMode || _backgroundWork > 0) {
       return;
     }
     final Completer<void>? pending = _backgroundMessageHandled;
@@ -472,22 +592,26 @@ class UnifiedPushService implements PushService {
     pending.complete();
   }
 
-  Future<void> _healDecryptionFailure() async {
+  Future<void> _healDecryptionFailure(String instance) async {
+    if (!_backgroundMode && !_desiredInstances.contains(instance)) {
+      return;
+    }
     final DateTime now = DateTime.now();
-    if (_lastDecryptionHealAt != null &&
-        now.difference(_lastDecryptionHealAt!) < _kDecryptionHealCooldown) {
+    final DateTime? previous = _healAtByInstance[instance];
+    if (previous != null &&
+        now.difference(previous) < _kDecryptionHealCooldown) {
       return;
     }
-    _lastDecryptionHealAt = now;
+    _healAtByInstance[instance] = now;
     if (kDebugMode) {
-      debugPrint('[UnifiedPushService] healing undecrypted push payload');
+      debugPrint('[UnifiedPushService] healing undecrypted push for $instance');
     }
-    await ensureVapidPublicKey();
-    if (_backgroundMode) {
-      await registerWithSavedDistributor(vapid: _pendingVapid);
-      return;
+    try {
+      await syncInstance(instance: instance, force: true);
+    } on Object catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UnifiedPushService] heal failed: $e\n$st');
+      }
     }
-    await applyVapidAndReregisterIfNeeded(_pendingVapid);
-    await syncRegistration(force: true);
   }
 }

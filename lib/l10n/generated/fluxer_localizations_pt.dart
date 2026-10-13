@@ -1521,6 +1521,9 @@ class FluxerLocalizationsPt extends FluxerLocalizations {
   String get userTagSystem => 'Sistema';
 
   @override
+  String get userTagOp => 'OP';
+
+  @override
   String get emojiSearchPlaceholder => 'Encontre o emoji dos seus sonhos';
 
   @override
@@ -6667,7 +6670,7 @@ class FluxerLocalizationsPt extends FluxerLocalizations {
 
   @override
   String get messagesMediaGesturesSectionDescription =>
-      'Configure double tap on messages.';
+      'Configure double tap and swipe on messages.';
 
   @override
   String get messagesMediaGesturesReactionLabel => 'Reaction emoji';
@@ -6699,6 +6702,25 @@ class FluxerLocalizationsPt extends FluxerLocalizations {
   @override
   String get messagesMediaGesturesDoubleTapActionNoneDescription =>
       'Double tap is disabled.';
+
+  @override
+  String get messagesMediaGesturesSwipeRightToLeftLabel =>
+      'Swipe right to left';
+
+  @override
+  String get messagesMediaGesturesSwipeRightToLeftReplyName => 'Swipe-to-reply';
+
+  @override
+  String get messagesMediaGesturesSwipeRightToLeftReplyDescription =>
+      'Swipe a message to reply, with hold to edit your own messages.';
+
+  @override
+  String get messagesMediaGesturesSwipeRightToLeftChannelDetailsName =>
+      'Show channel details';
+
+  @override
+  String get messagesMediaGesturesSwipeRightToLeftChannelDetailsDescription =>
+      'Swipe a message or tap the channel header to open channel details in a side panel.';
 
   @override
   String get chatMessageEdit => 'Editar mensagem';

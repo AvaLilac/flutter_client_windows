@@ -16,6 +16,8 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
     this.titlePrefix,
     this.titleAdornments,
     this.onClose,
+    this.closeOnLeading = false,
+    this.hideLeading = false,
     this.body,
     super.key,
   });
@@ -26,6 +28,8 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
   final Widget? titlePrefix;
   final List<Widget>? titleAdornments;
   final VoidCallback? onClose;
+  final bool closeOnLeading;
+  final bool hideLeading;
 
   final Widget? body;
 
@@ -48,11 +52,13 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
             Stack(
               children: [
                 Padding(
-                  padding: EdgeInsets.only(right: onClose != null ? 40 : 0),
+                  padding: EdgeInsets.only(
+                    left: onClose != null && closeOnLeading ? 40 : 0,
+                    right: onClose != null && !closeOnLeading ? 40 : 0,
+                  ),
                   child: Row(
                     children: [
-                      leading,
-                      const SizedBox(width: 12),
+                      if (!hideLeading) ...[leading, const SizedBox(width: 12)],
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -96,9 +102,16 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
                 ),
                 if (onClose != null)
                   Positioned(
-                    right: 0,
+                    left: closeOnLeading ? 0 : null,
+                    right: closeOnLeading ? null : 0,
                     top: 0,
-                    child: FluxerSheetCloseButton(onTap: onClose!),
+                    child: closeOnLeading
+                        ? FluxerSheetCloseButton(
+                            onTap: onClose!,
+                            icon: PhosphorIconsBold.arrowLeft,
+                            semanticLabel: FluxerLocalizations.of(context).back,
+                          )
+                        : FluxerSheetCloseButton(onTap: onClose!),
                   ),
               ],
             ),
@@ -112,20 +125,27 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
 
 /// Standard close affordance for sheet headers.
 class FluxerSheetCloseButton extends StatelessWidget {
-  const FluxerSheetCloseButton({required this.onTap, super.key});
+  const FluxerSheetCloseButton({
+    required this.onTap,
+    this.icon = PhosphorIconsBold.x,
+    this.semanticLabel,
+    super.key,
+  });
 
   final VoidCallback onTap;
+  final IconData icon;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     return FluxerButton.circle(
-      icon: PhosphorIconsBold.x,
+      icon: icon,
       variant: FluxerButtonVariant.ghost,
       size: FluxerButtonSize.small,
       iconSize: 18,
       onPressed: onTap,
-      semanticLabel: l10n.uiClose,
+      semanticLabel: semanticLabel ?? l10n.uiClose,
     );
   }
 }

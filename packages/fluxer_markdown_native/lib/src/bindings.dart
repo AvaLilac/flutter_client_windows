@@ -132,12 +132,9 @@ external int _nativeFluxerMdParseBinary(
 @Native<Void Function(Pointer<FluxerMdBuffer>)>(symbol: 'fluxer_md_buffer_free')
 external void _nativeFluxerMdBufferFree(Pointer<FluxerMdBuffer> out);
 
-// The manifest path is resolved at the app root. The binary is in Frameworks/.
+// macOS .app bundles need an explicit dlopen; iOS uses @Native + native assets.
 // dart test still uses the @Native lookup.
 bool get _loadsBundledFramework {
-  if (Platform.isIOS) {
-    return true;
-  }
   return Platform.isMacOS &&
       Platform.resolvedExecutable.contains('.app/Contents/MacOS/');
 }

@@ -6,7 +6,6 @@ import 'package:fluxer_app/core/push/apns/apns_voip_mobile_device_registration.d
 import 'package:fluxer_app/core/push/fcm/fcm_mobile_device_registration.dart';
 import 'package:fluxer_app/core/push/pending_push_notification_path_provider.dart';
 import 'package:fluxer_app/core/push/push_notification_clear.dart';
-import 'package:fluxer_app/core/push/services/unified_push_service.dart';
 import 'package:fluxer_app/core/push/unified_push/unified_push_mobile_device_registration.dart';
 import 'package:fluxer_app/core/quick_actions/pending_home_quick_action_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
@@ -50,9 +49,15 @@ final class PushAccountLifecycle {
       await ref
           .read(unifiedPushMobileDeviceRegistrationProvider.notifier)
           .unregisterCurrentEndpoint();
-      if (mode == LeavePushAccountMode.signOut) {
-        await UnifiedPushService.instance.unregisterFromDistributor();
-      }
     }
+  }
+
+  static Future<void> forgetStoredAccount(Ref ref, String userId) async {
+    if (!PushProviderGuard.isUnifiedPush || userId.isEmpty) {
+      return;
+    }
+    await ref
+        .read(unifiedPushMobileDeviceRegistrationProvider.notifier)
+        .unregisterUser(userId);
   }
 }

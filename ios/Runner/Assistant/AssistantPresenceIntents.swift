@@ -12,7 +12,7 @@ enum PresenceStatusOption: String, AppEnum {
   static var caseDisplayRepresentations: [PresenceStatusOption: DisplayRepresentation] = [
     .online: "Online",
     .idle: "Idle",
-    .dnd: DisplayRepresentation(title: "Do Not Disturb", synonyms: ["DND", "busy"]),
+    .dnd: "Do Not Disturb",
     .invisible: "Invisible",
   ]
 }

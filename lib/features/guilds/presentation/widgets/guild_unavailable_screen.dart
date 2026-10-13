@@ -172,6 +172,7 @@ class _GuildUnavailableMobileHeader extends ConsumerWidget {
                   hasPopupOverlay: false,
                   hasManualGestureBlock: false,
                   hasExpressionPanelOpen: false,
+                  hasChannelDetailsDrawerOpen: false,
                   revealSide: ref.read(currentRevealSideProvider),
                   shellLocation: ref.read(shellLocationProvider),
                 ),

@@ -7,6 +7,7 @@ class _DetailsIdentityHeader extends ConsumerWidget {
     required this.topicExpanded,
     required this.onToggleTopic,
     required this.onClose,
+    this.closeOnLeading = false,
   });
 
   final Channel? channel;
@@ -14,6 +15,7 @@ class _DetailsIdentityHeader extends ConsumerWidget {
   final bool topicExpanded;
   final VoidCallback onToggleTopic;
   final VoidCallback onClose;
+  final bool closeOnLeading;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,16 +56,20 @@ class _DetailsIdentityHeader extends ConsumerWidget {
       title: title,
       subtitle: subtitle,
       onClose: onClose,
-      titlePrefix: switch (channelEntity) {
-        null => null,
-        final Channel c => ChannelIcon(
-          type: c.type,
-          channel: c,
-          effectivePermissionBits: effectivePermissionBits,
-          size: 16,
-          color: context.colors.textPrimary,
-        ),
-      },
+      closeOnLeading: closeOnLeading,
+      hideLeading: closeOnLeading,
+      titlePrefix: closeOnLeading
+          ? null
+          : switch (channelEntity) {
+              null => null,
+              final Channel c => ChannelIcon(
+                type: c.type,
+                channel: c,
+                effectivePermissionBits: effectivePermissionBits,
+                size: 16,
+                color: context.colors.textPrimary,
+              ),
+            },
       titleAdornments: [if (showUserTag) FluxerUserTag(isSystem: dm!.isSystem)],
       body: hasTopic
           ? _TopicCard(

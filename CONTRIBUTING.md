@@ -169,3 +169,33 @@ flutter build ios --flavor canary --dart-define-from-file=tool/dart_defines/cana
 ## Desktop builds
 
 We plan to provide desktop builds in the future but they will be labled as Fluxer Lite clients. These builds will not replace the Electron verison but be a seperate version you can download.
+
+## Community app icon designs
+
+We have been adding alternate app icon designs for users to use on their devices. We would like to open this up with a community-designed icon section.
+
+### Design rules
+
+1. The icon must include the Fluxer logo in some way so users can identify the app, but it doesn't have to match exactly (it just needs to be recognizable; be creative!).
+2. Icons can't use any copyrighted work (for example, logos or IP from other companies).
+3. No explicit imagery or suggestive content.
+4. AI-generated icons are not allowed.
+
+### How to submit
+
+Post your design to [feedback.fluxer.com](https://feedback.fluxer.com) with the tag #mobile-icons.
+
+The post must include
+
+- A title for you would like the icon to be called in the app.
+- How you would like to be credited Fluxer handle + discriminator (or social media handle/link).
+
+If your design gets enough upvotes (not set requirement), we will review it and, if accepted, add it to the app.
+
+If your design is accepted we will need a vector format of your design so it can be adapted to both platforms.
+
+### Extra info
+
+You can see how an icon should will appear on each platform with this [tool](https://deuss.dev/projects/mobile-icon-preview).
+
+If you want to design a special Luqid Glass icon for iOS you can use Apples Icon Composer (only on macOS).

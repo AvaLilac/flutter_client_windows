@@ -18,10 +18,14 @@ final class FluxerUnifiedPushFunctions extends UnifiedPushFunctions {
 
   @override
   Future<void> registerApp(String instance) async {
-    final UnifiedPushService service = UnifiedPushService.instance;
-    final String? vapid = await service.ensureVapidPublicKey();
-    await service.applyVapidAndReregisterIfNeeded(vapid);
-    await service.syncRegistration(force: true);
+    if (instance.isEmpty ||
+        !UnifiedPushService.instance.distributorInstances.contains(instance)) {
+      return;
+    }
+    await UnifiedPushService.instance.syncInstance(
+      instance: instance,
+      force: true,
+    );
   }
 
   @override

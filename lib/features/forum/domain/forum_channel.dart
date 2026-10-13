@@ -55,6 +55,24 @@ enum ForumTagMatch {
 
 bool isMediaChannel(Channel channel) => channel.type == ChannelType.guildMedia;
 
+bool isForumPostOriginalPoster({
+  required Channel? thread,
+  required Channel? parentChannel,
+  required String authorId,
+}) {
+  if (thread == null || !thread.isThread) {
+    return false;
+  }
+  if (parentChannel == null || !parentChannel.isThreadOnly) {
+    return false;
+  }
+  final String? ownerId = thread.ownerId;
+  if (ownerId == null || ownerId.isEmpty) {
+    return false;
+  }
+  return ownerId == authorId;
+}
+
 ForumSortOrder forumDefaultSortOrder(Channel forum) =>
     forum.defaultSortOrder == ForumSortOrder.creationTime.wireValue
     ? ForumSortOrder.creationTime

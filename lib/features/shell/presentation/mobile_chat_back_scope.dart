@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
+import 'package:fluxer_app/features/chat/providers/channel/channel_details_drawer_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/attachment_panel_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/expression_panel_provider.dart';
 import 'package:fluxer_app/features/chat/utils/composer/composer_panel.dart';
@@ -42,6 +43,9 @@ class MobileChatBackScope extends ConsumerWidget {
             hasExpressionPanelOpen: isComposerPanelOpen(
               expressionPanelOpen: ref.read(expressionPanelProvider),
               attachmentPanelOpen: ref.read(attachmentPanelProvider),
+            ),
+            hasChannelDetailsDrawerOpen: ref.read(
+              channelDetailsDrawerIsOpenProvider,
             ),
             revealSide: ref.read(currentRevealSideProvider),
             shellLocation: ref.read(shellLocationProvider),

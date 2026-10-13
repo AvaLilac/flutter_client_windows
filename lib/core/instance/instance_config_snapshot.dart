@@ -78,7 +78,8 @@ class InstanceConfigSnapshot {
   }
 
   static bool _isReadableWellKnownMap(Map<String, dynamic> json) {
-    return json.containsKey('api_code_version') || json.containsKey('endpoints');
+    return json.containsKey('api_code_version') ||
+        json.containsKey('endpoints');
   }
 
   static WellKnownFluxerResponse parseWellKnown(Map<String, dynamic> json) {

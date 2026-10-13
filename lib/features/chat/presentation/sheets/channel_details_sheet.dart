@@ -154,10 +154,13 @@ Future<void> showChannelDetailsSheetAndJump(
   if (request == null) {
     return;
   }
-  await _jumpFromChannelDetailsRequest(container: container, request: request);
+  await executeChannelDetailsJumpRequest(
+    container: container,
+    request: request,
+  );
 }
 
-Future<void> _jumpFromChannelDetailsRequest({
+Future<void> executeChannelDetailsJumpRequest({
   required ProviderContainer container,
   required ChannelDetailsJumpRequest request,
 }) async {
@@ -227,6 +230,8 @@ class ChannelDetailsSheet extends ConsumerStatefulWidget {
     required this.openSearchImmediately,
     required this.scrollController,
     required this.close,
+    this.closeOnLeading = false,
+    this.completeWithResult,
     super.key,
   });
 
@@ -236,6 +241,8 @@ class ChannelDetailsSheet extends ConsumerStatefulWidget {
   final bool openSearchImmediately;
   final ScrollController scrollController;
   final VoidCallback close;
+  final bool closeOnLeading;
+  final void Function(ChannelDetailsJumpRequest request)? completeWithResult;
 
   @override
   ConsumerState<ChannelDetailsSheet> createState() =>
@@ -347,7 +354,11 @@ class _ChannelDetailsSheetState extends ConsumerState<ChannelDetailsSheet> {
     // Pop immediately, with no await between the inner result and this pop:
     // a dismissal in that window would leave no route to carry the jump out.
     // Resolving the message is the helper's job, after both routes are gone.
-    Navigator.of(context).pop(request);
+    if (widget.completeWithResult != null) {
+      widget.completeWithResult!(request);
+    } else {
+      Navigator.of(context).pop(request);
+    }
   }
 
   Future<void> _markRead() async {
@@ -590,6 +601,7 @@ class _ChannelDetailsSheetState extends ConsumerState<ChannelDetailsSheet> {
           topicExpanded: _topicExpanded,
           onToggleTopic: () => setState(() => _topicExpanded = !_topicExpanded),
           onClose: widget.close,
+          closeOnLeading: widget.closeOnLeading,
         ),
         SizedBox(height: context.layout.s3),
         Padding(

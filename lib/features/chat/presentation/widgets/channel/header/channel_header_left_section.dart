@@ -8,9 +8,9 @@ import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/channel_icon.dart';
 import 'package:fluxer_app/features/channels/providers/channel_typing_provider.dart';
-import 'package:fluxer_app/features/chat/presentation/sheets/channel_details_sheet.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/header/channel_topic_dialog.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_markdown.dart';
+import 'package:fluxer_app/features/chat/utils/channel_details_handheld.dart';
 import 'package:fluxer_app/features/chat/utils/channel_header_utils.dart';
 import 'package:fluxer_app/features/dm/domain/dm_channel_types.dart';
 import 'package:fluxer_app/features/dm/domain/dm_conversation.dart';
@@ -185,8 +185,9 @@ class _ChannelHeaderLeftSectionState
   void _handleTitleTap(BuildContext context) {
     if (!isWideLayout(context)) {
       unawaited(
-        showChannelDetailsSheet(
+        openHandheldChannelDetails(
           context,
+          ref: ref,
           channel: widget.channel,
           dm: widget.dm,
         ),

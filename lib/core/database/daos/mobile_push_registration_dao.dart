@@ -4,7 +4,7 @@ import 'package:fluxer_app/core/database/tables/mobile_push_registrations.dart';
 
 part 'mobile_push_registration_dao.g.dart';
 
-/// Drift row used only to cache the well-known VAPID key for UnifiedPush.
+/// Prefix for UnifiedPush VAPID cache rows.
 const String kUnifiedPushGlobalVapidUserId = '__unified_push_vapid__';
 
 @DriftAccessor(tables: [MobilePushRegistrations])
@@ -40,8 +40,6 @@ class MobilePushRegistrationDao extends DatabaseAccessor<FluxerDatabase>
     mobilePushRegistrations,
   )..where((t) => t.userId.equals(userId))).go();
 
-  /// Last known VAPID key from any logged-in user
-  /// (for the UP background isolate).
   Future<void> saveVapidForUser({
     required String userId,
     required String vapidPublicKey,
@@ -67,26 +65,23 @@ class MobilePushRegistrationDao extends DatabaseAccessor<FluxerDatabase>
     );
   }
 
-  Future<void> saveGlobalVapidPublicKey(String vapidPublicKey) {
+  String _vapidCacheUserId(String instanceId) =>
+      '$kUnifiedPushGlobalVapidUserId:$instanceId';
+
+  Future<void> saveVapidForInstance({
+    required String instanceId,
+    required String vapidPublicKey,
+  }) {
     return saveVapidForUser(
-      userId: kUnifiedPushGlobalVapidUserId,
+      userId: _vapidCacheUserId(instanceId),
       vapidPublicKey: vapidPublicKey,
     );
   }
 
-  Future<String?> getCachedVapidPublicKey() async {
-    final MobilePushRegistration? globalRow = await getForUser(
-      kUnifiedPushGlobalVapidUserId,
+  Future<String?> getVapidForInstance(String instanceId) async {
+    final MobilePushRegistration? row = await getForUser(
+      _vapidCacheUserId(instanceId),
     );
-    final String? globalKey = globalRow?.vapidPublicKey;
-    if (globalKey != null && globalKey.isNotEmpty) {
-      return globalKey;
-    }
-    final MobilePushRegistration? row =
-        await (select(mobilePushRegistrations)
-              ..where((t) => t.vapidPublicKey.isNotNull())
-              ..limit(1))
-            .getSingleOrNull();
     final String? key = row?.vapidPublicKey;
     if (key == null || key.isEmpty) {
       return null;

@@ -8,9 +8,11 @@ import 'package:fluxer_app/features/channels/presentation/widgets/unrecognized_c
 import 'package:fluxer_app/features/channels/providers/channel_list_view_model.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/channel_chat_content.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/channel/channel_details_drawer_overlay.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/channel_header.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/search/channel_search_results_panel.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/wallpaper/chat_wallpaper_text_theme.dart';
+import 'package:fluxer_app/features/chat/providers/channel/channel_details_drawer_provider.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_details_providers.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_header_search_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/bottom_input_slot_provider.dart';
@@ -70,6 +72,7 @@ class _ChannelLayoutState extends ConsumerState<ChannelLayout> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.guildId != widget.guildId ||
         oldWidget.channelId != widget.channelId) {
+      ref.read(channelDetailsDrawerProvider.notifier).close();
       WidgetsBinding.instance.addPostFrameCallback((_) => _syncSearchContext());
     }
   }
@@ -318,6 +321,7 @@ class _ChannelLayoutState extends ConsumerState<ChannelLayout> {
                   );
                 },
               ),
+              const Positioned.fill(child: ChannelDetailsDrawerOverlay()),
             ],
           ),
         ),

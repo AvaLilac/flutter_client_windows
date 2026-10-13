@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
+import 'package:fluxer_app/features/chat/providers/channel/channel_details_drawer_provider.dart';
 import 'package:fluxer_app/features/shell/navigation/drawer_navigation_coordinator.dart';
 import 'package:fluxer_app/features/shell/navigation/shell_back_resolver.dart';
 import 'package:fluxer_app/features/shell/utils/shell_popup_navigation.dart';
@@ -20,6 +21,8 @@ void applyShellBackAction({
       break;
     case ShellBackAction.closePanel:
       closeExpressionPanel?.call();
+    case ShellBackAction.closeChannelDetailsDrawer:
+      container.read(channelDetailsDrawerProvider.notifier).close();
     case ShellBackAction.closeDrawer:
       FocusManager.instance.primaryFocus?.unfocus();
       DrawerNavigationCoordinator.closeDrawer(container);

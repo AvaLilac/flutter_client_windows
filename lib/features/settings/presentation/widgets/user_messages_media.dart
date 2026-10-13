@@ -10,6 +10,7 @@ import 'package:fluxer_app/features/settings/presentation/widgets/wide_settings_
 import 'package:fluxer_app/features/settings/providers/chat_input_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/double_tap_action_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/swipe_right_to_left_action_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_domain_actions.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
@@ -43,6 +44,17 @@ class UserMessagesMedia extends ConsumerWidget {
         doubleTapActionPrefs.action == DoubleTapActionPreference.unspecified
         ? DoubleTapActionPreference.react
         : doubleTapActionPrefs.action;
+    final swipeRightToLeftPrefs = ref.watch(
+      swipeRightToLeftActionPreferencesProvider,
+    );
+    final swipeRightToLeftPrefsNotifier = ref.read(
+      swipeRightToLeftActionPreferencesProvider.notifier,
+    );
+    final swipeRightToLeftAction =
+        swipeRightToLeftPrefs.action ==
+            SwipeRightToLeftActionPreference.unspecified
+        ? SwipeRightToLeftActionPreference.reply
+        : swipeRightToLeftPrefs.action;
 
     final mediaSizeItems = [
       FluxerRadioItem(
@@ -265,6 +277,29 @@ class UserMessagesMedia extends ConsumerWidget {
                         ),
                       ),
                     ],
+                    SizedBox(height: context.layout.s4),
+                    FluxerRadioGroup<SwipeRightToLeftActionPreference>(
+                      label: l10n.messagesMediaGesturesSwipeRightToLeftLabel,
+                      value: swipeRightToLeftAction,
+                      onChanged: swipeRightToLeftPrefsNotifier.setAction,
+                      items: [
+                        FluxerRadioItem(
+                          value: SwipeRightToLeftActionPreference.reply,
+                          label: l10n
+                              .messagesMediaGesturesSwipeRightToLeftReplyName,
+                          description: l10n
+                              .messagesMediaGesturesSwipeRightToLeftReplyDescription,
+                        ),
+                        FluxerRadioItem(
+                          value:
+                              SwipeRightToLeftActionPreference.channelDetails,
+                          label: l10n
+                              .messagesMediaGesturesSwipeRightToLeftChannelDetailsName,
+                          description: l10n
+                              .messagesMediaGesturesSwipeRightToLeftChannelDetailsDescription,
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ],

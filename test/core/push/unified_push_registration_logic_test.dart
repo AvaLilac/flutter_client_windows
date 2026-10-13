@@ -53,6 +53,20 @@ void main() {
       );
     });
 
+    test('is false when the stored endpoint is still empty', () {
+      expect(
+        hasUnifiedPushEndpointRotated(
+          endpointUrl: 'https://up.example/push',
+          encryptionKey: 'pub',
+          authSecret: 'auth',
+          persistedEndpointUrl: '',
+          persistedEncryptionKey: '',
+          persistedAuthSecret: '',
+        ),
+        isFalse,
+      );
+    });
+
     test('is true when the distributor endpoint changes', () {
       expect(
         hasUnifiedPushEndpointRotated(

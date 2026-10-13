@@ -137,5 +137,27 @@ class DoubleTapAction extends $pb.ProtobufEnum {
   const DoubleTapAction._(super.value, super.name);
 }
 
+class SwipeAction extends $pb.ProtobufEnum {
+  static const SwipeAction SWIPE_ACTION_UNSPECIFIED =
+      SwipeAction._(0, _omitEnumNames ? '' : 'SWIPE_ACTION_UNSPECIFIED');
+  static const SwipeAction SWIPE_ACTION_CHANNEL_DETAILS =
+      SwipeAction._(1, _omitEnumNames ? '' : 'SWIPE_ACTION_CHANNEL_DETAILS');
+  static const SwipeAction SWIPE_ACTION_REPLY =
+      SwipeAction._(2, _omitEnumNames ? '' : 'SWIPE_ACTION_REPLY');
+
+  static const $core.List<SwipeAction> values = <SwipeAction>[
+    SWIPE_ACTION_UNSPECIFIED,
+    SWIPE_ACTION_CHANNEL_DETAILS,
+    SWIPE_ACTION_REPLY,
+  ];
+
+  static final $core.List<SwipeAction?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 2);
+  static SwipeAction? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const SwipeAction._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

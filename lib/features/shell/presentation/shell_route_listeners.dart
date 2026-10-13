@@ -49,6 +49,7 @@ class ShellRouteListeners extends ConsumerStatefulWidget {
 }
 
 class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
+  int _distributorPickerAttempts = 0;
   @override
   void initState() {
     super.initState();
@@ -108,24 +109,8 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
         if (!next) {
           return;
         }
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) {
-            return;
-          }
-          final BuildContext? rootContext = rootNavigatorKey.currentContext;
-          if (rootContext == null || !rootContext.mounted) {
-            return;
-          }
-          ref.read(unifiedPushDistributorSetupProvider.notifier).clearRequest();
-          unawaited(
-            showUnifiedPushDistributorSetup(
-              rootContext,
-              dismissalStorage: ref.read(
-                unifiedPushNoDistributorDismissalStorageProvider,
-              ),
-            ),
-          );
-        });
+        _distributorPickerAttempts = 0;
+        _scheduleDistributorPicker();
       });
     }
 
@@ -299,6 +284,36 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
         .read(channelListViewModelProvider.notifier)
         .loadChannels(guildId, guild: guild);
     ref.read(guildSyncProvider.notifier).syncIfNeeded(guildId);
+  }
+
+  void _scheduleDistributorPicker() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_presentDistributorPicker());
+    });
+  }
+
+  Future<void> _presentDistributorPicker() async {
+    if (!mounted || !ref.read(unifiedPushDistributorSetupProvider)) {
+      _distributorPickerAttempts = 0;
+      return;
+    }
+    final BuildContext? rootContext = rootNavigatorKey.currentContext;
+    if (rootContext == null || !rootContext.mounted) {
+      if (_distributorPickerAttempts >= 60) {
+        return;
+      }
+      _distributorPickerAttempts++;
+      _scheduleDistributorPicker();
+      return;
+    }
+    _distributorPickerAttempts = 0;
+    ref.read(unifiedPushDistributorSetupProvider.notifier).clearRequest();
+    await showUnifiedPushDistributorSetup(
+      rootContext,
+      dismissalStorage: ref.read(
+        unifiedPushNoDistributorDismissalStorageProvider,
+      ),
+    );
   }
 
   void _stopAttachmentAudioOnChannelChange() {

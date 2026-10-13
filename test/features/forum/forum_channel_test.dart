@@ -340,4 +340,69 @@ void main() {
       expect(error(moderator: true), l10n.threadErrorTagRequired);
     },
   );
+
+  group('isForumPostOriginalPoster', () {
+    test('true for the forum post owner inside a forum channel', () {
+      final Channel forum = _forum();
+      final Channel post = _post('200', ownerId: 'user-1');
+      expect(
+        isForumPostOriginalPoster(
+          thread: post,
+          parentChannel: forum,
+          authorId: 'user-1',
+        ),
+        isTrue,
+      );
+    });
+
+    test('true for media channel posts', () {
+      final Channel media = _forum(type: ChannelType.guildMedia);
+      final Channel post = _post('200', ownerId: 'user-1');
+      expect(
+        isForumPostOriginalPoster(
+          thread: post,
+          parentChannel: media,
+          authorId: 'user-1',
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+      'false for other authors, text-channel threads, and missing owner',
+      () {
+        final Channel forum = _forum();
+        final Channel post = _post('200', ownerId: 'user-1');
+        expect(
+          isForumPostOriginalPoster(
+            thread: post,
+            parentChannel: forum,
+            authorId: 'user-2',
+          ),
+          isFalse,
+        );
+        const Channel textParent = Channel(
+          id: '50',
+          guildId: 'g1',
+          name: 'general',
+        );
+        expect(
+          isForumPostOriginalPoster(
+            thread: post,
+            parentChannel: textParent,
+            authorId: 'user-1',
+          ),
+          isFalse,
+        );
+        expect(
+          isForumPostOriginalPoster(
+            thread: _post('201'),
+            parentChannel: forum,
+            authorId: 'user-1',
+          ),
+          isFalse,
+        );
+      },
+    );
+  });
 }

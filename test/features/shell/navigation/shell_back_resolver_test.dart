@@ -10,6 +10,7 @@ void main() {
           hasPopupOverlay: true,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.main,
           shellLocation: '/channels/guild/channel',
         ),
@@ -23,6 +24,7 @@ void main() {
           hasPopupOverlay: false,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: true,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.main,
           shellLocation: '/channels/guild/channel',
         ),
@@ -36,6 +38,7 @@ void main() {
           hasPopupOverlay: false,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.main,
           shellLocation: '/channels/@favorites/abc',
         ),
@@ -49,6 +52,7 @@ void main() {
           hasPopupOverlay: false,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.left,
           shellLocation: '/channels/guild/channel',
         ),
@@ -62,6 +66,7 @@ void main() {
           hasPopupOverlay: false,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.left,
           shellLocation: '/channels/@discover',
         ),
@@ -75,6 +80,7 @@ void main() {
           hasPopupOverlay: false,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.main,
           shellLocation: '/channels/guild',
         ),
@@ -85,6 +91,7 @@ void main() {
           hasPopupOverlay: false,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.left,
           shellLocation: '/channels/@me',
         ),
@@ -95,6 +102,7 @@ void main() {
           hasPopupOverlay: false,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.main,
           shellLocation: '/channels/@favorites',
         ),
@@ -108,10 +116,25 @@ void main() {
           hasPopupOverlay: false,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.main,
           shellLocation: '/channels/guild/channel',
         ),
         ShellBackAction.revealDrawer,
+      );
+    });
+
+    test('channel details drawer closes before guild drawer reveal', () {
+      expect(
+        resolveShellBackAction(
+          hasPopupOverlay: false,
+          hasManualGestureBlock: false,
+          hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: true,
+          revealSide: RevealSide.main,
+          shellLocation: '/channels/guild/channel',
+        ),
+        ShellBackAction.closeChannelDetailsDrawer,
       );
     });
 
@@ -121,6 +144,7 @@ void main() {
           hasPopupOverlay: false,
           hasManualGestureBlock: false,
           hasExpressionPanelOpen: false,
+          hasChannelDetailsDrawerOpen: false,
           revealSide: RevealSide.main,
           shellLocation: '/channels/guild/voice',
           minimizePhoneVoiceCall: true,

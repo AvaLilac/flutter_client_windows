@@ -17,8 +17,10 @@ import 'package:fluxer_app/features/chat/presentation/sheets/channel_details_she
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/chat_back_button.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/header/channel_header_left_section.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/header/channel_header_toolbar.dart';
+import 'package:fluxer_app/features/chat/providers/channel/channel_details_drawer_provider.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_back_button_unread_provider.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
+import 'package:fluxer_app/features/chat/utils/channel_details_handheld.dart';
 import 'package:fluxer_app/features/chat/utils/channel_header_utils.dart';
 import 'package:fluxer_app/features/chat/utils/composer/inline_expression_panel_layout.dart';
 import 'package:fluxer_app/features/dm/domain/dm_channel_types.dart';
@@ -596,8 +598,9 @@ class ChannelHeader extends ConsumerWidget {
       return;
     }
     unawaited(
-      showChannelDetailsSheetAndJump(
+      openHandheldChannelDetailsAndJump(
         context,
+        ref: ref,
         container: ref.container,
         channel: channel,
         dm: dm,
@@ -686,6 +689,9 @@ class ChannelHeader extends ConsumerWidget {
         hasPopupOverlay: false,
         hasManualGestureBlock: false,
         hasExpressionPanelOpen: false,
+        hasChannelDetailsDrawerOpen: ref.read(
+          channelDetailsDrawerIsOpenProvider,
+        ),
         revealSide: ref.read(currentRevealSideProvider),
         shellLocation: ref.read(shellLocationProvider),
         minimizePhoneVoiceCall: shouldMinimizePhoneVoiceCall(context, ref),

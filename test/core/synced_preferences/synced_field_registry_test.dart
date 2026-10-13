@@ -17,7 +17,7 @@ void main() {
         return fields;
       }),
     );
-    expect(registered, hasLength(20));
+    expect(registered, hasLength(21));
     expect(registered.toSet(), {
       SyncedPreferenceField.favorites,
       SyncedPreferenceField.accessibility,
@@ -39,6 +39,7 @@ void main() {
       SyncedPreferenceField.chatInput,
       SyncedPreferenceField.doubleTapReaction,
       SyncedPreferenceField.doubleTapAction,
+      SyncedPreferenceField.swipeRightToLeftAction,
     });
   });
 }
