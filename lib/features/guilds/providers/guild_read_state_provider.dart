@@ -14,7 +14,10 @@ import 'package:fluxer_app/features/channels/data/read_state_write_batcher.dart'
 import 'package:fluxer_app/features/channels/data/unread_permission_utils.dart';
 import 'package:fluxer_app/features/channels/data/unread_settings_resolver.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
-    show isGuildTextBasedChannel, isThreadChannelType, isThreadOnlyChannelType;
+    show
+        isThreadChannelType,
+        isThreadOnlyChannelType,
+        tracksGuildChannelUnreadFold;
 import 'package:fluxer_app/features/channels/providers/guild_channel_unread_snapshot_provider.dart'
     show guildChannelUnreadFoldProvider;
 import 'package:fluxer_app/features/channels/providers/read_state_write_batcher_provider.dart';
@@ -891,10 +894,7 @@ class GuildReadState extends _$GuildReadState {
   }
 }
 
-bool _tracksUnread(int type) =>
-    isGuildTextBasedChannel(type) ||
-    isThreadChannelType(type) ||
-    isThreadOnlyChannelType(type);
+bool _tracksUnread(int type) => tracksGuildChannelUnreadFold(type);
 
 Set<String> _diffReadStates(
   Map<String, ReadState> previous,

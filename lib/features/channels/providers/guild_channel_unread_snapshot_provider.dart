@@ -61,6 +61,9 @@ bool guildChannelUnreadKnown(Ref ref, String guildId) {
   );
   for (final ChannelCategory category in categories) {
     for (final Channel channel in category.channels) {
+      if (!tracksGuildChannelUnreadFold(channel.type.wireValue)) {
+        continue;
+      }
       if (!fold.containsKey(channel.id)) {
         return false;
       }
