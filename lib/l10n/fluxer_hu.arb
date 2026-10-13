@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Újra",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Csatlakoztatva",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "KLIPY keresése",
+    "gifPickerSearchKlipy": "Klipy keresése",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Tenor keresése",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Kedvencek",
     "@gifPickerFavorites": {
@@ -2590,10 +2590,6 @@
     "dangerZoneDeleteDescription": "Véglegesen törli a fiókodat és minden kapcsolódó adatot. Ez nem vonható vissza.",
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
-    },
-    "dangerZoneDeleteCancelSubscription": "A fiókod törlése előtt mondd le az aktív Plutonium előfizetésedet a Plutonium beállításaiban.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
     },
     "dangerZoneDeleteCannotDeleteAccount": "A fiók nem törölhető",
     "@dangerZoneDeleteCannotDeleteAccount": {
@@ -5138,7 +5134,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Csevegés megjelenítése {count, plural, one {# olvasatlan üzenet} other {# olvasatlan üzenet}}",
+    "voiceTextChatShowUnread": "Csevegés megjelenítése {count, plural, one {{count} olvasatlan üzenet} other {{count} olvasatlan üzenet}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5351,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "Nem sikerült elküldeni az üzenetet. Érintsd meg a lehetőségekért.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "Az üzenetedet nem lehetett kézbesíteni. Ez általában azért van, mert nem osztasz meg közösséget a címzettel, vagy a címzett csak a barátaitól fogad közvetlen üzeneteket. Lehet, hogy a saját közvetlen üzenetküldési adatvédelmi beállításaidat is módosítanod kell a(z) {settingsPath} oldalon.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5463,6 @@
     "forwardSuccessToast": "Üzenet továbbítva",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Az üzenet továbbítása sikertelen",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Megjegyzések nem érhetők el, mert a kiválasztott csatornán be van kapcsolva a lassú mód.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6126,19 +6122,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "A SZÁMLÁD",
+    "userSettingsGroupYourAccount": "A számlád",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6690,13 +6686,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "ÚJ",
+    "scrollIndicatorNew": "Új",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "ÚJ ÜZENET",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Új üzenetek",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "{folderName} összecsukása",
     "@guildNavbarCollapseFolder": {
@@ -8119,7 +8115,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Törölve 1 üzenet.} other{Törölve # üzenet.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Törölve 1 üzenet.} other{Törölve {count} üzenet.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8124,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Eltávolítva 1 tag.} other{Eltávolítva # tag.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Eltávolítva 1 tag.} other{Eltávolítva {count} tag.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8281,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -13711,7 +13707,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Összes, kivéve {count, plural, one {# közösséget} other {# közösséget}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Összes, kivéve {count, plural, one {{count} közösséget} other {{count} közösséget}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13720,7 +13716,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Csak {count, plural, one {# közösség} other {# közösség}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Csak {count, plural, one {{count} közösség} other {{count} közösség}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13749,7 +13745,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# óra} other {# óra}} és {minutes, plural, one {# perc} other {# perc}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} óra} other {{hours} óra}} és {minutes, plural, one {{minutes} perc} other {{minutes} perc}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13761,7 +13757,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# óra} other {# óra}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} óra} other {{hours} óra}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13770,7 +13766,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# perc} other {# perc}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} perc} other {{minutes} perc}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13779,7 +13775,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# másodperc} other {# másodperc}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} másodperc} other {{seconds} másodperc}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14485,7 +14481,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -16513,5 +16509,96 @@
     },
     "channelUnsupportedTitle": "Nem támogatott csatornatípus",
     "channelUnsupportedBody": "Az alkalmazás ezen verziója nem támogatja ezt a csatornatípust.",
-    "channelDetailsUnsupportedChannel": "Nem támogatott csatorna"
+    "channelDetailsUnsupportedChannel": "Nem támogatott csatorna",
+    "forumPostNewBadge": "Új",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} új üzenet} other {{count} új üzenet}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Új",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} új üzenet} other {{unreadCount} új üzenet}} {shortTime} óta",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ új üzenet {shortTime} óta",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} új üzenet} other {{unreadCount} új üzenet}} {compactTime} óta",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ új üzenet {compactTime} óta",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Megjelölés olvasottként",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Megjelölés olvasottként",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Ugrás az első olvasatlan üzenetre",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Régebbi üzeneteket nézel",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Ugrás a jelenlegi üzenetekhez",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Kategória átnevezése",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

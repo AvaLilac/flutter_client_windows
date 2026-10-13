@@ -8,20 +8,17 @@ import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
 import 'package:fluxer_app/features/dm/domain/dm_conversation.dart';
 import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
+import 'package:fluxer_app/features/friends/domain/friend.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_list_view_model.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
+import 'package:fluxer_app/l10n/app_locale_provider.dart';
+import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'forward_destinations_provider.g.dart';
 
-/// What kind of destination a [ForwardDestination] points at. Drives the
-/// row leading visual and section grouping.
 enum ForwardDestinationKind { guildText, guildVoice, dm, group, personalNotes }
 
-/// Static (permission-based) reason a destination cannot receive a forward.
-/// Slowmode cool-down and the selection cap are evaluated reactively by the
-/// sheet, not stored here.
 enum ForwardDestinationDisable {
   none,
   guildSendDisabled,
@@ -31,7 +28,6 @@ enum ForwardDestinationDisable {
   noAttachPermission,
 }
 
-/// A channel or DM the current user may forward a message into.
 class ForwardDestination {
   const ForwardDestination({
     required this.channelId,
@@ -53,36 +49,24 @@ class ForwardDestination {
   final String displayName;
   final ForwardDestinationKind kind;
 
-  /// Owning guild id for guild channels; null/empty for DMs.
   final String? guildId;
 
-  /// Owning guild name, used as the section header / secondary label.
   final String? guildName;
 
   final int rateLimitPerUser;
 
-  /// Permission-based eligibility. [ForwardDestinationDisable.none] means the
-  /// user may forward here (subject to slowmode/cap evaluated by the sheet).
   final ForwardDestinationDisable disable;
 
-  /// Whether an active slowmode applies to the current user here (guild
-  /// channels with a rate limit the user cannot bypass). Disables the optional
-  /// comment when such a destination is selected.
   final bool slowmodeEnabled;
 
-  /// Recipient user id for 1:1 DMs (default-avatar fallback).
   final String? avatarUserId;
 
-  /// Resolved avatar image url for 1:1 DMs, when the recipient has one.
   final String? avatarImageUrl;
 
-  /// Resolved guild icon url for guild channel destinations.
   final String? guildAvatarImageUrl;
 
-  /// Custom group DM icon url, when the group has one.
   final String? groupIconUrl;
 
-  /// Members shown in the group DM avatar cluster.
   final List<GroupMemberInfo> groupMembers;
 
   bool get isGuildChannel =>
@@ -92,14 +76,6 @@ class ForwardDestination {
   bool get isPermissionBlocked => disable != ForwardDestinationDisable.none;
 }
 
-/// All channels and DMs the current user may forward into, given the source
-/// channel and whether the source message carries embeds/attachments (which
-/// gate EMBED_LINKS / ATTACH_FILES on guild destinations, matching the server).
-///
-/// DMs are returned first (in recency order), then guild channels grouped by
-/// guild name then channel name, so the sheet can build sections by walking
-/// consecutive runs. Non-text-based channel types (category/link) are filtered
-/// out.
 @riverpod
 Future<List<ForwardDestination>> forwardDestinations(
   Ref ref, {
@@ -109,9 +85,12 @@ Future<List<ForwardDestination>> forwardDestinations(
 }) async {
   final List<Channel> allChannels = await ref.watch(allChannelsProvider.future);
   final List<Guild> guilds = ref.watch(guildListViewModelProvider).guilds;
-  final List<DmConversation> conversations = ref
-      .watch(dmViewModelProvider)
-      .conversations;
+  final DmViewState dmState = ref.watch(dmViewModelProvider);
+  final List<DmConversation> conversations = dmState.conversations;
+  final Map<String, String?> friendNicknameById = friendNicknamesById(
+    dmState.friendsList,
+  );
+  final FluxerLocalizations l10n = ref.watch(appLocalizationsProvider);
 
   final Map<String, Guild> guildsById = <String, Guild>{
     for (final Guild g in guilds) g.id: g,
@@ -131,7 +110,13 @@ Future<List<ForwardDestination>> forwardDestinations(
     destinations.add(
       ForwardDestination(
         channelId: dm.id,
-        displayName: dm.displayName,
+        displayName: dm.isPersonalNotes
+            ? l10n.personalNotesTitle
+            : dm.displayNameWith(
+                dm.isGroup ? null : friendNicknameById[dm.recipientId],
+                l10n: l10n,
+                currentUserId: currentUserId,
+              ),
         kind: kind,
         avatarUserId: isOneToOne ? dm.recipientId : null,
         avatarImageUrl: isOneToOne
@@ -150,21 +135,19 @@ Future<List<ForwardDestination>> forwardDestinations(
     );
   }
 
-  final ThreadsGate threadsGate = ref.watch(threadsGateProvider);
-  final List<Channel> threadDestinations = <Channel>[];
-  if (threadsGate.anyActive) {
-    final Set<String> joined = await database.threadDao.getJoinedThreadIds();
-    for (final String guildId in threadsGate.activeGuildIds) {
+  final Set<String> joined = await database.threadDao.getJoinedThreadIds();
+  final List<Channel> threadDestinations = <Channel>[
+    for (final String guildId in guildsById.keys)
       for (final db.Channel row in await database.threadDao.getThreadsForGuild(
         guildId,
-      )) {
-        final Channel thread = Channel.fromRow(row);
-        if (isForwardableThread(thread, joined: joined.contains(thread.id))) {
-          threadDestinations.add(thread);
-        }
-      }
-    }
-  }
+      ))
+        if (Channel.fromRow(row) case final Channel thread
+            when isForwardableThread(
+              thread,
+              joined: joined.contains(thread.id),
+            ))
+          thread,
+  ];
   final List<Channel> guildChannels =
       <Channel>[
         ...allChannels.where(
@@ -184,7 +167,6 @@ Future<List<ForwardDestination>> forwardDestinations(
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
 
-  // Guild-wide gates precede per-channel permission bits (web parity).
   final Map<String, ForwardDestinationDisable> guildLevelDisable =
       <String, ForwardDestinationDisable>{};
   final DateTime now = DateTime.now();
@@ -230,8 +212,6 @@ Future<List<ForwardDestination>> forwardDestinations(
     if (guildGate != null) {
       disable = guildGate;
     } else if (!outcome.shouldCache) {
-      // Permission data for this guild is not loaded yet, so do not
-      // over-restrict; the server enforces on send (matches the composer).
       disable = ForwardDestinationDisable.none;
     } else {
       disable = _resolveDisable(

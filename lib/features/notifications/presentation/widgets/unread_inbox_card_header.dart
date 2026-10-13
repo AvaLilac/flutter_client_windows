@@ -1,27 +1,71 @@
-import 'package:fluxer_app/core/theme/fluxer_color_theme.dart';
-import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/channel_icon.dart';
+import 'package:fluxer_app/features/dm/presentation/widgets/group_dm_avatar.dart';
 import 'package:fluxer_app/features/notifications/data/unread_inbox_card_meta.dart';
 import 'package:fluxer_app/features/notifications/domain/unread_inbox_entry.dart';
+import 'package:fluxer_app/features/notifications/presentation/widgets/notification_row.dart';
+import 'package:fluxer_app/features/ui/avatar/fluxer_avatar.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_guild_icon_avatar.dart';
 import 'package:fluxer_app/features/ui/badge/fluxer_badge.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-const double _kActionButtonSize = 28;
-const String _kFallbackTitle = '…';
+const double _kRowActionSize = 32;
+const double _kRowActionIconSize = 18;
+const double _kSubtitleFontSize = 12;
+const double _kSubtitleLineHeight = 16;
 
-/// Top row of an unread inbox card: collapse-toggle, channel/guild summary,
-/// optional mention badge, and bell + mark-read action buttons.
+class UnreadInboxCardLeading extends StatelessWidget {
+  const UnreadInboxCardLeading({
+    required this.entry,
+    required this.meta,
+    super.key,
+  });
+
+  final UnreadInboxEntry entry;
+  final UnreadInboxCardMeta meta;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    if (!entry.isDm) {
+      return FluxerGuildIconAvatar(
+        name: meta.guildIconName,
+        imageUrl: meta.guildIconDisplayUrl,
+        isUnavailable: meta.guildUnavailableForIcon,
+        size: kNotificationRowLeadingSize,
+      );
+    }
+    if (meta.groupDm case final groupDm?) {
+      return GroupDmAvatar.conversation(
+        groupDm,
+        size: kNotificationRowLeadingSize,
+      );
+    }
+    if (meta.dmUser case final user?) {
+      return FluxerAvatar.fromUserRow(
+        user,
+        size: kNotificationRowLeadingSize,
+        showStatus: false,
+      );
+    }
+    return FluxerAvatar.icon(
+      icon: PhosphorIconsFill.chatCircle,
+      size: kNotificationRowLeadingSize,
+      iconColor: colors.textPrimaryMuted,
+      iconBackgroundColor: colors.backgroundTertiary,
+    );
+  }
+}
+
 class UnreadInboxCardHeader extends StatelessWidget {
   const UnreadInboxCardHeader({
     required this.entry,
     required this.meta,
     required this.collapsed,
+    required this.read,
     required this.onToggleCollapsed,
-    required this.onJump,
     required this.onMarkRead,
     required this.onOpenGuildNotificationSettings,
     super.key,
@@ -30,183 +74,131 @@ class UnreadInboxCardHeader extends StatelessWidget {
   final UnreadInboxEntry entry;
   final UnreadInboxCardMeta meta;
   final bool collapsed;
+  final bool read;
   final VoidCallback? onToggleCollapsed;
-  final VoidCallback onJump;
   final VoidCallback onMarkRead;
   final VoidCallback onOpenGuildNotificationSettings;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
-    final FluxerColorTheme colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 6),
+    final VoidCallback? toggle = onToggleCollapsed;
+    final TextStyle titleStyle = notificationTitleStyle(context).copyWith(
+      fontWeight: FontWeight.w500,
+      color: read ? colors.textPrimaryMuted : colors.textPrimary,
+    );
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: kNotificationRowLeadingSize),
       child: Row(
         children: <Widget>[
-          _buildCollapseToggle(context, colors, l10n),
-          Expanded(child: _buildSummary(context)),
-          if (!entry.isDm && entry.guildId != null) ...<Widget>[
-            _buildBellButton(colors),
-            const SizedBox(width: 6),
-          ],
-          _buildMarkReadButton(colors, l10n),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCollapseToggle(
-    BuildContext context,
-    FluxerColorTheme colors,
-    FluxerLocalizations l10n,
-  ) {
-    if (onToggleCollapsed == null) {
-      return const SizedBox(width: _kActionButtonSize);
-    }
-    return IconButton(
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(
-        minWidth: _kActionButtonSize,
-        minHeight: _kActionButtonSize,
-      ),
-      onPressed: onToggleCollapsed,
-      icon: AnimatedRotation(
-        turns: collapsed ? -0.25 : 0,
-        duration: context.motion.normal,
-        child: Icon(
-          PhosphorIconsBold.caretDown,
-          size: 14,
-          color: colors.textPrimaryMuted,
-        ),
-      ),
-      tooltip: collapsed
-          ? l10n.notificationsExpand
-          : l10n.notificationsCollapse,
-    );
-  }
-
-  Widget _buildSummary(BuildContext context) {
-    final FluxerColorTheme colors = context.colors;
-    final FluxerTextTheme textStyles = context.textStyles;
-    return InkWell(
-      onTap: onJump,
-      child: Row(
-        children: <Widget>[
-          if (!entry.isDm) ...<Widget>[
-            FluxerGuildIconAvatar(
-              name: meta.guildIconName,
-              imageUrl: meta.guildIconDisplayUrl,
-              isUnavailable: meta.guildUnavailableForIcon,
-            ),
-            const SizedBox(width: 8),
-          ] else ...<Widget>[
-            Icon(
-              PhosphorIconsBold.chatCircle,
-              size: 20,
-              color: colors.textPrimaryMuted,
-            ),
-            const SizedBox(width: 6),
-          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                if (entry.isDm)
-                  Text(
-                    meta.channelTitle.isEmpty
-                        ? _kFallbackTitle
-                        : meta.channelTitle,
-                    overflow: TextOverflow.ellipsis,
-                    style: textStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
-                      fontSize: 15.2,
-                    ),
-                  )
-                else
-                  Row(
-                    children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    if (!entry.isDm) ...<Widget>[
                       ChannelIcon(
                         type: meta.guildChannelVisualType,
-                        color: colors.textPrimaryMuted,
-                        size: 16,
+                        color: colors.textSecondary,
+                        size: kNotificationTitleFontSize,
                       ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Text(
-                          meta.channelTitle.isEmpty
-                              ? _kFallbackTitle
-                              : meta.channelTitle,
-                          overflow: TextOverflow.ellipsis,
-                          style: textStyles.bodyMedium.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
-                            fontSize: 15.2,
-                          ),
-                        ),
-                      ),
+                      const SizedBox(width: 4),
                     ],
-                  ),
-                if (meta.subtitleLine.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      meta.subtitleLine,
-                      overflow: TextOverflow.ellipsis,
-                      style: textStyles.bodySmall.copyWith(
-                        color: colors.textPrimaryMuted,
-                        fontSize: 12,
+                    Flexible(
+                      child: Text(
+                        meta.channelTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: titleStyle,
                       ),
+                    ),
+                    if (!read && entry.mentionCount > 0) ...<Widget>[
+                      const SizedBox(width: 8),
+                      FluxerBadge.count(count: entry.mentionCount),
+                    ],
+                  ],
+                ),
+                if (meta.subtitleLine.isNotEmpty)
+                  Text(
+                    meta.subtitleLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textStyles.bodySmall.copyWith(
+                      fontSize: _kSubtitleFontSize,
+                      height: _kSubtitleLineHeight / _kSubtitleFontSize,
+                      color: colors.textPrimaryMuted,
                     ),
                   ),
               ],
             ),
           ),
-          if (entry.mentionCount > 0)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: FluxerBadge.count(count: entry.mentionCount),
+          if (!entry.isDm && entry.guildId != null)
+            _RowAction(
+              icon: const Icon(PhosphorIconsBold.bellSimple),
+              tooltip: l10n.notificationSettings,
+              onPressed: onOpenGuildNotificationSettings,
+            ),
+          if (!read)
+            _RowAction(
+              icon: const Icon(PhosphorIconsBold.check),
+              tooltip: l10n.notificationsMarkAsRead,
+              onPressed: onMarkRead,
+            ),
+          if (toggle != null)
+            _RowAction(
+              icon: Icon(
+                collapsed
+                    ? PhosphorIconsBold.caretRight
+                    : PhosphorIconsBold.caretDown,
+              ),
+              tooltip: collapsed
+                  ? l10n.notificationsExpand
+                  : l10n.notificationsCollapse,
+              onPressed: toggle,
             ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildBellButton(FluxerColorTheme colors) {
-    return IconButton(
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(
-        minWidth: _kActionButtonSize,
-        minHeight: _kActionButtonSize,
-      ),
-      style: IconButton.styleFrom(backgroundColor: colors.backgroundSecondary),
-      onPressed: onOpenGuildNotificationSettings,
-      icon: Icon(
-        PhosphorIconsFill.bellSimple,
-        size: 16,
-        color: colors.textPrimaryMuted,
-      ),
-    );
-  }
+class _RowAction extends StatelessWidget {
+  const _RowAction({
+    required this.icon,
+    required this.onPressed,
+    required this.tooltip,
+  });
 
-  Widget _buildMarkReadButton(
-    FluxerColorTheme colors,
-    FluxerLocalizations l10n,
-  ) {
-    return IconButton(
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(
-        minWidth: _kActionButtonSize,
-        minHeight: _kActionButtonSize,
+  final Widget icon;
+  final VoidCallback onPressed;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 4),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        constraints: const BoxConstraints(
+          minWidth: _kRowActionSize,
+          minHeight: _kRowActionSize,
+        ),
+        onPressed: onPressed,
+        icon: IconTheme.merge(
+          data: IconThemeData(
+            size: _kRowActionIconSize,
+            color: context.colors.textPrimaryMuted,
+          ),
+          child: icon,
+        ),
+        tooltip: tooltip,
       ),
-      style: IconButton.styleFrom(backgroundColor: colors.backgroundSecondary),
-      onPressed: onMarkRead,
-      icon: Icon(
-        PhosphorIconsBold.check,
-        size: 16,
-        color: colors.textPrimaryMuted,
-      ),
-      tooltip: l10n.notificationsMarkAsRead,
     );
   }
 }

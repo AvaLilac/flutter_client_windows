@@ -45,8 +45,6 @@ Widget _buildTestApp(Widget child) {
         textTheme: FluxerTextTheme.fromColors(colorTheme),
         layoutTheme: FluxerLayoutTheme.scaled(),
       ),
-      // The loading skeleton pulses forever, so pumpAndSettle only terminates
-      // with reduced motion.
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(disableAnimations: true),
         child: child!,
@@ -90,19 +88,12 @@ Future<void> _expectNoOverscrollHeldAboveTop(
       )
       .position;
 
-  // Upward drags grow the sheet extent before they scroll the list.
   for (int attempt = 0; attempt < 3 && position.pixels <= 0; attempt++) {
     await tester.drag(scrollView, const Offset(0, -300));
     await tester.pumpAndSettle();
   }
   expect(position.pixels, greaterThan(0));
 
-  double minPixels = position.pixels;
-  void trackMinPixels() {
-    minPixels = math.min(minPixels, position.pixels);
-  }
-
-  position.addListener(trackMinPixels);
   await tester.fling(scrollView, const Offset(0, 300), 5000);
   for (int frame = 0; frame < 8; frame++) {
     await tester.pump(const Duration(milliseconds: 16));
@@ -111,6 +102,15 @@ Future<void> _expectNoOverscrollHeldAboveTop(
   final TestGesture hold = await tester.startGesture(
     tester.getCenter(scrollView),
   );
+  await hold.moveBy(const Offset(0, 24));
+  await tester.pump(const Duration(milliseconds: 16));
+
+  double minPixels = position.pixels;
+  void trackMinPixels() {
+    minPixels = math.min(minPixels, position.pixels);
+  }
+
+  position.addListener(trackMinPixels);
   for (int move = 0; move < 3; move++) {
     await hold.moveBy(const Offset(0, 12));
     await tester.pump(const Duration(milliseconds: 16));
@@ -126,8 +126,6 @@ void main() {
   testWidgets('profile sheet content cannot be held above the sheet top', (
     tester,
   ) async {
-    // Bouncing overscroll is what opens the gap, so the clamp only shows up
-    // under the iOS physics default.
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     _useMobileSurface(tester);
 
@@ -139,7 +137,6 @@ void main() {
               FluxerBottomSheet.showScrollable<void>(
                 context,
                 minChildSize: 0.5,
-                disableTopPadding: true,
                 showDragHandle: false,
                 builder: (sheetContext, scrollController, close) =>
                     UserProfileLoadingSkeleton(

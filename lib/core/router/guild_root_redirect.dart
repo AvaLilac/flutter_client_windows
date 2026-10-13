@@ -4,15 +4,13 @@ import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/router/route_kind.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
-    show isThreadFeatureChannelType, isThreadOnlyChannelType;
+    show isThreadOnlyChannelType;
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_outage_availability.dart';
 
 const int _kGuildCategoryType = 4;
 const int _kGuildLinkType = 998;
 
-/// GoRouter extra that keeps `/channels/:guildId` on the channel list instead
-/// of restoring the last opened channel.
 const String kGuildRootStayOnListExtra = 'guild-root-list';
 
 bool shouldStayOnGuildChannelList({required Uri uri, Object? extra}) {
@@ -29,7 +27,6 @@ Future<String?> resolveGuildRootRedirect({
   required String fullPath,
   required FluxerDatabase db,
   Set<String> trackedUnavailableGuildIds = const {},
-  bool restoreThreadChannels = true,
 }) async {
   if (guildId == null) {
     return RoutePaths.me;
@@ -49,12 +46,7 @@ Future<String?> resolveGuildRootRedirect({
     guildId,
   );
   if (lastChannelId != null &&
-      await isRestorableGuildChannel(
-        db,
-        guildId,
-        lastChannelId,
-        threadChannels: restoreThreadChannels,
-      )) {
+      await isRestorableGuildChannel(db, guildId, lastChannelId)) {
     return RoutePaths.guildChannel(guildId, lastChannelId);
   }
   final channels = await db.channelDao.getChannels(guildId);
@@ -71,14 +63,10 @@ Future<String?> resolveGuildRootRedirect({
 Future<bool> isRestorableGuildChannel(
   FluxerDatabase db,
   String guildId,
-  String channelId, {
-  bool threadChannels = true,
-}) async {
+  String channelId,
+) async {
   final channel = await db.channelDao.getChannelById(channelId);
   if (channel == null || channel.guildId != guildId) {
-    return false;
-  }
-  if (!threadChannels && isThreadFeatureChannelType(channel.type)) {
     return false;
   }
   return channel.type != _kGuildCategoryType && channel.type != _kGuildLinkType;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'package:fluxer_app/features/chat/domain/favorite_meme.dart';
 import 'package:fluxer_app/features/chat/domain/gif_selection.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/favorite_gif_first_time_prompt_sheet.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/fluxer_animated_image.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/expression_segmented_tabs.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/picker_search_input.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/favorite_gifs_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/favorite_media_provider.dart';
@@ -25,24 +27,41 @@ import 'package:fluxer_app/features/chat/utils/media/media_proxy_url.dart';
 import 'package:fluxer_app/features/settings/providers/advanced_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
+import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
+import 'package:fluxer_app/features/ui/button/fluxer_button_size.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
 import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/gestures/expandable_sheet_gestures.dart';
+import 'package:fluxer_app/shared/utils/clipboard_utils.dart';
+import 'package:fluxer_app/shared/utils/fluxer_haptics.dart';
 import 'package:fluxer_dart/export.dart' as sdk;
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const _kSearchDebounce = Duration(milliseconds: 400);
 const _kMaxSearchLength = 100;
 const _kMasonryMinColumnWidth = 227.0;
-const _kMasonryHorizontalPadding = 10.0;
+const _kMasonryHorizontalPadding = 8.0;
 const _kMasonryCacheExtent = 700.0;
+const _kGifTileFadeInDuration = Duration(milliseconds: 100);
+const _kGifCategoryPressHold = Duration(milliseconds: 60);
+const Color _kGifCategoryPressDim = Color.fromRGBO(0, 0, 0, 0.42);
+const Color _kGifFavoritesTileOverlay = Color.fromRGBO(76, 70, 218, 0.6);
+const Color _kGifFavoritesEmptyTileOverlay = Color.fromRGBO(76, 70, 218, 1);
 const double _kCategoryTileAspectRatio = 200 / 96;
-const double _kCompactCategoryTileAspectRatio = 16 / 10;
+const double _kCompactCategoryTileAspectRatio = 189 / 82;
 const double _kCompactCategoryTileBreakpoint = 600;
 const _kSkeletonTileCount = 12;
+const List<double> _kSkeletonAspectRatios = <double>[
+  1,
+  1.78,
+  0.8,
+  1.33,
+  1.5,
+  0.75,
+];
 
 enum _GifPickerView { landing, trending, favorites }
 
@@ -154,12 +173,12 @@ class _GifPickerContentState extends ConsumerState<GifPickerContent> {
         ),
       ),
     );
-    if (!gif.attributionRequired && provider != GifProviderKind.klipy) {
+    final String? label = gif.displayName;
+    if (!gif.attributionRequired ||
+        provider == GifProviderKind.klipy ||
+        label == null) {
       return null;
     }
-    final String label =
-        gif.displayName ??
-        FluxerLocalizations.of(context).gifPickerPoweredByKlipy;
     return _PoweredByLabel(label);
   }
 
@@ -213,6 +232,7 @@ class _GifPickerContentState extends ConsumerState<GifPickerContent> {
       _debouncedQuery = limited.trim();
       _view = _GifPickerView.landing;
     });
+    widget.sheetDragHandlers?.expand?.call();
   }
 
   void _showTrending() {
@@ -222,6 +242,7 @@ class _GifPickerContentState extends ConsumerState<GifPickerContent> {
       _debouncedQuery = '';
       _view = _GifPickerView.trending;
     });
+    widget.sheetDragHandlers?.expand?.call();
   }
 
   void _goToLanding() {
@@ -252,6 +273,7 @@ class _GifPickerContentState extends ConsumerState<GifPickerContent> {
       _debouncedQuery = '';
       _view = _GifPickerView.favorites;
     });
+    widget.sheetDragHandlers?.expand?.call();
   }
 
   @override
@@ -277,37 +299,35 @@ class _GifPickerContentState extends ConsumerState<GifPickerContent> {
     final layout = context.layout;
 
     if (_view != _GifPickerView.landing) {
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-          layout.s3,
-          layout.s3,
-          layout.s3,
-          layout.s2,
-        ),
-        child: Row(
-          children: [
-            FluxerTappable(
-              onTap: _goToLanding,
-              minSize: const Size(36, 36),
-              builder: (context, states) => Center(
-                child: PhosphorIcon(
-                  PhosphorIconsBold.arrowLeft,
-                  size: 20,
-                  color: colors.textPrimary,
+      return _wrapSearchHeader(
+        SizedBox(
+          height: 56,
+          child: Row(
+            children: [
+              FluxerTappable(
+                onTap: _goToLanding,
+                minSize: const Size(40, 44),
+                builder: (context, states) => Padding(
+                  padding: const EdgeInsets.only(left: 16, right: 10),
+                  child: PhosphorIcon(
+                    PhosphorIconsBold.caretLeft,
+                    size: 16,
+                    color: colors.textPrimary,
+                  ),
                 ),
               ),
-            ),
-            SizedBox(width: layout.s2),
-            Text(
-              _view == _GifPickerView.trending
-                  ? l10n.gifPickerTrending
-                  : l10n.gifPickerFavorites,
-              style: context.textStyles.channelName.copyWith(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w700,
+              Text(
+                _view == _GifPickerView.trending
+                    ? l10n.gifPickerTrending
+                    : l10n.gifPickerFavorites,
+                style: context.textStyles.channelName.copyWith(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
@@ -320,12 +340,13 @@ class _GifPickerContentState extends ConsumerState<GifPickerContent> {
           GifProviderKind.tenor => l10n.gifPickerSearchTenor,
           null => l10n.gifPickerSearch,
         },
-        showBackButton: _searchController.text.isNotEmpty,
-        onBackButtonClick: _searchController.clear,
         rightCustomElement: _gifAttributionLabel(context, provider),
         horizontalPadding: widget.searchHorizontalPadding ?? layout.s4,
         topPadding: widget.searchTopPadding ?? layout.s3,
-        bottomPadding: widget.searchBottomPadding ?? layout.s3,
+        bottomPadding: math.max(
+          widget.searchBottomPadding ?? layout.s3,
+          layout.s2,
+        ),
         onSubmitted: _flushSearch,
         focusNode: widget.searchFocusNode,
         onActivated: widget.onSearchActivated,
@@ -388,43 +409,23 @@ class _GifPickerContentState extends ConsumerState<GifPickerContent> {
     final rawQuery = _searchController.text.trim();
     if (rawQuery.isNotEmpty) {
       final searchIsPending = rawQuery != _debouncedQuery;
-      return Column(
-        children: [
-          if (_debouncedQuery.isNotEmpty)
-            _SuggestionChips(
-              suggestions: ref.watch(
-                gifSuggestionsProvider((
-                  query: _debouncedQuery,
-                  locale: locale,
-                )),
+      return searchIsPending || _debouncedQuery.isEmpty
+          ? const _GifLoadingState()
+          : _AsyncGifGrid(
+              scrollController: widget.scrollController,
+              gifs: ref.watch(
+                gifSearchProvider((query: _debouncedQuery, locale: locale)),
               ),
-              onSuggestionTap: _setSearchTerm,
-            ),
-          Expanded(
-            child: searchIsPending || _debouncedQuery.isEmpty
-                ? const _GifLoadingState()
-                : _AsyncGifGrid(
-                    scrollController: widget.scrollController,
-                    gifs: ref.watch(
-                      gifSearchProvider((
-                        query: _debouncedQuery,
-                        locale: locale,
-                      )),
-                    ),
-                    emptyTitle: FluxerLocalizations.of(
-                      context,
-                    ).gifPickerNoResultsTitle,
-                    emptyDescription: FluxerLocalizations.of(
-                      context,
-                    ).gifPickerNoResultsDescription,
-                    onGifTap: (gif) => _selectGif(gif, locale),
-                    isGifFavorite: favoriteLookup.isFavorite,
-                    onGifLongPress: (gif) =>
-                        _showGifActions(gif, favoriteLookup),
-                  ),
-          ),
-        ],
-      );
+              emptyTitle: FluxerLocalizations.of(
+                context,
+              ).gifPickerNoResultsTitle,
+              emptyDescription: FluxerLocalizations.of(
+                context,
+              ).gifPickerNoResultsDescription,
+              onGifTap: (gif) => _selectGif(gif, locale),
+              isGifFavorite: favoriteLookup.isFavorite,
+              onGifLongPress: (gif) => _showGifActions(gif, favoriteLookup),
+            );
     }
 
     final featured = ref.watch(gifFeaturedProvider(locale));
@@ -432,6 +433,9 @@ class _GifPickerContentState extends ConsumerState<GifPickerContent> {
       data: (data) => _FeaturedGifLanding(
         scrollController: widget.scrollController,
         featured: data,
+        favoritePreview: urlFavorites.isEmpty
+            ? null
+            : _favoriteEntryToPickerGif(urlFavorites.last),
         onFavoritesTap: _onFavoritesTileTap,
         onTrendingTap: _showTrending,
         onCategoryTap: _setSearchTerm,
@@ -509,30 +513,22 @@ class _GifPickerContentState extends ConsumerState<GifPickerContent> {
   }
 
   void _showGifActions(GifPickerGif gif, _GifFavoriteLookup favoriteLookup) {
-    final isFavorite = favoriteLookup.isFavorite(gif);
+    FluxerHaptics.medium();
     unawaited(
       FluxerBottomSheet.show<void>(
         context,
-        title: gif.title.trim().isEmpty ? 'GIF' : gif.title.trim(),
-        variant: FluxerBottomSheetVariant.menu,
-        builder: (sheetContext, close) => FluxerBottomSheetContent(
-          scrollable: false,
-          child: FluxerMenuGroup(
-            children: [
-              FluxerBottomSheetMenuItem(
-                label: isFavorite
-                    ? 'Remove from Favorites'
-                    : 'Save to Favorites',
-                icon: isFavorite
-                    ? PhosphorIconsBold.star
-                    : PhosphorIconsFill.star,
-                onTap: () {
-                  close();
-                  unawaited(_toggleGifFavorite(gif, favoriteLookup));
-                },
-              ),
-            ],
-          ),
+        showDragHandle: false,
+        builder: (sheetContext, close) => _GifActionsSheet(
+          gif: gif,
+          isFavorite: favoriteLookup.isFavorite(gif),
+          onToggleFavorite: () {
+            close();
+            unawaited(_toggleGifFavorite(gif, favoriteLookup));
+          },
+          onCopyLink: () {
+            close();
+            unawaited(copyToClipboard(context: context, value: gif.url));
+          },
         ),
       ),
     );
@@ -599,10 +595,12 @@ class _FeaturedGifLanding extends StatelessWidget {
     required this.onTrendingTap,
     required this.onCategoryTap,
     required this.onFavoritesTap,
+    this.favoritePreview,
     this.scrollController,
   });
 
   final GifPickerFeatured featured;
+  final GifPickerGif? favoritePreview;
   final VoidCallback onFavoritesTap;
   final VoidCallback onTrendingTap;
   final ValueChanged<String> onCategoryTap;
@@ -614,10 +612,12 @@ class _FeaturedGifLanding extends StatelessWidget {
     final categories = <_GifCategoryData>[
       _GifCategoryData(
         title: l10n.gifPickerFavorites,
-        previewUrl: '',
-        sourceUrl: '',
+        previewUrl: _bestPreviewUrl(favoritePreview),
+        sourceUrl: _bestSourceUrl(favoritePreview),
         icon: PhosphorIconsFill.star,
-        overlayColor: const Color.fromRGBO(76, 70, 218, 0.6),
+        overlayColor: favoritePreview == null
+            ? _kGifFavoritesEmptyTileOverlay
+            : _kGifFavoritesTileOverlay,
         onTap: onFavoritesTap,
       ),
       _GifCategoryData(
@@ -779,6 +779,8 @@ class _CategoryGrid extends StatefulWidget {
 class _CategoryGridState extends State<_CategoryGrid> {
   ScrollController? _ownedScrollController;
   var _scrollUpdateScheduled = false;
+  int? _pressedIndex;
+  Timer? _pressTimer;
 
   ScrollController get _scrollController =>
       widget.scrollController ??
@@ -792,11 +794,26 @@ class _CategoryGridState extends State<_CategoryGrid> {
 
   @override
   void dispose() {
+    _pressTimer?.cancel();
     _scrollController.removeListener(_scheduleScrollUpdate);
     if (widget.scrollController == null) {
       _ownedScrollController?.dispose();
     }
     super.dispose();
+  }
+
+  void _onCategoryTap(int index) {
+    if (_pressedIndex != null) {
+      return;
+    }
+    final VoidCallback onTap = widget.categories[index].onTap;
+    setState(() => _pressedIndex = index);
+    _pressTimer = Timer(_kGifCategoryPressHold, () {
+      onTap();
+      if (mounted) {
+        setState(() => _pressedIndex = null);
+      }
+    });
   }
 
   void _scheduleScrollUpdate() {
@@ -915,7 +932,8 @@ class _CategoryGridState extends State<_CategoryGrid> {
           isCategory: true,
           categoryOverlayColor: category.overlayColor,
           allowAnimatedImagePlayback: allowAnimatedImagePlayback,
-          onTap: category.onTap,
+          dimmed: index == _pressedIndex,
+          onTap: () => _onCategoryTap(index),
         ),
       ),
     );
@@ -1314,6 +1332,7 @@ class _GifTile extends StatelessWidget {
     this.categoryOverlayColor,
     this.isFavorite = false,
     this.allowAnimatedImagePlayback = true,
+    this.dimmed = false,
   });
 
   final String title;
@@ -1326,6 +1345,7 @@ class _GifTile extends StatelessWidget {
   final Color? categoryOverlayColor;
   final bool isFavorite;
   final bool allowAnimatedImagePlayback;
+  final bool dimmed;
 
   @override
   Widget build(BuildContext context) {
@@ -1345,7 +1365,7 @@ class _GifTile extends StatelessWidget {
             (isCategory
                 ? (isLight
                       ? const Color.fromRGBO(255, 255, 255, 0.56)
-                      : const Color.fromRGBO(0, 0, 0, 0.68))
+                      : const Color.fromRGBO(0, 0, 0, 0.6))
                 : (isLight
                       ? const Color.fromRGBO(255, 255, 255, 0.16)
                       : const Color.fromRGBO(0, 0, 0, 0.18)));
@@ -1385,8 +1405,8 @@ class _GifTile extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           if (icon != null) ...[
-                            PhosphorIcon(icon!, size: 20, color: textColor),
-                            SizedBox(width: layout.s1),
+                            PhosphorIcon(icon!, size: 16, color: textColor),
+                            const SizedBox(width: 6),
                           ],
                           Flexible(
                             child: Text(
@@ -1396,6 +1416,8 @@ class _GifTile extends StatelessWidget {
                               textAlign: TextAlign.center,
                               style: context.textStyles.channelName.copyWith(
                                 color: textColor,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
                                 height: 1,
                                 shadows: isLight
                                     ? null
@@ -1412,6 +1434,7 @@ class _GifTile extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (dimmed) const ColoredBox(color: _kGifCategoryPressDim),
                 if (!isCategory && isFavorite)
                   Positioned(
                     top: layout.s2,
@@ -1461,6 +1484,7 @@ class _GifMediaPreview extends StatelessWidget {
       animatedUrl: buildMediaProxyUrl(base, format: 'webp', animated: true),
       playing: allowAnimatedImagePlayback,
       placeholder: const _GifMediaPlaceholder(),
+      fadeInDuration: _kGifTileFadeInDuration,
     );
   }
 }
@@ -1470,70 +1494,6 @@ double _aspectRatioFromDimensions(int width, int height) {
     return 1;
   }
   return width / height;
-}
-
-class _SuggestionChips extends StatelessWidget {
-  const _SuggestionChips({
-    required this.suggestions,
-    required this.onSuggestionTap,
-  });
-
-  final AsyncValue<List<String>> suggestions;
-  final ValueChanged<String> onSuggestionTap;
-
-  @override
-  Widget build(BuildContext context) => suggestions.maybeWhen(
-    data: (items) {
-      if (items.isEmpty) {
-        return const SizedBox.shrink();
-      }
-
-      final layout = context.layout;
-      final colors = context.colors;
-      return SizedBox(
-        height: 46,
-        child: ListView.separated(
-          padding: EdgeInsets.symmetric(horizontal: layout.s3),
-          scrollDirection: Axis.horizontal,
-          itemBuilder: (context, index) {
-            final suggestion = items[index];
-            return Center(
-              child: FluxerTappable(
-                onTap: () => onSuggestionTap(suggestion),
-                builder: (context, states) {
-                  final hovered = states.contains(WidgetState.hovered);
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: hovered
-                          ? colors.backgroundModifierHover
-                          : colors.backgroundModifierAccent,
-                      borderRadius: layout.radiusFull,
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: layout.s2,
-                        vertical: layout.s1,
-                      ),
-                      child: Text(
-                        suggestion,
-                        style: context.textStyles.smallText.copyWith(
-                          color: colors.textPrimary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-          separatorBuilder: (context, index) => SizedBox(width: layout.s1),
-          itemCount: items.length,
-        ),
-      );
-    },
-    orElse: () => const SizedBox.shrink(),
-  );
 }
 
 class _GifLoadingState extends StatelessWidget {
@@ -1550,7 +1510,9 @@ class _GifSkeletonGrid extends StatelessWidget {
   Widget build(BuildContext context) => _VirtualMasonryGrid(
     key: const ValueKey<String>('gif-picker-skeleton-grid'),
     items: List<Object>.generate(_kSkeletonTileCount, _GifSkeletonItem.new),
-    aspectRatioFor: (_) => 1,
+    aspectRatioFor: (item) =>
+        _kSkeletonAspectRatios[(item as _GifSkeletonItem).index %
+            _kSkeletonAspectRatios.length],
     itemKeyFor: (item) => 'gif-skeleton-${(item as _GifSkeletonItem).index}',
     itemBuilder: (context, item, {required isAnimatedImagePlaybackAllowed}) {
       return _GifSkeletonTile(index: (item as _GifSkeletonItem).index);
@@ -1571,12 +1533,11 @@ class _GifSkeletonTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final layout = context.layout;
     return DecoratedBox(
       key: ValueKey<String>('gif-picker-skeleton-tile-$index'),
       decoration: BoxDecoration(
-        color: colors.backgroundModifierAccent,
+        color: expressionTabsTrackColor(context),
         borderRadius: layout.radiusSm,
       ),
     );
@@ -1633,16 +1594,8 @@ class _GifMediaPlaceholder extends StatelessWidget {
   const _GifMediaPlaceholder();
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: context.colors.backgroundModifierAccent,
-    child: Center(
-      child: PhosphorIcon(
-        PhosphorIconsFill.gif,
-        size: 28,
-        color: context.colors.textTertiary,
-      ),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      ColoredBox(color: expressionTabsTrackColor(context));
 }
 
 class _PoweredByLabel extends StatelessWidget {
@@ -1660,6 +1613,71 @@ class _PoweredByLabel extends StatelessWidget {
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.2,
+      ),
+    );
+  }
+}
+
+class _GifActionsSheet extends StatelessWidget {
+  const _GifActionsSheet({
+    required this.gif,
+    required this.isFavorite,
+    required this.onToggleFavorite,
+    required this.onCopyLink,
+  });
+
+  final GifPickerGif gif;
+  final bool isFavorite;
+  final VoidCallback onToggleFavorite;
+  final VoidCallback onCopyLink;
+
+  @override
+  Widget build(BuildContext context) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final double maxPreviewHeight = MediaQuery.sizeOf(context).height * 0.5;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const FluxerBottomSheetEdgeHandle(height: 31),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxPreviewHeight),
+            child: AspectRatio(
+              aspectRatio: _aspectRatioFromDimensions(gif.width, gif.height),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _GifMediaPreview(
+                  url: gif.proxySrc,
+                  sourceUrl: gif.src,
+                  allowAnimatedImagePlayback: true,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (isFavorite)
+            FluxerButton.secondary(
+              label: l10n.favoritesRemoveFromFavorites,
+              size: FluxerButtonSize.small,
+              onPressed: onToggleFavorite,
+            )
+          else
+            FluxerButton.primary(
+              label: l10n.favoritesAddToFavorites,
+              size: FluxerButtonSize.small,
+              onPressed: onToggleFavorite,
+            ),
+          if (gif.url.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            FluxerButton.secondary(
+              label: l10n.mediaViewerCopyLink,
+              size: FluxerButtonSize.small,
+              onPressed: onCopyLink,
+            ),
+          ],
+        ],
       ),
     );
   }

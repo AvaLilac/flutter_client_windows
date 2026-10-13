@@ -2,7 +2,6 @@ import 'package:fluxer_app/material_ui.dart';
 
 class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
   const FluxerColorTheme({
-    // Background
     required this.backgroundPrimary,
     required this.backgroundSecondary,
     required this.backgroundSecondaryLighter,
@@ -19,19 +18,16 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     required this.backgroundModifierSelected,
     required this.backgroundModifierAccent,
     required this.backgroundModifierAccentFocus,
-    // Brand
     required this.brandPrimary,
     required this.brandSecondary,
     required this.brandPrimaryLight,
     required this.brandPrimaryFill,
-    // Status
     required this.statusOnline,
     required this.statusIdle,
     required this.statusDnd,
     required this.statusOffline,
     required this.statusDanger,
     required this.statusWarning,
-    // Text
     required this.textPrimary,
     required this.textSecondary,
     required this.textTertiary,
@@ -46,24 +42,20 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     required this.textDanger,
     required this.textPositive,
     required this.textCode,
-    // Border
     required this.borderColor,
     required this.borderColorHover,
     required this.borderColorFocus,
-    // Accent
     required this.accentPrimary,
     required this.accentSuccess,
     required this.accentWarning,
     required this.accentDanger,
     required this.accentInfo,
     required this.accentPurple,
-    // Alert
     required this.alertNote,
     required this.alertTip,
     required this.alertImportant,
     required this.alertWarning,
     required this.alertCaution,
-    // Markup
     required this.markupMentionText,
     required this.markupMentionFill,
     required this.markupMentionBorder,
@@ -78,7 +70,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     required this.markupHereText,
     required this.markupHereFill,
     required this.markupHereBorder,
-    // Button
     required this.buttonPrimaryFill,
     required this.buttonPrimaryActiveFill,
     required this.buttonPrimaryText,
@@ -98,12 +89,10 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     required this.buttonOutlineBorder,
     required this.buttonOutlineText,
     required this.buttonOutlineActiveFill,
-    // Panel Control
     required this.panelControlBg,
     required this.panelControlBorder,
     required this.panelControlDivider,
     required this.panelControlHighlight,
-    // Control Button
     required this.controlButtonNormalBg,
     required this.controlButtonNormalText,
     required this.controlButtonHoverBg,
@@ -112,30 +101,26 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     required this.controlButtonActiveText,
     required this.controlButtonDangerText,
     required this.controlButtonDangerHoverBg,
-    // Switch
     required this.switchTrackInactive,
     required this.switchThumb,
     required this.switchThumbCheckedIcon,
     required this.switchThumbUncheckedIcon,
-    // Menu
     required this.menuDangerText,
-    // Content Background
     required this.bgCode,
     required this.bgCodeBlock,
     required this.bgTableHeader,
     required this.bgTableRowOdd,
     required this.bgTableRowEven,
-    // Interactive Surface
     required this.surfaceInteractiveHoverBg,
     required this.surfaceInteractiveSelectedBg,
     required this.surfaceInteractiveSelectedColor,
-    // Scrollbar
+    required this.listItemSelectedBg,
+    required this.listItemSelectedBorder,
+    required this.listItemPressedBg,
     required this.scrollbarThumbBg,
     required this.scrollbarThumbBgHover,
     required this.scrollbarTrackBg,
-    // Text Selection
     required this.textSelection,
-    // UI-specific
     required this.chatBackground,
     required this.chatInputBackground,
     required this.serverSidebarBackground,
@@ -150,6 +135,7 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     required this.mentionBackground,
     required this.spoilerBackground,
     required this.spoilerOverlayHoverColor,
+    required this.modalScrim,
     required this.guildBannerGradient,
     required this.focusPrimary,
     required this.interactiveActive,
@@ -158,7 +144,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     required this.interactiveMuted,
   });
 
-  // Background
   final Color backgroundPrimary;
   final Color backgroundSecondary;
   final Color backgroundSecondaryLighter;
@@ -176,13 +161,11 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
   final Color backgroundModifierAccent;
   final Color backgroundModifierAccentFocus;
 
-  // Brand
   final Color brandPrimary;
   final Color brandSecondary;
   final Color brandPrimaryLight;
   final Color brandPrimaryFill;
 
-  // Status
   final Color statusOnline;
   final Color statusIdle;
   final Color statusDnd;
@@ -190,7 +173,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
   final Color statusDanger;
   final Color statusWarning;
 
-  // Text
   final Color textPrimary;
   final Color textSecondary;
   final Color textTertiary;
@@ -206,12 +188,10 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
   final Color textPositive;
   final Color textCode;
 
-  // Border
   final Color borderColor;
   final Color borderColorHover;
   final Color borderColorFocus;
 
-  // Accent
   final Color accentPrimary;
   final Color accentSuccess;
   final Color accentWarning;
@@ -219,14 +199,12 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
   final Color accentInfo;
   final Color accentPurple;
 
-  // Alert
   final Color alertNote;
   final Color alertTip;
   final Color alertImportant;
   final Color alertWarning;
   final Color alertCaution;
 
-  // Markup
   final Color markupMentionText;
   final Color markupMentionFill;
   final Color markupMentionBorder;
@@ -242,7 +220,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
   final Color markupHereFill;
   final Color markupHereBorder;
 
-  // Button
   final Color buttonPrimaryFill;
   final Color buttonPrimaryActiveFill;
   final Color buttonPrimaryText;
@@ -263,13 +240,11 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
   final Color buttonOutlineText;
   final Color buttonOutlineActiveFill;
 
-  // Panel Control
   final Color panelControlBg;
   final Color panelControlBorder;
   final Color panelControlDivider;
   final Color panelControlHighlight;
 
-  // Control Button
   final Color controlButtonNormalBg;
   final Color controlButtonNormalText;
   final Color controlButtonHoverBg;
@@ -279,36 +254,32 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
   final Color controlButtonDangerText;
   final Color controlButtonDangerHoverBg;
 
-  // Switch
   final Color switchTrackInactive;
   final Color switchThumb;
   final Color switchThumbCheckedIcon;
   final Color switchThumbUncheckedIcon;
 
-  // Menu
   final Color menuDangerText;
 
-  // Content Background
   final Color bgCode;
   final Color bgCodeBlock;
   final Color bgTableHeader;
   final Color bgTableRowOdd;
   final Color bgTableRowEven;
 
-  // Interactive Surface
   final Color surfaceInteractiveHoverBg;
   final Color surfaceInteractiveSelectedBg;
   final Color surfaceInteractiveSelectedColor;
+  final Color listItemSelectedBg;
+  final Color listItemSelectedBorder;
+  final Color listItemPressedBg;
 
-  // Scrollbar
   final Color scrollbarThumbBg;
   final Color scrollbarThumbBgHover;
   final Color scrollbarTrackBg;
 
-  // Text Selection
   final Color textSelection;
 
-  // UI-specific
   final Color chatBackground;
   final Color chatInputBackground;
   final Color serverSidebarBackground;
@@ -323,6 +294,7 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
   final Color mentionBackground;
   final Color spoilerBackground;
   final Color spoilerOverlayHoverColor;
+  final Color modalScrim;
   final Color guildBannerGradient;
   final Color focusPrimary;
   final Color interactiveActive;
@@ -332,7 +304,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
 
   @override
   FluxerColorTheme copyWith({
-    // Background
     Color? backgroundPrimary,
     Color? backgroundSecondary,
     Color? backgroundSecondaryLighter,
@@ -349,19 +320,16 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     Color? backgroundModifierSelected,
     Color? backgroundModifierAccent,
     Color? backgroundModifierAccentFocus,
-    // Brand
     Color? brandPrimary,
     Color? brandSecondary,
     Color? brandPrimaryLight,
     Color? brandPrimaryFill,
-    // Status
     Color? statusOnline,
     Color? statusIdle,
     Color? statusDnd,
     Color? statusOffline,
     Color? statusDanger,
     Color? statusWarning,
-    // Text
     Color? textPrimary,
     Color? textSecondary,
     Color? textTertiary,
@@ -376,24 +344,20 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     Color? textDanger,
     Color? textPositive,
     Color? textCode,
-    // Border
     Color? borderColor,
     Color? borderColorHover,
     Color? borderColorFocus,
-    // Accent
     Color? accentPrimary,
     Color? accentSuccess,
     Color? accentWarning,
     Color? accentDanger,
     Color? accentInfo,
     Color? accentPurple,
-    // Alert
     Color? alertNote,
     Color? alertTip,
     Color? alertImportant,
     Color? alertWarning,
     Color? alertCaution,
-    // Markup
     Color? markupMentionText,
     Color? markupMentionFill,
     Color? markupMentionBorder,
@@ -408,7 +372,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     Color? markupHereText,
     Color? markupHereFill,
     Color? markupHereBorder,
-    // Button
     Color? buttonPrimaryFill,
     Color? buttonPrimaryActiveFill,
     Color? buttonPrimaryText,
@@ -428,12 +391,10 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     Color? buttonOutlineBorder,
     Color? buttonOutlineText,
     Color? buttonOutlineActiveFill,
-    // Panel Control
     Color? panelControlBg,
     Color? panelControlBorder,
     Color? panelControlDivider,
     Color? panelControlHighlight,
-    // Control Button
     Color? controlButtonNormalBg,
     Color? controlButtonNormalText,
     Color? controlButtonHoverBg,
@@ -442,30 +403,26 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     Color? controlButtonActiveText,
     Color? controlButtonDangerText,
     Color? controlButtonDangerHoverBg,
-    // Switch
     Color? switchTrackInactive,
     Color? switchThumb,
     Color? switchThumbCheckedIcon,
     Color? switchThumbUncheckedIcon,
-    // Menu
     Color? menuDangerText,
-    // Content Background
     Color? bgCode,
     Color? bgCodeBlock,
     Color? bgTableHeader,
     Color? bgTableRowOdd,
     Color? bgTableRowEven,
-    // Interactive Surface
     Color? surfaceInteractiveHoverBg,
     Color? surfaceInteractiveSelectedBg,
     Color? surfaceInteractiveSelectedColor,
-    // Scrollbar
+    Color? listItemSelectedBg,
+    Color? listItemSelectedBorder,
+    Color? listItemPressedBg,
     Color? scrollbarThumbBg,
     Color? scrollbarThumbBgHover,
     Color? scrollbarTrackBg,
-    // Text Selection
     Color? textSelection,
-    // UI-specific
     Color? chatBackground,
     Color? chatInputBackground,
     Color? serverSidebarBackground,
@@ -480,6 +437,7 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     Color? mentionBackground,
     Color? spoilerBackground,
     Color? spoilerOverlayHoverColor,
+    Color? modalScrim,
     Color? guildBannerGradient,
     Color? focusPrimary,
     Color? interactiveActive,
@@ -488,7 +446,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
     Color? interactiveMuted,
   }) {
     return FluxerColorTheme(
-      // Background
       backgroundPrimary: backgroundPrimary ?? this.backgroundPrimary,
       backgroundSecondary: backgroundSecondary ?? this.backgroundSecondary,
       backgroundSecondaryLighter:
@@ -515,19 +472,16 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
           backgroundModifierAccent ?? this.backgroundModifierAccent,
       backgroundModifierAccentFocus:
           backgroundModifierAccentFocus ?? this.backgroundModifierAccentFocus,
-      // Brand
       brandPrimary: brandPrimary ?? this.brandPrimary,
       brandSecondary: brandSecondary ?? this.brandSecondary,
       brandPrimaryLight: brandPrimaryLight ?? this.brandPrimaryLight,
       brandPrimaryFill: brandPrimaryFill ?? this.brandPrimaryFill,
-      // Status
       statusOnline: statusOnline ?? this.statusOnline,
       statusIdle: statusIdle ?? this.statusIdle,
       statusDnd: statusDnd ?? this.statusDnd,
       statusOffline: statusOffline ?? this.statusOffline,
       statusDanger: statusDanger ?? this.statusDanger,
       statusWarning: statusWarning ?? this.statusWarning,
-      // Text
       textPrimary: textPrimary ?? this.textPrimary,
       textSecondary: textSecondary ?? this.textSecondary,
       textTertiary: textTertiary ?? this.textTertiary,
@@ -543,24 +497,20 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
       textDanger: textDanger ?? this.textDanger,
       textPositive: textPositive ?? this.textPositive,
       textCode: textCode ?? this.textCode,
-      // Border
       borderColor: borderColor ?? this.borderColor,
       borderColorHover: borderColorHover ?? this.borderColorHover,
       borderColorFocus: borderColorFocus ?? this.borderColorFocus,
-      // Accent
       accentPrimary: accentPrimary ?? this.accentPrimary,
       accentSuccess: accentSuccess ?? this.accentSuccess,
       accentWarning: accentWarning ?? this.accentWarning,
       accentDanger: accentDanger ?? this.accentDanger,
       accentInfo: accentInfo ?? this.accentInfo,
       accentPurple: accentPurple ?? this.accentPurple,
-      // Alert
       alertNote: alertNote ?? this.alertNote,
       alertTip: alertTip ?? this.alertTip,
       alertImportant: alertImportant ?? this.alertImportant,
       alertWarning: alertWarning ?? this.alertWarning,
       alertCaution: alertCaution ?? this.alertCaution,
-      // Markup
       markupMentionText: markupMentionText ?? this.markupMentionText,
       markupMentionFill: markupMentionFill ?? this.markupMentionFill,
       markupMentionBorder: markupMentionBorder ?? this.markupMentionBorder,
@@ -578,7 +528,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
       markupHereText: markupHereText ?? this.markupHereText,
       markupHereFill: markupHereFill ?? this.markupHereFill,
       markupHereBorder: markupHereBorder ?? this.markupHereBorder,
-      // Button
       buttonPrimaryFill: buttonPrimaryFill ?? this.buttonPrimaryFill,
       buttonPrimaryActiveFill:
           buttonPrimaryActiveFill ?? this.buttonPrimaryActiveFill,
@@ -606,13 +555,11 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
       buttonOutlineText: buttonOutlineText ?? this.buttonOutlineText,
       buttonOutlineActiveFill:
           buttonOutlineActiveFill ?? this.buttonOutlineActiveFill,
-      // Panel Control
       panelControlBg: panelControlBg ?? this.panelControlBg,
       panelControlBorder: panelControlBorder ?? this.panelControlBorder,
       panelControlDivider: panelControlDivider ?? this.panelControlDivider,
       panelControlHighlight:
           panelControlHighlight ?? this.panelControlHighlight,
-      // Control Button
       controlButtonNormalBg:
           controlButtonNormalBg ?? this.controlButtonNormalBg,
       controlButtonNormalText:
@@ -628,22 +575,18 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
           controlButtonDangerText ?? this.controlButtonDangerText,
       controlButtonDangerHoverBg:
           controlButtonDangerHoverBg ?? this.controlButtonDangerHoverBg,
-      // Switch
       switchTrackInactive: switchTrackInactive ?? this.switchTrackInactive,
       switchThumb: switchThumb ?? this.switchThumb,
       switchThumbCheckedIcon:
           switchThumbCheckedIcon ?? this.switchThumbCheckedIcon,
       switchThumbUncheckedIcon:
           switchThumbUncheckedIcon ?? this.switchThumbUncheckedIcon,
-      // Menu
       menuDangerText: menuDangerText ?? this.menuDangerText,
-      // Content Background
       bgCode: bgCode ?? this.bgCode,
       bgCodeBlock: bgCodeBlock ?? this.bgCodeBlock,
       bgTableHeader: bgTableHeader ?? this.bgTableHeader,
       bgTableRowOdd: bgTableRowOdd ?? this.bgTableRowOdd,
       bgTableRowEven: bgTableRowEven ?? this.bgTableRowEven,
-      // Interactive Surface
       surfaceInteractiveHoverBg:
           surfaceInteractiveHoverBg ?? this.surfaceInteractiveHoverBg,
       surfaceInteractiveSelectedBg:
@@ -651,14 +594,15 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
       surfaceInteractiveSelectedColor:
           surfaceInteractiveSelectedColor ??
           this.surfaceInteractiveSelectedColor,
-      // Scrollbar
+      listItemSelectedBg: listItemSelectedBg ?? this.listItemSelectedBg,
+      listItemSelectedBorder:
+          listItemSelectedBorder ?? this.listItemSelectedBorder,
+      listItemPressedBg: listItemPressedBg ?? this.listItemPressedBg,
       scrollbarThumbBg: scrollbarThumbBg ?? this.scrollbarThumbBg,
       scrollbarThumbBgHover:
           scrollbarThumbBgHover ?? this.scrollbarThumbBgHover,
       scrollbarTrackBg: scrollbarTrackBg ?? this.scrollbarTrackBg,
-      // Text Selection
       textSelection: textSelection ?? this.textSelection,
-      // UI-specific
       chatBackground: chatBackground ?? this.chatBackground,
       chatInputBackground: chatInputBackground ?? this.chatInputBackground,
       serverSidebarBackground:
@@ -676,6 +620,7 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
       spoilerBackground: spoilerBackground ?? this.spoilerBackground,
       spoilerOverlayHoverColor:
           spoilerOverlayHoverColor ?? this.spoilerOverlayHoverColor,
+      modalScrim: modalScrim ?? this.modalScrim,
       guildBannerGradient: guildBannerGradient ?? this.guildBannerGradient,
       focusPrimary: focusPrimary ?? this.focusPrimary,
       interactiveActive: interactiveActive ?? this.interactiveActive,
@@ -691,7 +636,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
       return this;
     }
     return FluxerColorTheme(
-      // Background
       backgroundPrimary: Color.lerp(
         backgroundPrimary,
         other.backgroundPrimary,
@@ -772,7 +716,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.backgroundModifierAccentFocus,
         t,
       )!,
-      // Brand
       brandPrimary: Color.lerp(brandPrimary, other.brandPrimary, t)!,
       brandSecondary: Color.lerp(brandSecondary, other.brandSecondary, t)!,
       brandPrimaryLight: Color.lerp(
@@ -785,14 +728,12 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.brandPrimaryFill,
         t,
       )!,
-      // Status
       statusOnline: Color.lerp(statusOnline, other.statusOnline, t)!,
       statusIdle: Color.lerp(statusIdle, other.statusIdle, t)!,
       statusDnd: Color.lerp(statusDnd, other.statusDnd, t)!,
       statusOffline: Color.lerp(statusOffline, other.statusOffline, t)!,
       statusDanger: Color.lerp(statusDanger, other.statusDanger, t)!,
       statusWarning: Color.lerp(statusWarning, other.statusWarning, t)!,
-      // Text
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
       textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
       textTertiary: Color.lerp(textTertiary, other.textTertiary, t)!,
@@ -823,7 +764,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
       textDanger: Color.lerp(textDanger, other.textDanger, t)!,
       textPositive: Color.lerp(textPositive, other.textPositive, t)!,
       textCode: Color.lerp(textCode, other.textCode, t)!,
-      // Border
       borderColor: Color.lerp(borderColor, other.borderColor, t)!,
       borderColorHover: Color.lerp(
         borderColorHover,
@@ -835,20 +775,17 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.borderColorFocus,
         t,
       )!,
-      // Accent
       accentPrimary: Color.lerp(accentPrimary, other.accentPrimary, t)!,
       accentSuccess: Color.lerp(accentSuccess, other.accentSuccess, t)!,
       accentWarning: Color.lerp(accentWarning, other.accentWarning, t)!,
       accentDanger: Color.lerp(accentDanger, other.accentDanger, t)!,
       accentInfo: Color.lerp(accentInfo, other.accentInfo, t)!,
       accentPurple: Color.lerp(accentPurple, other.accentPurple, t)!,
-      // Alert
       alertNote: Color.lerp(alertNote, other.alertNote, t)!,
       alertTip: Color.lerp(alertTip, other.alertTip, t)!,
       alertImportant: Color.lerp(alertImportant, other.alertImportant, t)!,
       alertWarning: Color.lerp(alertWarning, other.alertWarning, t)!,
       alertCaution: Color.lerp(alertCaution, other.alertCaution, t)!,
-      // Markup
       markupMentionText: Color.lerp(
         markupMentionText,
         other.markupMentionText,
@@ -911,7 +848,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.markupHereBorder,
         t,
       )!,
-      // Button
       buttonPrimaryFill: Color.lerp(
         buttonPrimaryFill,
         other.buttonPrimaryFill,
@@ -1003,7 +939,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.buttonOutlineActiveFill,
         t,
       )!,
-      // Panel Control
       panelControlBg: Color.lerp(panelControlBg, other.panelControlBg, t)!,
       panelControlBorder: Color.lerp(
         panelControlBorder,
@@ -1020,7 +955,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.panelControlHighlight,
         t,
       )!,
-      // Control Button
       controlButtonNormalBg: Color.lerp(
         controlButtonNormalBg,
         other.controlButtonNormalBg,
@@ -1061,7 +995,6 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.controlButtonDangerHoverBg,
         t,
       )!,
-      // Switch
       switchTrackInactive: Color.lerp(
         switchTrackInactive,
         other.switchTrackInactive,
@@ -1078,15 +1011,12 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.switchThumbUncheckedIcon,
         t,
       )!,
-      // Menu
       menuDangerText: Color.lerp(menuDangerText, other.menuDangerText, t)!,
-      // Content Background
       bgCode: Color.lerp(bgCode, other.bgCode, t)!,
       bgCodeBlock: Color.lerp(bgCodeBlock, other.bgCodeBlock, t)!,
       bgTableHeader: Color.lerp(bgTableHeader, other.bgTableHeader, t)!,
       bgTableRowOdd: Color.lerp(bgTableRowOdd, other.bgTableRowOdd, t)!,
       bgTableRowEven: Color.lerp(bgTableRowEven, other.bgTableRowEven, t)!,
-      // Interactive Surface
       surfaceInteractiveHoverBg: Color.lerp(
         surfaceInteractiveHoverBg,
         other.surfaceInteractiveHoverBg,
@@ -1102,7 +1032,21 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.surfaceInteractiveSelectedColor,
         t,
       )!,
-      // Scrollbar
+      listItemSelectedBg: Color.lerp(
+        listItemSelectedBg,
+        other.listItemSelectedBg,
+        t,
+      )!,
+      listItemSelectedBorder: Color.lerp(
+        listItemSelectedBorder,
+        other.listItemSelectedBorder,
+        t,
+      )!,
+      listItemPressedBg: Color.lerp(
+        listItemPressedBg,
+        other.listItemPressedBg,
+        t,
+      )!,
       scrollbarThumbBg: Color.lerp(
         scrollbarThumbBg,
         other.scrollbarThumbBg,
@@ -1118,9 +1062,7 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.scrollbarTrackBg,
         t,
       )!,
-      // Text Selection
       textSelection: Color.lerp(textSelection, other.textSelection, t)!,
-      // UI-specific
       chatBackground: Color.lerp(chatBackground, other.chatBackground, t)!,
       chatInputBackground: Color.lerp(
         chatInputBackground,
@@ -1179,6 +1121,7 @@ class FluxerColorTheme extends ThemeExtension<FluxerColorTheme> {
         other.spoilerOverlayHoverColor,
         t,
       )!,
+      modalScrim: Color.lerp(modalScrim, other.modalScrim, t)!,
       guildBannerGradient: Color.lerp(
         guildBannerGradient,
         other.guildBannerGradient,

@@ -7,7 +7,6 @@ import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-/// Identity header for sheets: avatar, title, optional subtitle, close button.
 class FluxerSheetIdentityHeader extends StatelessWidget {
   const FluxerSheetIdentityHeader({
     required this.leading,
@@ -123,7 +122,6 @@ class FluxerSheetIdentityHeader extends StatelessWidget {
   }
 }
 
-/// Standard close affordance for sheet headers.
 class FluxerSheetCloseButton extends StatelessWidget {
   const FluxerSheetCloseButton({
     required this.onTap,
@@ -146,34 +144,6 @@ class FluxerSheetCloseButton extends StatelessWidget {
       iconSize: 18,
       onPressed: onTap,
       semanticLabel: semanticLabel ?? l10n.uiClose,
-    );
-  }
-}
-
-/// Scroll-to-bottom affordance for chat message lists.
-class FluxerJumpToBottomButton extends StatelessWidget {
-  const FluxerJumpToBottomButton({
-    required this.onTap,
-    this.enabled = true,
-    this.isLoading = false,
-    super.key,
-  });
-
-  final VoidCallback onTap;
-  final bool enabled;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
-    return FluxerButton.circle(
-      icon: PhosphorIconsBold.arrowDown,
-      variant: FluxerButtonVariant.inverted,
-      size: FluxerButtonSize.small,
-      iconSize: 18,
-      isLoading: isLoading,
-      onPressed: enabled ? onTap : null,
-      semanticLabel: l10n.chatJumpToBottom,
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/favorite_meme.dart';
 import 'package:fluxer_app/features/chat/domain/gif_selection.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/expression_segmented_tabs.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/inline_expression_panel.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/attachment_panel_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/bottom_input_slot_provider.dart';
@@ -17,7 +18,7 @@ import 'package:fluxer_app/features/chat/utils/composer/bottom_input_slot_layout
 import 'package:fluxer_app/features/chat/utils/composer/composer_panel.dart';
 import 'package:fluxer_app/features/chat/utils/composer/inline_expression_panel_layout.dart';
 import 'package:fluxer_app/features/chat/utils/composer/inline_expression_panel_scroll_physics.dart';
-import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
+import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/gestures/expandable_sheet_gestures.dart';
 import 'package:fluxer_app/shared/gestures/nested_horizontal_scrollable.dart';
@@ -28,9 +29,21 @@ const Key kChatExpressionSheetDragHandleKey = Key(
 );
 const double kExpressionSheetContentDragSlop = 8;
 const double kExpressionPanelMinContentHeight = 1;
+const double kExpressionSheetCornerRadius = 14;
+const double kExpressionSheetRubberBandLimit = 60;
+const double kExpressionSheetRubberBandSpan = 150;
+const double kExpressionSheetScrimOpacity = 0.5;
 final GlobalKey kChatExpressionSheetDragHeaderKey = GlobalKey(
   debugLabel: 'chat-expression-sheet-drag-header',
 );
+
+double expressionSheetRubberBandOffset(double overshoot) {
+  if (overshoot <= 0) {
+    return 0;
+  }
+  return kExpressionSheetRubberBandLimit *
+      (1 - 1 / (overshoot / kExpressionSheetRubberBandSpan + 1));
+}
 
 class ChatExpressionExpandableSheet extends ConsumerStatefulWidget {
   const ChatExpressionExpandableSheet({
@@ -67,15 +80,20 @@ class ChatExpressionExpandableSheetState
   late final FocusNode _searchFocusNode;
   double _expandedHeightCache = 0;
   double? _lockedCollapsedHeight;
+  double? _dragVirtualHeight;
+  Curve _snapCurve = kComposerPanelMotionCurve;
+  final OverlayPortalController _scrimController = OverlayPortalController();
   bool? _dragWasPastCollapsed;
   bool _initialized = false;
   bool _isClosing = false;
+  double? _closingContentHeight;
   BottomInputSlot? _closingSlot;
   ComposerPanelClosing? _closingPanel;
   bool _isSearchFocused = false;
   bool _searchExpandScheduled = false;
   bool _suppressSearchExpand = false;
   bool _ignoreContentDrag = false;
+  bool _dragDismissedKeyboard = false;
   double _contentDragSlopAccumulated = 0;
   Timer? _closeTimer;
   int _lastHandledDismissRequest = 0;
@@ -87,6 +105,7 @@ class ChatExpressionExpandableSheetState
     _isDraggingNotifier = ValueNotifier<bool>(false);
     _searchFocusNode = FocusNode();
     _searchFocusNode.addListener(_onSearchFocusChanged);
+    _scrimController.show();
   }
 
   double _effectiveCollapsedHeight(double collapsedHeight) {
@@ -212,20 +231,29 @@ class ChatExpressionExpandableSheetState
       onVerticalDragStart: _onHeaderDragStart,
       onVerticalDragUpdate: _onHeaderDragUpdate,
       onVerticalDragEnd: _onHeaderDragEnd,
+      expand: _expandForBrowse,
     );
   }
 
+  void _expandForBrowse() {
+    _refreshExpandedHeight();
+    if (_isExpanded) {
+      return;
+    }
+    _snapToHeight(_expandedHeightCache);
+  }
+
   void _refreshExpandedHeight() {
-    final MediaQueryData mediaQuery = MediaQuery.of(context);
+    final MediaQueryData mediaQuery = MediaQueryData.fromView(View.of(context));
     final double screenHeight = mediaQuery.size.height;
     final double totalExpanded = inlineExpressionPanelExpandedHeight(
-      availableHeight: screenHeight * kInlineExpressionPanelMaxScreenFraction,
+      availableHeight: screenHeight,
       screenHeight: screenHeight,
       keyboardInset: 0,
-      topPadding: mediaQuery.viewPadding.top + kMobileChannelHeaderHeight,
-      topMargin: context.layout.s2,
+      topPadding: mediaQuery.viewPadding.top + kExpressionSheetTopInset,
+      topMargin: 0,
       viewPaddingBottom: mediaQuery.viewPadding.bottom,
-    ).clamp(0, screenHeight * kInlineExpressionPanelMaxScreenFraction);
+    );
     _expandedHeightCache = (totalExpanded - widget.dragHandleHeight).clamp(
       widget.collapsedHeight,
       screenHeight,
@@ -268,14 +296,20 @@ class ChatExpressionExpandableSheetState
     _isDraggingNotifier.value = false;
   }
 
-  void _adjustSheetHeight(double deltaDy) {
+  void _adjustSheetHeight(double deltaDy, {bool rubberBand = false}) {
     final double collapsed = _minHeight;
     final double expanded = _maxHeight;
     final double previousHeight = _height;
-    final double nextHeight = (previousHeight - deltaDy).clamp(
-      collapsed,
+    final double virtualHeight =
+        (_dragVirtualHeight ?? previousHeight) - deltaDy;
+    _dragVirtualHeight = virtualHeight.clamp(
+      rubberBand ? double.negativeInfinity : collapsed,
       expanded,
     );
+    final double nextHeight = virtualHeight >= collapsed
+        ? math.min(virtualHeight, expanded)
+        : collapsed -
+              expressionSheetRubberBandOffset(collapsed - virtualHeight);
     if (nextHeight == previousHeight && _isDraggingNotifier.value) {
       return;
     }
@@ -299,6 +333,7 @@ class ChatExpressionExpandableSheetState
   }
 
   void _onHeaderDragStart(DragStartDetails details) {
+    _dragVirtualHeight = _height;
     _isDraggingNotifier.value = true;
     _headerVelocityTracker.addPosition(
       details.sourceTimeStamp ?? Duration.zero,
@@ -311,7 +346,29 @@ class ChatExpressionExpandableSheetState
       details.sourceTimeStamp ?? Duration.zero,
       details.globalPosition,
     );
-    _adjustSheetHeight(details.delta.dy);
+    if (_dragDismissedKeyboard) {
+      return;
+    }
+    if (details.delta.dy > 0 && _searchFocusNode.hasFocus) {
+      _dismissKeyboardForDrag();
+      return;
+    }
+    _adjustSheetHeight(details.delta.dy, rubberBand: true);
+  }
+
+  void _dismissKeyboardForDrag() {
+    _dragDismissedKeyboard = true;
+    _searchFocusNode.unfocus();
+  }
+
+  bool _finishKeyboardDismissDrag() {
+    if (!_dragDismissedKeyboard) {
+      return false;
+    }
+    _dragDismissedKeyboard = false;
+    _isDraggingNotifier.value = false;
+    _resetDragHaptics();
+    return true;
   }
 
   double _resolveHeaderDragVelocity(DragEndDetails details) {
@@ -323,10 +380,14 @@ class ChatExpressionExpandableSheetState
   }
 
   void _onHeaderDragEnd(DragEndDetails details) {
+    if (_finishKeyboardDismissDrag()) {
+      return;
+    }
     _snapFromVelocity(_resolveHeaderDragVelocity(details));
   }
 
   void _onContentPointerDown(PointerDownEvent event) {
+    _dragVirtualHeight = null;
     _contentVelocityTracker.addPosition(event.timeStamp, event.position);
     _contentDragSlopAccumulated = 0;
     _ignoreContentDrag = _isPointerOverEditable(event);
@@ -352,6 +413,16 @@ class ChatExpressionExpandableSheetState
       return;
     }
     final double deltaDy = event.delta.dy;
+    if (_dragDismissedKeyboard) {
+      return;
+    }
+    if (deltaDy > 0 && _searchFocusNode.hasFocus) {
+      _contentDragSlopAccumulated += deltaDy;
+      if (_contentDragSlopAccumulated >= kExpressionSheetContentDragSlop) {
+        _dismissKeyboardForDrag();
+      }
+      return;
+    }
     if (deltaDy > 0 && _height <= _minHeight + 1) {
       return;
     }
@@ -370,6 +441,10 @@ class ChatExpressionExpandableSheetState
 
   void _onContentPointerEnd(PointerEvent event) {
     _contentDragSlopAccumulated = 0;
+    if (_finishKeyboardDismissDrag()) {
+      _ignoreContentDrag = false;
+      return;
+    }
     if (_ignoreContentDrag) {
       _ignoreContentDrag = false;
       return;
@@ -396,14 +471,22 @@ class ChatExpressionExpandableSheetState
       case InlineExpressionPanelSnapTarget.close:
         _beginCloseAnimation();
       case InlineExpressionPanelSnapTarget.anchor:
-        _snapToHeight(_minHeight);
+        _snapToHeight(_minHeight, releaseVelocity: velocity);
       case InlineExpressionPanelSnapTarget.expanded:
-        _snapToHeight(_expandedHeightCache);
+        _snapToHeight(_expandedHeightCache, releaseVelocity: velocity);
     }
   }
 
-  void _snapToHeight(double target) {
+  void _snapToHeight(double target, {double releaseVelocity = 0}) {
+    _dragVirtualHeight = null;
     final double clampedTarget = target.clamp(_minHeight, _maxHeight);
+    _snapCurve = _height < _minHeight
+        ? kComposerPanelMotionCurve
+        : ComposerPanelSpringCurve.fromRelease(
+            fromHeight: _height,
+            toHeight: clampedTarget,
+            heightVelocity: -releaseVelocity,
+          );
     updateExpandableSheetHeight(
       heightNotifier: _heightNotifier,
       nextHeight: clampedTarget,
@@ -429,14 +512,24 @@ class ChatExpressionExpandableSheetState
     _closeTimer?.cancel();
 
     final double startContentHeight = _height;
-    final double slotHeight = ref.read(bottomInputSlotProvider).slotHeight;
-    final double animateSlotFrom = slotHeight > 0
-        ? slotHeight
+    final BottomInputSlotState slot = ref.read(bottomInputSlotProvider);
+    final double animateSlotFrom = slot.slotHeight > 0
+        ? slot.slotHeight
         : _totalHeightFor(startContentHeight);
+    _closingContentHeight = _minHeight;
     if (animateSlotFrom > 0) {
       ref
           .read(bottomInputSlotProvider.notifier)
-          .holdSlotHeight(animateSlotFrom);
+          .holdSlotHeight(
+            slot.transition == BottomInputTransition.lockingToKeyboard
+                ? animateSlotFrom
+                : bottomInputKeyboardSpacerHeight(
+                    slotHeight: 0,
+                    homeIndicatorInset: bottomInputHomeIndicatorInset(
+                      MediaQuery.of(context),
+                    ),
+                  ),
+          );
     }
 
     final ComposerPanelClosing closingPanel = ref.read(
@@ -445,6 +538,7 @@ class ChatExpressionExpandableSheetState
     _closingSlot = ref.read(bottomInputSlotProvider.notifier);
     _closingPanel = closingPanel;
     closingPanel.start();
+    _snapCurve = kComposerPanelMotionCurve;
     updateExpandableSheetHeight(heightNotifier: _heightNotifier, nextHeight: 0);
     _isDraggingNotifier.value = false;
     setState(() {
@@ -455,10 +549,7 @@ class ChatExpressionExpandableSheetState
       playExpandableSheetDismissHaptic();
     }
 
-    final Duration duration = expandableSheetSnapDuration(
-      context,
-      isDragging: false,
-    );
+    final Duration duration = composerPanelMotionDuration(context);
     if (duration == Duration.zero) {
       _completeCloseAnimation();
       return;
@@ -478,7 +569,10 @@ class ChatExpressionExpandableSheetState
     if (!mounted) {
       return;
     }
-    setState(() => _isClosing = false);
+    setState(() {
+      _isClosing = false;
+      _closingContentHeight = null;
+    });
     ref.read(bottomInputSlotProvider.notifier).clearHeldSlotHeight();
     ref.read(composerPanelClosingProvider.notifier).reset();
     _closingSlot = null;
@@ -525,6 +619,10 @@ class ChatExpressionExpandableSheetState
     _snapToDockedIfNeeded();
   }
 
+  void _onBackspace() {
+    ref.read(pendingComposerBackspaceProvider.notifier).request();
+  }
+
   @visibleForTesting
   void closeForTest() {
     _beginCloseAnimation();
@@ -564,8 +662,7 @@ class ChatExpressionExpandableSheetState
         }
         _beginCloseAnimation(playDismissHaptic: false);
       });
-    final colors = context.colors;
-    final Color sheetBackground = colors.chatInputBackground;
+    final Color sheetBackground = expressionSheetSurfaceColor(context);
     final double homeIndicatorInset = inlineExpressionPanelHomeIndicatorInset(
       MediaQuery.of(context),
     );
@@ -579,71 +676,69 @@ class ChatExpressionExpandableSheetState
             required bool isDragging,
             required Widget child,
           }) {
-            final double totalHeight = _totalHeightFor(height);
-            final bool showSheetBody = totalHeight > widget.dragHandleHeight;
             return expandableSheetAnimatedSize(
               context: context,
               isDragging: isDragging,
-              height: totalHeight,
-              decoration: BoxDecoration(color: sheetBackground),
-              child: showSheetBody
-                  ? ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
-                      ),
-                      child: DecoratedBox(
-                        decoration: const BoxDecoration(
-                          boxShadow: <BoxShadow>[
-                            BoxShadow(
-                              color: Color.fromRGBO(0, 0, 0, 0.15),
-                              blurRadius: 12,
-                              offset: Offset(0, -2),
-                            ),
-                          ],
-                        ),
-                        child: Opacity(
-                          opacity: _isClosing ? 0 : 1,
-                          child: IgnorePointer(
-                            ignoring: _isClosing,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: <Widget>[
-                                ExpandableSheetDragTarget(
-                                  key: kChatExpressionSheetDragHeaderKey,
-                                  onVerticalDragStart: _onHeaderDragStart,
-                                  onVerticalDragUpdate: _onHeaderDragUpdate,
-                                  onVerticalDragEnd: _onHeaderDragEnd,
-                                  child: SizedBox(
-                                    key: kChatExpressionSheetDragHandleKey,
-                                    height: widget.dragHandleHeight,
-                                    width: double.infinity,
-                                    child: const IgnorePointer(
-                                      child: FluxerBottomSheetDragHandle(
-                                        includeTopPadding: false,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: ClipRect(
-                                    child: OverflowBox(
-                                      alignment: Alignment.topCenter,
-                                      maxHeight: double.infinity,
-                                      child: SizedBox(
-                                        height: math.max(height, _minHeight),
-                                        width: double.infinity,
-                                        child: child,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+              composerPanelMotion: true,
+              composerPanelCurve: _snapCurve,
+              height: _totalHeightFor(height),
+              decoration: BoxDecoration(
+                color: sheetBackground,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(kExpressionSheetCornerRadius),
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: IgnorePointer(
+                ignoring: _isClosing,
+                child: LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints constraints) {
+                    final double columnHeight = math.max(
+                      constraints.maxHeight,
+                      widget.dragHandleHeight,
+                    );
+                    return OverflowBox(
+                      alignment: Alignment.topCenter,
+                      minHeight: columnHeight,
+                      maxHeight: columnHeight,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          ExpandableSheetDragTarget(
+                            key: kChatExpressionSheetDragHeaderKey,
+                            onVerticalDragStart: _onHeaderDragStart,
+                            onVerticalDragUpdate: _onHeaderDragUpdate,
+                            onVerticalDragEnd: _onHeaderDragEnd,
+                            child: SizedBox(
+                              key: kChatExpressionSheetDragHandleKey,
+                              height: widget.dragHandleHeight,
+                              width: double.infinity,
+                              child: const IgnorePointer(
+                                child: _ExpressionSheetHandle(),
+                              ),
                             ),
                           ),
-                        ),
+                          Expanded(
+                            child: ClipRect(
+                              child: OverflowBox(
+                                alignment: Alignment.topCenter,
+                                maxHeight: double.infinity,
+                                child: SizedBox(
+                                  height:
+                                      _closingContentHeight ??
+                                      math.max(height, _minHeight),
+                                  width: double.infinity,
+                                  child: child,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-                  : const SizedBox.shrink(),
+                    );
+                  },
+                ),
+              ),
             );
           },
       child: RepaintBoundary(
@@ -662,22 +757,109 @@ class ChatExpressionExpandableSheetState
           onGifSelect: _onGifSelect,
           onStickerSelect: _onStickerSelect,
           onFavoriteMemeSelect: _onFavoriteMemeSelect,
+          onBackspace: _onBackspace,
           contentBuilder: widget.contentBuilder,
         ),
       ),
     );
-    return Column(
-      key: kChatExpressionSheetKey,
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        sheetBody,
-        if (!_isClosing && homeIndicatorInset > 0)
-          ColoredBox(
-            color: sheetBackground,
-            child: SizedBox(height: homeIndicatorInset),
+    return OverlayPortal(
+      controller: _scrimController,
+      overlayChildBuilder: _buildScrim,
+      child: Column(
+        key: kChatExpressionSheetKey,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          sheetBody,
+          expandableSheetAnimatedSize(
+            context: context,
+            isDragging: false,
+            composerPanelMotion: true,
+            height: _isClosing ? 0 : homeIndicatorInset,
+            decoration: BoxDecoration(color: sheetBackground),
+            child: const SizedBox.shrink(),
           ),
-      ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScrim(BuildContext context) {
+    return ExpandableSheetHeightBuilder(
+      heightNotifier: _heightNotifier,
+      isDraggingNotifier: _isDraggingNotifier,
+      sizeBuilder:
+          (
+            BuildContext context,
+            double height, {
+            required bool isDragging,
+            required Widget child,
+          }) {
+            final MediaQueryData mediaQuery = MediaQuery.of(context);
+            final double span = _maxHeight - _minHeight;
+            final double progress = _isClosing || span <= 1
+                ? 0
+                : ((height - _minHeight) / span).clamp(0.0, 1.0);
+            final double sheetTop =
+                mediaQuery.size.height -
+                inlineExpressionPanelHomeIndicatorInset(mediaQuery) -
+                _totalHeightFor(height);
+            final Duration duration = isDragging
+                ? Duration.zero
+                : composerPanelMotionDuration(context);
+            return Stack(
+              children: <Widget>[
+                AnimatedPositioned(
+                  duration: duration,
+                  curve: _snapCurve,
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: math.max(0, sheetTop),
+                  child: IgnorePointer(
+                    ignoring: progress <= 0,
+                    child: FluxerGestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _snapToDockedIfNeeded,
+                      child: AnimatedOpacity(
+                        duration: duration,
+                        curve: _snapCurve,
+                        opacity: progress,
+                        child: child,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+      child: const ColoredBox(
+        color: Color.fromRGBO(0, 0, 0, kExpressionSheetScrimOpacity),
+      ),
+    );
+  }
+}
+
+class _ExpressionSheetHandle extends StatelessWidget {
+  const _ExpressionSheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: const EdgeInsets.only(
+          top: kInlineExpressionPanelDragHandleTop,
+        ),
+        child: Container(
+          width: kInlineExpressionPanelDragHandleWidth,
+          height: kInlineExpressionPanelDragHandleThickness,
+          decoration: BoxDecoration(
+            color: context.colors.textTertiarySecondary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -698,6 +880,7 @@ class _ExpressionSheetBody extends StatefulWidget {
     required this.onGifSelect,
     required this.onStickerSelect,
     required this.onFavoriteMemeSelect,
+    required this.onBackspace,
     this.contentBuilder,
   });
 
@@ -715,6 +898,7 @@ class _ExpressionSheetBody extends StatefulWidget {
   final ValueChanged<FluxerSelectedGif> onGifSelect;
   final ValueChanged<StickerEntry> onStickerSelect;
   final ValueChanged<FavoriteMemeSelection> onFavoriteMemeSelect;
+  final VoidCallback onBackspace;
   final Widget Function(
     BuildContext context,
     ScrollController scrollController,
@@ -726,25 +910,36 @@ class _ExpressionSheetBody extends StatefulWidget {
 }
 
 class _ExpressionSheetBodyState extends State<_ExpressionSheetBody> {
-  late final ScrollPhysics _dockedScrollPhysics;
-  late final ScrollPhysics _expandedScrollPhysics;
-  late ScrollPhysics _scrollPhysics;
+  ScrollPhysics? _parentScrollPhysics;
+  late ScrollPhysics _dockedScrollPhysics;
+  late ScrollPhysics _expandedScrollPhysics;
   late bool _isSheetExpanded;
 
   @override
   void initState() {
     super.initState();
+    _isSheetExpanded = _isExpandedHeight(widget.heightNotifier.value);
+    widget.heightNotifier.addListener(_onHeightChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ScrollPhysics parent = ScrollConfiguration.of(
+      context,
+    ).getScrollPhysics(context);
+    if (identical(parent, _parentScrollPhysics)) {
+      return;
+    }
+    _parentScrollPhysics = parent;
     _dockedScrollPhysics = inlineExpressionPanelContentScrollPhysics(
       isSheetExpanded: false,
+      parent: parent,
     );
     _expandedScrollPhysics = inlineExpressionPanelContentScrollPhysics(
       isSheetExpanded: true,
+      parent: parent,
     );
-    _isSheetExpanded = _isExpandedHeight(widget.heightNotifier.value);
-    _scrollPhysics = _isSheetExpanded
-        ? _expandedScrollPhysics
-        : _dockedScrollPhysics;
-    widget.heightNotifier.addListener(_onHeightChanged);
   }
 
   @override
@@ -754,12 +949,7 @@ class _ExpressionSheetBodyState extends State<_ExpressionSheetBody> {
       final double height = widget.heightNotifier.value;
       final bool nextExpanded = _isExpandedHeight(height);
       if (nextExpanded != _isSheetExpanded) {
-        setState(() {
-          _isSheetExpanded = nextExpanded;
-          _scrollPhysics = nextExpanded
-              ? _expandedScrollPhysics
-              : _dockedScrollPhysics;
-        });
+        setState(() => _isSheetExpanded = nextExpanded);
       }
     }
   }
@@ -779,12 +969,7 @@ class _ExpressionSheetBodyState extends State<_ExpressionSheetBody> {
     if (nextExpanded == _isSheetExpanded) {
       return;
     }
-    setState(() {
-      _isSheetExpanded = nextExpanded;
-      _scrollPhysics = nextExpanded
-          ? _expandedScrollPhysics
-          : _dockedScrollPhysics;
-    });
+    setState(() => _isSheetExpanded = nextExpanded);
   }
 
   @override
@@ -796,9 +981,11 @@ class _ExpressionSheetBodyState extends State<_ExpressionSheetBody> {
       onPointerUp: widget.onContentPointerEnd,
       onPointerCancel: widget.onContentPointerEnd,
       child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(
-          context,
-        ).copyWith(physics: _scrollPhysics),
+        behavior: ScrollConfiguration.of(context).copyWith(
+          physics: _isSheetExpanded
+              ? _expandedScrollPhysics
+              : _dockedScrollPhysics,
+        ),
         child: RepaintBoundary(
           child:
               widget.contentBuilder?.call(context, widget.scrollController) ??
@@ -812,6 +999,7 @@ class _ExpressionSheetBodyState extends State<_ExpressionSheetBody> {
                 onGifSelect: widget.onGifSelect,
                 onStickerSelect: widget.onStickerSelect,
                 onFavoriteMemeSelect: widget.onFavoriteMemeSelect,
+                onBackspace: widget.onBackspace,
               ),
         ),
       ),

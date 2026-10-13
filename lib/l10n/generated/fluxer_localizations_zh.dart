@@ -12,10 +12,79 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get reconnectingTitle => '我们出错了！';
 
   @override
+  String get chatJumpToPresent => '跳转到最新消息';
+
+  @override
+  String get chatViewingOlderMessages => '你正在查看较早的消息';
+
+  @override
+  String get chatNewMessagesBarJumpToFirstUnread => '跳转到第一条未读消息';
+
+  @override
+  String get chatNewMessagesBarMarkAsRead => '标为已读';
+
+  @override
+  String get chatNewMessagesBarMarkRead => '标为已读';
+
+  @override
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$compactTime 以来有 $unreadCountString+ 条新消息';
+  }
+
+  @override
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount 条新消息',
+    );
+    return '$compactTime 以来有 $_temp0';
+  }
+
+  @override
+  String chatNewMessagesBarNewSinceEstimated(
+    int unreadCount,
+    String shortTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$shortTime 以来有 $unreadCountString+ 条新消息';
+  }
+
+  @override
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount 条新消息',
+    );
+    return '$shortTime 以来有 $_temp0';
+  }
+
+  @override
   String get reconnectingBody => '实例出现问题。\n很快就会修复！';
 
   @override
   String get gatewayReconnectingToast => '正在重新连接…';
+
+  @override
+  String get gatewayReconnectTryAgain => '重试';
 
   @override
   String get gatewayConnectedToast => '已连接';
@@ -262,6 +331,9 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get next => '下一步';
 
   @override
+  String get create => 'Create';
+
+  @override
   String get mfaTitle => '双重认证';
 
   @override
@@ -296,6 +368,11 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
 
   @override
   String get accountRemoveDescription => '这会移除此账号的已保存会话。';
+
+  @override
+  String accountSignOutTitle(String identifier) {
+    return 'Sign out of $identifier?';
+  }
 
   @override
   String get accountExpired => '已过期';
@@ -1496,13 +1573,10 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get gifPickerSearch => '搜索 GIF';
 
   @override
-  String get gifPickerSearchKlipy => '搜索 KLIPY';
+  String get gifPickerSearchKlipy => '搜索 Klipy';
 
   @override
   String get gifPickerSearchTenor => '搜索 Tenor';
-
-  @override
-  String get gifPickerPoweredByKlipy => 'KLIPY';
 
   @override
   String get gifPickerFavorites => '收藏夹';
@@ -2286,10 +2360,6 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
 
   @override
   String get dangerZoneDeleteDescription => '永久删除你的账号和所有相关数据。此操作无法撤销。';
-
-  @override
-  String get dangerZoneDeleteCancelSubscription =>
-      '在删除账号前，请在 Plutonium 设置中取消您的有效 Plutonium 订阅。';
 
   @override
   String get dangerZoneDeleteCannotDeleteAccount => '无法删除账号';
@@ -5605,8 +5675,8 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# 条未读消息',
-      one: '# 条未读消息',
+      other: '$count 条未读消息',
+      one: '$count 条未读消息',
     );
     return '显示聊天（$_temp0）';
   }
@@ -5744,6 +5814,40 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get notificationsMessageUnavailable => '无法加载此消息。';
 
   @override
+  String notificationsMentionedYouIn(String author, String place) {
+    return '$author mentioned you in $place:';
+  }
+
+  @override
+  String notificationsRepliedToYouIn(String author, String place) {
+    return '$author replied to you in $place:';
+  }
+
+  @override
+  String notificationsMentionedYou(String author) {
+    return '$author mentioned you:';
+  }
+
+  @override
+  String notificationsRepliedToYou(String author) {
+    return '$author replied to you:';
+  }
+
+  @override
+  String notificationsMentionPlace(String server, String channel) {
+    return '$server – $channel';
+  }
+
+  @override
+  String get notificationsSendReply => 'Send a reply';
+
+  @override
+  String get notificationsRecentActivity => 'Recent activity';
+
+  @override
+  String get notificationsRemoveNotification => 'Remove notification';
+
+  @override
   String characterCounterRemaining(int remaining) {
     return '$remaining 个字符剩余';
   }
@@ -5762,6 +5866,9 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
 
   @override
   String get chatMessageFailedToSend => '消息发送失败';
+
+  @override
+  String get chatMessageFailedToSendTapForOptions => '发送消息失败。轻触以查看选项。';
 
   @override
   String chatSendFailureDmRestricted(String settingsPath) {
@@ -6158,8 +6265,8 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# 个社群',
-      one: '# 个社群',
+      other: '$count 个社群',
+      one: '$count 个社群',
     );
     return '除 $_temp0 外的所有社群';
   }
@@ -6169,8 +6276,8 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# 个社群',
-      one: '# 个社群',
+      other: '$count 个社群',
+      one: '$count 个社群',
     );
     return '仅限 $_temp0';
   }
@@ -6195,14 +6302,14 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# 小时',
-      one: '# 小时',
+      other: '$hours 小时',
+      one: '$hours 小时',
     );
     String _temp1 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# 分钟',
-      one: '# 分钟',
+      other: '$minutes 分钟',
+      one: '$minutes 分钟',
     );
     return '$_temp0又$_temp1';
   }
@@ -6212,8 +6319,8 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# 小时',
-      one: '# 小时',
+      other: '$hours 小时',
+      one: '$hours 小时',
     );
     return '$_temp0';
   }
@@ -6223,8 +6330,8 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# 分钟',
-      one: '# 分钟',
+      other: '$minutes 分钟',
+      one: '$minutes 分钟',
     );
     return '$_temp0';
   }
@@ -6234,8 +6341,8 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       seconds,
       locale: localeName,
-      other: '# 秒',
-      one: '# 秒',
+      other: '$seconds 秒',
+      one: '$seconds 秒',
     );
     return '$_temp0';
   }
@@ -6364,9 +6471,6 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
 
   @override
   String get forwardSuccessToast => '消息已转发';
-
-  @override
-  String get forwardFailed => '消息转发失败';
 
   @override
   String get forwardCommentSlowmodeDisabled => '由于所选频道启用了慢速模式，评论不可用。';
@@ -6751,6 +6855,12 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get chatEditNoChanges => '没有要保存的更改';
 
   @override
+  String get chatEditFailed => 'Your message didn\'t update';
+
+  @override
+  String get chatEditFailedEditAgain => 'Edit again';
+
+  @override
   String get chatChannelNotReady => '此频道尚未准备就绪。请稍后再试。';
 
   @override
@@ -6857,6 +6967,9 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
 
   @override
   String get composerAutocompleteStickersHeading => '贴纸';
+
+  @override
+  String get composerAutocompleteEmojisHeading => 'Emojis';
 
   @override
   String get composerAutocompleteGifsHeading => 'GIF';
@@ -8364,16 +8477,16 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get userSettingsGroupYourAccount => '你的账户';
 
   @override
-  String get userSettingsGroupBilling => 'BILLING';
+  String get userSettingsGroupBilling => 'Billing';
 
   @override
-  String get userSettingsGroupApplication => 'APPLICATION';
+  String get userSettingsGroupApplication => 'Application';
 
   @override
-  String get userSettingsGroupDeveloper => 'DEVELOPER';
+  String get userSettingsGroupDeveloper => 'Developer';
 
   @override
-  String get userSettingsGroupStaffOnly => 'STAFF-ONLY';
+  String get userSettingsGroupStaffOnly => 'Staff-only';
 
   @override
   String get userSettingsSearchPlaceholder => '搜索设置…';
@@ -10129,6 +10242,9 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get chatJumpToBottom => '跳至底部';
 
   @override
+  String get chatUnreadDividerNew => '新消息';
+
+  @override
   String get uiConfirm => '确认';
 
   @override
@@ -10419,7 +10535,7 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get scrollIndicatorNew => '新';
 
   @override
-  String get scrollIndicatorNewMessage => '新消息';
+  String get scrollIndicatorNewMessages => '新消息';
 
   @override
   String guildNavbarCollapseFolder(String folderName) {
@@ -12221,8 +12337,8 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '删除了 # 条消息。',
-      one: '删除了 # 条消息。',
+      other: '删除了 $count 条消息。',
+      one: '删除了 $count 条消息。',
     );
     return '$_temp0';
   }
@@ -12232,8 +12348,8 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '移除了 # 名成员。',
-      one: '移除了 # 名成员。',
+      other: '移除了 $count 名成员。',
+      one: '移除了 $count 名成员。',
     );
     return '$_temp0';
   }
@@ -12737,16 +12853,16 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get guildSettingsDeleteCommunityFailed => '无法删除此社区';
 
   @override
-  String get guildSettingsCategoryExpressions => 'EXPRESSIONS';
+  String get guildSettingsCategoryExpressions => 'Expressions';
 
   @override
-  String get guildSettingsCategoryCommunity => 'COMMUNITY';
+  String get guildSettingsCategoryCommunity => 'Community';
 
   @override
-  String get guildSettingsCategoryIntegrations => 'INTEGRATIONS';
+  String get guildSettingsCategoryIntegrations => 'Integrations';
 
   @override
-  String get guildSettingsCategoryPeople => 'PEOPLE';
+  String get guildSettingsCategoryPeople => 'People';
 
   @override
   String get guildSettingsOverviewBrandingTitle => '品牌';
@@ -13926,7 +14042,7 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get forumPostArchived => 'Archived';
 
   @override
-  String get forumPostNewBadge => 'NEW';
+  String get forumPostNewBadge => '新消息';
 
   @override
   String get forumPostStarterDeleted => 'The original message was deleted.';
@@ -13941,8 +14057,8 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new messages',
-      one: '1 new message',
+      other: '$count 条新消息',
+      one: '$count 条新消息',
     );
     return '$_temp0';
   }
@@ -14251,6 +14367,9 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String voiceP2pPeerFailedTitle(String name) {
     return 'Cannot connect directly to $name';
   }
+
+  @override
+  String get favoritesRenameCategory => '重命名类别';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -14261,10 +14380,80 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
   String get reconnectingTitle => '我們出錯了！';
 
   @override
+  String get chatJumpToPresent => '跳到最新訊息';
+
+  @override
+  String get chatViewingOlderMessages => '您正在檢視較舊的訊息';
+
+  @override
+  String get chatNewMessagesBarJumpToFirstUnread => '跳到第一則未讀訊息';
+
+  @override
+  String get chatNewMessagesBarMarkAsRead => '標示為已讀';
+
+  @override
+  String get chatNewMessagesBarMarkRead => '標示為已讀';
+
+  @override
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '自 $compactTime 起有超過 $unreadCountString 則新訊息';
+  }
+
+  @override
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount 則新訊息',
+      one: '$unreadCount 則新訊息',
+    );
+    return '自 $compactTime 起有 $_temp0';
+  }
+
+  @override
+  String chatNewMessagesBarNewSinceEstimated(
+    int unreadCount,
+    String shortTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '自 $shortTime 起有超過 $unreadCountString 則新訊息';
+  }
+
+  @override
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount 則新訊息',
+    );
+    return '自 $shortTime 起有 $_temp0';
+  }
+
+  @override
   String get reconnectingBody => '連線發生問題。\n幾秒鐘內就會修復！';
 
   @override
   String get gatewayReconnectingToast => '重新連線中…';
+
+  @override
+  String get gatewayReconnectTryAgain => '再試一次';
 
   @override
   String get gatewayConnectedToast => '已連線';
@@ -15742,13 +15931,10 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
   String get gifPickerSearch => '搜尋 GIF';
 
   @override
-  String get gifPickerSearchKlipy => '搜尋 KLIPY';
+  String get gifPickerSearchKlipy => '搜尋 Klipy';
 
   @override
   String get gifPickerSearchTenor => '搜尋 Tenor';
-
-  @override
-  String get gifPickerPoweredByKlipy => 'KLIPY';
 
   @override
   String get gifPickerFavorites => '我的最愛';
@@ -16420,7 +16606,7 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '已註冊 # 個通行金鑰',
+      other: '已註冊 $count 個通行金鑰',
       one: '已註冊 1 個通行金鑰',
     );
     return '$_temp0 (最多 10 個)';
@@ -16532,10 +16718,6 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
 
   @override
   String get dangerZoneDeleteDescription => '永久刪除您的帳號和所有相關資料。此動作無法復原。';
-
-  @override
-  String get dangerZoneDeleteCancelSubscription =>
-      '刪除帳號前，請先在 Plutonium 設定中取消您的 Plutonium 付費方案。';
 
   @override
   String get dangerZoneDeleteCannotDeleteAccount => '無法刪除帳號';
@@ -19767,8 +19949,8 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# 則未讀訊息',
-      one: '# 則未讀訊息',
+      other: '$count 則未讀訊息',
+      one: '$count 則未讀訊息',
     );
     return '顯示聊天（有 $_temp0）';
   }
@@ -19924,6 +20106,9 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
 
   @override
   String get chatMessageFailedToSend => '訊息傳送失敗';
+
+  @override
+  String get chatMessageFailedToSendTapForOptions => '無法傳送訊息。輕觸以選擇選項。';
 
   @override
   String chatSendFailureDmRestricted(String settingsPath) {
@@ -20323,8 +20508,8 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# 個社群',
-      one: '# 個社群',
+      other: '$count 個社群',
+      one: '$count 個社群',
     );
     return '所有社群，除了 $_temp0';
   }
@@ -20334,8 +20519,8 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# 個社群',
-      one: '# 個社群',
+      other: '$count 個社群',
+      one: '$count 個社群',
     );
     return '僅限 $_temp0';
   }
@@ -20360,14 +20545,14 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# 小時',
-      one: '# 小時',
+      other: '$hours 小時',
+      one: '$hours 小時',
     );
     String _temp1 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# 分鐘',
-      one: '# 分鐘',
+      other: '$minutes 分鐘',
+      one: '$minutes 分鐘',
     );
     return '$_temp0又$_temp1';
   }
@@ -20377,8 +20562,8 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# 小時',
-      one: '# 小時',
+      other: '$hours 小時',
+      one: '$hours 小時',
     );
     return '$_temp0';
   }
@@ -20388,8 +20573,8 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# 分鐘',
-      one: '# 分鐘',
+      other: '$minutes 分鐘',
+      one: '$minutes 分鐘',
     );
     return '$_temp0';
   }
@@ -20399,8 +20584,8 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       seconds,
       locale: localeName,
-      other: '# 秒',
-      one: '# 秒',
+      other: '$seconds 秒',
+      one: '$seconds 秒',
     );
     return '$_temp0';
   }
@@ -20472,9 +20657,6 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
 
   @override
   String get forwardSuccessToast => '訊息已轉傳';
-
-  @override
-  String get forwardFailed => '訊息轉傳失敗';
 
   @override
   String get forwardCommentSlowmodeDisabled => '由於選取的頻道已啟用慢速模式，備註功能無法使用。';
@@ -22463,16 +22645,16 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
   String get userSettingsGroupYourAccount => '你的帳戶';
 
   @override
-  String get userSettingsGroupBilling => 'BILLING';
+  String get userSettingsGroupBilling => 'Billing';
 
   @override
-  String get userSettingsGroupApplication => 'APPLICATION';
+  String get userSettingsGroupApplication => 'Application';
 
   @override
-  String get userSettingsGroupDeveloper => 'DEVELOPER';
+  String get userSettingsGroupDeveloper => 'Developer';
 
   @override
-  String get userSettingsGroupStaffOnly => 'STAFF-ONLY';
+  String get userSettingsGroupStaffOnly => 'Staff-only';
 
   @override
   String get userSettingsSearchPlaceholder => '搜尋設定...';
@@ -24187,6 +24369,9 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
   String get chatJumpToBottom => '跳至底部';
 
   @override
+  String get chatUnreadDividerNew => '新訊息';
+
+  @override
   String get uiConfirm => '確定';
 
   @override
@@ -24443,7 +24628,7 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
   String get scrollIndicatorNew => '新';
 
   @override
-  String get scrollIndicatorNewMessage => '新訊息';
+  String get scrollIndicatorNewMessages => '新訊息';
 
   @override
   String guildNavbarCollapseFolder(String folderName) {
@@ -25859,8 +26044,8 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '刪除 # 則訊息。',
-      one: '刪除 # 則訊息。',
+      other: '刪除 $count 則訊息。',
+      one: '刪除 $count 則訊息。',
     );
     return '$_temp0';
   }
@@ -25870,8 +26055,8 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '移除 # 位成員。',
-      one: '移除 # 位成員。',
+      other: '移除 $count 位成員。',
+      one: '移除 $count 位成員。',
     );
     return '$_temp0';
   }
@@ -26375,16 +26560,16 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
   String get guildSettingsDeleteCommunityFailed => '無法刪除此社群';
 
   @override
-  String get guildSettingsCategoryExpressions => 'EXPRESSIONS';
+  String get guildSettingsCategoryExpressions => 'Expressions';
 
   @override
-  String get guildSettingsCategoryCommunity => 'COMMUNITY';
+  String get guildSettingsCategoryCommunity => 'Community';
 
   @override
-  String get guildSettingsCategoryIntegrations => 'INTEGRATIONS';
+  String get guildSettingsCategoryIntegrations => 'Integrations';
 
   @override
-  String get guildSettingsCategoryPeople => 'PEOPLE';
+  String get guildSettingsCategoryPeople => 'People';
 
   @override
   String get guildSettingsOverviewBrandingTitle => '品牌設定';
@@ -27499,4 +27684,21 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
 
   @override
   String get channelDetailsUnsupportedChannel => '不支援的頻道';
+
+  @override
+  String get forumPostNewBadge => '新訊息';
+
+  @override
+  String forumPostNewMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 則新訊息',
+      one: '$count 則新訊息',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get favoritesRenameCategory => '重新命名類別';
 }

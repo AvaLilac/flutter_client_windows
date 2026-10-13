@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_live_entrance.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_row_motion.dart';
 import 'package:fluxer_app/material_ui.dart';
 
@@ -16,6 +15,28 @@ void main() {
     await tester.pump(kMessageListLiveTailMotionDuration);
     await tester.pump();
     expect(find.byType(SizedBox), findsOneWidget);
+  });
+
+  testWidgets('MessageListLiveRemoval drops the row at once when motion off', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: MessageListLiveRemoval(
+                child: SizedBox(height: 80, width: 200, child: Text('gone')),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('gone'), findsNothing);
+    expect(tester.getSize(find.byType(MessageListLiveRemoval)), Size.zero);
   });
 
   testWidgets('MessageListRowResize passes child through when motion off', (

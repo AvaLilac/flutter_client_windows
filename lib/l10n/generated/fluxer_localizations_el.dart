@@ -12,11 +12,83 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String get reconnectingTitle => 'Τα θαλασσώσαμε!';
 
   @override
+  String get chatJumpToPresent => 'Μετάβαση στο παρόν';
+
+  @override
+  String get chatViewingOlderMessages => 'Βλέπετε παλιότερα μηνύματα';
+
+  @override
+  String get chatNewMessagesBarJumpToFirstUnread =>
+      'Μετάβαση στο πρώτο μη αναγνωσμένο μήνυμα';
+
+  @override
+  String get chatNewMessagesBarMarkAsRead => 'Σήμανση ως αναγνωσμένου';
+
+  @override
+  String get chatNewMessagesBarMarkRead => 'Σήμανση ως αναγνωσμένου';
+
+  @override
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ νέα μηνύματα από $compactTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount νέα μηνύματα',
+      one: '$unreadCount νέο μήνυμα',
+    );
+    return '$_temp0 από $compactTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewSinceEstimated(
+    int unreadCount,
+    String shortTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ νέα από $shortTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount νέα',
+      one: '$unreadCount νέο',
+    );
+    return '$_temp0 από $shortTime';
+  }
+
+  @override
   String get reconnectingBody =>
       'Κάτι πήγε στραβά με την παρουσία.\nΘα διορθωθεί σε μια στιγμή!';
 
   @override
   String get gatewayReconnectingToast => 'Επανασύνδεση…';
+
+  @override
+  String get gatewayReconnectTryAgain => 'Δοκιμάστε ξανά';
 
   @override
   String get gatewayConnectedToast => 'Συνδέθηκε';
@@ -272,6 +344,9 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String get next => 'Επόμενο';
 
   @override
+  String get create => 'Create';
+
+  @override
   String get mfaTitle => 'Έλεγχος ταυτότητας δύο παραγόντων';
 
   @override
@@ -310,6 +385,11 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   @override
   String get accountRemoveDescription =>
       'Αυτό θα καταργήσει την αποθηκευμένη συνεδρία για αυτόν τον λογαριασμό.';
+
+  @override
+  String accountSignOutTitle(String identifier) {
+    return 'Sign out of $identifier?';
+  }
 
   @override
   String get accountExpired => 'Έληξε';
@@ -1595,13 +1675,10 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String get gifPickerSearch => 'Αναζήτηση GIF';
 
   @override
-  String get gifPickerSearchKlipy => 'Αναζήτηση KLIPY';
+  String get gifPickerSearchKlipy => 'Αναζήτηση Klipy';
 
   @override
   String get gifPickerSearchTenor => 'Αναζήτηση Tenor';
-
-  @override
-  String get gifPickerPoweredByKlipy => 'KLIPY';
 
   @override
   String get gifPickerFavorites => 'Αγαπημένα';
@@ -2448,10 +2525,6 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   @override
   String get dangerZoneDeleteDescription =>
       'Διαγράψτε οριστικά τον λογαριασμό σας και όλα τα σχετικά δεδομένα. Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.';
-
-  @override
-  String get dangerZoneDeleteCancelSubscription =>
-      'Ακυρώστε την ενεργή συνδρομή σας στο Plutonium στις ρυθμίσεις του Plutonium πριν διαγράψετε τον λογαριασμό σας.';
 
   @override
   String get dangerZoneDeleteCannotDeleteAccount =>
@@ -5996,8 +6069,8 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# αναπάντητα μηνύματα',
-      one: '# αναπάντητο μήνυμα',
+      other: '$count αναπάντητα μηνύματα',
+      one: '$count αναπάντητο μήνυμα',
     );
     return 'Εμφάνιση συνομιλίας με $_temp0';
   }
@@ -6146,6 +6219,40 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String get notificationsMessageUnavailable => 'Αυτό το μήνυμα δεν φορτώθηκε.';
 
   @override
+  String notificationsMentionedYouIn(String author, String place) {
+    return '$author mentioned you in $place:';
+  }
+
+  @override
+  String notificationsRepliedToYouIn(String author, String place) {
+    return '$author replied to you in $place:';
+  }
+
+  @override
+  String notificationsMentionedYou(String author) {
+    return '$author mentioned you:';
+  }
+
+  @override
+  String notificationsRepliedToYou(String author) {
+    return '$author replied to you:';
+  }
+
+  @override
+  String notificationsMentionPlace(String server, String channel) {
+    return '$server – $channel';
+  }
+
+  @override
+  String get notificationsSendReply => 'Send a reply';
+
+  @override
+  String get notificationsRecentActivity => 'Recent activity';
+
+  @override
+  String get notificationsRemoveNotification => 'Remove notification';
+
+  @override
   String characterCounterRemaining(int remaining) {
     return '$remaining χαρακτήρες απομένουν';
   }
@@ -6164,6 +6271,10 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
 
   @override
   String get chatMessageFailedToSend => 'Αποτυχία αποστολής μηνύματος';
+
+  @override
+  String get chatMessageFailedToSendTapForOptions =>
+      'Αποτυχία αποστολής μηνύματος. Πατήστε για επιλογές.';
 
   @override
   String chatSendFailureDmRestricted(String settingsPath) {
@@ -6612,8 +6723,8 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# κοινότητες',
-      one: '# κοινότητα',
+      other: '$count κοινότητες',
+      one: '$count κοινότητα',
     );
     return 'Όλες εκτός από $_temp0';
   }
@@ -6623,8 +6734,8 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# κοινότητες',
-      one: '# κοινότητα',
+      other: '$count κοινότητες',
+      one: '$count κοινότητα',
     );
     return 'Μόνο $_temp0';
   }
@@ -6654,14 +6765,14 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# ώρες',
-      one: '# ώρα',
+      other: '$hours ώρες',
+      one: '$hours ώρα',
     );
     String _temp1 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# λεπτά',
-      one: '# λεπτό',
+      other: '$minutes λεπτά',
+      one: '$minutes λεπτό',
     );
     return '$_temp0 και $_temp1';
   }
@@ -6671,8 +6782,8 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# ώρες',
-      one: '# ώρα',
+      other: '$hours ώρες',
+      one: '$hours ώρα',
     );
     return '$_temp0';
   }
@@ -6682,8 +6793,8 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# λεπτά',
-      one: '# λεπτό',
+      other: '$minutes λεπτά',
+      one: '$minutes λεπτό',
     );
     return '$_temp0';
   }
@@ -6693,8 +6804,8 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       seconds,
       locale: localeName,
-      other: '# δευτερόλεπτα',
-      one: '# δευτερόλεπτο',
+      other: '$seconds δευτερόλεπτα',
+      one: '$seconds δευτερόλεπτο',
     );
     return '$_temp0';
   }
@@ -6827,9 +6938,6 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
 
   @override
   String get forwardSuccessToast => 'Το μήνυμα προωθήθηκε';
-
-  @override
-  String get forwardFailed => 'Αποτυχία προώθησης μηνύματος';
 
   @override
   String get forwardCommentSlowmodeDisabled =>
@@ -7244,6 +7352,12 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String get chatEditNoChanges => 'Δεν υπάρχουν αλλαγές για αποθήκευση';
 
   @override
+  String get chatEditFailed => 'Your message didn\'t update';
+
+  @override
+  String get chatEditFailedEditAgain => 'Edit again';
+
+  @override
   String get chatChannelNotReady =>
       'Αυτό το κανάλι δεν είναι έτοιμο ακόμα. Δοκιμάστε ξανά σε λίγο.';
 
@@ -7354,6 +7468,9 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
 
   @override
   String get composerAutocompleteStickersHeading => 'Αυτοκόλλητα';
+
+  @override
+  String get composerAutocompleteEmojisHeading => 'Emojis';
 
   @override
   String get composerAutocompleteGifsHeading => 'GIF';
@@ -9003,19 +9120,19 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
       'Δεν ήταν δυνατή η εκκαθάριση των προσωπικών σημειώσεων';
 
   @override
-  String get userSettingsGroupYourAccount => 'Ο ΛΟΓΑΡΙΑΣΜΟΣ ΣΑΣ';
+  String get userSettingsGroupYourAccount => 'Ο λογαριασμός σας';
 
   @override
-  String get userSettingsGroupBilling => 'BILLING';
+  String get userSettingsGroupBilling => 'Billing';
 
   @override
-  String get userSettingsGroupApplication => 'APPLICATION';
+  String get userSettingsGroupApplication => 'Application';
 
   @override
-  String get userSettingsGroupDeveloper => 'DEVELOPER';
+  String get userSettingsGroupDeveloper => 'Developer';
 
   @override
-  String get userSettingsGroupStaffOnly => 'STAFF-ONLY';
+  String get userSettingsGroupStaffOnly => 'Staff-only';
 
   @override
   String get userSettingsSearchPlaceholder => 'Αναζήτηση ρυθμίσεων...';
@@ -10952,6 +11069,9 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String get chatJumpToBottom => 'Μετάβαση στο κάτω μέρος';
 
   @override
+  String get chatUnreadDividerNew => 'Νέα';
+
+  @override
   String get uiConfirm => 'Επιβεβαίωση';
 
   @override
@@ -11254,10 +11374,10 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String get guildNavbarHelp => 'Βοήθεια';
 
   @override
-  String get scrollIndicatorNew => 'ΝΕΟ';
+  String get scrollIndicatorNew => 'Νέο';
 
   @override
-  String get scrollIndicatorNewMessage => 'ΝΕΟ ΜΗΝΥΜΑ';
+  String get scrollIndicatorNewMessages => 'Νέα μηνύματα';
 
   @override
   String guildNavbarCollapseFolder(String folderName) {
@@ -13143,8 +13263,8 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Διαγράφηκαν # μηνύματα.',
-      one: 'Διαγράφηκε # μήνυμα.',
+      other: 'Διαγράφηκαν $count μηνύματα.',
+      one: 'Διαγράφηκε $count μήνυμα.',
     );
     return '$_temp0';
   }
@@ -13154,8 +13274,8 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Αφαιρέθηκαν # μέλη.',
-      one: 'Αφαιρέθηκε # μέλος.',
+      other: 'Αφαιρέθηκαν $count μέλη.',
+      one: 'Αφαιρέθηκε $count μέλος.',
     );
     return '$_temp0';
   }
@@ -13695,16 +13815,16 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
       'Δεν ήταν δυνατή η διαγραφή αυτής της κοινότητας';
 
   @override
-  String get guildSettingsCategoryExpressions => 'EXPRESSIONS';
+  String get guildSettingsCategoryExpressions => 'Expressions';
 
   @override
-  String get guildSettingsCategoryCommunity => 'COMMUNITY';
+  String get guildSettingsCategoryCommunity => 'Community';
 
   @override
-  String get guildSettingsCategoryIntegrations => 'INTEGRATIONS';
+  String get guildSettingsCategoryIntegrations => 'Integrations';
 
   @override
-  String get guildSettingsCategoryPeople => 'PEOPLE';
+  String get guildSettingsCategoryPeople => 'People';
 
   @override
   String get guildSettingsOverviewBrandingTitle => 'Επωνυμία';
@@ -15013,7 +15133,7 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String get forumPostArchived => 'Archived';
 
   @override
-  String get forumPostNewBadge => 'NEW';
+  String get forumPostNewBadge => 'Νέα';
 
   @override
   String get forumPostStarterDeleted => 'The original message was deleted.';
@@ -15028,8 +15148,8 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new messages',
-      one: '1 new message',
+      other: '$count νέα μηνύματα',
+      one: '$count νέο μήνυμα',
     );
     return '$_temp0';
   }
@@ -15338,4 +15458,7 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String voiceP2pPeerFailedTitle(String name) {
     return 'Cannot connect directly to $name';
   }
+
+  @override
+  String get favoritesRenameCategory => 'Μετονομασία κατηγορίας';
 }

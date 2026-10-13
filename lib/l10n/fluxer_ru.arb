@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Повторить",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Подключено",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Поиск KLIPY",
+    "gifPickerSearchKlipy": "Поиск Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Поиск Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Избранное",
     "@gifPickerFavorites": {
@@ -2590,10 +2590,6 @@
     "dangerZoneDeleteDescription": "Навсегда удалить аккаунт и все связанные с ним данные. Это действие нельзя отменить.",
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
-    },
-    "dangerZoneDeleteCancelSubscription": "Отмените вашу активную подписку Plutonium в настройках Plutonium перед удалением учетной записи.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
     },
     "dangerZoneDeleteCannotDeleteAccount": "Невозможно удалить аккаунт",
     "@dangerZoneDeleteCannotDeleteAccount": {
@@ -5138,7 +5134,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Показать чат с {count, plural, one {# непрочитанным сообщением} other{# непрочитанными сообщениями}}",
+    "voiceTextChatShowUnread": "Показать чат с {count, plural, one {{count} непрочитанным сообщением} other{{count} непрочитанными сообщениями}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5351,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "Не удалось отправить сообщение. Нажмите, чтобы выбрать действие.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "Ваше сообщение не может быть доставлено. Обычно это происходит потому, что вы не состоите в одном сообществе с получателем или получатель принимает личные сообщения только от друзей. Возможно, вам также потребуется изменить собственные настройки конфиденциальности личных сообщений в разделе {settingsPath}.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5463,6 @@
     "forwardSuccessToast": "Сообщение переслано",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Не удалось переслать сообщение",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Комментарии недоступны, так как в выбранном канале включен медленный режим.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6126,19 +6122,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "ВАША УЧЕТНАЯ ЗАПИСЬ",
+    "userSettingsGroupYourAccount": "Ваша учетная запись",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6690,13 +6686,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "НОВОЕ",
+    "scrollIndicatorNew": "Новое",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "НОВОЕ СООБЩЕНИЕ",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Новые сообщения",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Свернуть «{folderName}»",
     "@guildNavbarCollapseFolder": {
@@ -8119,7 +8115,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Удалено # сообщение.} other{Удалено # сообщений.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Удалено {count} сообщение.} other{Удалено {count} сообщений.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8124,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Удален # участник.} other{Удалено # участников.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Удален {count} участник.} other{Удалено {count} участников.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8281,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -13711,7 +13707,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Все, кроме {count, plural, one {# сообщества} other {# сообществ}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Все, кроме {count, plural, one {{count} сообщества} other {{count} сообществ}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13720,7 +13716,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Только {count, plural, one {# сообщество} few {# сообщества} many {# сообществ} other {# сообщества}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Только {count, plural, one {{count} сообщество} few {{count} сообщества} many {{count} сообществ} other {{count} сообщества}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13749,7 +13745,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# час} few {# часа} many {# часов} other {# часа}} и {minutes, plural, one {# минута} few {# минуты} many {# минут} other {# минуты}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} час} few {{hours} часа} many {{hours} часов} other {{hours} часа}} и {minutes, plural, one {{minutes} минута} few {{minutes} минуты} many {{minutes} минут} other {{minutes} минуты}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13761,7 +13757,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# час} few {# часа} many {# часов} other {# часа}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} час} few {{hours} часа} many {{hours} часов} other {{hours} часа}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13770,7 +13766,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# минута} few {# минуты} many {# минут} other {# минуты}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} минута} few {{minutes} минуты} many {{minutes} минут} other {{minutes} минуты}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13779,7 +13775,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# секунда} few {# секунды} many {# секунд} other {# секунд}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} секунда} few {{seconds} секунды} many {{seconds} секунд} other {{seconds} секунд}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14485,7 +14481,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -16513,5 +16509,96 @@
     },
     "channelUnsupportedTitle": "Неподдерживаемый тип канала",
     "channelUnsupportedBody": "Эта версия приложения не поддерживает данный тип канала.",
-    "channelDetailsUnsupportedChannel": "Неподдерживаемый канал"
+    "channelDetailsUnsupportedChannel": "Неподдерживаемый канал",
+    "forumPostNewBadge": "Новое",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} новое сообщение} other {{count} новых сообщений}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Новое",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} новое} few {{unreadCount} новых} many {{unreadCount} новых} other {{unreadCount} нового}} с {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ новых с {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} новое сообщение} few {{unreadCount} новых сообщения} many {{unreadCount} новых сообщений} other {{unreadCount} нового сообщения}} с {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ новых сообщений с {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Отметить прочитанным",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Отметить как прочитанное",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Перейти к первому непрочитанному сообщению",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Вы просматриваете старые сообщения",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Перейти к новым сообщениям",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Переименовать категорию",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

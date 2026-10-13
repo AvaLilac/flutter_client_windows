@@ -144,6 +144,10 @@ class FluxerClipboardScopeState extends State<FluxerClipboardScope> {
     if (shortcut == null) {
       return KeyEventResult.ignored;
     }
+    return handleTextEditingShortcut(shortcut);
+  }
+
+  KeyEventResult handleTextEditingShortcut(TextEditingShortcutKind shortcut) {
     switch (shortcut) {
       case TextEditingShortcutKind.selectAll:
         widget.controller.selection = TextSelection(
@@ -218,8 +222,6 @@ class FluxerClipboardScopeState extends State<FluxerClipboardScope> {
     if (!inserted && widget.onPaste == null && mounted) {
       _showPasteFailedFeedback();
     }
-    // Dismissing the menu before the paste makes Clipboard.getData return
-    // empty on Android, so remove it only once the text landed.
     ContextMenuController.removeAny();
   }
 
@@ -320,9 +322,6 @@ class FluxerClipboardScopeState extends State<FluxerClipboardScope> {
     );
   }
 
-  /// Reuses button instances across rebuilds: the Material toolbar resets its
-  /// subtree with a fresh [UniqueKey] when its children are not `listEquals`
-  /// equal, disposing the recognizer that a press in flight is using.
   List<Widget> _toolbarButtons(
     BuildContext context,
     EditableTextState editableTextState,
@@ -348,8 +347,22 @@ class FluxerClipboardScopeState extends State<FluxerClipboardScope> {
     return buttons;
   }
 
+  void _performImeShortcut(TextEditingShortcutIntent intent) {
+    if (handleTextEditingShortcut(intent.kind) == KeyEventResult.handled) {
+      return;
+    }
+    _invokeTextIntent(textEditingIntentFor(intent.kind));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return widget.builder(context, this, _effectiveFocusNode);
+    return Actions(
+      actions: <Type, Action<Intent>>{
+        TextEditingShortcutIntent: CallbackAction<TextEditingShortcutIntent>(
+          onInvoke: _performImeShortcut,
+        ),
+      },
+      child: widget.builder(context, this, _effectiveFocusNode),
+    );
   }
 }

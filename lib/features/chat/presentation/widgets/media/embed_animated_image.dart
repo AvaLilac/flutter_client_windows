@@ -7,14 +7,10 @@ import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_dart/export.dart' show StickerAnimationOptions;
 import 'package:visibility_detector/visibility_detector.dart';
 
-/// Plays [animatedUrl] while visible. On screen, the animated image stays
-/// loaded and pauses instead of swapping to [staticUrl]. Respects the
-/// nearest [AnimatedImagePlaybackScope] for visibility coordination.
 class EmbedAnimatedImage extends ConsumerStatefulWidget {
   const EmbedAnimatedImage({
     required this.animatedUrl,
     required this.staticUrl,
-    required this.visibilityKey,
     this.fit = BoxFit.cover,
     this.placeholder,
     this.errorPlaceholder,
@@ -26,16 +22,12 @@ class EmbedAnimatedImage extends ConsumerStatefulWidget {
 
   final String staticUrl;
 
-  final String visibilityKey;
-
   final BoxFit fit;
 
   final Widget? placeholder;
 
   final Widget? errorPlaceholder;
 
-  /// When true, uses [MotionPreferencesModel.effectiveAnimateStickers] instead
-  /// of GIF autoplay.
   final bool useStickerAnimationPreference;
 
   @override
@@ -68,10 +60,10 @@ class _EmbedAnimatedImageState extends ConsumerState<EmbedAnimatedImage> {
     if (controller == _controller) {
       return;
     }
-    _controller?.unregister(widget.visibilityKey);
+    _controller?.unregister(this);
     _controller?.removeListener(_onControllerChanged);
     _controller = controller;
-    _controller?.register(widget.visibilityKey, _localVisible ? 1 : 0);
+    _controller?.register(this, _localVisible ? 1 : 0);
     _controller?.addListener(_onControllerChanged);
     _syncPlaying();
   }
@@ -80,7 +72,7 @@ class _EmbedAnimatedImageState extends ConsumerState<EmbedAnimatedImage> {
   void dispose() {
     _hideScheduled = false;
     _controller?.removeListener(_onControllerChanged);
-    _controller?.unregister(widget.visibilityKey);
+    _controller?.unregister(this);
     _playback.dispose();
     super.dispose();
   }
@@ -135,8 +127,7 @@ class _EmbedAnimatedImageState extends ConsumerState<EmbedAnimatedImage> {
     if (!mounted) {
       return;
     }
-    final bool playbackActive =
-        _controller?.isPlaying(widget.visibilityKey) ?? _localVisible;
+    final bool playbackActive = _controller?.isPlaying(this) ?? _localVisible;
     final ({bool playing, bool loadAnimated}) next = (
       playing: _playbackAllowed && playbackActive,
       loadAnimated: _loadAllowed && _localVisible,
@@ -149,7 +140,7 @@ class _EmbedAnimatedImageState extends ConsumerState<EmbedAnimatedImage> {
 
   void _applyVisibility(VisibilityInfo info, {required bool visible}) {
     _localVisible = visible;
-    _controller?.updateVisibility(widget.visibilityKey, info.visibleFraction);
+    _controller?.updateVisibility(this, info.visibleFraction);
     _syncPlaying();
   }
 

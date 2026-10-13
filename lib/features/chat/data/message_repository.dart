@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fluxer_app/core/api/dio_error_message.dart';
+import 'package:fluxer_app/core/api/retry_interceptor.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/gateway/message_mention_context_cache.dart';
 import 'package:fluxer_app/core/talker.dart';
@@ -15,14 +16,18 @@ import 'package:fluxer_app/features/chat/domain/api_attachment_metadata.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/domain/message_attachment_update.dart';
 import 'package:fluxer_app/features/chat/domain/message_translation.dart';
-import 'package:fluxer_app/features/chat/utils/messages/client_nonce.dart';
 import 'package:fluxer_app/features/chat/utils/messages/message_page_sync.dart';
 import 'package:fluxer_app/shared/utils/guild_user_display.dart';
 import 'package:fluxer_app/shared/utils/sdk_converters.dart';
 import 'package:fluxer_app/shared/utils/snowflake_time.dart';
 import 'package:fluxer_dart/export.dart';
 
-const int kMessageFlagCompactAttachments = 1 << 17;
+const Duration _kSendLookupClockSkew = Duration(minutes: 2);
+
+bool sendMaybeCreated(Object error) =>
+    error is DioException &&
+    ((error.response?.statusCode ?? 0) >= 500 ||
+        error.type == DioExceptionType.receiveTimeout);
 
 class MessageListLoadResult {
   const MessageListLoadResult({
@@ -56,13 +61,11 @@ Map<String, dynamic> buildMessageCreateBody({
   if (stickerIds.isNotEmpty) {
     body['sticker_ids'] = stickerIds;
   }
-  var flags = messageFlags ?? 0;
   if (favoriteMemeId != null) {
     body['favorite_meme_id'] = favoriteMemeId;
-    flags |= kMessageFlagCompactAttachments;
   }
-  if (flags != 0) {
-    body['flags'] = flags;
+  if (messageFlags != null && messageFlags != 0) {
+    body['flags'] = messageFlags;
   }
   if (tts) {
     body['tts'] = true;
@@ -78,13 +81,6 @@ Map<String, dynamic> buildMessageCreateBody({
   return body;
 }
 
-/// Builds the request body for a message forward.
-///
-/// Forwards reference a source message and MUST NOT carry
-/// content/embeds/attachments/stickers. The server builds the snapshot itself
-/// (it rejects forward refs that include content). [attachmentIds]/
-/// [embedIndices] narrow which media the server snapshots. Omit them to
-/// forward the whole message.
 Map<String, dynamic> buildForwardMessageBody({
   required String sourceChannelId,
   required String sourceMessageId,
@@ -92,9 +88,10 @@ Map<String, dynamic> buildForwardMessageBody({
   List<String>? attachmentIds,
   List<int>? embedIndices,
   String? clientNonce,
+  int? messageFlags,
 }) {
   final reference = <String, dynamic>{
-    'type': 1, // MessageReferenceType.forward
+    'type': 1,
     'channel_id': sourceChannelId,
     'message_id': sourceMessageId,
   };
@@ -108,6 +105,9 @@ Map<String, dynamic> buildForwardMessageBody({
     reference['embed_indices'] = embedIndices;
   }
   final body = <String, dynamic>{'message_reference': reference};
+  if (messageFlags != null && messageFlags != 0) {
+    body['flags'] = messageFlags;
+  }
   if (clientNonce != null && clientNonce.isNotEmpty) {
     body['nonce'] = clientNonce;
   }
@@ -120,6 +120,7 @@ class MessageRepository {
   final db.FluxerDatabase _db;
   final String? _currentUserId;
   final MessageMentionContextCache? _mentionContextCache;
+  final String? Function()? _gatewaySessionId;
   final Map<String, Future<MessageListLoadResult>> _inFlightPages =
       <String, Future<MessageListLoadResult>>{};
 
@@ -129,6 +130,7 @@ class MessageRepository {
     this._db,
     this._currentUserId, {
     this._mentionContextCache,
+    this._gatewaySessionId,
   });
 
   Future<List<Message>> getCachedMessages(
@@ -191,9 +193,6 @@ class MessageRepository {
     bool fresh = false,
   }) {
     if (fresh) {
-      // A proof request: its soundness argument is "this fetch left after I
-      // observed X", so it must neither join an in-flight response (whose
-      // snapshot may predate X) nor become a join target for ordinary loads.
       return _fetchMessagePage(
         channelId: channelId,
         limit: limit,
@@ -231,13 +230,11 @@ class MessageRepository {
   }) async {
     final bool isLatestPage = before == null && after == null && around == null;
     final Stopwatch pageStopwatch = Stopwatch()..start();
-    // Cumulative ms marks after each awaited phase, for device-log attribution.
     final List<String> pageMarks = <String>[];
     void mark(String name) {
       pageMarks.add('$name@${pageStopwatch.elapsedMilliseconds}');
     }
 
-    // Rows created while the request is in flight sit above this id (#474).
     final String? localTailBeforeFetch = isLatestPage
         ? await _db.messageDao.newestServerMessageId(channelId)
         : null;
@@ -308,8 +305,6 @@ class MessageRepository {
           pageUsersById[user.id] = userFromPartialSdk(user);
         }
       }
-      // One lock and one commit for the page: four separate commits put the
-      // persist at 15 ms median with 30 to 85 ms spikes.
       late final List<Message> persisted;
       await _db.transaction(() async {
         if (pageUsersById.isNotEmpty) {
@@ -356,8 +351,6 @@ class MessageRepository {
         embeddedReplyParents: embeddedReplyParents,
       );
     } on DioException catch (e) {
-      // SDK deserialization can fail on a 200 response
-      // (e.g. missing fields). Fall back to manual parsing.
       if (e.response?.statusCode == 200) {
         talker.warning(
           '[MessageRepo] SDK parse failed, '
@@ -372,9 +365,7 @@ class MessageRepository {
         );
         return MessageListLoadResult(messages: messages);
       }
-      throw Exception(
-        e.error?.toString() ?? e.message ?? 'Failed to fetch messages',
-      );
+      rethrow;
     }
   }
 
@@ -415,8 +406,6 @@ class MessageRepository {
     }
   }
 
-  /// Fallback: fetch raw JSON and parse manually,
-  /// skipping individual messages that fail.
   Future<List<Message>> _getMessagesFallback({
     required String channelId,
     int limit = 30,
@@ -637,6 +626,7 @@ class MessageRepository {
       channelId: channelId,
       messageId: messageId,
       emoji: emoji,
+      sessionId: _gatewaySessionId?.call(),
     );
   }
 
@@ -649,6 +639,7 @@ class MessageRepository {
       channelId: channelId,
       messageId: messageId,
       emoji: emoji,
+      sessionId: _gatewaySessionId?.call(),
     );
   }
 
@@ -674,6 +665,8 @@ class MessageRepository {
     List<XFile>? attachmentFiles,
     int? messageFlags,
     bool tts = false,
+    CancelToken? cancelToken,
+    ProgressCallback? onSendProgress,
   }) async {
     try {
       final Map<String, dynamic> body = buildMessageCreateBody(
@@ -704,10 +697,13 @@ class MessageRepository {
             .post<Map<String, dynamic>>(
               '/channels/$channelId/messages',
               data: formData,
+              cancelToken: cancelToken,
+              onSendProgress: onSendProgress,
               options: Options(
                 contentType: 'multipart/form-data',
                 sendTimeout: const Duration(minutes: 30),
                 receiveTimeout: const Duration(minutes: 5),
+                extra: <String, Object>{kNoRetryKey: true},
               ),
             );
         final Map<String, dynamic>? data = response.data;
@@ -720,21 +716,84 @@ class MessageRepository {
         return await _persistSdkMessage(channelId: channelId, schema: schema);
       }
 
-      final Message sent = await _postMessage(channelId, body);
+      final Message sent = await _postMessage(
+        channelId,
+        body,
+        cancelToken: cancelToken,
+        onSendProgress: onSendProgress,
+      );
       return sent;
     } on DioException {
       rethrow;
     }
   }
 
+  Future<String?> findUnseenOwnSend({
+    required String channelId,
+    required String clientNonce,
+    required String content,
+    required List<String> attachmentFilenames,
+  }) async {
+    final int? sentAtMs = snowflakeTimestampMsOrNull(clientNonce);
+    final String? authorId = _currentUserId;
+    if (sentAtMs == null || authorId == null) {
+      return null;
+    }
+    final List<MessageResponseSchema> page = await _client.channels
+        .listMessages(
+          channelId: channelId,
+          after: snowflakeFromDateTime(
+            DateTime.fromMillisecondsSinceEpoch(
+              sentAtMs - _kSendLookupClockSkew.inMilliseconds,
+            ),
+          ),
+          limit: '100',
+        );
+    final List<MessageResponseSchema> ordered = [...page]
+      ..sort(
+        (MessageResponseSchema a, MessageResponseSchema b) =>
+            BigInt.parse(a.id).compareTo(BigInt.parse(b.id)),
+      );
+    final List<String> expectedNames = [...attachmentFilenames]..sort();
+    for (final MessageResponseSchema message in ordered) {
+      if (message.author.id != authorId) {
+        continue;
+      }
+      if (message.nonce != null) {
+        if (message.nonce == clientNonce) {
+          return message.id;
+        }
+        continue;
+      }
+      final List<String> names = [
+        for (final MessageAttachmentResponse a
+            in message.attachments ?? const <MessageAttachmentResponse>[])
+          a.filename,
+      ]..sort();
+      if (message.content.trim() != content.trim() ||
+          !listEquals(names, expectedNames)) {
+        continue;
+      }
+      if (await _db.messageDao.getMessage(message.id) != null) {
+        continue;
+      }
+      return message.id;
+    }
+    return null;
+  }
+
   Future<Message> _postMessage(
     String channelId,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    CancelToken? cancelToken,
+    ProgressCallback? onSendProgress,
+  }) async {
     final Response<Map<String, dynamic>> response = await _dio
         .post<Map<String, dynamic>>(
           '/channels/$channelId/messages',
           data: body,
+          cancelToken: cancelToken,
+          onSendProgress: onSendProgress,
           options: Options(
             sendTimeout: const Duration(minutes: 5),
             receiveTimeout: const Duration(minutes: 2),
@@ -770,48 +829,28 @@ class MessageRepository {
     return _upsertKeepingTranslation(message);
   }
 
-  /// Forwards [sourceMessageId] from [sourceChannelId] to each channel in
-  /// [destinationChannelIds]. When [comment] is non-empty a separate message is
-  /// sent after each forward so it renders below the forwarded snapshot. Sends
-  /// are sequential per destination (matching the web client) and throw on the
-  /// first failed request.
-  Future<void> forwardMessage({
+  Future<Message> sendForward({
+    required String channelId,
     required String sourceChannelId,
     required String sourceMessageId,
-    required List<String> destinationChannelIds,
+    required String clientNonce,
     String? sourceGuildId,
     List<String>? attachmentIds,
     List<int>? embedIndices,
-    String? comment,
-  }) async {
-    final String? trimmedComment = comment?.trim();
-    final bool hasComment = trimmedComment != null && trimmedComment.isNotEmpty;
-    try {
-      for (final String destinationId in destinationChannelIds) {
-        await _postMessage(
-          destinationId,
-          buildForwardMessageBody(
-            sourceChannelId: sourceChannelId,
-            sourceMessageId: sourceMessageId,
-            sourceGuildId: sourceGuildId,
-            attachmentIds: attachmentIds,
-            embedIndices: embedIndices,
-            clientNonce: clientNonceGenerator.next(),
-          ),
-        );
-        if (hasComment) {
-          await _postMessage(
-            destinationId,
-            buildMessageCreateBody(
-              content: comment!,
-              clientNonce: clientNonceGenerator.next(),
-            ),
-          );
-        }
-      }
-    } on DioException catch (e) {
-      throw Exception(userFacingErrorMessage(e, 'Failed to forward message'));
-    }
+    int? messageFlags,
+  }) {
+    return _postMessage(
+      channelId,
+      buildForwardMessageBody(
+        sourceChannelId: sourceChannelId,
+        sourceMessageId: sourceMessageId,
+        sourceGuildId: sourceGuildId,
+        attachmentIds: attachmentIds,
+        embedIndices: embedIndices,
+        clientNonce: clientNonce,
+        messageFlags: messageFlags,
+      ),
+    );
   }
 
   Future<Message> editMessage({
@@ -866,18 +905,6 @@ class MessageRepository {
     }
   }
 
-  /// Rewrites a message's attachment array and nothing else.
-  ///
-  /// `content` is deliberately NOT sent. The endpoint accepts it, but this
-  /// operation does not own the text: another client can edit it while our
-  /// request is in flight, and transmitting a value we merely read would
-  /// overwrite that edit.
-  ///
-  /// Uses Dio directly instead of the generated SDK edit call, which always
-  /// includes `embeds` and `message_snapshots` as null and can make attachment-
-  /// only messages fail with CANNOT_SEND_EMPTY_MESSAGE. Sent as plain JSON:
-  /// the API's multipart parser only reads `payload_json` and file fields, so
-  /// a bare multipart `attachments` field is silently dropped (issue #625).
   Future<Message> editMessageAttachments({
     required String channelId,
     required String messageId,

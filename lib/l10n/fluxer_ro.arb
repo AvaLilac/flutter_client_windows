@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Banner shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Încearcă din nou",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Conectat",
     "@gatewayConnectedToast": {
         "description": "Banner shown when the gateway connection is restored."
@@ -2073,17 +2077,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Caută în KLIPY",
+    "gifPickerSearchKlipy": "Caută în Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Caută pe Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Favorite",
     "@gifPickerFavorites": {
@@ -3139,10 +3139,6 @@
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
     },
-    "dangerZoneDeleteCancelSubscription": "Anulează abonamentul tău activ Plutonium din setările Plutonium înainte de a-ți șterge contul.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
-    },
     "dangerZoneDeleteCannotDeleteAccount": "Nu se poate șterge contul",
     "@dangerZoneDeleteCannotDeleteAccount": {
         "description": "Title for the guild ownership warning modal when trying to delete account."
@@ -3237,7 +3233,7 @@
     "@invalidCode": {
         "description": "Error message when a verification code is invalid."
     },
-    "relativeTimeYears": "{count, plural, =1{acum 1 an} other{acum # ani}}",
+    "relativeTimeYears": "{count, plural, =1{acum 1 an} other{acum {count} ani}}",
     "@relativeTimeYears": {
         "description": "Relative time in years.",
         "placeholders": {
@@ -3246,7 +3242,7 @@
             }
         }
     },
-    "relativeTimeMonths": "{count, plural, =1{acum 1 lună} other{acum # luni}}",
+    "relativeTimeMonths": "{count, plural, =1{acum 1 lună} other{acum {count} luni}}",
     "@relativeTimeMonths": {
         "description": "Relative time in months.",
         "placeholders": {
@@ -3282,7 +3278,7 @@
             }
         }
     },
-    "relativeTimeWeeks": "{count, plural, =1{acum 1 săptămână} other{acum # săptămâni}}",
+    "relativeTimeWeeks": "{count, plural, =1{acum 1 săptămână} other{acum {count} săptămâni}}",
     "@relativeTimeWeeks": {
         "description": "Relative time in weeks.",
         "placeholders": {
@@ -7040,7 +7036,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Afișează chatul cu {count, plural, one {# mesaj necitit} other {# mesaje necitite}}",
+    "voiceTextChatShowUnread": "Afișează chatul cu {count, plural, one {{count} mesaj necitit} other {{count} mesaje necitite}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -7256,6 +7252,10 @@
     "chatMessageFailedToSend": "Mesaj netrimis",
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
+    },
+    "chatMessageFailedToSendTapForOptions": "Nu am putut trimite mesajul. Atingeți pentru opțiuni.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
     },
     "chatSendFailureDmRestricted": "Mesajul tău nu a putut fi livrat. Acest lucru se întâmplă de obicei deoarece nu împărtășiți o comunitate cu destinatarul sau destinatarul acceptă mesaje directe doar de la prieteni. De asemenea, este posibil să fie necesar să ajustezi propriile setări de confidențialitate pentru mesajele directe în {settingsPath}.",
     "@chatSendFailureDmRestricted": {
@@ -7765,7 +7765,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Toate, cu excepția {count, plural, one {# comunitate} other {# comunități}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Toate, cu excepția {count, plural, one {{count} comunitate} other {{count} comunități}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -7774,7 +7774,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Doar {count, plural, one {# comunitate} other {# comunități}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Doar {count, plural, one {{count} comunitate} other {{count} comunități}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -7803,7 +7803,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# oră} other {# ore}} și {minutes, plural, one {# minut} other {# minute}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} oră} other {{hours} ore}} și {minutes, plural, one {{minutes} minut} other {{minutes} minute}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -7815,7 +7815,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# oră} other {# ore}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} oră} other {{hours} ore}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -7824,7 +7824,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# minut} other {# minute}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} minut} other {{minutes} minute}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -7833,7 +7833,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# secundă} other {# secunde}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} secundă} other {{seconds} secunde}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -7925,10 +7925,6 @@
     "forwardSuccessToast": "Mesaj redirecționat",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Nu s-a putut redirecționa mesajul",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Comentariile nu sunt disponibile, deoarece un canal selectat are activată funcția de încetinire.",
     "@forwardCommentSlowmodeDisabled": {
@@ -10645,23 +10641,23 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "CONTUL TĂU",
+    "userSettingsGroupYourAccount": "Contul tău",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -12375,13 +12371,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "NOU",
+    "scrollIndicatorNew": "Nou",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "MESAJ NOU",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Mesaje noi",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Restrânge {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -14510,7 +14506,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{A șters # mesaj.} other{Au șters # mesaje.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{A șters {count} mesaj.} other{Au șters {count} mesaje.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -14519,7 +14515,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{A eliminat # membru.} other{Au fost eliminați # membri.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{A eliminat {count} membru.} other{Au fost eliminați {count} membri.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -14982,7 +14978,7 @@
     "@guildMembersJoinedJustNow": {
         "description": "Relative join time on the community members page."
     },
-    "guildMembersJoinedMinutesAgo": "{count, plural, one {acum 1 minut} other {acum # minute}}",
+    "guildMembersJoinedMinutesAgo": "{count, plural, one {acum 1 minut} other {acum {count} minute}}",
     "@guildMembersJoinedMinutesAgo": {
         "description": "Relative join time on the community members page.",
         "placeholders": {
@@ -15199,19 +15195,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -16538,5 +16534,96 @@
     },
     "channelUnsupportedTitle": "Tip de canal neacceptat",
     "channelUnsupportedBody": "Această versiune a aplicației nu acceptă acest tip de canal.",
-    "channelDetailsUnsupportedChannel": "Canal neacceptat"
+    "channelDetailsUnsupportedChannel": "Canal neacceptat",
+    "forumPostNewBadge": "Nou",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} mesaj nou} other {{count} mesaje noi}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Nou",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} mesaj nou} few {{unreadCount} mesaje noi} other {{unreadCount} de mesaje noi}} de la {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ mesaje noi de la {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} mesaj nou} few {{unreadCount} mesaje noi} other {{unreadCount} de mesaje noi}} de la {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ mesaje noi de la {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Marchează ca citit",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Marchează ca citit",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Salt la primul mesaj necitit",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Vizualizezi mesaje mai vechi",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Salt la prezent",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Redenumește categoria",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

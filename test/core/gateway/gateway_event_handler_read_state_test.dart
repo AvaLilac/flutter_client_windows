@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value;
@@ -6,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/gateway/channel_last_message_index.dart';
 import 'package:fluxer_app/core/gateway/gateway_event_handler.dart';
+import 'package:fluxer_app/features/channels/data/ack_batcher.dart';
 import 'package:fluxer_app/features/channels/data/read_state_repository.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_app/features/channels/data/read_state_write_batcher.dart';
@@ -15,6 +17,53 @@ import 'package:fluxer_dart/export.dart';
 import 'package:fluxer_dart/gateway.dart';
 
 import '../../helpers/open_test_database.dart';
+
+class _ReadStateAckAdapter implements HttpClientAdapter {
+  final List<Map<String, Object?>> ackedReadStates = <Map<String, Object?>>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    expect(options.method, 'POST');
+    expect(options.uri.path, '/v1/read-states/ack');
+    final BytesBuilder builder = BytesBuilder();
+    if (requestStream != null) {
+      await for (final Uint8List chunk in requestStream) {
+        builder.add(chunk);
+      }
+    }
+    final Map<String, Object?> body =
+        jsonDecode(utf8.decode(builder.takeBytes())) as Map<String, Object?>;
+    for (final Object? entry in body['read_states']! as List<Object?>) {
+      ackedReadStates.add(Map<String, Object?>.from(entry! as Map));
+    }
+    return ResponseBody.fromString(
+      '{"read_states":[]}',
+      200,
+      statusMessage: 'OK',
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+AckBatcher _ackBatcher(_ReadStateAckAdapter adapter) {
+  final AckBatcher batcher = AckBatcher(
+    client: FluxerClient(
+      Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))
+        ..httpClientAdapter = adapter,
+    ),
+  );
+  addTearDown(batcher.dispose);
+  return batcher;
+}
 
 GatewayEventHandler _handlerWithReadState(FluxerDatabase db) {
   return GatewayEventHandler(
@@ -183,7 +232,7 @@ void main() {
     expect(decoded.channelOverrides?['dm-1']?.muted, isTrue);
   });
 
-  test('user guild settings update merges partial payload', () async {
+  test('user guild settings update replaces the override set', () async {
     final db = openTestDatabase();
     await db.userGuildSettingsDao.upsert(
       UserGuildSettingsTableCompanion.insert(
@@ -237,10 +286,7 @@ void main() {
     expect(decoded.messageNotifications, UserNotificationSettings.onlyMentions);
     expect(decoded.suppressEveryone, isTrue);
     expect(decoded.unreadBadges, UserNotificationSettings.allMessages);
-    expect(
-      decoded.channelOverrides?['channel-1']?.unreadBadges,
-      UserNotificationSettingsInput.onlyMentions,
-    );
+    expect(decoded.channelOverrides?.containsKey('channel-1'), isFalse);
     expect(decoded.channelOverrides?['channel-2']?.muted, isTrue);
     expect(
       decoded.channelOverrides?['channel-2']?.messageNotifications,
@@ -250,7 +296,7 @@ void main() {
   });
 
   test(
-    'user guild settings update preserves overrides when channel_overrides is null',
+    'user guild settings update clears overrides when channel_overrides is null',
     () async {
       final db = openTestDatabase();
       await db.userGuildSettingsDao.upsert(
@@ -298,7 +344,7 @@ void main() {
         jsonDecode(row!.data) as Map<String, dynamic>,
       );
       expect(decoded.muted, isTrue);
-      expect(decoded.channelOverrides?['channel-1']?.muted, isTrue);
+      expect(decoded.channelOverrides, isNull);
       expect(decoded.version, 2);
     },
   );
@@ -330,6 +376,129 @@ void main() {
     expect(readState?.lastMessageId, messageId);
     expect(readState?.mentionCount, 0);
     expect(readState?.manual, isFalse);
+  });
+
+  test('an auto-acked incoming message is acked on the server', () async {
+    final db = openTestDatabase();
+    final messageId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+    await db.channelDao.upsertChannel(
+      ChannelsCompanion.insert(
+        id: 'channel-1',
+        guildId: 'guild-1',
+        name: 'general',
+      ),
+    );
+    final adapter = _ReadStateAckAdapter();
+    final AckBatcher batcher = _ackBatcher(adapter);
+    final handler = GatewayEventHandler(
+      database: db,
+      currentUserId: 'me',
+      ackBatcher: batcher,
+      isAutoAckActive: (String channelId) => channelId == 'channel-1',
+    );
+
+    await handler.handle(
+      MessageCreateEvent(
+        message: _message(
+          id: messageId,
+          channelId: 'channel-1',
+          authorId: 'other',
+        ),
+      ),
+    );
+    await batcher.flushPending(force: true);
+
+    final readState = await db.readStateDao.getReadState('channel-1');
+    expect(readState?.lastMessageId, messageId);
+    expect(adapter.ackedReadStates, [
+      <String, Object?>{'channel_id': 'channel-1', 'message_id': messageId},
+    ]);
+  });
+
+  test(
+    'a blocked author message in a read channel is acked on the server',
+    () async {
+      final db = openTestDatabase();
+      final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+      final messageId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+      await db.channelDao.upsertChannel(
+        ChannelsCompanion.insert(
+          id: 'channel-1',
+          guildId: 'guild-1',
+          name: 'general',
+          lastMessageId: Value(ackId),
+        ),
+      );
+      await db.readStateDao.upsertReadState(
+        ReadStatesCompanion(
+          channelId: const Value('channel-1'),
+          lastMessageId: Value(ackId),
+        ),
+      );
+      await db.relationshipDao.upsertRelationships([
+        RelationshipsCompanion.insert(userId: 'other', type: 2),
+      ]);
+      final adapter = _ReadStateAckAdapter();
+      final AckBatcher batcher = _ackBatcher(adapter);
+      final handler = GatewayEventHandler(
+        database: db,
+        currentUserId: 'me',
+        ackBatcher: batcher,
+      );
+
+      await handler.handle(
+        MessageCreateEvent(
+          message: _message(
+            id: messageId,
+            channelId: 'channel-1',
+            authorId: 'other',
+          ),
+        ),
+      );
+      await batcher.flushPending(force: true);
+
+      expect(adapter.ackedReadStates, [
+        <String, Object?>{'channel_id': 'channel-1', 'message_id': messageId},
+      ]);
+    },
+  );
+
+  test('own and unread incoming messages queue no server ack', () async {
+    final db = openTestDatabase();
+    final ownId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+    final otherId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 13));
+    await db.channelDao.upsertChannel(
+      ChannelsCompanion.insert(
+        id: 'channel-1',
+        guildId: 'guild-1',
+        name: 'general',
+      ),
+    );
+    final adapter = _ReadStateAckAdapter();
+    final AckBatcher batcher = _ackBatcher(adapter);
+    final handler = GatewayEventHandler(
+      database: db,
+      currentUserId: 'me',
+      ackBatcher: batcher,
+    );
+
+    await handler.handle(
+      MessageCreateEvent(
+        message: _message(id: ownId, channelId: 'channel-1', authorId: 'me'),
+      ),
+    );
+    await handler.handle(
+      MessageCreateEvent(
+        message: _message(
+          id: otherId,
+          channelId: 'channel-1',
+          authorId: 'other',
+        ),
+      ),
+    );
+    await batcher.flushPending(force: true);
+
+    expect(adapter.ackedReadStates, isEmpty);
   });
 
   test(
@@ -451,7 +620,6 @@ void main() {
     );
     final handler = GatewayEventHandler(database: db, currentUserId: 'me');
 
-    // Stale version is rejected, so the absolute mention count is dropped.
     await handler.handle(
       MessageAckEvent(
         channelId: 'channel-1',
@@ -465,7 +633,6 @@ void main() {
     expect(readState?.mentionCount, 0);
     expect(readState?.version, '5');
 
-    // Newer version applies and persists.
     await handler.handle(
       MessageAckEvent(
         channelId: 'channel-1',
@@ -627,8 +794,6 @@ void main() {
     final readState = await db.readStateDao.getReadState('channel-1');
     final message = await db.messageDao.getMessage(messageId);
     final mentionRows = await db.notificationDao.getMentionFeedOrdered();
-    // The suppressed mention must not bump the mention count, but the message
-    // still seeds a plain-unread read state (web parity: recordUnread).
     expect(readState, isNotNull);
     expect(readState?.mentionCount, 0);
     expect(
@@ -638,6 +803,57 @@ void main() {
     expect(message?.isMentioned, isFalse);
     expect(mentionRows, isEmpty);
   });
+
+  test(
+    'a relationship event keeps the server mention count of an unloaded channel',
+    () async {
+      final db = openTestDatabase();
+      final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+      final lastMessageId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+      await db.channelDao.upsertChannel(
+        ChannelsCompanion.insert(
+          id: 'channel-1',
+          guildId: 'guild-1',
+          name: 'general',
+          lastMessageId: Value(lastMessageId),
+        ),
+      );
+      await db.readStateDao.upsertReadState(
+        ReadStatesCompanion(
+          channelId: const Value('channel-1'),
+          lastMessageId: Value(ackId),
+          mentionCount: const Value(3),
+        ),
+      );
+      var relationshipChanges = 0;
+      final handler = GatewayEventHandler(
+        database: db,
+        currentUserId: 'me',
+        readStateRepository: ReadStateRepository(FluxerClient(Dio()), db),
+        onRelationshipsChanged: () => relationshipChanges++,
+      );
+
+      await handler.handle(
+        RelationshipAddEvent(
+          relationship: RelationshipResponse(
+            id: 'stranger',
+            type: RelationshipTypes.incomingRequest,
+            user: _user('stranger'),
+            nickname: null,
+            shareVoiceActivity: false,
+            friendSharesVoiceActivity: false,
+          ),
+        ),
+      );
+      await pumpEventQueue();
+      await handler.handle(const RelationshipRemoveEvent(userId: 'stranger'));
+      await pumpEventQueue();
+
+      final readState = await db.readStateDao.getReadState('channel-1');
+      expect(readState?.mentionCount, 3);
+      expect(relationshipChanges, 2);
+    },
+  );
 
   test('channel pins update stores latest channel pin timestamp', () async {
     final db = openTestDatabase();
@@ -664,8 +880,9 @@ void main() {
     expect(readState?.lastPinTimestamp, isNot(latestPin));
   });
 
-  test('channel pins ack falls back to latest channel pin timestamp', () async {
+  test('an older pins ack does not mark a newer pin as seen', () async {
     final db = openTestDatabase();
+    const ackedPin = '2026-05-06T11:00:00.000Z';
     const latestPin = '2026-05-06T12:00:00.000Z';
     await db.channelDao.upsertChannel(
       ChannelsCompanion.insert(
@@ -677,10 +894,12 @@ void main() {
     );
     final handler = GatewayEventHandler(database: db, currentUserId: 'me');
 
-    await handler.handle(const ChannelPinsAckEvent(channelId: 'channel-1'));
+    await handler.handle(
+      const ChannelPinsAckEvent(channelId: 'channel-1', timestamp: ackedPin),
+    );
 
     final readState = await db.readStateDao.getReadState('channel-1');
-    expect(readState?.lastPinTimestamp, latestPin);
+    expect(readState?.lastPinTimestamp, ackedPin);
   });
 
   test('channel pins ack stores acknowledged pin timestamp', () async {
@@ -689,68 +908,183 @@ void main() {
     final handler = GatewayEventHandler(database: db, currentUserId: 'me');
 
     await handler.handle(
-      const ChannelPinsAckEvent(
-        channelId: 'channel-1',
-        lastPinTimestamp: latestPin,
-      ),
+      const ChannelPinsAckEvent(channelId: 'channel-1', timestamp: latestPin),
     );
 
     final readState = await db.readStateDao.getReadState('channel-1');
     expect(readState?.lastPinTimestamp, latestPin);
   });
 
+  test('message delete keeps the server mention count', () async {
+    final db = openTestDatabase();
+    final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+    final mentionId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+    await db.channelDao.upsertChannel(
+      ChannelsCompanion.insert(
+        id: 'channel-1',
+        guildId: 'guild-1',
+        name: 'general',
+        lastMessageId: Value(mentionId),
+      ),
+    );
+    await db.messageDao.upsertMessages([
+      _cachedMessage(id: ackId, channelId: 'channel-1', authorId: 'other'),
+      _cachedMessage(
+        id: mentionId,
+        channelId: 'channel-1',
+        authorId: 'other',
+        isMentioned: true,
+      ),
+    ]);
+    await db.notificationDao.prependMentionRow(
+      messageId: mentionId,
+      channelId: 'channel-1',
+    );
+    await db.readStateDao.upsertReadState(
+      ReadStatesCompanion(
+        channelId: const Value('channel-1'),
+        lastMessageId: Value(ackId),
+        mentionCount: const Value(1),
+      ),
+    );
+    final handler = _handlerWithReadState(db);
+
+    await handler.handle(
+      MessageDeleteEvent(channelId: 'channel-1', messageId: mentionId),
+    );
+    await pumpEventQueue();
+
+    final readState = await db.readStateDao.getReadState('channel-1');
+    final channel = await db.channelDao.getChannelById('channel-1');
+    final mentionRows = await db.notificationDao.getMentionFeedOrdered();
+    expect(await db.messageDao.getMessage(mentionId), isNull);
+    expect(channel?.lastMessageId, mentionId);
+    expect(readState?.lastMessageId, ackId);
+    expect(readState?.mentionCount, 1);
+    expect(mentionRows, isEmpty);
+  });
+
   test(
-    'message delete drops mention count and walks back channel tail',
+    'a tail delete leaves a channel alone when its mentions are not cached',
     () async {
       final db = openTestDatabase();
-      final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
-      final mentionId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+      final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 10));
+      final liveId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
       await db.channelDao.upsertChannel(
         ChannelsCompanion.insert(
           id: 'channel-1',
           guildId: 'guild-1',
           name: 'general',
-          lastMessageId: Value(mentionId),
+          lastMessageId: Value(liveId),
         ),
       );
       await db.messageDao.upsertMessages([
         _cachedMessage(id: ackId, channelId: 'channel-1', authorId: 'other'),
-        _cachedMessage(
-          id: mentionId,
-          channelId: 'channel-1',
-          authorId: 'other',
-          isMentioned: true,
-        ),
+        _cachedMessage(id: liveId, channelId: 'channel-1', authorId: 'other'),
       ]);
-      await db.notificationDao.prependMentionRow(
-        messageId: mentionId,
-        channelId: 'channel-1',
-      );
       await db.readStateDao.upsertReadState(
         ReadStatesCompanion(
           channelId: const Value('channel-1'),
           lastMessageId: Value(ackId),
-          mentionCount: const Value(1),
+          mentionCount: const Value(2),
         ),
       );
       final handler = _handlerWithReadState(db);
 
       await handler.handle(
-        MessageDeleteEvent(channelId: 'channel-1', messageId: mentionId),
+        MessageDeleteEvent(channelId: 'channel-1', messageId: liveId),
       );
       await pumpEventQueue();
 
       final readState = await db.readStateDao.getReadState('channel-1');
       final channel = await db.channelDao.getChannelById('channel-1');
-      final mentionRows = await db.notificationDao.getMentionFeedOrdered();
-      expect(await db.messageDao.getMessage(mentionId), isNull);
-      expect(channel?.lastMessageId, ackId);
-      expect(readState?.mentionCount, 0);
-      expect(mentionRows, isEmpty);
+      expect(readState?.mentionCount, 2);
+      expect(readState?.lastMessageId, ackId);
+      expect(channel?.lastMessageId, liveId);
     },
   );
 
-  test('bulk message delete walks tail back and drops mention count', () async {
+  test(
+    'deleting an older message keeps mentions that are not cached',
+    () async {
+      final db = openTestDatabase();
+      final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 10));
+      final cachedId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+      final pointerId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+      await db.channelDao.upsertChannel(
+        ChannelsCompanion.insert(
+          id: 'channel-1',
+          guildId: 'guild-1',
+          name: 'general',
+          lastMessageId: Value(pointerId),
+        ),
+      );
+      await db.messageDao.upsertMessages([
+        _cachedMessage(id: ackId, channelId: 'channel-1', authorId: 'other'),
+        _cachedMessage(id: cachedId, channelId: 'channel-1', authorId: 'other'),
+      ]);
+      await db.readStateDao.upsertReadState(
+        ReadStatesCompanion(
+          channelId: const Value('channel-1'),
+          lastMessageId: Value(ackId),
+          mentionCount: const Value(3),
+        ),
+      );
+      final handler = _handlerWithReadState(db);
+
+      await handler.handle(
+        MessageDeleteEvent(channelId: 'channel-1', messageId: cachedId),
+      );
+      await pumpEventQueue();
+
+      final readState = await db.readStateDao.getReadState('channel-1');
+      expect(readState?.mentionCount, 3);
+    },
+  );
+
+  test('a bulk delete keeps the server mention count', () async {
+    final db = openTestDatabase();
+    final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 10));
+    final mentionId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+    final plainId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11, 30));
+    final pointerId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+    await db.channelDao.upsertChannel(
+      ChannelsCompanion.insert(
+        id: 'channel-1',
+        guildId: 'guild-1',
+        name: 'general',
+        lastMessageId: Value(pointerId),
+      ),
+    );
+    await db.messageDao.upsertMessages([
+      _cachedMessage(id: ackId, channelId: 'channel-1', authorId: 'other'),
+      _cachedMessage(
+        id: mentionId,
+        channelId: 'channel-1',
+        authorId: 'other',
+        isMentioned: true,
+      ),
+      _cachedMessage(id: plainId, channelId: 'channel-1', authorId: 'other'),
+    ]);
+    await db.readStateDao.upsertReadState(
+      ReadStatesCompanion(
+        channelId: const Value('channel-1'),
+        lastMessageId: Value(ackId),
+        mentionCount: const Value(3),
+      ),
+    );
+    final handler = _handlerWithReadState(db);
+
+    await handler.handle(
+      MessageDeleteBulkEvent(channelId: 'channel-1', ids: [mentionId, plainId]),
+    );
+    await pumpEventQueue();
+
+    final readState = await db.readStateDao.getReadState('channel-1');
+    expect(readState?.mentionCount, 3);
+  });
+
+  test('bulk message delete walks tail back and keeps mentions', () async {
     final db = openTestDatabase();
     final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
     final remainingId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11, 30));
@@ -794,7 +1128,7 @@ void main() {
     final channel = await db.channelDao.getChannelById('channel-1');
     final readState = await db.readStateDao.getReadState('channel-1');
     expect(channel?.lastMessageId, remainingId);
-    expect(readState?.mentionCount, 0);
+    expect(readState?.mentionCount, 1);
   });
 
   test(
@@ -836,8 +1170,8 @@ void main() {
       final readState = await db.readStateDao.getReadState('dm-1');
       final dm = await db.dmChannelDao.getDmChannelById('dm-1');
       expect(dm?.lastMessageId, remainingId);
-      expect(readState?.mentionCount, 1);
-      expect(dm?.unreadCount, 1);
+      expect(readState?.mentionCount, 2);
+      expect(dm?.unreadCount, 2);
     },
   );
 
@@ -894,7 +1228,7 @@ void main() {
     );
   });
 
-  test('dm tail delete walks back and clears unread when caught up', () async {
+  test('dm tail delete walks back and keeps the mention count', () async {
     final db = openTestDatabase();
     final olderId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 10));
     final newerId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
@@ -937,8 +1271,9 @@ void main() {
       ),
       isTrue,
     );
-    expect(dm?.unreadCount, 0);
-    expect(readState?.mentionCount, 0);
+    expect(dm?.unreadCount, 1);
+    expect(readState?.lastMessageId, olderId);
+    expect(readState?.mentionCount, 1);
   });
 
   test(
@@ -1114,7 +1449,6 @@ void main() {
     final stickyId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
     final handler = GatewayEventHandler(database: db, currentUserId: 'me');
 
-    // Establish the session so the next ready is an incremental reconnect.
     await handler.handle(_readyEvent());
     await db.readStateDao.upsertReadState(
       ReadStatesCompanion(
@@ -1247,8 +1581,6 @@ void main() {
         ),
       );
 
-      // First occurrence advances past local ack (clears manual); second is
-      // the stale original ack. Fold-forward must not resurrect manual.
       await handler.handle(
         _readyEvent(
           readStates: [
@@ -1259,8 +1591,6 @@ void main() {
       );
 
       final readState = await db.readStateDao.getReadState('channel-1');
-      // Last payload entry wins lastMessageId (same as sequential upserts);
-      // fold-forward ensures the second merge sees manual already cleared.
       expect(readState?.lastMessageId, ackId);
       expect(readState?.manual, isFalse);
       expect(readState?.stickyUnreadMessageId, isNull);
@@ -1274,6 +1604,7 @@ void main() {
       final batcher = ReadStateWriteBatcher(
         database: db,
         window: const Duration(hours: 1),
+        mentionWindow: const Duration(hours: 1),
       );
       addTearDown(batcher.clearAll);
 
@@ -1307,8 +1638,6 @@ void main() {
         readStateWriteBatcher: batcher,
       );
 
-      // A new mention lands while unviewed -> the increment is batched
-      // (pending), not yet written to Drift.
       await handler.handle(
         MessageCreateEvent(
           message: _message(
@@ -1321,8 +1650,6 @@ void main() {
       );
       expect(batcher.hasPending('channel-1'), isTrue);
 
-      // A server ack refreshes the count at the current position. Its mention
-      // count (1) already accounts for the still-pending mention.
       await handler.handle(
         MessageAckEvent(
           channelId: 'channel-1',
@@ -1332,8 +1659,6 @@ void main() {
         ),
       );
 
-      // The ack flushed the pending increment before its absolute write, so a
-      // later flush cannot replay it: the count stays the server's 1, not 2.
       expect(batcher.hasPending('channel-1'), isFalse);
       await batcher.flushAll();
       final readState = await db.readStateDao.getReadState('channel-1');
@@ -1406,6 +1731,7 @@ void main() {
         channelLastMessageId: index.lastMessageIdFor('channel-1'),
         hasMoreNewerMessages: false,
         hasMoreOlderMessages: false,
+        cachedUnreadCount: 0,
       );
       expect(summary.displayUnreadCount, 1);
       expect(summary.isEstimated, isFalse);
@@ -1450,4 +1776,33 @@ void main() {
       expect(index.lastMessageIdFor('channel-1'), newerId);
     });
   });
+
+  test(
+    'a DM settings update with a null guild id is stored under @me',
+    () async {
+      final db = openTestDatabase();
+      final handler = GatewayEventHandler(database: db, currentUserId: 'me');
+
+      await handler.handle(
+        const UserGuildSettingsUpdateEvent(
+          guildId: null,
+          data: <String, dynamic>{
+            'guild_id': null,
+            'muted': false,
+            'channel_overrides': <String, dynamic>{
+              'dm-9': <String, dynamic>{'muted': true},
+            },
+            'version': 3,
+          },
+        ),
+      );
+      await pumpEventQueue();
+
+      final row = await db.userGuildSettingsDao.getByGuildId('@me');
+      final decoded = UserGuildSettingsResponse.fromJson(
+        jsonDecode(row!.data) as Map<String, dynamic>,
+      );
+      expect(decoded.channelOverrides?['dm-9']?.muted, isTrue);
+    },
+  );
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:fluxer_app/material_ui.dart';
 
-/// [GestureDetector] that shows a click cursor for tap targets on desktop.
 class FluxerGestureDetector extends StatelessWidget {
   const FluxerGestureDetector({
     super.key,
@@ -20,6 +19,7 @@ class FluxerGestureDetector extends StatelessWidget {
     this.onVerticalDragStart,
     this.onVerticalDragUpdate,
     this.onVerticalDragEnd,
+    this.onVerticalDragCancel,
     this.onHorizontalDragStart,
     this.onHorizontalDragUpdate,
     this.onHorizontalDragEnd,
@@ -49,6 +49,7 @@ class FluxerGestureDetector extends StatelessWidget {
   final GestureDragStartCallback? onVerticalDragStart;
   final GestureDragUpdateCallback? onVerticalDragUpdate;
   final GestureDragEndCallback? onVerticalDragEnd;
+  final GestureDragCancelCallback? onVerticalDragCancel;
   final GestureDragStartCallback? onHorizontalDragStart;
   final GestureDragUpdateCallback? onHorizontalDragUpdate;
   final GestureDragEndCallback? onHorizontalDragEnd;
@@ -61,7 +62,6 @@ class FluxerGestureDetector extends StatelessWidget {
   final bool excludeFromSemantics;
   final DragStartBehavior dragStartBehavior;
 
-  /// Override cursor when clickable. Defaults to [SystemMouseCursors.click].
   final MouseCursor? cursor;
 
   bool get _isClickable =>
@@ -93,6 +93,7 @@ class FluxerGestureDetector extends StatelessWidget {
       onVerticalDragStart: onVerticalDragStart,
       onVerticalDragUpdate: onVerticalDragUpdate,
       onVerticalDragEnd: onVerticalDragEnd,
+      onVerticalDragCancel: onVerticalDragCancel,
       onHorizontalDragStart: onHorizontalDragStart,
       onHorizontalDragUpdate: onHorizontalDragUpdate,
       onHorizontalDragEnd: onHorizontalDragEnd,

@@ -1,15 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_realtime_events.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_realtime_provider.dart';
 import 'package:fluxer_app/features/forum/data/forum_repository.dart';
 import 'package:fluxer_app/features/forum/domain/forum_channel.dart';
+import 'package:fluxer_app/features/threads/providers/thread_ui_providers.dart';
 
 class ForumFirstMessages extends Notifier<Map<String, Message?>> {
   final Set<String> _requested = <String>{};
@@ -32,13 +33,13 @@ class ForumFirstMessages extends Notifier<Map<String, Message?>> {
 
   void _onRealtimeEvent(MessageRealtimeEvent event) {
     switch (event) {
-      case MessageUpdated(:final event):
+      case MessageUpdated(:final event, :final mentionsCurrentUser):
         final Message? current = state[event.message.id];
         if (current != null && event.message.id == event.message.channelId) {
           put(
             current.applyGatewayUpdate(
               event.message,
-              currentUserId: ref.read(currentUserIdProvider),
+              isMentioned: mentionsCurrentUser,
             ),
           );
         }
@@ -68,6 +69,11 @@ class ForumFirstMessages extends Notifier<Map<String, Message?>> {
     required String forumId,
     required Iterable<String> postIds,
   }) {
+    if (!canRequestForumPosts(
+      ref.read(parentThreadActorProvider(guildId, forumId)),
+    )) {
+      return;
+    }
     final Set<String> ids = <String>{
       for (final String id in postIds)
         if (!state.containsKey(id) && _requested.add(id)) id,
@@ -203,6 +209,17 @@ class ForumFirstMessages extends Notifier<Map<String, Message?>> {
       ...state,
       postId: message.copyWith(reactions: reactions),
     };
+    unawaited(
+      ref
+          .read(fluxerDatabaseProvider)
+          .messageDao
+          .updateReactions(
+            postId,
+            jsonEncode(
+              reactions.map((Reaction reaction) => reaction.toJson()).toList(),
+            ),
+          ),
+    );
   }
 
   void clear() {

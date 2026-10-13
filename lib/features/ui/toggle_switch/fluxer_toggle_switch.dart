@@ -1,14 +1,13 @@
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart'
+    show isMobileLayout;
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/preview/fluxer_widget_preview.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/features/ui/toggle_switch/fluxer_switch_control.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/utils/fluxer_haptics.dart';
 
-/// A themed toggle switch with an optional tappable label on the left.
-///
-/// Visual styling is handled by the existing [SwitchTheme]
-/// in `buildFluxerTheme()`.
 class FluxerToggleSwitch extends StatelessWidget {
   const FluxerToggleSwitch({
     required this.value,
@@ -44,6 +43,25 @@ class FluxerToggleSwitch extends StatelessWidget {
     final layout = context.layout;
 
     final hasContent = label != null || description != null || icon != null;
+
+    if (label != null &&
+        (isMobileLayout(context) || FluxerMenuGroup.isGrouped(context))) {
+      return FluxerMenuGroup.ensureGrouped(
+        context,
+        FluxerBottomSheetMenuItem(
+          label: label!,
+          hint: description,
+          icon: icon,
+          enabled: enabled,
+          toggled: value,
+          onTap: () {
+            FluxerHaptics.selection();
+            onChanged(!value);
+          },
+          trailing: FluxerSwitchControl(value: value, enabled: enabled),
+        ),
+      );
+    }
 
     Widget buildLabelContent(BuildContext context, Set<WidgetState> _) {
       final foreground = enabled ? colors.textPrimary : colors.textTertiary;

@@ -122,7 +122,12 @@ void main() {
       )..holdSend = true;
       final db.FluxerDatabase database = openTestDatabase();
       await database.channelDao.upsertChannel(
-        db.ChannelsCompanion.insert(id: _channelId, guildId: '', name: 'dm'),
+        db.ChannelsCompanion.insert(
+          id: _channelId,
+          guildId: '',
+          name: 'dm',
+          lastMessageId: Value<String?>(latestMessages.last['id']! as String),
+        ),
       );
       await database.readStateDao.upsertReadState(
         db.ReadStatesCompanion(
@@ -322,7 +327,7 @@ List<Override> _messageListUiOverrides() {
     ),
     guildComposerAccessProvider(
       _channelId,
-    ).overrideWith((Ref ref) => GuildComposerAccess.allowed),
+    ).overrideWithValue(const AsyncData(GuildComposerAccess.allowed)),
     dmViewModelProvider.overrideWithValue(
       const DmViewState(
         conversations: <DmConversation>[],

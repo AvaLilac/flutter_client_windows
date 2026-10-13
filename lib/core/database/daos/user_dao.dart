@@ -48,6 +48,11 @@ class UserDao extends DatabaseAccessor<FluxerDatabase> with _$UserDaoMixin {
     });
   }
 
+  Future<void> updateUserMentionFlags(String id, int? mentionFlags) =>
+      (update(users)..where((u) => u.id.equals(id))).write(
+        UsersCompanion(mentionFlags: Value(mentionFlags)),
+      );
+
   Future<void> updateUserPresence(
     String id, {
     required String status,
@@ -89,6 +94,14 @@ class UserDao extends DatabaseAccessor<FluxerDatabase> with _$UserDaoMixin {
       }
     });
   }
+
+  Future<void> resetPresences() => update(users).write(
+    const UsersCompanion(
+      status: Value('offline'),
+      customStatus: Value(null),
+      mobile: Value(false),
+    ),
+  );
 
   Future<void> clearAll() => delete(users).go();
 }

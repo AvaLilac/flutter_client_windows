@@ -5,6 +5,7 @@ import 'package:fluxer_app/core/media/fluxer_media_url.dart';
 import 'package:fluxer_app/features/accessibility/presentation/allow_image_frame_animation.dart';
 import 'package:fluxer_app/features/accessibility/providers/effective_motion_preferences_provider.dart';
 import 'package:fluxer_app/features/chat/utils/media/media_dimension_utils.dart';
+import 'package:fluxer_markdown/fluxer_markdown.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 class CachedEmojiImage extends ConsumerStatefulWidget {
@@ -96,7 +97,6 @@ class _CachedEmojiImageState extends ConsumerState<CachedEmojiImage> {
           );
     final Widget image = CachedNetworkImage(
       imageUrl: url,
-      // 'a2' bypasses lossy animated entries cached before #776.
       cacheKey:
           'emoji_${widget.emojiId}_${animated ? 'a2' : 's'}_${widget.requestSize}',
       width: widget.size,
@@ -115,7 +115,13 @@ class _CachedEmojiImageState extends ConsumerState<CachedEmojiImage> {
           ? (ctx, _, _) => widget.errorBuilder!(ctx)
           : (_, _, _) => SizedBox(width: widget.size, height: widget.size),
     );
-    return animated ? AllowImageFrameAnimation(child: image) : image;
+    if (!animated) {
+      return image;
+    }
+    return FluxerEmojiFrameBoundary(
+      size: widget.size,
+      child: AllowImageFrameAnimation(child: image),
+    );
   }
 
   @override

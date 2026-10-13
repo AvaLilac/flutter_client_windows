@@ -12,10 +12,80 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get reconnectingTitle => '서버에 문제가 생겼어요!';
 
   @override
+  String get chatJumpToPresent => '현재 메시지로 이동';
+
+  @override
+  String get chatViewingOlderMessages => '이전 메시지를 보고 있습니다';
+
+  @override
+  String get chatNewMessagesBarJumpToFirstUnread => '읽지 않은 첫 메시지로 이동';
+
+  @override
+  String get chatNewMessagesBarMarkAsRead => '읽음으로 표시';
+
+  @override
+  String get chatNewMessagesBarMarkRead => '읽음으로 표시';
+
+  @override
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$compactTime 이후 새 메시지 $unreadCountString개 이상';
+  }
+
+  @override
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '새 메시지 $unreadCount개',
+      one: '새 메시지 $unreadCount개',
+    );
+    return '$compactTime 이후 $_temp0';
+  }
+
+  @override
+  String chatNewMessagesBarNewSinceEstimated(
+    int unreadCount,
+    String shortTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$shortTime 이후 새 메시지 $unreadCountString개 이상';
+  }
+
+  @override
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '새 메시지 $unreadCount개',
+    );
+    return '$shortTime 이후 $_temp0';
+  }
+
+  @override
   String get reconnectingBody => '인스턴스에 문제가 발생했습니다.\n곧 해결될 것입니다!';
 
   @override
   String get gatewayReconnectingToast => '다시 연결 중…';
+
+  @override
+  String get gatewayReconnectTryAgain => '다시 시도';
 
   @override
   String get gatewayConnectedToast => '연결됨';
@@ -263,6 +333,9 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get next => '다음';
 
   @override
+  String get create => 'Create';
+
+  @override
   String get mfaTitle => '2단계 인증';
 
   @override
@@ -297,6 +370,11 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
 
   @override
   String get accountRemoveDescription => '이 계정의 저장된 세션이 제거됩니다.';
+
+  @override
+  String accountSignOutTitle(String identifier) {
+    return 'Sign out of $identifier?';
+  }
 
   @override
   String get accountExpired => '만료됨';
@@ -1522,13 +1600,10 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get gifPickerSearch => 'GIF 검색';
 
   @override
-  String get gifPickerSearchKlipy => 'KLIPY 검색';
+  String get gifPickerSearchKlipy => 'Klipy 검색';
 
   @override
   String get gifPickerSearchTenor => 'Tenor 검색';
-
-  @override
-  String get gifPickerPoweredByKlipy => 'KLIPY';
 
   @override
   String get gifPickerFavorites => '즐겨찾기';
@@ -1591,7 +1666,7 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '맞춤 이모티콘 #개',
+      other: '맞춤 이모티콘 $count개',
       one: '맞춤 이모티콘 1개',
     );
     return '$_temp0';
@@ -1602,7 +1677,7 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '커뮤니티 #개',
+      other: '커뮤니티 $count개',
       one: '커뮤니티 1개',
     );
     return '$_temp0';
@@ -2327,10 +2402,6 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   @override
   String get dangerZoneDeleteDescription =>
       '회원님의 계정과 모든 관련 데이터가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.';
-
-  @override
-  String get dangerZoneDeleteCancelSubscription =>
-      '계정을 삭제하기 전에 Plutonium 설정에서 활성 Plutonium 구독을 취소하세요.';
 
   @override
   String get dangerZoneDeleteCannotDeleteAccount => '계정을 삭제할 수 없습니다';
@@ -5854,6 +5925,40 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get notificationsMessageUnavailable => '이 메시지를 불러올 수 없습니다.';
 
   @override
+  String notificationsMentionedYouIn(String author, String place) {
+    return '$author mentioned you in $place:';
+  }
+
+  @override
+  String notificationsRepliedToYouIn(String author, String place) {
+    return '$author replied to you in $place:';
+  }
+
+  @override
+  String notificationsMentionedYou(String author) {
+    return '$author mentioned you:';
+  }
+
+  @override
+  String notificationsRepliedToYou(String author) {
+    return '$author replied to you:';
+  }
+
+  @override
+  String notificationsMentionPlace(String server, String channel) {
+    return '$server – $channel';
+  }
+
+  @override
+  String get notificationsSendReply => 'Send a reply';
+
+  @override
+  String get notificationsRecentActivity => 'Recent activity';
+
+  @override
+  String get notificationsRemoveNotification => 'Remove notification';
+
+  @override
   String characterCounterRemaining(int remaining) {
     return '$remaining자 남음';
   }
@@ -5872,6 +5977,10 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
 
   @override
   String get chatMessageFailedToSend => '메시지 전송 실패';
+
+  @override
+  String get chatMessageFailedToSendTapForOptions =>
+      '메시지를 보내지 못했습니다. 옵션을 보려면 탭하세요.';
 
   @override
   String chatSendFailureDmRestricted(String settingsPath) {
@@ -6290,8 +6399,8 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '#개 커뮤니티',
-      one: '#개 커뮤니티',
+      other: '$count개 커뮤니티',
+      one: '$count개 커뮤니티',
     );
     return '$_temp0 제외 모두';
   }
@@ -6301,8 +6410,8 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '#개 커뮤니티만',
-      one: '#개 커뮤니티만',
+      other: '$count개 커뮤니티만',
+      one: '$count개 커뮤니티만',
     );
     return '$_temp0';
   }
@@ -6327,14 +6436,14 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '#시간',
-      one: '#시간',
+      other: '$hours시간',
+      one: '$hours시간',
     );
     String _temp1 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '#분',
-      one: '#분',
+      other: '$minutes분',
+      one: '$minutes분',
     );
     return '$_temp0 $_temp1';
   }
@@ -6344,8 +6453,8 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '#시간',
-      one: '#시간',
+      other: '$hours시간',
+      one: '$hours시간',
     );
     return '$_temp0';
   }
@@ -6355,8 +6464,8 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '#분',
-      one: '#분',
+      other: '$minutes분',
+      one: '$minutes분',
     );
     return '$_temp0';
   }
@@ -6366,8 +6475,8 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       seconds,
       locale: localeName,
-      other: '#초',
-      one: '#초',
+      other: '$seconds초',
+      one: '$seconds초',
     );
     return '$_temp0';
   }
@@ -6497,9 +6606,6 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
 
   @override
   String get forwardSuccessToast => '메시지 전달됨';
-
-  @override
-  String get forwardFailed => '메시지 전달 실패';
 
   @override
   String get forwardCommentSlowmodeDisabled =>
@@ -6892,6 +6998,12 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get chatEditNoChanges => '저장할 변경사항 없음';
 
   @override
+  String get chatEditFailed => 'Your message didn\'t update';
+
+  @override
+  String get chatEditFailedEditAgain => 'Edit again';
+
+  @override
   String get chatChannelNotReady => '채널을 아직 사용할 수 없습니다. 잠시 후 다시 시도하세요.';
 
   @override
@@ -6998,6 +7110,9 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
 
   @override
   String get composerAutocompleteStickersHeading => '스티커';
+
+  @override
+  String get composerAutocompleteEmojisHeading => 'Emojis';
 
   @override
   String get composerAutocompleteGifsHeading => 'GIF';
@@ -8537,16 +8652,16 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get userSettingsGroupYourAccount => '계정';
 
   @override
-  String get userSettingsGroupBilling => 'BILLING';
+  String get userSettingsGroupBilling => 'Billing';
 
   @override
-  String get userSettingsGroupApplication => 'APPLICATION';
+  String get userSettingsGroupApplication => 'Application';
 
   @override
-  String get userSettingsGroupDeveloper => 'DEVELOPER';
+  String get userSettingsGroupDeveloper => 'Developer';
 
   @override
-  String get userSettingsGroupStaffOnly => 'STAFF-ONLY';
+  String get userSettingsGroupStaffOnly => 'Staff-only';
 
   @override
   String get userSettingsSearchPlaceholder => '설정 검색...';
@@ -10343,6 +10458,9 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get chatJumpToBottom => '아래로 이동';
 
   @override
+  String get chatUnreadDividerNew => '새 메시지';
+
+  @override
   String get uiConfirm => '확인';
 
   @override
@@ -10636,7 +10754,7 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get scrollIndicatorNew => '신규';
 
   @override
-  String get scrollIndicatorNewMessage => '새 메시지';
+  String get scrollIndicatorNewMessages => '새 메시지';
 
   @override
   String guildNavbarCollapseFolder(String folderName) {
@@ -12460,7 +12578,7 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '메시지 #개를 삭제했습니다.',
+      other: '메시지 $count개를 삭제했습니다.',
       one: '메시지 1개를 삭제했습니다.',
     );
     return '$_temp0';
@@ -12471,7 +12589,7 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '멤버 #명을 추방했습니다.',
+      other: '멤버 $count명을 추방했습니다.',
       one: '멤버 1명을 추방했습니다.',
     );
     return '$_temp0';
@@ -12983,16 +13101,16 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get guildSettingsDeleteCommunityFailed => '이 커뮤니티를 삭제할 수 없습니다';
 
   @override
-  String get guildSettingsCategoryExpressions => 'EXPRESSIONS';
+  String get guildSettingsCategoryExpressions => 'Expressions';
 
   @override
-  String get guildSettingsCategoryCommunity => 'COMMUNITY';
+  String get guildSettingsCategoryCommunity => 'Community';
 
   @override
-  String get guildSettingsCategoryIntegrations => 'INTEGRATIONS';
+  String get guildSettingsCategoryIntegrations => 'Integrations';
 
   @override
-  String get guildSettingsCategoryPeople => 'PEOPLE';
+  String get guildSettingsCategoryPeople => 'People';
 
   @override
   String get guildSettingsOverviewBrandingTitle => '브랜딩';
@@ -14200,7 +14318,7 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get forumPostArchived => 'Archived';
 
   @override
-  String get forumPostNewBadge => 'NEW';
+  String get forumPostNewBadge => '새 메시지';
 
   @override
   String get forumPostStarterDeleted => 'The original message was deleted.';
@@ -14215,8 +14333,8 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new messages',
-      one: '1 new message',
+      other: '$count개의 새 메시지',
+      one: '$count개의 새 메시지',
     );
     return '$_temp0';
   }
@@ -14525,4 +14643,7 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String voiceP2pPeerFailedTitle(String name) {
     return 'Cannot connect directly to $name';
   }
+
+  @override
+  String get favoritesRenameCategory => '카테고리 이름 변경';
 }

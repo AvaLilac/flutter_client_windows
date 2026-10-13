@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/picker_search_input.dart';
 import 'package:fluxer_app/features/members/domain/member.dart';
 import 'package:fluxer_app/features/settings/domain/guild/roles/guild_role_permission_spec.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/guild/roles/guild_role_permission_category.dart';
@@ -73,8 +74,7 @@ class _GuildRoleEditorState extends ConsumerState<GuildRoleEditor> {
   @override
   void didUpdateWidget(covariant GuildRoleEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.role.id != widget.role.id ||
-        oldWidget.role.name != widget.role.name) {
+    if (_nameController.text != widget.role.name) {
       _nameController.text = widget.role.name;
     }
   }
@@ -206,12 +206,8 @@ class _GuildRoleEditorState extends ConsumerState<GuildRoleEditor> {
           Row(
             children: <Widget>[
               Expanded(
-                child: FluxerInput(
-                  hint: l10n.guildSettingsRolesSearchPermissions,
-                  prefixIcon: const PhosphorIcon(
-                    PhosphorIconsBold.magnifyingGlass,
-                    size: 16,
-                  ),
+                child: PickerSearchInput.inline(
+                  hintText: l10n.guildSettingsRolesSearchPermissions,
                   onChanged: widget.onPermissionSearchQueryChange,
                 ),
               ),

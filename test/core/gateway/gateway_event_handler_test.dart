@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/gateway/gateway_event_handler.dart';
+import 'package:fluxer_app/core/gateway/presence_update_batcher.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart' as domain;
 import 'package:fluxer_app/features/profile/domain/custom_status_utils.dart';
 import 'package:fluxer_app/shared/utils/snowflake_time.dart';
@@ -138,7 +139,42 @@ void main() {
     expect(bulkCalls.single.single.guildId, '200');
   });
 
-  test('READY keeps pending requests omitted from the payload', () async {
+  test('READY stores members whose user is only a reference', () async {
+    final database = openTestDatabase();
+    final handler = GatewayEventHandler(database: database);
+    await handler.handle(
+      ReadyEvent(
+        sessionId: 'session-id',
+        user: _user(),
+        guilds: const [],
+        rawGuilds: [
+          {
+            ..._guildWithVoiceState(),
+            'voice_states': <Map<String, Object?>>[],
+            'members': <Map<String, Object?>>[
+              {
+                'user': {'id': '100'},
+                'roles': <String>['role-1'],
+                'joined_at': '2024-01-01T00:00:00.000Z',
+                'mute': false,
+                'deaf': false,
+              },
+            ],
+          },
+        ],
+        privateChannels: const [],
+        relationships: const [],
+        readStates: const [],
+        presences: const [],
+      ),
+    );
+
+    final member = await database.memberDao.getMemberByUserId('100', '200');
+    expect(member, isNotNull);
+    expect(member!.roleIdsJson, contains('role-1'));
+  });
+
+  test('READY drops relationships missing from a same-user payload', () async {
     final database = openTestDatabase();
     final handler = GatewayEventHandler(database: database);
     await handler.handle(
@@ -171,12 +207,7 @@ void main() {
       ),
     );
 
-    final rows = await database.relationshipDao.getRelationships();
-    expect(rows, hasLength(2));
-    expect(
-      {for (final row in rows) row.userId: row.type},
-      {'pending-out': 4, 'pending-in': 3},
-    );
+    expect(await database.relationshipDao.getRelationships(), isEmpty);
   });
 
   test('READY full wipe drops relationships from a previous account', () async {
@@ -206,65 +237,141 @@ void main() {
     expect(await database.relationshipDao.getRelationships(), isEmpty);
   });
 
-  test(
-    'READY upserts relationships from the payload without wiping others',
-    () async {
+  group('READY message cache across launches', () {
+    Future<void> seedMessage(
+      FluxerDatabase database, {
+      required String id,
+      required String channelId,
+    }) => database.messageDao.upsertMessage(
+      domain.Message(
+        id: id,
+        channelId: channelId,
+        authorId: '300',
+        authorName: 'author',
+        content: 'hello',
+        timestamp: DateTime.utc(2026, 1, 2),
+      ).toCompanion(),
+    );
+
+    Future<void> seedOwner(FluxerDatabase database, String userId) =>
+        database.userSettingsDao.upsertSettings(
+          UserSettingsTableCompanion(
+            userId: Value(userId),
+            data: const Value('{}'),
+          ),
+        );
+
+    ReadyEvent readyWithChannel() => ReadyEvent(
+      sessionId: 'session-id',
+      user: _user(),
+      guilds: const [],
+      rawGuilds: [
+        _guildWithChannelAndMember(
+          guildId: '200',
+          channelId: '210',
+          memberUserId: '100',
+        ),
+      ],
+      privateChannels: const [],
+      relationships: const [],
+      readStates: const [],
+      presences: const [],
+    );
+
+    test('first READY of a launch keeps the same account messages', () async {
       final database = openTestDatabase();
-      final handler = GatewayEventHandler(database: database);
-      await handler.handle(
-        ReadyEvent(
-          sessionId: 'session-id',
-          user: _user(),
-          guilds: const [],
-          rawGuilds: const [],
-          privateChannels: const [],
-          relationships: const [],
-          readStates: const [],
-          presences: const [],
-        ),
-      );
-      await database.relationshipDao.upsertRelationships([
-        RelationshipsCompanion.insert(userId: 'pending-out', type: 4),
-      ]);
+      await seedOwner(database, '100');
+      await seedMessage(database, id: '501', channelId: '210');
+      await seedMessage(database, id: '502', channelId: '999');
 
-      await handler.handle(
-        ReadyEvent(
-          sessionId: 'session-id-2',
-          user: _user(),
-          guilds: const [],
-          rawGuilds: const [],
-          privateChannels: const [],
-          relationships: [
-            const RelationshipResponse(
+      await GatewayEventHandler(database: database).handle(readyWithChannel());
+
+      expect(await database.messageDao.getMessage('501'), isNotNull);
+      expect(await database.messageDao.getMessage('502'), isNull);
+    });
+
+    test(
+      'first READY of a launch keeps only the newest page per channel',
+      () async {
+        final database = openTestDatabase();
+        await seedOwner(database, '100');
+        for (var i = 0; i < 101; i++) {
+          await seedMessage(database, id: '${1000 + i}', channelId: '210');
+        }
+
+        await GatewayEventHandler(
+          database: database,
+        ).handle(readyWithChannel());
+
+        expect(await database.messageDao.getMessage('1000'), isNull);
+        expect(await database.messageDao.getMessage('1001'), isNotNull);
+        expect(await database.messageDao.getMessage('1100'), isNotNull);
+      },
+    );
+
+    test('first READY of a launch drops another account messages', () async {
+      final database = openTestDatabase();
+      await seedOwner(database, '777');
+      await seedMessage(database, id: '501', channelId: '210');
+
+      await GatewayEventHandler(database: database).handle(readyWithChannel());
+
+      expect(await database.messageDao.getMessage('501'), isNull);
+    });
+  });
+
+  test('READY replaces stored relationships with the payload', () async {
+    final database = openTestDatabase();
+    final handler = GatewayEventHandler(database: database);
+    await handler.handle(
+      ReadyEvent(
+        sessionId: 'session-id',
+        user: _user(),
+        guilds: const [],
+        rawGuilds: const [],
+        privateChannels: const [],
+        relationships: const [],
+        readStates: const [],
+        presences: const [],
+      ),
+    );
+    await database.relationshipDao.upsertRelationships([
+      RelationshipsCompanion.insert(userId: 'pending-out', type: 4),
+    ]);
+
+    await handler.handle(
+      ReadyEvent(
+        sessionId: 'session-id-2',
+        user: _user(),
+        guilds: const [],
+        rawGuilds: const [],
+        privateChannels: const [],
+        relationships: [
+          const RelationshipResponse(
+            id: 'friend-1',
+            type: RelationshipTypes.friend,
+            user: UserPartialResponse(
               id: 'friend-1',
-              type: RelationshipTypes.friend,
-              user: UserPartialResponse(
-                id: 'friend-1',
-                username: 'friend',
-                discriminator: '0001',
-                globalName: null,
-                avatar: null,
-                avatarColor: null,
-                flags: 0,
-              ),
-              nickname: null,
-              shareVoiceActivity: true,
-              friendSharesVoiceActivity: true,
+              username: 'friend',
+              discriminator: '0001',
+              globalName: null,
+              avatar: null,
+              avatarColor: null,
+              flags: 0,
             ),
-          ],
-          readStates: const [],
-          presences: const [],
-        ),
-      );
+            nickname: null,
+            shareVoiceActivity: true,
+            friendSharesVoiceActivity: true,
+          ),
+        ],
+        readStates: const [],
+        presences: const [],
+      ),
+    );
 
-      final rows = await database.relationshipDao.getRelationships();
-      expect(rows, hasLength(2));
-      expect(
-        {for (final row in rows) row.userId: row.type},
-        {'pending-out': 4, 'friend-1': 1},
-      );
-    },
-  );
+    final rows = await database.relationshipDao.getRelationships();
+    expect({for (final row in rows) row.userId: row.type}, {'friend-1': 1});
+  });
 
   test('READY skips post-commit callbacks after dispose', () async {
     final database = openTestDatabase();
@@ -377,7 +484,6 @@ void main() {
       expect(await database.userDao.getUserById('u-a'), isNotNull);
       expect(await database.userDao.getUserById('u-b'), isNotNull);
 
-      // Multi-guild bulk must attribute cache access under the correct guild.
       final accessA = await database
           .customSelect(
             'SELECT guild_id, user_id FROM member_cache_access '
@@ -490,6 +596,48 @@ void main() {
     });
   });
 
+  group('presence update', () {
+    test('applies the user profile sent with the presence', () async {
+      final database = openTestDatabase();
+      await database.userDao.upsertUser(
+        UsersCompanion.insert(
+          id: 'u1',
+          username: 'old',
+          globalName: const Value('Old'),
+        ),
+      );
+
+      final handler = GatewayEventHandler(
+        database: database,
+        currentUserId: '100',
+      );
+      await handler.handle(
+        PresenceUpdateEvent(
+          userId: 'u1',
+          status: 'online',
+          user: UserPartialResponse.fromJson(<String, Object?>{
+            'id': 'u1',
+            'username': 'new',
+            'discriminator': '0001',
+            'global_name': 'New',
+            'avatar': 'avatar-hash',
+            'avatar_color': null,
+            'flags': 0,
+          }),
+        ),
+      );
+      await Future<void>.delayed(
+        kPresenceUpdateBatchDelay + const Duration(milliseconds: 100),
+      );
+
+      final u1 = await database.userDao.getUserById('u1');
+      expect(u1?.username, 'new');
+      expect(u1?.globalName, 'New');
+      expect(u1?.avatar, 'avatar-hash');
+      expect(u1?.status, 'online');
+    });
+  });
+
   group('presence update bulk', () {
     test('writes status and custom status for every presence', () async {
       final database = openTestDatabase();
@@ -527,6 +675,64 @@ void main() {
       expect(u1?.customStatus, 'busy');
       expect(u2?.status, 'dnd');
       expect(u2?.customStatus, isNull);
+    });
+
+    test('stores the users sent with the presences', () async {
+      final database = openTestDatabase();
+      await database.userDao.upsertUser(
+        UsersCompanion.insert(id: 'u4', username: 'old'),
+      );
+
+      final handler = GatewayEventHandler(
+        database: database,
+        currentUserId: '100',
+      );
+      await handler.handle(
+        const PresenceUpdateBulkEvent(
+          guildId: 'guild-1',
+          presences: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'user': <String, dynamic>{
+                'id': 'u4',
+                'username': 'renamed',
+                'discriminator': '0004',
+                'global_name': null,
+                'avatar': null,
+                'avatar_color': null,
+                'flags': 0,
+              },
+              'status': 'idle',
+              'mobile': false,
+              'afk': false,
+              'custom_status': null,
+            },
+            <String, dynamic>{
+              'user': <String, dynamic>{
+                'id': 'u5',
+                'username': 'five',
+                'discriminator': '0005',
+                'global_name': 'Five',
+                'avatar': null,
+                'avatar_color': null,
+                'flags': 0,
+              },
+              'status': 'dnd',
+              'mobile': true,
+              'afk': false,
+              'custom_status': null,
+            },
+          ],
+        ),
+      );
+      await pumpEventQueue();
+
+      final u4 = await database.userDao.getUserById('u4');
+      final u5 = await database.userDao.getUserById('u5');
+      expect(u4?.username, 'renamed');
+      expect(u4?.status, 'idle');
+      expect(u5?.globalName, 'Five');
+      expect(u5?.status, 'dnd');
+      expect(u5?.mobile, isTrue);
     });
 
     test('stores custom emoji custom status as json', () async {

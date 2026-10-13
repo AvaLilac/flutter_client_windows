@@ -32,9 +32,6 @@ class MessageDao extends DatabaseAccessor<FluxerDatabase>
         messages,
       )..where((m) => m.id.equals(beforeId))).getSingleOrNull();
       if (beforeMsg != null) {
-        // Composite cursor: pure-timestamp comparison drops or duplicates
-        // equal-timestamp messages at page boundaries. Snowflake ids order
-        // creation within one timestamp; they fit signed 64-bit.
         final int beforeSnowflake = int.parse(beforeId);
         query.where(
           (m) =>
@@ -235,7 +232,6 @@ class MessageDao extends DatabaseAccessor<FluxerDatabase>
             ..limit(1))
           .getSingleOrNull();
 
-  /// Id of the newest row of [channelId] the server has confirmed.
   Future<String?> newestServerMessageId(String channelId) async {
     final Message? row =
         await (select(messages)
@@ -264,6 +260,21 @@ class MessageDao extends DatabaseAccessor<FluxerDatabase>
           .watchSingleOrNull()
           .suppressDriftCancellation;
 
+  Stream<int> watchServerMessageCountAfter(String channelId, String afterId) {
+    final Expression<int> count = messages.id.count();
+    final query = selectOnly(messages)
+      ..addColumns([count])
+      ..where(
+        messages.channelId.equals(channelId) &
+            messages.deliveryState.equals(MessageDeliveryState.sent.index) &
+            messages.id.cast<int>().isBiggerThanValue(int.parse(afterId)),
+      );
+    return query
+        .map((TypedResult row) => row.read(count) ?? 0)
+        .watchSingle()
+        .suppressDriftCancellation;
+  }
+
   Future<List<Message>> getMessagesAfter(
     String channelId,
     String afterId, {
@@ -280,7 +291,6 @@ class MessageDao extends DatabaseAccessor<FluxerDatabase>
       ])
       ..limit(limit);
     if (afterMsg != null) {
-      // Composite cursor - see getMessages.
       final int afterSnowflake = int.parse(afterId);
       query.where(
         (m) =>
@@ -347,13 +357,11 @@ class MessageDao extends DatabaseAccessor<FluxerDatabase>
     return (delete(messages)..where((m) => m.id.isIn(ids))).go();
   }
 
-  /// Deletes server-backed rows of [channelId] in (afterId, upToId] (#474).
   Future<void> deleteServerMessagesBetween(
     String channelId, {
     required String afterId,
     required String upToId,
   }) {
-    // Numeric compare: a TEXT compare misorders ids of different length.
     final int afterSnowflake = int.parse(afterId);
     final int upToSnowflake = int.parse(upToId);
     return (delete(messages)..where(
@@ -375,6 +383,41 @@ class MessageDao extends DatabaseAccessor<FluxerDatabase>
     }
     return (delete(messages)..where((m) => m.channelId.isIn(channelIds))).go();
   }
+
+  Future<void> deleteMessagesOutsideKnownChannels() {
+    final $ChannelsTable channels = attachedDatabase.channels;
+    final $DmChannelsTable dmChannels = attachedDatabase.dmChannels;
+    return (delete(messages)..where(
+          (m) =>
+              m.channelId.isNotInQuery(
+                selectOnly(channels)
+                  ..addColumns(<Expression<Object>>[channels.id]),
+              ) &
+              m.channelId.isNotInQuery(
+                selectOnly(dmChannels)
+                  ..addColumns(<Expression<Object>>[dmChannels.id]),
+              ),
+        ))
+        .go();
+  }
+
+  Future<int> keepNewestMessagesPerChannel(int limit) => customUpdate(
+    '''
+    DELETE FROM messages WHERE id IN (
+      SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (
+          PARTITION BY channel_id
+          ORDER BY timestamp DESC, CAST(id AS INTEGER) DESC
+        ) AS position
+        FROM messages
+      )
+      WHERE position > ?
+    )
+    ''',
+    variables: <Variable<Object>>[Variable<int>(limit)],
+    updates: <TableInfo<Table, dynamic>>{messages},
+    updateKind: UpdateKind.delete,
+  );
 
   Future<Map<String, Message>> getLastMessageForChannels(
     List<String> channelIds,

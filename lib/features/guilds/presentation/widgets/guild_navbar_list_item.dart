@@ -1,15 +1,5 @@
 part of 'guild_navbar.dart';
 
-double _guildNavbarInitialsFontSize(int initialsLength) {
-  if (initialsLength <= 2) {
-    return 20;
-  }
-  if (initialsLength <= kGuildIconInitialsMaxLength) {
-    return 16;
-  }
-  return 12;
-}
-
 int _guildNavbarIconMemCache(BuildContext context, double logicalSize) =>
     (logicalSize * MediaQuery.devicePixelRatioOf(context)).round();
 
@@ -22,9 +12,10 @@ class GuildNavbarIconShape extends StatelessWidget {
     super.key,
   });
 
-  static const double size = 44;
+  static const double size = 48;
   static const double idleRadius = size * 0.5;
   static const double activeRadius = size * 0.3;
+  static const double itemSpacing = 8;
 
   final bool isActive;
   final bool hasImage;
@@ -50,29 +41,57 @@ class GuildNavbarIconShape extends StatelessWidget {
       duration: context.motion.hover,
       curve: Curves.easeOut,
       tween: Tween<double>(begin: target, end: target),
-      builder: (BuildContext context, double t, Widget? child) {
-        final Color foreground = Color.lerp(
-          idleForeground,
-          colors.textOnBrandPrimary,
-          t,
-        )!;
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(
-            idleRadius + (activeRadius - idleRadius) * t,
-          ),
-          child: ColoredBox(
-            color: Color.lerp(idleBackground, activeBackground, t)!,
-            child: SizedBox.square(
-              dimension: size,
-              child: IconTheme.merge(
-                data: IconThemeData(color: foreground),
-                child: child!,
+      builder: (BuildContext context, double t, Widget? child) => ClipRRect(
+        borderRadius: BorderRadius.circular(
+          idleRadius + (activeRadius - idleRadius) * t,
+        ),
+        child: ColoredBox(
+          color: Color.lerp(idleBackground, activeBackground, t)!,
+          child: SizedBox.square(
+            dimension: size,
+            child: IconTheme.merge(
+              data: IconThemeData(
+                color: Color.lerp(idleForeground, colors.textOnBrandPrimary, t),
               ),
+              child: child!,
             ),
           ),
-        );
-      },
+        ),
+      ),
       child: child,
+    );
+  }
+}
+
+class GuildNavbarPill extends StatelessWidget {
+  const GuildNavbarPill({required this.height, this.faded = false, super.key});
+
+  static const double width = 4;
+  static const double selectedHeight = 40;
+  static const double hoverHeight = 20;
+  static const double unreadHeight = 8;
+  static const double badgeInset = -4;
+
+  final double height;
+  final bool faded;
+
+  @override
+  Widget build(BuildContext context) {
+    if (height <= 0) {
+      return const SizedBox.shrink();
+    }
+    final Color color = context.colors.textPrimary;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: faded ? color.withValues(alpha: color.a * 0.5) : color,
+          borderRadius: const BorderRadius.horizontal(
+            right: Radius.circular(width),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -209,3 +228,15 @@ class _GuildListItem extends StatefulWidget {
   @override
   State<_GuildListItem> createState() => _GuildListItemState();
 }
+
+@visibleForTesting
+Widget guildListItemForTest({
+  required String label,
+  bool isSelected = false,
+  int mentionCount = 0,
+}) => _GuildListItem(
+  label: label,
+  onTap: () {},
+  isSelected: isSelected,
+  mentionCount: mentionCount,
+);

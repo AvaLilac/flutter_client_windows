@@ -3,53 +3,42 @@ import 'dart:convert';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/features/chat/domain/message.dart';
 
-/// Threshold above which mentioning `@everyone`/`@here` asks for confirmation.
-/// Mirrors the web app's `MENTION_EVERYONE_THRESHOLD` (production value).
 const int kMentionConfirmThreshold = 50;
 
-/// A parsed composer submission. Mirrors the web app's client-side command
-/// layer (`CommandUtils.parseCommand` + `ReplaceCommandUtils`).
 sealed class ComposerCommand {
   const ComposerCommand();
 }
 
-/// Normal message content. Also covers any unrecognized `/command`, which is
-/// sent verbatim (matching the web app).
 class ComposerContentSend extends ComposerCommand {
   const ComposerContentSend(this.content);
 
   final String content;
 }
 
-/// `/me <content>` — italicised action text.
 class ComposerMeCommand extends ComposerCommand {
   const ComposerMeCommand(this.content);
 
   final String content;
 }
 
-/// `/spoiler <content>` — content wrapped in a spoiler.
 class ComposerSpoilerCommand extends ComposerCommand {
   const ComposerSpoilerCommand(this.content);
 
   final String content;
 }
 
-/// `/tts <content>` — text-to-speech message.
 class ComposerTtsCommand extends ComposerCommand {
   const ComposerTtsCommand(this.content);
 
   final String content;
 }
 
-/// `/nick [nickname]` — change or reset guild nickname.
 class ComposerNickCommand extends ComposerCommand {
   const ComposerNickCommand(this.nickname);
 
   final String nickname;
 }
 
-/// `/kick <@user> [reason]`.
 class ComposerKickCommand extends ComposerCommand {
   const ComposerKickCommand({required this.userId, this.reason});
 
@@ -57,7 +46,6 @@ class ComposerKickCommand extends ComposerCommand {
   final String? reason;
 }
 
-/// `/ban <@user> [0-7] [reason]`.
 class ComposerBanCommand extends ComposerCommand {
   const ComposerBanCommand({
     required this.userId,
@@ -70,7 +58,6 @@ class ComposerBanCommand extends ComposerCommand {
   final String? reason;
 }
 
-/// `/msg <@user> message`.
 class ComposerMsgCommand extends ComposerCommand {
   const ComposerMsgCommand({required this.userId, required this.message});
 
@@ -78,12 +65,10 @@ class ComposerMsgCommand extends ComposerCommand {
   final String message;
 }
 
-/// `/saved`, `/sticker`, or `/gif` — must pick a result before submit.
 class ComposerMediaSearchCommand extends ComposerCommand {
   const ComposerMediaSearchCommand();
 }
 
-/// `s/<source>/<replacement>[/g]` — edits the last own message in place.
 class ComposerReplaceCommand extends ComposerCommand {
   const ComposerReplaceCommand({
     required this.source,
@@ -96,13 +81,80 @@ class ComposerReplaceCommand extends ComposerCommand {
   final bool global;
 }
 
+class ComposerReactionShorthand extends ComposerCommand {
+  const ComposerReactionShorthand(this.token);
+
+  final String token;
+}
+
+class ReactionShorthandEmoji {
+  const ReactionShorthandEmoji({
+    required this.emoji,
+    this.emojiId,
+    this.animated = false,
+  });
+
+  final String emoji;
+  final String? emojiId;
+  final bool animated;
+}
+
+final RegExp _reactionShorthandRegex = RegExp(r'^\+(\S+)$');
+final RegExp _reactionShortcodeRegex = RegExp(
+  r'^:([^\s:]+(?:::skin-tone-[1-5])?):$',
+);
+final RegExp _customEmojiMarkdownRegex = RegExp(
+  r'^<(a)?:([A-Za-z0-9_+-]{2,}):(\d+)>$',
+);
+
+ReactionShorthandEmoji? resolveReactionShorthand(
+  String token, {
+  required String? Function(String name) unicodeByName,
+  required String? Function(String surrogates) unicodeBySurrogates,
+  required String? Function(String nameLower) customEmojiMarkdown,
+}) {
+  final RegExpMatch? shortcode = _reactionShortcodeRegex.firstMatch(token);
+  if (shortcode != null) {
+    final String name = shortcode.group(1)!;
+    final String? surrogates = unicodeByName(name);
+    if (surrogates != null) {
+      return ReactionShorthandEmoji(emoji: surrogates);
+    }
+    final String? markdown = customEmojiMarkdown(
+      name.replaceFirst(RegExp(r'~\d+$'), '').toLowerCase(),
+    );
+    return markdown == null ? null : _customFromMarkdown(markdown);
+  }
+  final ReactionShorthandEmoji? custom = _customFromMarkdown(token);
+  if (custom != null) {
+    return custom;
+  }
+  final String? surrogates = unicodeBySurrogates(token);
+  return surrogates == null ? null : ReactionShorthandEmoji(emoji: surrogates);
+}
+
+ReactionShorthandEmoji? _customFromMarkdown(String markdown) {
+  final RegExpMatch? match = _customEmojiMarkdownRegex.firstMatch(markdown);
+  if (match == null) {
+    return null;
+  }
+  return ReactionShorthandEmoji(
+    emoji: match.group(2)!,
+    emojiId: match.group(3),
+    animated: match.group(1) != null,
+  );
+}
+
 final RegExp _replaceCommandRegex = RegExp(r'^s/(.+?)/(.*?)(?:/(g)?)?$');
 final RegExp _userMentionWire = RegExp(r'<@!?(\d+)>');
 
-/// Parses [wireText] (the composer's wire representation) into a
-/// [ComposerCommand]. Pure; intended to be called exactly once per send.
 ComposerCommand parseComposerCommand(String wireText) {
   final String trimmed = wireText.trim();
+
+  final RegExpMatch? reaction = _reactionShorthandRegex.firstMatch(trimmed);
+  if (reaction != null) {
+    return ComposerReactionShorthand(reaction.group(1)!);
+  }
 
   final RegExpMatch? replace = _replaceCommandRegex.firstMatch(trimmed);
   if (replace != null) {
@@ -209,18 +261,12 @@ String? _commandArg(String trimmed, String prefix) {
   return rest.isEmpty ? null : rest;
 }
 
-/// `/me x` → `_x_` (web `transformWrappingCommands`).
 String wrapMe(String content) => '_${content}_';
 
-/// `/spoiler x` → `||x||` (web `transformWrappingCommands`).
 String wrapSpoiler(String content) => '||$content||';
 
 final RegExp _regexSpecialChars = RegExp(r'[.*+?^${}()|\[\]\\]');
 
-/// Applies a parsed replace [cmd] to [text] (web `executeReplaceCommand`).
-/// [ComposerReplaceCommand.source] is treated as a literal (regex-escaped);
-/// the replacement is inserted literally (no `$`-capture interpretation, since
-/// Dart's `String` replace overloads do not interpret `$`).
 String executeReplace(String text, ComposerReplaceCommand cmd) {
   final String escaped = cmd.source.replaceAllMapped(
     _regexSpecialChars,
@@ -232,8 +278,6 @@ String executeReplace(String text, ComposerReplaceCommand cmd) {
       : text.replaceFirst(pattern, cmd.replacement);
 }
 
-/// Strips a leading `@silent ` prefix, returning the remaining content and the
-/// message flags to apply (web `removeSilentFlag` + `getMessageFlags`).
 ({String content, int flags}) stripSilentPrefix(String content) {
   const String prefix = '@silent ';
   if (content.startsWith(prefix)) {

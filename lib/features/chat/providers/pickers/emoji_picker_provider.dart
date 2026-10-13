@@ -1,6 +1,13 @@
+import 'dart:math';
+
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
+import 'package:fluxer_app/core/router/fluxer_router.dart';
+import 'package:fluxer_app/core/synced_preferences/engine/synced_preference_field.dart';
+import 'package:fluxer_app/core/synced_preferences/engine/synced_preferences_dirty.dart';
+import 'package:fluxer_app/core/synced_preferences/usage_frecency.dart';
+import 'package:fluxer_app/features/chat/providers/pickers/expression_usage_provider.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/shared/utils/emoji_registry.dart';
 import 'package:fluxer_app/shared/utils/emoji_utils.dart';
@@ -9,14 +16,15 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'emoji_picker_provider.g.dart';
 
-@Riverpod(keepAlive: true)
+Duration _retryEmojiRegistryLoad(int retryCount, Object error) =>
+    Duration(milliseconds: 200 * (1 << min(retryCount, 5)));
+
+@Riverpod(keepAlive: true, retry: _retryEmojiRegistryLoad)
 Future<void> emojiRegistryLoaded(Ref ref) {
   return EmojiRegistry.ensureLoaded();
 }
 
 const int kMaxFrecentEmojis = 42;
-
-const int kMaxTrackedEmojiUsageKeys = 200;
 
 class GuildEmojiEntry {
   GuildEmojiEntry({
@@ -47,7 +55,6 @@ class GuildEmojiEntry {
   String cacheKeyForSize(int size) =>
       'emoji_${id}_${animated ? 'a2' : 's'}_$size';
 
-  /// Markdown token inserted into the message text.
   String get markdown =>
       getCustomEmojiMarkdown(name: name, id: id, animated: animated);
 
@@ -115,13 +122,12 @@ List<FrecentEmojiItem> buildPickerFrecentEmojis({
   return result;
 }
 
-@riverpod
+@Riverpod(keepAlive: true)
 Future<List<String>> rankedEmojiUsageKeys(Ref ref) async {
-  final db = ref.watch(fluxerDatabaseProvider);
-  final usage = await db.emojiUsageDao.getTopByFrecency(
-    kMaxTrackedEmojiUsageKeys,
+  final Map<String, UsageEntry> usage = await ref.watch(
+    expressionUsageProvider(ExpressionUsageKind.emoji).future,
   );
-  return usage.map((entry) => entry.key).toList(growable: false);
+  return rankUsageKeys(usage, DateTime.now().millisecondsSinceEpoch);
 }
 
 final allGuildEmojisForPickerProvider =
@@ -218,7 +224,6 @@ Map<Guild, List<GuildEmojiEntry>> _groupEmojiEntriesByGuild({
   return result;
 }
 
-/// Custom emoji are usable in their source guild, or anywhere with global expressions.
 bool composerCanUseGuildEmoji({
   required GuildEmojiEntry emoji,
   required bool hasGlobalEmojiAccess,
@@ -230,21 +235,26 @@ bool composerCanUseGuildEmoji({
 class EmojiSkinTone extends _$EmojiSkinTone {
   @override
   Future<String> build() async {
-    final db = ref.read(fluxerDatabaseProvider);
-    final session = await db.authSessionDao.getActiveSession();
-    if (session == null) {
+    final String? userId = ref.watch(currentUserIdProvider);
+    if (userId == null) {
       return '';
     }
-    return db.userPreferencesDao.getEmojiSkinTone(session.userId);
+    return ref
+        .read(fluxerDatabaseProvider)
+        .userPreferencesDao
+        .getEmojiSkinTone(userId);
   }
 
   Future<void> set(String skinTone) async {
     state = AsyncData(skinTone);
-    final db = ref.read(fluxerDatabaseProvider);
-    final session = await db.authSessionDao.getActiveSession();
-    if (session == null) {
+    final String? userId = ref.read(currentUserIdProvider);
+    if (userId == null) {
       return;
     }
-    await db.userPreferencesDao.setEmojiSkinTone(session.userId, skinTone);
+    await ref
+        .read(fluxerDatabaseProvider)
+        .userPreferencesDao
+        .setEmojiSkinTone(userId, skinTone);
+    ref.markSyncedDirty(SyncedPreferenceField.emoji);
   }
 }

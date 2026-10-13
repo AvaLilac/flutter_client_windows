@@ -129,8 +129,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('CURRENT DEVICE'), findsOneWidget);
-    expect(find.text('OTHER DEVICES'), findsNothing);
+    expect(find.text('Current device'), findsOneWidget);
+    expect(find.text('Other devices'), findsNothing);
     expect(find.text('Sign out all other devices'), findsNothing);
   });
 
@@ -149,8 +149,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('CURRENT DEVICE'), findsOneWidget);
-    expect(find.text('OTHER DEVICES'), findsOneWidget);
+    expect(find.text('Current device'), findsOneWidget);
+    expect(find.text('Other devices'), findsOneWidget);
     expect(find.text('Sign out all other devices'), findsOneWidget);
   });
 
@@ -168,16 +168,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('OTHER DEVICES'), findsOneWidget);
+    expect(find.text('Other devices'), findsOneWidget);
     expect(find.text('Sign out all other devices'), findsNothing);
   });
 
   testWidgets('shows Network Error when current session cannot be identified', (
     tester,
   ) async {
-    // Mirrors web behavior: without a gateway-supplied current session id
-    // hash, the widget refuses to render the device list to avoid
-    // accidentally revoking the wrong session.
     final api = _FakeAuthApi(
       sessions: [
         _session(id: 'a'),
@@ -190,8 +187,8 @@ void main() {
 
     expect(find.text('Network error'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
-    expect(find.text('CURRENT DEVICE'), findsNothing);
-    expect(find.text('OTHER DEVICES'), findsNothing);
+    expect(find.text('Current device'), findsNothing);
+    expect(find.text('Other devices'), findsNothing);
     expect(find.text('Sign out all other devices'), findsNothing);
   });
 
@@ -210,8 +207,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('CURRENT DEVICE'), findsOneWidget);
-    expect(find.text('OTHER DEVICES'), findsOneWidget);
+    expect(find.text('Current device'), findsOneWidget);
+    expect(find.text('Other devices'), findsOneWidget);
   });
 
   testWidgets('shows platform only for native clients without browser', (

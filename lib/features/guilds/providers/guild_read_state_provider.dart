@@ -12,17 +12,12 @@ import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_app/features/channels/data/unread_permission_utils.dart';
 import 'package:fluxer_app/features/channels/data/unread_settings_resolver.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
-    show
-        isGuildTextBasedChannel,
-        isThreadChannelType,
-        isThreadFeatureChannelType,
-        isThreadOnlyChannelType;
+    show isGuildTextBasedChannel, isThreadChannelType, isThreadOnlyChannelType;
 import 'package:fluxer_app/features/forum/domain/forum_channel.dart'
     show forumNewPostsUnreadEnabled;
 import 'package:fluxer_app/features/guilds/domain/guild_read_state_contribution.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_read_state_ready_provider.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_notification_resolution.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_dart/export.dart' hide ChannelType;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -34,7 +29,7 @@ class GuildReadStateEntry {
     required this.hasUnread,
     required this.hasPlainUnread,
     required this.mentionCount,
-    required this.mentionChannels,
+    required this.mentionCountByChannel,
     required this.unreadChannelId,
     required this.sentinel,
   });
@@ -42,7 +37,7 @@ class GuildReadStateEntry {
   final bool hasUnread;
   final bool hasPlainUnread;
   final int mentionCount;
-  final Set<String> mentionChannels;
+  final Map<String, int> mentionCountByChannel;
   final String? unreadChannelId;
   final int sentinel;
 
@@ -59,24 +54,21 @@ class GuildReadStateEntry {
     if (unreadChannelId != other.unreadChannelId) {
       return false;
     }
-    if (mentionChannels.length != other.mentionChannels.length) {
-      return false;
-    }
-    return mentionChannels.containsAll(other.mentionChannels);
+    return mapEquals(mentionCountByChannel, other.mentionCountByChannel);
   }
 
   GuildReadStateEntry copyWith({
     bool? hasUnread,
     bool? hasPlainUnread,
     int? mentionCount,
-    Set<String>? mentionChannels,
+    Map<String, int>? mentionCountByChannel,
     Object? unreadChannelId = _sentinel,
     int? sentinel,
   }) => GuildReadStateEntry(
     hasUnread: hasUnread ?? this.hasUnread,
     hasPlainUnread: hasPlainUnread ?? this.hasPlainUnread,
     mentionCount: mentionCount ?? this.mentionCount,
-    mentionChannels: mentionChannels ?? this.mentionChannels,
+    mentionCountByChannel: mentionCountByChannel ?? this.mentionCountByChannel,
     unreadChannelId: identical(unreadChannelId, _sentinel)
         ? this.unreadChannelId
         : unreadChannelId as String?,
@@ -235,17 +227,6 @@ class GuildReadState extends _$GuildReadState {
       }
     });
 
-    ref.listen<Set<String>>(threadGuildGateProvider, (
-      Set<String>? prev,
-      Set<String> next,
-    ) {
-      final Set<String> previous = prev ?? const <String>{};
-      _emitForGuilds(<String>{
-        ...next.difference(previous),
-        ...previous.difference(next),
-      });
-    });
-
     if (ref.read(gatewayReadyProvider)) {
       _requestSeed(db, currentUserId);
     }
@@ -313,9 +294,6 @@ class GuildReadState extends _$GuildReadState {
       if (!_tracksUnread(channel.type)) {
         continue;
       }
-      // Definitive VIEW_CHANNEL deny contributes nothing (parity with
-      // channelUnread). The fold does not watch the members table, so
-      // permission changes surface on the next delta or READY reseed.
       final canRead = await canReadChannelForUnread(
         database: db,
         channel: channel,
@@ -543,12 +521,9 @@ class GuildReadState extends _$GuildReadState {
     var totalMentions = 0;
     String? firstUnreadChannelId;
     var firstUnreadPosition = 0;
-    final mentionChannels = <String>{};
-    final bool threadsActive = ref.read(threadsGateProvider).isActive(guildId);
+    final mentionCountByChannel = <String, int>{};
     for (final channel in _channelSnapshot.values) {
-      if (channel.guildId != guildId ||
-          !_tracksUnread(channel.type) ||
-          (!threadsActive && isThreadFeatureChannelType(channel.type))) {
+      if (channel.guildId != guildId || !_tracksUnread(channel.type)) {
         continue;
       }
       final contribution = _channelContributions[channel.id];
@@ -556,7 +531,7 @@ class GuildReadState extends _$GuildReadState {
         continue;
       }
       if (contribution.mentions > 0) {
-        mentionChannels.add(channel.id);
+        mentionCountByChannel[channel.id] = contribution.mentions;
         totalMentions += contribution.mentions;
       }
       if (contribution.unreadEligible) {
@@ -576,7 +551,7 @@ class GuildReadState extends _$GuildReadState {
       hasUnread: anyUnread,
       hasPlainUnread: anyPlainUnread,
       mentionCount: totalMentions,
-      mentionChannels: mentionChannels,
+      mentionCountByChannel: mentionCountByChannel,
       unreadChannelId: firstUnreadChannelId,
       sentinel: 0,
     );
@@ -789,7 +764,6 @@ bool _readStateEquals(ReadState a, ReadState b) =>
     a.manual == b.manual &&
     a.stickyUnreadMessageId == b.stickyUnreadMessageId;
 
-/// Ignores the index: a delete rewinds it before this emission lands.
 Set<String> _diffLastMessageIds(
   Map<String, Channel> previous,
   Map<String, Channel> next,

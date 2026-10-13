@@ -150,15 +150,16 @@ class _PreviewGuildNavIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     const double size = GuildNavbarIconShape.size;
-    final double radius = isActive
-        ? GuildNavbarIconShape.activeRadius
-        : GuildNavbarIconShape.idleRadius;
     final Color background = isActive
         ? colors.brandPrimary
         : colors.serverIconBackground;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius: BorderRadius.circular(
+        isActive
+            ? GuildNavbarIconShape.activeRadius
+            : GuildNavbarIconShape.idleRadius,
+      ),
       child: ColoredBox(
         color: background,
         child: SizedBox(

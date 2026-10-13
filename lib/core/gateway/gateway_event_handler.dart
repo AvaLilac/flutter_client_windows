@@ -12,17 +12,14 @@ import 'package:fluxer_app/core/permissions/thread_permissions.dart';
 import 'package:fluxer_app/core/push/push_notification_clear.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/core/utils/message_mention_resolver.dart';
+import 'package:fluxer_app/features/channels/data/ack_batcher.dart';
 import 'package:fluxer_app/features/channels/data/read_state_decisions.dart';
 import 'package:fluxer_app/features/channels/data/read_state_repository.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_app/features/channels/data/read_state_write_batcher.dart';
 import 'package:fluxer_app/features/channels/data/unread_settings_resolver.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
-    show
-        isGuildTextBasedChannel,
-        isThreadChannelType,
-        isThreadFeatureChannelType,
-        isThreadOnlyChannelType;
+    show isGuildTextBasedChannel, isThreadChannelType, isThreadOnlyChannelType;
 import 'package:fluxer_app/features/chat/data/message_write_batcher.dart';
 import 'package:fluxer_app/features/chat/data/reaction_delta_utils.dart';
 import 'package:fluxer_app/features/chat/data/reaction_write_batcher.dart';
@@ -32,14 +29,15 @@ import 'package:fluxer_app/features/dm/domain/dm_channel_types.dart';
 import 'package:fluxer_app/features/guilds/data/guild_local_cleanup.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_notification_resolution.dart';
 import 'package:fluxer_app/features/notifications/data/mention_feed_write_batcher.dart';
+import 'package:fluxer_app/features/notifications/providers/mention_filters_provider.dart';
 import 'package:fluxer_app/features/profile/domain/custom_status_utils.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_app/shared/utils/sdk_converters.dart';
 import 'package:fluxer_app/shared/utils/snowflake_time.dart';
 import 'package:fluxer_dart/export.dart' hide ChannelType;
 import 'package:fluxer_dart/gateway.dart';
 
 const int _messageTypeThreadStarter = 21;
+const int _cachedMessagesKeptPerChannel = 100;
 
 void _logGatewayDebug(void Function() log) {
   assert(() {
@@ -51,6 +49,8 @@ void _logGatewayDebug(void Function() log) {
 typedef TypingCallback = void Function(String channelId, String userId);
 typedef VoiceStateCallback = void Function(VoiceState state);
 typedef VoiceBulkCallback = void Function(List<VoiceState> states);
+typedef GuildVoiceStatesSnapshotCallback =
+    void Function(String guildId, List<VoiceState> states);
 typedef CallCreateCallback = void Function(CallCreateEvent event);
 typedef CallUpdateCallback = void Function(CallUpdateEvent event);
 typedef ChannelCallback = void Function(String channelId);
@@ -61,7 +61,11 @@ typedef InviteDeleteCallback = void Function(String code);
 typedef ReadyCallback = void Function();
 typedef GuildCallback = void Function(String guildId);
 typedef MessageCreateCallback = void Function(MessageCreateDispatch dispatch);
-typedef MessageUpdateCallback = void Function(MessageUpdateEvent event);
+typedef MessageUpdateCallback =
+    void Function(
+      MessageUpdateEvent event, {
+      required bool mentionsCurrentUser,
+    });
 typedef MessageDeleteCallback = void Function(MessageDeleteEvent event);
 typedef MessageDeleteBulkCallback = void Function(MessageDeleteBulkEvent event);
 typedef MessageReactionChangeCallback =
@@ -84,22 +88,20 @@ typedef GuildAvailabilityChangedCallback =
     });
 typedef GuildAvailableCallback = void Function(String guildId);
 typedef GuildMembersChunkCallback =
-    void Function(String guildId, List<String> userIds, {String? nonce});
-typedef GuildMembersChunkProgressCallback =
     void Function(
       String guildId,
-      int chunkIndex,
-      int chunkCount,
       List<String> userIds, {
+      required int chunkCount,
       String? nonce,
     });
+typedef GuildMembersSeenCallback =
+    void Function(String guildId, List<String> userIds);
 typedef GuildMemberListUpdateCallback =
     void Function(GuildMemberListUpdateEvent event);
 typedef GuildCountsUpdateCallback = void Function(GuildCountsUpdateEvent event);
 typedef ChannelMemberCountsUpdateCallback =
     void Function(ChannelMemberCountsUpdateEvent event);
-typedef GuildBanCallback =
-    void Function(String guildId, UserPartialResponse user);
+typedef GuildBanCallback = void Function(String guildId, String userId);
 typedef WebhooksUpdateCallback =
     void Function(String guildId, String channelId);
 typedef EntranceSoundPlayCallback = void Function(EntranceSoundPlayEvent event);
@@ -108,11 +110,7 @@ typedef VoiceServerUpdateCallback = void Function(VoiceServerUpdateEvent event);
 typedef VoiceServerP2pUpdateCallback =
     void Function(VoiceServerP2pUpdateEvent event);
 typedef VoiceSignalCallback = void Function(VoiceSignalEvent event);
-typedef VoiceStateAckCallback = void Function(VoiceStateAckEvent event);
-typedef DefaultHideMutedChannelsResolver = bool Function();
 typedef GatewayErrorCallback = void Function(GatewayErrorEvent event);
-typedef ThreadGateChangedCallback =
-    void Function(String guildId, {required bool active});
 typedef ThreadMemberListUpdateCallback =
     void Function(ThreadMemberListUpdateEvent event);
 typedef ForumUnreadsCallback = void Function(ForumUnreadsEvent event);
@@ -123,15 +121,29 @@ String? _presenceCustomStatusFromMap(Map<String, dynamic> presence) {
   return serializeCustomStatusMap(customStatusMap);
 }
 
+UserPartialResponse? _presenceUserFromMap(Map<String, dynamic> presence) {
+  final Map<String, dynamic>? user = presence['user'] as Map<String, dynamic>?;
+  if (user == null || user['username'] == null) {
+    return null;
+  }
+  try {
+    return UserPartialResponse.fromJson(user);
+  } on Object {
+    return null;
+  }
+}
+
 class GatewayEventHandler {
   GatewayEventHandler({
     required this.database,
     this.readStateRepository,
     this.readStateWriteBatcher,
+    this.ackBatcher,
     this.messageMentionContextCache,
     this.messageWriteBatcher,
     this.channelLastMessageIndex,
     this.mentionFeedWriteBatcher,
+    this.resolveMentionFilters,
     this.reactionWriteBatcher,
     this.currentUserId,
     this.isAutoAckActive,
@@ -141,10 +153,12 @@ class GatewayEventHandler {
     this.onTypingClear,
     this.onVoiceStateUpdate,
     this.onVoiceStatesBulk,
+    this.onPassiveVoiceStates,
+    this.onGuildVoiceStatesSnapshot,
+    this.onGuildVoiceEnded,
     this.onVoiceServerUpdate,
     this.onVoiceServerP2pUpdate,
     this.onVoiceSignal,
-    this.onVoiceStateAck,
     this.onGatewayError,
     this.onCallCreate,
     this.onCallUpdate,
@@ -165,6 +179,7 @@ class GatewayEventHandler {
     this.onMessageReactionChange,
     this.onOwnMessageCreated,
     this.onMessageAcked,
+    this.onRelationshipsChanged,
     this.onAuthSessionChange,
     this.onAuthSessionIdHashChanged,
     this.onConnectionsUpdate,
@@ -176,7 +191,7 @@ class GatewayEventHandler {
     this.onGuildAvailabilityChanged,
     this.onGuildAvailable,
     this.onMembersChunk,
-    this.onMembersChunkProgress,
+    this.onGuildMembersSeen,
     this.onMemberListUpdate,
     this.onGuildCountsUpdate,
     this.onChannelMemberCountsUpdate,
@@ -184,10 +199,8 @@ class GatewayEventHandler {
     this.onGuildBanRemove,
     this.onWebhooksUpdate,
     this.onEntranceSoundPlay,
-    this.resolveDefaultHideMutedChannels,
-    this.threadsGate,
     this.resolveParentThreadActor,
-    this.onThreadGateChanged,
+    this.openChannelId,
     this.onThreadMemberListUpdate,
     this.onForumUnreads,
   }) {
@@ -203,10 +216,12 @@ class GatewayEventHandler {
   final db.FluxerDatabase database;
   final ReadStateRepository? readStateRepository;
   final ReadStateWriteBatcher? readStateWriteBatcher;
+  final AckBatcher? ackBatcher;
   final MessageMentionContextCache? messageMentionContextCache;
   final MessageWriteBatcher? messageWriteBatcher;
   final ChannelLastMessageIndex? channelLastMessageIndex;
   final MentionFeedWriteBatcher? mentionFeedWriteBatcher;
+  final MentionFilters Function()? resolveMentionFilters;
   final ReactionWriteBatcher? reactionWriteBatcher;
   final String? currentUserId;
   final bool Function(String channelId)? isAutoAckActive;
@@ -216,10 +231,12 @@ class GatewayEventHandler {
   final TypingCallback? onTypingClear;
   final VoiceStateCallback? onVoiceStateUpdate;
   final VoiceBulkCallback? onVoiceStatesBulk;
+  final VoiceBulkCallback? onPassiveVoiceStates;
+  final GuildVoiceStatesSnapshotCallback? onGuildVoiceStatesSnapshot;
+  final GuildCallback? onGuildVoiceEnded;
   final VoiceServerUpdateCallback? onVoiceServerUpdate;
   final VoiceServerP2pUpdateCallback? onVoiceServerP2pUpdate;
   final VoiceSignalCallback? onVoiceSignal;
-  final VoiceStateAckCallback? onVoiceStateAck;
   final GatewayErrorCallback? onGatewayError;
   final CallCreateCallback? onCallCreate;
   final CallUpdateCallback? onCallUpdate;
@@ -240,6 +257,7 @@ class GatewayEventHandler {
   final MessageReactionChangeCallback? onMessageReactionChange;
   final void Function(String channelId, DateTime sentAt)? onOwnMessageCreated;
   final void Function(String channelId, {required bool manual})? onMessageAcked;
+  final void Function()? onRelationshipsChanged;
   final AuthSessionChangeCallback? onAuthSessionChange;
   final void Function(String? idHash)? onAuthSessionIdHashChanged;
   final ConnectionsUpdateCallback? onConnectionsUpdate;
@@ -251,7 +269,7 @@ class GatewayEventHandler {
   final GuildAvailabilityChangedCallback? onGuildAvailabilityChanged;
   final GuildAvailableCallback? onGuildAvailable;
   final GuildMembersChunkCallback? onMembersChunk;
-  final GuildMembersChunkProgressCallback? onMembersChunkProgress;
+  final GuildMembersSeenCallback? onGuildMembersSeen;
   final GuildMemberListUpdateCallback? onMemberListUpdate;
   final GuildCountsUpdateCallback? onGuildCountsUpdate;
   final ChannelMemberCountsUpdateCallback? onChannelMemberCountsUpdate;
@@ -259,11 +277,9 @@ class GatewayEventHandler {
   final GuildBanCallback? onGuildBanRemove;
   final WebhooksUpdateCallback? onWebhooksUpdate;
   final EntranceSoundPlayCallback? onEntranceSoundPlay;
-  final DefaultHideMutedChannelsResolver? resolveDefaultHideMutedChannels;
-  final ThreadsGate? threadsGate;
   final ThreadActor? Function(String guildId, String parentId)?
   resolveParentThreadActor;
-  final ThreadGateChangedCallback? onThreadGateChanged;
+  final String? Function()? openChannelId;
   final ThreadMemberListUpdateCallback? onThreadMemberListUpdate;
   final ForumUnreadsCallback? onForumUnreads;
 
@@ -274,7 +290,7 @@ class GatewayEventHandler {
   String? _lastReadyUserId;
   bool _hasCommittedReady = false;
   bool _disposed = false;
-  Set<String>? _persistedThreadGuildIds;
+  final Map<String, int> _guildAvailabilityGenerations = <String, int>{};
 
   String? get _selfUserId => _currentUserId ?? currentUserId;
 
@@ -282,13 +298,6 @@ class GatewayEventHandler {
     _disposed = true;
     _presenceUpdateBatcher.dispose();
   }
-
-  bool _threadsActive(String? guildId) =>
-      threadsGate?.isActive(guildId) ?? false;
-
-  bool _isGatedChannel(ChannelResponse channel) =>
-      isThreadFeatureChannelType(channel.type.json ?? -1) &&
-      !_threadsActive(channel.guildId);
 
   void _emit(void Function()? callback) {
     if (_disposed) {
@@ -338,7 +347,7 @@ class GatewayEventHandler {
             ' → ${event.guildId}',
           ),
         );
-        _handleMemberUpsert(event.guildId, event.member);
+        unawaited(_handleMemberUpsert(event.guildId, event.member));
         if (event.member.user.id == currentUserId) {
           _emit(() => onGuildPermissionsChanged?.call(event.guildId));
         }
@@ -349,7 +358,7 @@ class GatewayEventHandler {
             ' → ${event.guildId}',
           ),
         );
-        _handleMemberUpsert(event.guildId, event.member);
+        unawaited(_handleMemberUpsert(event.guildId, event.member));
         if (event.member.user.id == currentUserId) {
           _emit(() => onGuildPermissionsChanged?.call(event.guildId));
           messageMentionContextCache?.invalidateGuild(event.guildId);
@@ -374,7 +383,7 @@ class GatewayEventHandler {
         unawaited(_handleChannelUpsert(event.channel));
       case ChannelDeleteEvent():
         _logGatewayDebug(
-          () => talker.debug('[Gateway] CHANNEL_DELETE: ${event.channel.id}'),
+          () => talker.debug('[Gateway] CHANNEL_DELETE: ${event.channelId}'),
         );
         _handleChannelDelete(event);
       case MessageReactionAddEvent():
@@ -414,7 +423,7 @@ class GatewayEventHandler {
         _logGatewayDebug(
           () => talker.debug('[Gateway] GUILD_UPDATE: ${event.guild.guild.id}'),
         );
-        _handleGuildUpdate(event);
+        unawaited(_handleGuildUpdate(event));
       case GuildDeleteEvent():
         _logGatewayDebug(
           () => talker.debug('[Gateway] GUILD_DELETE: ${event.guildId}'),
@@ -485,12 +494,9 @@ class GatewayEventHandler {
         _logGatewayDebug(
           () => talker.debug('[Gateway] CHANNEL_PINS_ACK: ${event.channelId}'),
         );
-        final channel = await database.channelDao.getChannelById(
-          event.channelId,
-        );
         await database.readStateDao.updatePinTimestamp(
           event.channelId,
-          event.lastPinTimestamp ?? channel?.lastPinTimestamp,
+          event.timestamp,
         );
       case ChannelRecipientAddEvent():
         _logGatewayDebug(
@@ -534,8 +540,7 @@ class GatewayEventHandler {
         _logGatewayDebug(
           () => talker.debug('[Gateway] GUILD_ROLE_DELETE: ${event.roleId}'),
         );
-        unawaited(database.roleDao.deleteRole(event.roleId));
-        _emit(() => onGuildPermissionsChanged?.call(event.guildId));
+        unawaited(_handleRoleDelete(event));
       case GuildRoleUpdateBulkEvent():
         _logGatewayDebug(
           () => talker.debug(
@@ -547,12 +552,12 @@ class GatewayEventHandler {
         _logGatewayDebug(
           () => talker.debug('[Gateway] GUILD_BAN_ADD: ${event.guildId}'),
         );
-        _emit(() => onGuildBanAdd?.call(event.guildId, event.user));
+        _emit(() => onGuildBanAdd?.call(event.guildId, event.userId));
       case GuildBanRemoveEvent():
         _logGatewayDebug(
           () => talker.debug('[Gateway] GUILD_BAN_REMOVE: ${event.guildId}'),
         );
-        _emit(() => onGuildBanRemove?.call(event.guildId, event.user));
+        _emit(() => onGuildBanRemove?.call(event.guildId, event.userId));
       case GuildEmojisUpdateEvent():
         _logGatewayDebug(
           () => talker.debug(
@@ -612,6 +617,11 @@ class GatewayEventHandler {
             ' → ${event.state.channelId}',
           ),
         );
+        final String? voiceGuildId = event.state.guildId;
+        final GuildMemberResponse? voiceMember = event.member;
+        if (voiceGuildId != null && voiceMember != null) {
+          await _hydrateMemberIfMissing(voiceGuildId, voiceMember);
+        }
         _emit(() => onVoiceStateUpdate?.call(event.state));
       case final VoiceServerUpdateEvent e:
         talker.info(
@@ -627,12 +637,6 @@ class GatewayEventHandler {
         _emit(() => onVoiceServerP2pUpdate?.call(e));
       case final VoiceSignalEvent e:
         _emit(() => onVoiceSignal?.call(e));
-      case VoiceStateAckEvent():
-        _logGatewayDebug(
-          () =>
-              talker.debug('[Gateway] VOICE_STATE_ACK status=${event.status}'),
-        );
-        _emit(() => onVoiceStateAck?.call(event));
       case CallCreateEvent():
         _logGatewayDebug(
           () => talker.debug('[Gateway] CALL_CREATE: ${event.channelId}'),
@@ -754,20 +758,16 @@ class GatewayEventHandler {
       case ThreadMembersUpdateEvent():
         await _handleThreadMembersUpdate(event);
       case ThreadMemberListUpdateEvent():
-        if (_threadsActive(event.guildId)) {
-          _emit(() => onThreadMemberListUpdate?.call(event));
-        }
+        _emit(() => onThreadMemberListUpdate?.call(event));
       case ForumUnreadsEvent():
-        if (_threadsActive(event.guildId)) {
-          _emit(() => onForumUnreads?.call(event));
-        }
+        _emit(() => onForumUnreads?.call(event));
       case final GatewayErrorEvent e:
         talker.warning('[Gateway] Error: [${e.code}] ${e.message}');
         _emit(() => onGatewayError?.call(e));
       case UnknownGatewayEvent():
-        if (event.eventType == 'MESSAGE_UPDATE') {
+        if (event.parseError != null) {
           talker.warning(
-            '[Gateway] Failed to parse MESSAGE_UPDATE: ${event.data}',
+            '[Gateway] Failed to parse ${event.eventType}: ${event.parseError}',
           );
         } else {
           _logGatewayDebug(
@@ -810,10 +810,9 @@ class GatewayEventHandler {
     );
 
     final List<String> prunedGuildIds = <String>[];
+    final List<String> prunedChannelIds = <String>[];
     final List<VoiceState> readyVoiceStates = <VoiceState>[];
 
-    // Drop unread writes queued against the previous session. The snapshot
-    // applied below is authoritative.
     readStateWriteBatcher?.clearAll();
 
     var clearsMs = 0;
@@ -835,37 +834,23 @@ class GatewayEventHandler {
       }
     }
 
+    final bool keepCachedMessages =
+        shouldFullWipe &&
+        await database.userSettingsDao.getSettings(event.user.id) != null;
     final Set<String> localGuildIdsBeforeReady = isSameUserReconnect
         ? (await database.guildDao.getServers()).map((row) => row.id).toSet()
         : const <String>{};
 
-    // Parsed on an isolate before BEGIN so the multi-second parse on large
-    // accounts does not extend the write lock.
     List<ParsedReadyGuild> processedGuilds = const <ParsedReadyGuild>[];
     if (event.rawGuilds.isNotEmpty) {
       final Stopwatch parsePhase = Stopwatch()..start();
       processedGuilds = await parseReadyGuilds(
         rawGuilds: event.rawGuilds,
         guildPositions: guildPositions,
+        users: <Map<String, dynamic>>[...?event.users, event.user.toJson()],
       );
       guildsMs = parsePhase.elapsedMilliseconds;
     }
-    final Set<String> readyThreadGuildIds = <String>{
-      for (final ParsedReadyGuild parsed in processedGuilds)
-        if (threadsGate != null && parsed.guildData.threads != null)
-          parsed.guildData.guild.id,
-    };
-    final Set<String> priorThreadGuildIds = shouldFullWipe
-        ? const <String>{}
-        : _persistedThreadGuildIds ?? const <String>{};
-    _persistedThreadGuildIds =
-        <String>{...priorThreadGuildIds, ...readyThreadGuildIds}
-          ..removeAll(<String>{
-            for (final ParsedReadyGuild parsed in processedGuilds)
-              if (!readyThreadGuildIds.contains(parsed.guildData.guild.id))
-                parsed.guildData.guild.id,
-          });
-
     await database.transaction(() async {
       final Stopwatch phase = Stopwatch()..start();
       if (shouldFullWipe) {
@@ -885,19 +870,16 @@ class GatewayEventHandler {
         await database.rtcRegionsDao.clearAll();
         await database.guildEmojiDao.clearAll();
         await database.guildStickerDao.clearAll();
-        await database.messageDao.clearAll();
-        await database.threadDao.clearAll();
-      }
-      for (final ParsedReadyGuild parsed in processedGuilds) {
-        final String guildId = parsed.guildData.guild.id;
-        if (priorThreadGuildIds.contains(guildId) &&
-            !readyThreadGuildIds.contains(guildId)) {
-          await database.threadDao.purgeGuild(guildId);
+        if (!keepCachedMessages) {
+          await database.messageDao.clearAll();
+          await database.notificationDao.clearMentionFeed();
         }
+        await database.threadDao.clearAll();
+      } else {
+        await database.userDao.resetPresences();
       }
       clearsMs = phase.elapsedMilliseconds;
 
-      // Gateway never echoes the current user's own presence back.
       final selfStatus = event.userSettings?.status ?? 'online';
       await database.userDao.upsertUser(
         db.UsersCompanion.insert(
@@ -907,6 +889,7 @@ class GatewayEventHandler {
           globalName: Value(event.user.globalName),
           avatar: Value(event.user.avatar),
           avatarColor: Value(event.user.avatarColor),
+          mentionFlags: Value(event.user.mentionFlags?.json),
           bot: Value(event.user.bot ?? false),
           system: Value(event.user.system ?? false),
           status: Value(selfStatus),
@@ -966,50 +949,54 @@ class GatewayEventHandler {
         final List<({String guildId, List<db.GuildStickersCompanion> stickers})>
         stickerReplacements =
             <({String guildId, List<db.GuildStickersCompanion> stickers})>[];
+        final Map<String, Set<String>> snapshotChannelIdsByGuildId =
+            <String, Set<String>>{};
+        final Map<String, Set<String>> snapshotRoleIdsByGuildId =
+            <String, Set<String>>{};
 
         for (final ParsedReadyGuild parsed in processedGuilds) {
           final GuildCreateData guildData = parsed.guildData;
           final String guildId = guildData.guild.id;
-          final bool threadsActive = readyThreadGuildIds.contains(guildId);
+          final Set<String> snapshotChannelIds = <String>{};
+          snapshotChannelIdsByGuildId[guildId] = snapshotChannelIds;
+          snapshotRoleIdsByGuildId[guildId] = <String>{
+            for (final GuildRoleResponse role in guildData.roles) role.id,
+          };
           guildCompanions.add(
             guildFromSdk(
               guildData.guild,
               position: parsed.position,
               memberCount: parsed.memberCount,
               onlineCount: parsed.onlineCount,
-            ).copyWith(threadChannelsActive: Value(threadsActive)),
+            ),
           );
           for (final channel in guildData.channels) {
-            if (!threadsActive &&
-                isThreadFeatureChannelType(channel.type.json ?? -1)) {
+            channelCompanions.add(channelFromSdk(channel, guildId));
+            snapshotChannelIds.add(channel.id);
+          }
+          final List<db.ThreadMembersCompanion> joined =
+              <db.ThreadMembersCompanion>[];
+          final Set<String> listed = <String>{};
+          for (final ChannelResponse thread
+              in guildData.threads ?? const <ChannelResponse>[]) {
+            if (!isThreadChannelType(thread.type.json ?? -1)) {
               continue;
             }
-            channelCompanions.add(channelFromSdk(channel, guildId));
-          }
-          if (threadsActive) {
-            final List<db.ThreadMembersCompanion> joined =
-                <db.ThreadMembersCompanion>[];
-            final Set<String> listed = <String>{};
-            for (final ChannelResponse thread in guildData.threads!) {
-              if (!isThreadChannelType(thread.type.json ?? -1)) {
-                continue;
-              }
-              channelCompanions.add(channelFromSdk(thread, guildId));
-              listed.add(thread.id);
-              final ThreadMemberResponse? member = thread.member;
-              if (member != null) {
-                joined.add(
-                  threadMemberFromSdk(
-                    member,
-                    threadId: thread.id,
-                    guildId: guildId,
-                  ),
-                );
-              }
+            channelCompanions.add(channelFromSdk(thread, guildId));
+            listed.add(thread.id);
+            final ThreadMemberResponse? member = thread.member;
+            if (member != null) {
+              joined.add(
+                threadMemberFromSdk(
+                  member,
+                  threadId: thread.id,
+                  guildId: guildId,
+                ),
+              );
             }
-            joinedThreads[guildId] = joined;
-            listedThreadIds[guildId] = listed;
           }
+          joinedThreads[guildId] = joined;
+          listedThreadIds[guildId] = listed;
           if (guildData.roles.isNotEmpty) {
             roleCompanions.addAll(
               guildData.roles.map((r) => roleFromSdk(r, guildId)),
@@ -1024,7 +1011,7 @@ class GatewayEventHandler {
           if (guildData.voiceStates.isNotEmpty) {
             readyVoiceStates.addAll(guildData.voiceStates);
           }
-          if (guildData.emojis.isNotEmpty) {
+          if (guildData.emojis.isNotEmpty || isSameUserReconnect) {
             emojiReplacements.add((
               guildId: guildId,
               emojis: guildData.emojis
@@ -1039,7 +1026,7 @@ class GatewayEventHandler {
                   .toList(),
             ));
           }
-          if (guildData.stickers.isNotEmpty) {
+          if (guildData.stickers.isNotEmpty || isSameUserReconnect) {
             stickerReplacements.add((
               guildId: guildId,
               stickers: guildData.stickers
@@ -1058,8 +1045,6 @@ class GatewayEventHandler {
           }
         }
 
-        // Bulk hops: servers, channels, roles, users, members, then
-        // per-guild emoji/sticker replace (delete+batch each).
         if (guildCompanions.isNotEmpty) {
           await database.guildDao.upsertServers(guildCompanions);
         }
@@ -1107,6 +1092,12 @@ class GatewayEventHandler {
         }
 
         if (isSameUserReconnect) {
+          prunedChannelIds.addAll(
+            (await _pruneGuildSnapshots(
+              channelIdsByGuildId: snapshotChannelIdsByGuildId,
+              roleIdsByGuildId: snapshotRoleIdsByGuildId,
+            )).channelIds,
+          );
           final readyGuildIds = <String>{
             for (final rawGuild in event.rawGuilds)
               if (rawGuild['id'] is String) rawGuild['id'] as String,
@@ -1158,24 +1149,34 @@ class GatewayEventHandler {
       await database.dmChannelDao.upsertDmChannels([
         buildPersonalNotesDmCompanion(userId: event.user.id),
       ]);
-
-      if (event.relationships.isNotEmpty) {
-        final relUsers = <db.UsersCompanion>[];
-        final relCompanions = <db.RelationshipsCompanion>[];
-        for (final rel in event.relationships) {
-          relUsers.add(userFromPartialSdk(rel.user));
-          relCompanions.add(
-            db.RelationshipsCompanion.insert(
-              userId: rel.user.id,
-              type: rel.type.json ?? 1,
-              nickname: Value(rel.nickname),
-              since: Value(rel.since),
-            ),
-          );
-        }
-        await database.userDao.upsertUsers(relUsers);
-        await database.relationshipDao.upsertRelationships(relCompanions);
+      if (isSameUserReconnect) {
+        final List<String> closedDmIds = await database.dmChannelDao
+            .deleteDmChannelsNotIn(<String>{
+              event.user.id,
+              for (final ChannelResponse ch in event.privateChannels) ch.id,
+            });
+        await database.messageDao.deleteMessagesForChannels(closedDmIds);
+        await database.readStateDao.deleteReadStatesForChannels(closedDmIds);
+        prunedChannelIds.addAll(closedDmIds);
       }
+
+      final relUsers = <db.UsersCompanion>[];
+      final relCompanions = <db.RelationshipsCompanion>[];
+      for (final rel in event.relationships) {
+        relUsers.add(userFromPartialSdk(rel.user));
+        relCompanions.add(
+          db.RelationshipsCompanion.insert(
+            userId: rel.user.id,
+            type: rel.type.json ?? 1,
+            nickname: Value(rel.nickname),
+            since: Value(rel.since),
+          ),
+        );
+      }
+      if (relUsers.isNotEmpty) {
+        await database.userDao.upsertUsers(relUsers);
+      }
+      await database.relationshipDao.replaceAll(relCompanions);
 
       if (event.presences.isNotEmpty) {
         final List<
@@ -1223,9 +1224,6 @@ class GatewayEventHandler {
             <db.ReadStatesCompanion>[];
         for (final rs in event.readStates) {
           final db.ReadState? existing = existingByChannelId[rs.id];
-          // The server snapshot never carries the client-only manual-unread
-          // flag, so preserve a local manual mark (and its sticky divider)
-          // while the server ack has not advanced past where we left off.
           final manualMark = existing?.manual ?? false;
           final keepManual =
               manualMark &&
@@ -1246,8 +1244,6 @@ class GatewayEventHandler {
               flags: Value(rs.flags),
             ),
           );
-          // Fold into the preload map so duplicate channel ids in one READY
-          // match sequential single-row merges (later rows see earlier results).
           existingByChannelId[rs.id] = db.ReadState(
             channelId: rs.id,
             lastMessageId: rs.lastMessageId,
@@ -1291,8 +1287,8 @@ class GatewayEventHandler {
       }
 
       final notes = event.notes;
-      if (notes != null && notes.isNotEmpty) {
-        await database.userNotesDao.upsertNotes(
+      if (notes != null) {
+        await database.userNotesDao.replaceAll(
           notes.entries
               .map(
                 (e) => db.UserNotesTableCompanion(
@@ -1342,38 +1338,26 @@ class GatewayEventHandler {
         }
       }
 
+      await database.threadDao.pruneArchived(now: DateTime.now());
+
+      if (keepCachedMessages) {
+        await database.messageDao.deleteMessagesOutsideKnownChannels();
+        await database.messageDao.keepNewestMessagesPerChannel(
+          _cachedMessagesKeptPerChannel,
+        );
+      }
+
       settingsMs = phase.elapsedMilliseconds;
     });
 
     final Stopwatch postPhase = Stopwatch()..start();
-    final ThreadsGate? gate = threadsGate;
-    final Map<String, bool> threadGateTransitions = <String, bool>{};
-    if (gate != null) {
-      final Set<String> previousThreadGuildIds = gate.activeGuildIds;
-      gate.resetConnection();
-      for (final String guildId in readyThreadGuildIds) {
-        gate.apply(guildId, active: true);
-      }
-      for (final String guildId in previousThreadGuildIds) {
-        if (!readyThreadGuildIds.contains(guildId)) {
-          threadGateTransitions[guildId] = false;
-        }
-      }
-      for (final String guildId in readyThreadGuildIds) {
-        if (!previousThreadGuildIds.contains(guildId)) {
-          threadGateTransitions[guildId] = true;
-        }
-      }
-    }
     _lastReadyUserId = event.user.id;
     _hasCommittedReady = true;
     final hydratedSettings = event.userSettings;
-    if (readyThreadGuildIds.isNotEmpty) {
-      unawaited(database.threadDao.pruneArchived(now: DateTime.now()));
-    }
     if (!hasUnavailableGuilds) {
       unawaited(readStateRepository?.cleanupStaleReadStates());
     }
+    _forgetPrunedChannels(prunedChannelIds);
     _emit(() {
       for (final guildId in prunedGuildIds) {
         onGuildPermissionsEvict?.call(guildId);
@@ -1386,10 +1370,6 @@ class GatewayEventHandler {
       if (readyVoiceStates.isNotEmpty) {
         onVoiceStatesBulk?.call(readyVoiceStates);
       }
-      threadGateTransitions.forEach(
-        (String guildId, bool active) =>
-            onThreadGateChanged?.call(guildId, active: active),
-      );
     });
     final int postMs = postPhase.elapsedMilliseconds;
 
@@ -1444,7 +1424,7 @@ class GatewayEventHandler {
   Future<void> _handleUserGuildSettingsUpdate(
     UserGuildSettingsUpdateEvent event,
   ) async {
-    final guildId = _userGuildSettingsStorageId(event.guildId, event.data);
+    final guildId = _userGuildSettingsStorageId(event.guildId);
     final existingRow = await database.userGuildSettingsDao.getByGuildId(
       guildId,
     );
@@ -1464,15 +1444,8 @@ class GatewayEventHandler {
     messageMentionContextCache?.invalidateGuild(guildId);
   }
 
-  String _userGuildSettingsStorageId(
-    String eventGuildId,
-    Map<String, dynamic> data,
-  ) {
-    final rawGuildId = data['guild_id'];
-    if (rawGuildId is String && rawGuildId.isNotEmpty) {
-      return rawGuildId;
-    }
-    return eventGuildId.isEmpty ? '@me' : eventGuildId;
+  String _userGuildSettingsStorageId(String? eventGuildId) {
+    return eventGuildId == null || eventGuildId.isEmpty ? '@me' : eventGuildId;
   }
 
   Map<String, dynamic>? _tryDecodeJsonObject(String data) {
@@ -1500,8 +1473,7 @@ class GatewayEventHandler {
       ...updatesWithoutOverrides,
     };
     if (updates.containsKey('channel_overrides')) {
-      merged['channel_overrides'] = _mergeChannelOverrides(
-        existing?['channel_overrides'],
+      merged['channel_overrides'] = _normalizeChannelOverrides(
         channelOverridesUpdate,
       );
     }
@@ -1520,45 +1492,26 @@ class GatewayEventHandler {
       mobilePush: true,
       suppressEveryone: false,
       suppressRoles: false,
-      hideMutedChannels:
-          !_disposed && (resolveDefaultHideMutedChannels?.call() ?? false),
+      hideMutedChannels: false,
       channelOverrides: null,
       version: -1,
     ).toJson();
   }
 
-  Map<String, dynamic>? _mergeChannelOverrides(
-    Object? existingRaw,
-    Object? updatesRaw,
-  ) {
-    if (updatesRaw == null) {
-      if (existingRaw is Map) {
-        return existingRaw.cast<String, dynamic>();
-      }
+  Map<String, dynamic>? _normalizeChannelOverrides(Object? raw) {
+    if (raw is! Map || raw.isEmpty) {
       return null;
     }
-    final existing = existingRaw is Map
-        ? existingRaw.cast<String, dynamic>()
-        : const <String, dynamic>{};
-    final updates = updatesRaw is Map
-        ? updatesRaw.cast<String, dynamic>()
-        : const <String, dynamic>{};
-    final merged = <String, dynamic>{...existing};
-    for (final entry in updates.entries) {
-      final existingOverride = existing[entry.key];
-      final updateOverride = entry.value;
-      if (updateOverride is Map) {
-        merged[entry.key] = <String, dynamic>{
-          ..._defaultChannelOverrideData(),
-          if (existingOverride is Map)
-            ...existingOverride.cast<String, dynamic>(),
-          ...updateOverride.cast<String, dynamic>(),
-        };
-      } else {
-        merged[entry.key] = updateOverride;
-      }
-    }
-    return merged;
+    return <String, dynamic>{
+      for (final MapEntry<String, dynamic> entry
+          in raw.cast<String, dynamic>().entries)
+        entry.key: entry.value is Map
+            ? <String, dynamic>{
+                ..._defaultChannelOverrideData(),
+                ...(entry.value as Map).cast<String, dynamic>(),
+              }
+            : entry.value,
+    };
   }
 
   Map<String, dynamic> _defaultChannelOverrideData() {
@@ -1634,10 +1587,11 @@ class GatewayEventHandler {
   }
 
   Future<void> _handleMessageCreate(MessageCreateEvent event) async {
+    _hydrateEmbeddedMember(event.guildId, event.member);
     final String channelId = event.message.channelId;
     final int? channelType = event.channelType;
     final String? threadGuildId =
-        _threadsActive(event.guildId) &&
+        event.guildId != null &&
             (channelType == null || isThreadChannelType(channelType))
         ? event.guildId
         : null;
@@ -1735,7 +1689,12 @@ class GatewayEventHandler {
     if (mentionsCurrentUser &&
         !isDm &&
         !acknowledgedByGateway &&
-        !mentionCtx.blockedUserIds.contains(msg.authorId)) {
+        !mentionCtx.blockedUserIds.contains(msg.authorId) &&
+        (resolveMentionFilters?.call() ?? const MentionFilters()).includes(
+          inGuild: channelResolution.isGuild,
+          mentionsEveryone: event.message.mentionEveryone,
+          mentionsRoles: event.message.mentionRoles.isNotEmpty,
+        )) {
       if (mentionFeedWriteBatcher != null) {
         mentionFeedWriteBatcher!.enqueue(
           messageId: msg.id,
@@ -1830,8 +1789,7 @@ class GatewayEventHandler {
     if (threadChannel != null &&
         isThreadChannelType(threadChannel.type) &&
         msg.id != channelId &&
-        msg.type != _messageTypeThreadStarter &&
-        _threadsActive(threadChannel.guildId)) {
+        msg.type != _messageTypeThreadStarter) {
       await database.threadDao.bumpMessageCounters(channelId, delta: 1);
     }
 
@@ -1957,6 +1915,12 @@ class GatewayEventHandler {
           clearSticky: false,
           markDmRead: isDm,
         );
+        ackBatcher?.queue(
+          channelId: msg.channelId,
+          messageId: msg.id,
+          immediate: false,
+          hadMentions: false,
+        );
         return;
       case ReadStateIncomingMessageKind.ignoreBlockedMessage:
       case ReadStateIncomingMessageKind.coveredByAck:
@@ -2058,9 +2022,6 @@ class GatewayEventHandler {
     final shouldMention = isDm
         ? !await _isDmMuted(msg.channelId)
         : mentionsCurrentUser;
-    // Seed the ack baseline only for never-acked guild channels so new messages
-    // surface as plain unread. DM unread is tracked via the DM row counter, so
-    // its ack is left untouched.
     final String? ackMessageId = (seedAck && !isDm)
         ? (previousChannelLastMessageId ??
               snowflakeAtPreviousMillisecond(msg.id))
@@ -2120,6 +2081,7 @@ class GatewayEventHandler {
   }
 
   Future<void> _handleMessageUpdate(MessageUpdateEvent event) async {
+    _hydrateEmbeddedMember(event.guildId, event.member);
     final msg = Message.fromSdk(event.message, currentUserId: currentUserId);
     final mentionsCurrentUser = await resolveMessageMentionsUser(
       database,
@@ -2139,7 +2101,8 @@ class GatewayEventHandler {
     }
     final db.MessagesCompanion companion = msg
         .copyWith(isMentioned: mentionsCurrentUser)
-        .toCompanion();
+        .toCompanion()
+        .copyWith(reactionsJson: const Value.absent());
     await database.messageDao.upsertMessage(
       msg.threadJson == null
           ? companion.copyWith(threadJson: const Value.absent())
@@ -2155,7 +2118,12 @@ class GatewayEventHandler {
         msg.timestamp,
       );
     }
-    _emit(() => onMessageUpdate?.call(event));
+    _emit(
+      () => onMessageUpdate?.call(
+        event,
+        mentionsCurrentUser: mentionsCurrentUser,
+      ),
+    );
   }
 
   Future<void> _lowerThreadMessageCount({
@@ -2163,7 +2131,7 @@ class GatewayEventHandler {
     required String channelId,
     required List<String> messageIds,
   }) async {
-    if (!_threadsActive(guildId)) {
+    if (guildId == null) {
       return;
     }
     final int counted = messageIds.where((String id) => id != channelId).length;
@@ -2206,15 +2174,11 @@ class GatewayEventHandler {
       await database.messageDao.deleteMessages(messageIds);
     });
 
-    // Reconcile read state after the rows are removed. Only the tail is
-    // rewritten; deleting older messages in a jump window must not hide real
-    // unread below it.
     final repository = readStateRepository;
     if (repository != null) {
       await repository.reconcileAfterMessageDelete(
         channelId: channelId,
         deletedMessageIds: messageIds,
-        currentUserId: currentUserId,
       );
       final ChannelLastMessageIndex? index = channelLastMessageIndex;
       if (index != null &&
@@ -2230,17 +2194,17 @@ class GatewayEventHandler {
   }
 
   void _handleTypingStart(TypingStartEvent event) {
-    final String? guildId = event.guildId;
-    final GuildMemberResponse? member = event.member;
-    if (guildId != null && member != null) {
-      unawaited(_hydrateTypingMemberIfMissing(guildId, member));
-    }
+    _hydrateEmbeddedMember(event.guildId, event.member);
     _emit(() => onTypingStart?.call(event.channelId, event.userId));
   }
 
-  // Hydrate the typer's member only when absent, mirroring the web client.
-  // Avoids clobbering fresher rows and re-emitting member streams each event.
-  Future<void> _hydrateTypingMemberIfMissing(
+  void _hydrateEmbeddedMember(String? guildId, GuildMemberResponse? member) {
+    if (guildId != null && member != null) {
+      unawaited(_hydrateMemberIfMissing(guildId, member));
+    }
+  }
+
+  Future<void> _hydrateMemberIfMissing(
     String guildId,
     GuildMemberResponse member,
   ) async {
@@ -2251,26 +2215,31 @@ class GatewayEventHandler {
     if (existing != null) {
       return;
     }
-    _handleMemberUpsert(guildId, member);
+    await _handleMemberUpsert(guildId, member);
   }
 
   void _handlePresenceUpdate(PresenceUpdateEvent event) {
+    final UserPartialResponse? user = event.user;
     _presenceUpdateBatcher.enqueue(
       userId: event.userId,
       status: event.status,
       customStatus: event.customStatus,
       mobile: event.mobile,
+      user: user == null ? null : userFromPartialSdk(user),
     );
   }
 
-  void _handleMemberUpsert(String guildId, GuildMemberResponse member) {
-    unawaited(database.userDao.upsertUser(userFromPartialSdk(member.user)));
-
-    unawaited(
+  Future<void> _handleMemberUpsert(
+    String guildId,
+    GuildMemberResponse member,
+  ) async {
+    _emit(() => onGuildMembersSeen?.call(guildId, <String>[member.user.id]));
+    await Future.wait(<Future<void>>[
+      database.userDao.upsertUser(userFromPartialSdk(member.user)),
       database.memberDao.upsertMember(
         memberCompanionFromSdk(member, guildId: guildId),
       ),
-    );
+    ]);
   }
 
   void _handleMemberRemove(GuildMemberRemoveEvent event) {
@@ -2282,9 +2251,6 @@ class GatewayEventHandler {
   }
 
   Future<void> _handleChannelUpsert(ChannelResponse channel) async {
-    if (_isGatedChannel(channel)) {
-      return;
-    }
     final guildId = channel.guildId;
     if (guildId != null) {
       await database.channelDao.upsertChannel(channelFromSdk(channel, guildId));
@@ -2292,11 +2258,9 @@ class GatewayEventHandler {
         _invalidateMentionCacheForChannel(channel.id, guildId: guildId);
         _emit(() => onChannelPermissionChanged?.call(channel.id));
       }());
-      if (_threadsActive(guildId)) {
-        for (final db.Channel thread
-            in await database.threadDao.getThreadsForParent(channel.id)) {
-          _emit(() => onChannelPermissionChanged?.call(thread.id));
-        }
+      for (final db.Channel thread
+          in await database.threadDao.getThreadsForParent(channel.id)) {
+        _emit(() => onChannelPermissionChanged?.call(thread.id));
       }
       return;
     }
@@ -2313,17 +2277,19 @@ class GatewayEventHandler {
   }
 
   void _handleChannelDelete(ChannelDeleteEvent event) {
-    _invalidateMentionCacheForChannel(
-      event.channel.id,
-      guildId: event.channel.guildId,
-    );
-    _emit(() => onChannelDelete?.call(event.channel.id));
-    unawaited(database.messageDao.deleteMessagesForChannel(event.channel.id));
-    unawaited(database.channelDao.deleteChannel(event.channel.id));
-    unawaited(database.dmChannelDao.deleteDmChannel(event.channel.id));
-    readStateWriteBatcher?.discard(event.channel.id);
-    unawaited(database.readStateDao.deleteReadState(event.channel.id));
-    unawaited(_deleteThreadsForParent(event.channel.id));
+    final String channelId = event.channelId;
+    _invalidateMentionCacheForChannel(channelId, guildId: event.guildId);
+    unawaited(database.messageDao.deleteMessagesForChannel(channelId));
+    unawaited(_deleteChannelRows(channelId));
+    readStateWriteBatcher?.discard(channelId);
+    unawaited(database.readStateDao.deleteReadState(channelId));
+    unawaited(_deleteThreadsForParent(channelId));
+  }
+
+  Future<void> _deleteChannelRows(String channelId) async {
+    await database.channelDao.deleteChannel(channelId);
+    await database.dmChannelDao.deleteDmChannel(channelId);
+    _emit(() => onChannelDelete?.call(channelId));
   }
 
   Future<void> _deleteThreadsForParent(String parentId) async {
@@ -2341,9 +2307,7 @@ class GatewayEventHandler {
     required bool newlyCreated,
   }) async {
     final String? guildId = thread.guildId;
-    if (guildId == null ||
-        !_threadsActive(guildId) ||
-        !isThreadChannelType(thread.type.json ?? -1)) {
+    if (guildId == null || !isThreadChannelType(thread.type.json ?? -1)) {
       return;
     }
     await database.transaction(() async {
@@ -2381,9 +2345,6 @@ class GatewayEventHandler {
   }
 
   Future<void> _handleThreadDelete(ThreadDeleteEvent event) async {
-    if (!_threadsActive(event.guildId)) {
-      return;
-    }
     await database.messageDao.updateThreadJson(
       messageId: event.id,
       channelId: event.parentId,
@@ -2406,13 +2367,12 @@ class GatewayEventHandler {
 
   Future<void> _handleThreadListSync(ThreadListSyncEvent event) async {
     final String guildId = event.guildId;
-    if (!_threadsActive(guildId)) {
-      return;
-    }
     final String? selfUserId = _selfUserId;
+    final String? openId = openChannelId?.call();
     await database.threadDao.replaceActiveForParents(
       guildId: guildId,
       parentIds: event.channelIds,
+      keepIds: <String>{?openId},
       threads: <db.ChannelsCompanion>[
         for (final ChannelResponse thread in event.threads)
           if (isThreadChannelType(thread.type.json ?? -1))
@@ -2431,7 +2391,7 @@ class GatewayEventHandler {
 
   Future<void> _handleThreadMemberUpdate(ThreadMemberUpdateEvent event) async {
     final String? threadId = event.member.id;
-    if (threadId == null || !_threadsActive(event.guildId)) {
+    if (threadId == null) {
       return;
     }
     await database.threadDao.upsertMember(
@@ -2446,9 +2406,6 @@ class GatewayEventHandler {
   Future<void> _handleThreadMembersUpdate(
     ThreadMembersUpdateEvent event,
   ) async {
-    if (!_threadsActive(event.guildId)) {
-      return;
-    }
     final String? selfUserId = _selfUserId;
     await database.threadDao.setMemberCount(event.id, event.memberCount);
     for (final ThreadMemberEntry member
@@ -2524,6 +2481,7 @@ class GatewayEventHandler {
           globalName: Value(event.user.globalName),
           avatar: Value(event.user.avatar),
           avatarColor: Value(event.user.avatarColor),
+          mentionFlags: Value(event.user.mentionFlags?.json),
           bot: Value(event.user.bot ?? false),
           system: Value(event.user.system ?? false),
           memberSince: Value(dateTimeFromUserSnowflakeOrNull(event.user.id)),
@@ -2540,6 +2498,14 @@ class GatewayEventHandler {
             event.user.premiumBadgeSequenceHidden,
           ),
         ),
+      ),
+    );
+    unawaited(
+      database.authSessionDao.updateUserData(
+        userId: event.user.id,
+        username: event.user.username,
+        discriminator: event.user.discriminator,
+        avatar: event.user.avatar,
       ),
     );
     _emit(() => onCurrentUserUpdate?.call(event.user));
@@ -2586,12 +2552,11 @@ class GatewayEventHandler {
       );
     }
     _emit(() {
-      onMembersChunk?.call(event.guildId, userIds, nonce: event.nonce);
-      onMembersChunkProgress?.call(
+      onGuildMembersSeen?.call(event.guildId, userIds);
+      onMembersChunk?.call(
         event.guildId,
-        event.chunkIndex,
-        event.chunkCount,
         userIds,
+        chunkCount: event.chunkCount,
         nonce: event.nonce,
       );
       if (currentUserId != null && userIds.contains(currentUserId)) {
@@ -2634,12 +2599,17 @@ class GatewayEventHandler {
   }
 
   void _handlePresenceUpdateBulk(PresenceUpdateBulkEvent event) {
+    final users = <db.UsersCompanion>[];
     final updates =
         <({String userId, String status, String? customStatus, bool mobile})>[];
     for (final p in event.presences) {
       final userId = (p['user'] as Map<String, dynamic>?)?['id'] as String?;
       final status = p['status'] as String?;
       if (userId != null && status != null) {
+        final UserPartialResponse? user = _presenceUserFromMap(p);
+        if (user != null) {
+          users.add(userFromPartialSdk(user));
+        }
         updates.add((
           userId: userId,
           status: status,
@@ -2648,7 +2618,10 @@ class GatewayEventHandler {
         ));
       }
     }
-    unawaited(database.userDao.updateUserPresencesBatch(updates));
+    unawaited(() async {
+      await database.userDao.upsertUsers(users);
+      await database.userDao.updateUserPresencesBatch(updates);
+    }());
   }
 
   void _handleGuildCreate(GuildCreateEvent event) {
@@ -2661,156 +2634,163 @@ class GatewayEventHandler {
       );
       return;
     }
-    _emit(() => onGuildAvailable?.call(guildId));
+    final int availabilityGeneration = _bumpGuildAvailability(guildId);
 
-    final List<ChannelResponse>? threads = threadsGate == null
-        ? null
-        : event.guild.threads;
-    final bool threadsActive = threads != null;
-    final ThreadGateTransition transition =
-        threadsGate?.apply(guildId, active: threadsActive) ??
-        ThreadGateTransition.unchanged;
-
-    final Set<String>? persisted = _persistedThreadGuildIds;
-    if (threadsActive) {
-      persisted?.add(guildId);
-    }
-    final bool? wasPersistedActive = threadsActive
-        ? null
-        : persisted?.remove(guildId);
-
-    unawaited(
-      database.transaction(() async {
-        if (transition == ThreadGateTransition.deactivated ||
-            (!threadsActive &&
-                (wasPersistedActive ??
-                    (await database.guildDao.getServerById(
-                      guildId,
-                    ))?.threadChannelsActive ??
-                    false))) {
-          await _purgeThreadData(guildId);
-        }
-        await database.guildDao.upsertServer(
-          guildFromSdk(
-            event.guild.guild,
-          ).copyWith(threadChannelsActive: Value(threadsActive)),
-        );
-
-        // One statement batch per table, mirroring the READY fanout; per-row
-        // writes here starve the channel switch reads racing this transaction.
-        final channelCompanions = <db.ChannelsCompanion>[];
-        for (final channel in event.guild.channels) {
-          final channelGuildId = channel.guildId;
-          if (channelGuildId != null &&
-              (threadsActive ||
-                  !isThreadFeatureChannelType(channel.type.json ?? -1))) {
-            channelCompanions.add(channelFromSdk(channel, channelGuildId));
-          }
-        }
-        final List<db.ThreadMembersCompanion> joined =
-            <db.ThreadMembersCompanion>[];
-        final Set<String> listedThreadIds = <String>{};
-        for (final ChannelResponse thread
-            in threads ?? const <ChannelResponse>[]) {
-          if (!isThreadChannelType(thread.type.json ?? -1)) {
-            continue;
-          }
-          channelCompanions.add(channelFromSdk(thread, guildId));
-          listedThreadIds.add(thread.id);
-          final ThreadMemberResponse? member = thread.member;
-          if (member != null) {
-            joined.add(
-              threadMemberFromSdk(
-                member,
-                threadId: thread.id,
-                guildId: guildId,
+    unawaited(() async {
+      final ({List<String> channelIds, Set<String> roleGuildIds}) pruned =
+          await database.transaction(() async {
+            await database.guildDao.upsertServer(
+              guildFromSdk(
+                event.guild.guild,
+                memberCount: event.guild.memberCount,
+                onlineCount: event.guild.onlineCount,
               ),
             );
-          }
-        }
-        await database.channelDao.upsertChannelsMerged(channelCompanions);
-        if (threadsActive) {
-          _forgetThreads(
-            await database.threadDao.reconcileJoined(
+
+            final channelCompanions = <db.ChannelsCompanion>[];
+            for (final channel in event.guild.channels) {
+              final channelGuildId = channel.guildId;
+              if (channelGuildId != null) {
+                channelCompanions.add(channelFromSdk(channel, channelGuildId));
+              }
+            }
+            final List<db.ThreadMembersCompanion> joined =
+                <db.ThreadMembersCompanion>[];
+            final Set<String> listedThreadIds = <String>{};
+            for (final ChannelResponse thread
+                in event.guild.threads ?? const <ChannelResponse>[]) {
+              if (!isThreadChannelType(thread.type.json ?? -1)) {
+                continue;
+              }
+              channelCompanions.add(channelFromSdk(thread, guildId));
+              listedThreadIds.add(thread.id);
+              final ThreadMemberResponse? member = thread.member;
+              if (member != null) {
+                joined.add(
+                  threadMemberFromSdk(
+                    member,
+                    threadId: thread.id,
+                    guildId: guildId,
+                  ),
+                );
+              }
+            }
+            await database.channelDao.upsertChannelsMerged(channelCompanions);
+            _forgetThreads(
+              await database.threadDao.reconcileJoined(
+                guildId,
+                joined,
+                listedIds: listedThreadIds,
+              ),
+              guildId: guildId,
+            );
+
+            await database.roleDao.upsertRoles(
+              event.guild.roles.map((r) => roleFromSdk(r, guildId)).toList(),
+            );
+            final ({List<String> channelIds, Set<String> roleGuildIds}) pruned =
+                await _pruneGuildSnapshots(
+                  channelIdsByGuildId: <String, Set<String>>{
+                    guildId: <String>{
+                      for (final db.ChannelsCompanion channel
+                          in channelCompanions)
+                        channel.id.value,
+                    },
+                  },
+                  roleIdsByGuildId: <String, Set<String>>{
+                    guildId: <String>{
+                      for (final GuildRoleResponse role in event.guild.roles)
+                        role.id,
+                    },
+                  },
+                );
+
+            if (event.guild.members.isNotEmpty) {
+              await database.userDao.upsertUsers([
+                for (final member in event.guild.members)
+                  userFromPartialSdk(member.user),
+              ]);
+              await database.memberDao.upsertMembers([
+                for (final member in event.guild.members)
+                  memberCompanionFromSdk(member, guildId: guildId),
+              ]);
+            }
+
+            await database.guildEmojiDao.replaceForGuild(
               guildId,
-              joined,
-              listedIds: listedThreadIds,
-            ),
-            guildId: guildId,
-          );
-        }
+              event.guild.emojis
+                  .map(
+                    (e) => db.GuildEmojisCompanion.insert(
+                      id: e.id,
+                      guildId: guildId,
+                      name: e.name,
+                      animated: Value(e.animated),
+                    ),
+                  )
+                  .toList(),
+            );
 
-        if (event.guild.roles.isNotEmpty) {
-          await database.roleDao.upsertRoles(
-            event.guild.roles.map((r) => roleFromSdk(r, guildId)).toList(),
-          );
-        }
+            await database.guildStickerDao.replaceForGuild(
+              guildId,
+              event.guild.stickers
+                  .map(
+                    (s) => db.GuildStickersCompanion.insert(
+                      id: s.id,
+                      guildId: guildId,
+                      name: s.name,
+                      description: Value(s.description),
+                      tagsJson: Value(jsonEncode(s.tags)),
+                      animated: Value(s.animated),
+                    ),
+                  )
+                  .toList(),
+            );
+            return pruned;
+          });
+      if (_guildAvailabilityGenerations[guildId] == availabilityGeneration) {
+        _emit(() => onGuildAvailable?.call(guildId));
+      }
+      _forgetPrunedChannels(pruned.channelIds);
+      if (pruned.channelIds.isNotEmpty) {
+        messageMentionContextCache?.invalidateGuild(guildId);
+      }
+      if (pruned.roleGuildIds.isNotEmpty) {
+        _emit(() => onGuildPermissionsChanged?.call(guildId));
+      }
+    }());
 
-        if (event.guild.members.isNotEmpty) {
-          await database.userDao.upsertUsers([
-            for (final member in event.guild.members)
-              userFromPartialSdk(member.user),
-          ]);
-          await database.memberDao.upsertMembers([
-            for (final member in event.guild.members)
-              memberCompanionFromSdk(member, guildId: guildId),
-          ]);
-        }
-
-        if (event.guild.emojis.isNotEmpty) {
-          await database.guildEmojiDao.replaceForGuild(
-            guildId,
-            event.guild.emojis
-                .map(
-                  (e) => db.GuildEmojisCompanion.insert(
-                    id: e.id,
-                    guildId: guildId,
-                    name: e.name,
-                    animated: Value(e.animated),
-                  ),
-                )
-                .toList(),
-          );
-        }
-
-        if (event.guild.stickers.isNotEmpty) {
-          await database.guildStickerDao.replaceForGuild(
-            guildId,
-            event.guild.stickers
-                .map(
-                  (s) => db.GuildStickersCompanion.insert(
-                    id: s.id,
-                    guildId: guildId,
-                    name: s.name,
-                    description: Value(s.description),
-                    tagsJson: Value(jsonEncode(s.tags)),
-                    animated: Value(s.animated),
-                  ),
-                )
-                .toList(),
-          );
-        }
-      }),
+    _emit(
+      () => onGuildVoiceStatesSnapshot?.call(guildId, event.guild.voiceStates),
     );
-
-    if (event.guild.voiceStates.isNotEmpty) {
-      _emit(() => onVoiceStatesBulk?.call(event.guild.voiceStates));
-    }
-    if (transition != ThreadGateTransition.unchanged) {
-      _emit(
-        () => onThreadGateChanged?.call(
-          guildId,
-          active: transition == ThreadGateTransition.activated,
-        ),
-      );
-    }
   }
 
-  Future<void> _purgeThreadData(String guildId) async {
-    _forgetThreads(
-      await database.threadDao.purgeGuild(guildId),
-      guildId: guildId,
+  Future<({List<String> channelIds, Set<String> roleGuildIds})>
+  _pruneGuildSnapshots({
+    required Map<String, Set<String>> channelIdsByGuildId,
+    required Map<String, Set<String>> roleIdsByGuildId,
+  }) async {
+    final List<String> channelIds = await database.channelDao
+        .deleteGuildChannelsNotIn(channelIdsByGuildId);
+    await database.messageDao.deleteMessagesForChannels(channelIds);
+    await database.readStateDao.deleteReadStatesForChannels(channelIds);
+    final List<String> threadIds = <String>[
+      for (final String channelId in channelIds)
+        ...await database.threadDao.deleteThreadsForParent(channelId),
+    ];
+    return (
+      channelIds: <String>[...channelIds, ...threadIds],
+      roleGuildIds: await database.roleDao.deleteGuildRolesNotIn(
+        roleIdsByGuildId,
+      ),
     );
+  }
+
+  void _forgetPrunedChannels(List<String> channelIds) {
+    for (final String channelId in channelIds) {
+      readStateWriteBatcher?.discard(channelId);
+      messageMentionContextCache?.invalidateChannel(channelId);
+      _emit(() => onChannelDelete?.call(channelId));
+    }
   }
 
   void _forgetThreads(List<String> channelIds, {required String guildId}) {
@@ -2823,8 +2803,24 @@ class GatewayEventHandler {
     }
   }
 
-  void _handleGuildUpdate(GuildUpdateEvent event) {
-    unawaited(database.guildDao.upsertServer(guildFromSdk(event.guild.guild)));
+  Future<void> _handleGuildUpdate(GuildUpdateEvent event) async {
+    await database.guildDao.upsertServer(guildFromSdk(event.guild.guild));
+    _emit(() => onGuildPermissionsChanged?.call(event.guild.guild.id));
+  }
+
+  Future<void> _handleRoleDelete(GuildRoleDeleteEvent event) async {
+    await database.transaction(() async {
+      await database.roleDao.deleteRole(event.roleId);
+      await database.memberDao.removeRoleFromGuildMembers(
+        event.guildId,
+        event.roleId,
+      );
+      await database.channelDao.removeRoleOverwrites(
+        event.guildId,
+        event.roleId,
+      );
+    });
+    _emit(() => onGuildPermissionsChanged?.call(event.guildId));
   }
 
   Future<void> _handleGuildCountsUpdate(GuildCountsUpdateEvent event) async {
@@ -2845,7 +2841,12 @@ class GatewayEventHandler {
     _emit(() => onGuildCountsUpdate?.call(event));
   }
 
+  int _bumpGuildAvailability(String guildId) =>
+      _guildAvailabilityGenerations[guildId] =
+          (_guildAvailabilityGenerations[guildId] ?? 0) + 1;
+
   Future<void> _handleGuildDelete(GuildDeleteEvent event) async {
+    _bumpGuildAvailability(event.guildId);
     _emit(
       () => onGuildAvailabilityChanged?.call(
         event.guildId,
@@ -2853,9 +2854,7 @@ class GatewayEventHandler {
         unavailableHidden: event.unavailableHidden,
       ),
     );
-    if (!event.unavailable) {
-      threadsGate?.apply(event.guildId, active: false);
-    }
+    _emit(() => onGuildVoiceEnded?.call(event.guildId));
     if (event.unavailable) {
       await clearGuildContentButKeepServer(database, event.guildId);
       await database.guildDao.markUnavailable(event.guildId);
@@ -2884,9 +2883,7 @@ class GatewayEventHandler {
         ),
       ]);
       await readStateWriteBatcher?.flushAll();
-      await readStateRepository?.recomputeMentionsForUnreadOrMentionedChannels(
-        currentUserId: currentUserId,
-      );
+      _emit(() => onRelationshipsChanged?.call());
     }());
   }
 
@@ -2894,13 +2891,12 @@ class GatewayEventHandler {
     unawaited(() async {
       await database.relationshipDao.deleteRelationship(event.userId);
       await readStateWriteBatcher?.flushAll();
-      await readStateRepository?.recomputeMentionsForUnreadOrMentionedChannels(
-        currentUserId: currentUserId,
-      );
+      _emit(() => onRelationshipsChanged?.call());
     }());
   }
 
   Future<void> _handleReactionAdd(MessageReactionAddEvent event) async {
+    _hydrateEmbeddedMember(event.guildId, event.member);
     await _enqueueReactionChange(
       messageId: event.messageId,
       channelId: event.channelId,
@@ -2916,6 +2912,7 @@ class GatewayEventHandler {
   }
 
   Future<void> _handleReactionRemove(MessageReactionRemoveEvent event) async {
+    _hydrateEmbeddedMember(event.guildId, event.member);
     await _enqueueReactionChange(
       messageId: event.messageId,
       channelId: event.channelId,
@@ -3058,7 +3055,6 @@ class GatewayEventHandler {
       return;
     }
 
-    // Server ack is authoritative; flush pending increments first.
     await readStateWriteBatcher?.flush(event.channelId);
     await _writeServerAck(
       channelId: event.channelId,
@@ -3143,13 +3139,13 @@ class GatewayEventHandler {
   }
 
   Future<void> _handlePassiveUpdates(PassiveUpdatesEvent event) async {
+    final List<VoiceState> voiceStates =
+        event.voiceStates ?? const <VoiceState>[];
     _logGatewayDebug(
       () => talker.debug(
         '[Gateway] PASSIVE_UPDATES: '
         'channels=${event.channels.length}, '
-        'created=${event.createdChannels?.length ?? 0}, '
-        'updated=${event.updatedChannels?.length ?? 0}, '
-        'deleted=${event.deletedChannelIds?.length ?? 0}',
+        'voiceStates=${voiceStates.length}',
       ),
     );
 
@@ -3160,22 +3156,8 @@ class GatewayEventHandler {
       );
     }
 
-    for (final channel in [
-      ...?event.createdChannels,
-      ...?event.updatedChannels,
-    ]) {
-      _logGatewayDebug(
-        () => talker.debug('[Gateway]   channel: ${channel.id}'),
-      );
-      unawaited(_handleChannelUpsert(channel));
-    }
-
-    for (final id in event.deletedChannelIds ?? const <String>[]) {
-      _logGatewayDebug(() => talker.debug('[Gateway]   -channel: $id'));
-      unawaited(database.channelDao.deleteChannel(id));
-      if (_threadsActive(event.guildId)) {
-        unawaited(_deleteThreadsForParent(id));
-      }
+    if (voiceStates.isNotEmpty) {
+      _emit(() => onPassiveVoiceStates?.call(voiceStates));
     }
   }
 
@@ -3189,7 +3171,7 @@ class GatewayEventHandler {
       if (channel == null ||
           channel.guildId != guildId ||
           !(isGuildTextBasedChannel(channel.type) ||
-              (isThreadChannelType(channel.type) && _threadsActive(guildId)))) {
+              isThreadChannelType(channel.type))) {
         continue;
       }
       final existing = channel.lastMessageId;

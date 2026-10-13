@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fluxer_app/core/api/retry_interceptor.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' hide Message;
 import 'package:fluxer_app/features/chat/data/message_repository.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
@@ -36,13 +39,86 @@ Map<String, dynamic> _pageMessageJson(String id) => MessageResponseSchema(
 ).toJson();
 
 void main() {
-  test('buildMessageCreateBody sends favorite meme ids compactly', () {
+  test('own reactions name the gateway session so it gets no echo', () async {
+    final _RecordingAdapter adapter = _RecordingAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))
+      ..httpClientAdapter = adapter;
+    final repo = MessageRepository(
+      FluxerClient(dio),
+      dio,
+      openTestDatabase(),
+      'me',
+      gatewaySessionId: () => 'session-1',
+    );
+
+    await repo.addReaction(channelId: 'c1', messageId: 'm1', emoji: '👍');
+    await repo.removeReaction(channelId: 'c1', messageId: 'm1', emoji: '👍');
+
+    expect(adapter.requests.map((RequestOptions r) => r.method), <String>[
+      'PUT',
+      'DELETE',
+    ]);
+    for (final RequestOptions request in adapter.requests) {
+      expect(request.uri.queryParameters['session_id'], 'session-1');
+    }
+  });
+
+  test('a message POST that carries files is never retried', () async {
+    final Directory dir = await Directory.systemTemp.createTemp('repo_send');
+    addTearDown(() => dir.delete(recursive: true));
+    final File file = File('${dir.path}/a.png')..writeAsBytesSync(<int>[1]);
+    final _DroppingAdapter adapter = _DroppingAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))
+      ..httpClientAdapter = adapter;
+    dio.interceptors.add(RetryInterceptor(dio: dio));
+    final repo = MessageRepository(
+      FluxerClient(dio),
+      dio,
+      openTestDatabase(),
+      'me',
+    );
+
+    await expectLater(
+      repo.sendMessage(
+        channelId: 'c1',
+        content: '',
+        attachmentFiles: <XFile>[XFile(file.path)],
+      ),
+      throwsA(
+        isA<DioException>().having(
+          (DioException e) => e.type,
+          'type',
+          DioExceptionType.connectionError,
+        ),
+      ),
+    );
+    expect(adapter.posts, 1);
+  });
+
+  test('own reactions omit session_id before the gateway is ready', () async {
+    final _RecordingAdapter adapter = _RecordingAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))
+      ..httpClientAdapter = adapter;
+    final repo = MessageRepository(
+      FluxerClient(dio),
+      dio,
+      openTestDatabase(),
+      'me',
+      gatewaySessionId: () => null,
+    );
+
+    await repo.addReaction(channelId: 'c1', messageId: 'm1', emoji: '👍');
+
+    expect(
+      adapter.requests.single.uri.queryParameters.containsKey('session_id'),
+      isFalse,
+    );
+  });
+
+  test('buildMessageCreateBody sends a favorite meme id with no flags', () {
     final body = buildMessageCreateBody(content: '', favoriteMemeId: 'meme-1');
 
-    expect(body, {
-      'favorite_meme_id': 'meme-1',
-      'flags': kMessageFlagCompactAttachments,
-    });
+    expect(body, {'favorite_meme_id': 'meme-1'});
   });
 
   test('buildMessageCreateBody keeps normal text message body minimal', () {
@@ -77,27 +153,16 @@ void main() {
     expect(bodyDisabled['allowed_mentions'], {'replied_user': false});
   });
 
-  test(
-    'buildMessageCreateBody merges favorite meme flag with explicit flags',
-    () {
-      final body = buildMessageCreateBody(
-        content: 'hi',
-        favoriteMemeId: 'meme-1',
-        messageFlags: messageFlagSuppressNotifications,
-      );
+  test('buildMessageCreateBody sends only sendable flags with a meme', () {
+    final body = buildMessageCreateBody(
+      content: 'hi',
+      favoriteMemeId: 'meme-1',
+      messageFlags: messageFlagSuppressNotifications,
+    );
 
-      expect(body['favorite_meme_id'], 'meme-1');
-      final flags = body['flags'] as int;
-      expect(
-        flags & kMessageFlagCompactAttachments,
-        kMessageFlagCompactAttachments,
-      );
-      expect(
-        flags & messageFlagSuppressNotifications,
-        messageFlagSuppressNotifications,
-      );
-    },
-  );
+    expect(body['favorite_meme_id'], 'meme-1');
+    expect(body['flags'], messageFlagSuppressNotifications);
+  });
 
   test('buildMessageCreateBody passes explicit message flags through', () {
     final body = buildMessageCreateBody(
@@ -124,18 +189,15 @@ void main() {
     final client = FluxerClient(dio, baseUrl: 'https://api.fluxer.app/v1');
     final repo = MessageRepository(client, dio, db, 'me');
 
-    // Two concurrent identical loads share one network round-trip.
     await Future.wait([
       repo.loadMessagePage(channelId: 'channel-1'),
       repo.loadMessagePage(channelId: 'channel-1'),
     ]);
     expect(adapter.getMessagesCount, 1);
 
-    // A later (non-overlapping) identical load is not stale-deduped.
     await repo.loadMessagePage(channelId: 'channel-1');
     expect(adapter.getMessagesCount, 2);
 
-    // Concurrent loads with different cursors are not coalesced.
     await Future.wait([
       repo.loadMessagePage(channelId: 'channel-1', before: '123'),
       repo.loadMessagePage(channelId: 'channel-1', after: '456'),
@@ -151,18 +213,12 @@ void main() {
     final client = FluxerClient(dio, baseUrl: 'https://api.fluxer.app/v1');
     final repo = MessageRepository(client, dio, db, 'me');
 
-    // A proof request must observe the server after its caller's pointer
-    // read; an in-flight identical page may carry an older snapshot, and
-    // joining it would launder a raced pointer into an orphan verdict
-    // (see _liveTailAckTargetId).
     await Future.wait([
       repo.loadMessagePage(channelId: 'channel-1'),
       repo.loadMessagePage(channelId: 'channel-1', fresh: true),
     ]);
     expect(adapter.getMessagesCount, 2);
 
-    // Nor may a fresh request become a join target for ordinary loads: that
-    // would silently launder its freshness the other way.
     await Future.wait([
       repo.loadMessagePage(channelId: 'channel-1', fresh: true),
       repo.loadMessagePage(channelId: 'channel-1'),
@@ -219,8 +275,6 @@ void main() {
 
     await repo.loadMessagePage(channelId: 'channel-1');
 
-    // Role-only mention: the old heuristic stored false, the rich resolver
-    // stores true.
     final row = await db.messageDao.getMessage(messageId);
     expect(row?.isMentioned, isTrue);
   });
@@ -601,6 +655,23 @@ void main() {
   );
 }
 
+class _RecordingAdapter implements HttpClientAdapter {
+  final List<RequestOptions> requests = <RequestOptions>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    return ResponseBody.fromString('', 204);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 class _CountingAdapter implements HttpClientAdapter {
   int getMessagesCount = 0;
 
@@ -613,7 +684,6 @@ class _CountingAdapter implements HttpClientAdapter {
     final String path = options.uri.path;
     if (options.method == 'GET' && path.endsWith('/messages')) {
       getMessagesCount++;
-      // Small delay so concurrent calls genuinely overlap in flight.
       await Future<void>.delayed(const Duration(milliseconds: 10));
       return ResponseBody.fromString(
         jsonEncode(const <Map<String, Object?>>[]),
@@ -778,6 +848,27 @@ class _EditMessageAttachmentsAdapter implements HttpClientAdapter {
       );
     }
     return ResponseBody.fromString('nf', 404);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _DroppingAdapter implements HttpClientAdapter {
+  int posts = 0;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    posts++;
+    await requestStream?.drain<void>();
+    throw DioException.connectionError(
+      requestOptions: options,
+      reason: 'Connection reset by peer',
+    );
   }
 
   @override

@@ -9,7 +9,6 @@ import 'package:fluxer_app/features/chat/presentation/widgets/message_actions/qu
 import 'package:fluxer_app/features/chat/presentation/widgets/message_actions/quick_reaction_row.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_translation_provider.dart';
 import 'package:fluxer_app/features/chat/utils/messages/message_action_permissions.dart';
-import 'package:fluxer_app/features/settings/providers/advanced_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/threads/presentation/create_thread_sheet.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
@@ -172,14 +171,14 @@ class _ContextMenuPage extends ConsumerWidget {
   }
 
   double _estimateHeight(List<Widget> items) {
-    var height = 16.0; // 8px vertical padding * 2
+    var height = 16.0;
     for (final item in items) {
       if (item is _MenuDivider) {
-        height += 13; // 1px + 6px * 2
+        height += 13;
       } else if (item is QuickReactionRow || item is MessageQuickReactionRow) {
-        height += 40; // emoji row
+        height += 40;
       } else {
-        height += 38; // 36px + 1px * 2 margin
+        height += 38;
       }
     }
     return height;
@@ -210,12 +209,11 @@ class _ContextMenuPage extends ConsumerWidget {
       appearancePreferencesProvider.select((s) => s.showSuppressEmbedsButton),
     );
 
+    final bool canReact =
+        !message.hasFailed && !message.isSending && permissions.canAddReactions;
+
     return [
-      if (ref.watch(
-        advancedPreferencesProvider.select(
-          (state) => state.showMessageActionBarQuickReactions,
-        ),
-      ))
+      if (canReact)
         if (quickReactionChannelId != null)
           MessageQuickReactionRow(
             channelId: quickReactionChannelId!,
@@ -233,13 +231,14 @@ class _ContextMenuPage extends ConsumerWidget {
               Navigator.of(context).pop();
             },
           ),
-      _MenuItem(
-        label: l10n.chatMessageAddReaction,
-        icon: PhosphorIconsBold.smiley,
-        trailing: PhosphorIconsBold.caretRight,
-        shortcut: shortcut('+'),
-        onTap: () => pop(MessageAction.addReaction),
-      ),
+      if (canReact)
+        _MenuItem(
+          label: l10n.chatMessageAddReaction,
+          icon: PhosphorIconsBold.smiley,
+          trailing: PhosphorIconsBold.caretRight,
+          shortcut: shortcut('+'),
+          onTap: () => pop(MessageAction.addReaction),
+        ),
       if (watchCanOfferMessageTranslate(ref, message))
         _MenuItem(
           label: l10n.chatMessageTranslate,

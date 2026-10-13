@@ -42,12 +42,14 @@ class _GuildSidebarChannelListHostState
         for (final MapEntry<String, Guild> entry in _guildsById.entries)
           Offstage(
             offstage: entry.key != widget.activeGuildId,
-            child: _GuildSidebarChannelList(
+            child: FluxerEntranceSettleScope(
               key: ValueKey<String>(entry.key),
-              guildId: entry.key,
-              guild: entry.value,
-              isActive: entry.key == widget.activeGuildId,
-              onHeaderTap: widget.onHeaderTap,
+              child: _GuildSidebarChannelList(
+                guildId: entry.key,
+                guild: entry.value,
+                isActive: entry.key == widget.activeGuildId,
+                onHeaderTap: widget.onHeaderTap,
+              ),
             ),
           ),
       ],
@@ -61,7 +63,6 @@ class _GuildSidebarChannelList extends ConsumerStatefulWidget {
     required this.guild,
     required this.isActive,
     required this.onHeaderTap,
-    super.key,
   });
 
   final String guildId;
@@ -81,6 +82,7 @@ class _GuildSidebarChannelListState
   late final ScrollController _scrollController;
   late final GuildScrollIndicatorController _scrollIndicator;
   final Map<String, GlobalKey> _channelKeys = <String, GlobalKey>{};
+  List<String> _indicatorOrder = const <String>[];
   bool _restoring = false;
   bool _needsScrollClamp = false;
   bool _deferChannelList = false;
@@ -114,6 +116,7 @@ class _GuildSidebarChannelListState
       itemKeys: _channelKeys,
       resolveSeverity: _resolveChannelScrollSeverity,
       isMounted: () => mounted,
+      orderedIds: () => _indicatorOrder,
     )..attach();
     if (widget.isActive) {
       _refreshGuildPermissions();
@@ -125,6 +128,7 @@ class _GuildSidebarChannelListState
   void didUpdateWidget(_GuildSidebarChannelList oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.isActive && widget.isActive) {
+      _scrollIndicator.resetAnimation();
       _refreshGuildPermissions();
       _syncScrollRestoreState();
       _scheduleScrollRestore();
@@ -181,6 +185,11 @@ class _GuildSidebarChannelListState
       ref: ref,
       guildId: widget.guildId,
       channelId: channelId,
+      unread:
+          ref.read(
+            guildChannelUnreadSnapshotProvider(widget.guildId),
+          )[channelId] ??
+          ref.read(channelUnreadOrLastKnownProvider(channelId)),
     );
   }
 
@@ -248,8 +257,28 @@ class _GuildSidebarChannelListState
     final List<GuildSidebarEntry> sidebarEntries = ref.watch(
       guildSidebarEntriesProvider,
     );
+    final List<String> indicatorOrder = <String>[
+      for (final GuildSidebarEntry entry in sidebarEntries)
+        if (entry.kind == GuildSidebarEntryKind.channel ||
+            entry.kind == GuildSidebarEntryKind.thread)
+          entry.channel!.id,
+    ];
+    if (!listEquals(indicatorOrder, _indicatorOrder)) {
+      _indicatorOrder = indicatorOrder;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !widget.isActive) {
+          return;
+        }
+        ref
+            .read(recentGuildUnreadRetentionProvider.notifier)
+            .retain(widget.guildId, _indicatorOrder);
+      });
+    }
     ref
       ..listen(guildReadStateProvider.select((s) => s[widget.guildId]), (_, _) {
+        _scrollIndicator.scheduleUpdate();
+      })
+      ..listen(guildChannelUnreadSnapshotProvider(widget.guildId), (_, _) {
         _scrollIndicator.scheduleUpdate();
       })
       ..listen<List<GuildSidebarEntry>>(guildSidebarEntriesProvider, (
@@ -279,6 +308,7 @@ class _GuildSidebarChannelListState
       builder: (BuildContext context, BoxConstraints constraints) {
         return CustomScrollView(
           controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
           scrollCacheExtent: const ScrollCacheExtent.pixels(600),
           slivers: <Widget>[
             SliverPersistentHeader(
@@ -373,7 +403,8 @@ class _GuildSidebarChannelListState
       behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
       child: GuildScrollIndicatorLayer(
         controller: _scrollIndicator,
-        label: FluxerLocalizations.of(context).scrollIndicatorNewMessage,
+        label: FluxerLocalizations.of(context).scrollIndicatorNewMessages,
+        animated: false,
         topInset: kGuildSidebarScrollIndicatorTopInset,
         child: Opacity(
           opacity: _needsScrollClamp ? 0 : 1,

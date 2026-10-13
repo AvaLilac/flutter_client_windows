@@ -12,11 +12,82 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get reconnectingTitle => 'Chúng tôi đã gặp trục trặc!';
 
   @override
+  String get chatJumpToPresent => 'Đến tin nhắn mới nhất';
+
+  @override
+  String get chatViewingOlderMessages => 'Bạn đang xem tin nhắn cũ hơn';
+
+  @override
+  String get chatNewMessagesBarJumpToFirstUnread =>
+      'Chuyển đến tin nhắn chưa đọc đầu tiên';
+
+  @override
+  String get chatNewMessagesBarMarkAsRead => 'Đánh dấu đã đọc';
+
+  @override
+  String get chatNewMessagesBarMarkRead => 'Đánh dấu đã đọc';
+
+  @override
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ tin nhắn mới kể từ $compactTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount tin nhắn mới',
+      one: '$unreadCount tin nhắn mới',
+    );
+    return '$_temp0 kể từ $compactTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewSinceEstimated(
+    int unreadCount,
+    String shortTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ tin nhắn mới kể từ $shortTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount tin nhắn mới',
+    );
+    return '$_temp0 từ $shortTime';
+  }
+
+  @override
   String get reconnectingBody =>
       'Có lỗi xảy ra với máy chủ này.\nSẽ được khắc phục trong giây lát!';
 
   @override
   String get gatewayReconnectingToast => 'Đang kết nối lại…';
+
+  @override
+  String get gatewayReconnectTryAgain => 'Thử lại';
 
   @override
   String get gatewayConnectedToast => 'Đã kết nối';
@@ -272,6 +343,9 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get next => 'Tiếp';
 
   @override
+  String get create => 'Create';
+
+  @override
   String get mfaTitle => 'Xác thực hai yếu tố';
 
   @override
@@ -309,6 +383,11 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   @override
   String get accountRemoveDescription =>
       'Thao tác này sẽ xóa phiên đã lưu cho tài khoản này.';
+
+  @override
+  String accountSignOutTitle(String identifier) {
+    return 'Sign out of $identifier?';
+  }
 
   @override
   String get accountExpired => 'Đã hết hạn';
@@ -1582,13 +1661,10 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get gifPickerSearch => 'Tìm ảnh GIF';
 
   @override
-  String get gifPickerSearchKlipy => 'Tìm kiếm KLIPY';
+  String get gifPickerSearchKlipy => 'Tìm kiếm Klipy';
 
   @override
   String get gifPickerSearchTenor => 'Tìm kiếm trên Tenor';
-
-  @override
-  String get gifPickerPoweredByKlipy => 'KLIPY';
 
   @override
   String get gifPickerFavorites => 'Mục yêu thích';
@@ -2421,10 +2497,6 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   @override
   String get dangerZoneDeleteDescription =>
       'Xóa vĩnh viễn tài khoản và tất cả dữ liệu liên quan. Thao tác này không thể hoàn tác.';
-
-  @override
-  String get dangerZoneDeleteCancelSubscription =>
-      'Hủy gói đăng ký Plutonium đang hoạt động của bạn trong cài đặt Plutonium trước khi xóa tài khoản.';
 
   @override
   String get dangerZoneDeleteCannotDeleteAccount => 'Không thể xóa tài khoản';
@@ -5929,8 +6001,8 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# tin nhắn chưa đọc',
-      one: '# tin nhắn chưa đọc',
+      other: '$count tin nhắn chưa đọc',
+      one: '$count tin nhắn chưa đọc',
     );
     return 'Hiện trò chuyện có $_temp0';
   }
@@ -6080,6 +6152,40 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
       'Tin nhắn này không thể tải được.';
 
   @override
+  String notificationsMentionedYouIn(String author, String place) {
+    return '$author mentioned you in $place:';
+  }
+
+  @override
+  String notificationsRepliedToYouIn(String author, String place) {
+    return '$author replied to you in $place:';
+  }
+
+  @override
+  String notificationsMentionedYou(String author) {
+    return '$author mentioned you:';
+  }
+
+  @override
+  String notificationsRepliedToYou(String author) {
+    return '$author replied to you:';
+  }
+
+  @override
+  String notificationsMentionPlace(String server, String channel) {
+    return '$server – $channel';
+  }
+
+  @override
+  String get notificationsSendReply => 'Send a reply';
+
+  @override
+  String get notificationsRecentActivity => 'Recent activity';
+
+  @override
+  String get notificationsRemoveNotification => 'Remove notification';
+
+  @override
   String characterCounterRemaining(int remaining) {
     return 'Còn lại $remaining ký tự';
   }
@@ -6098,6 +6204,10 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
 
   @override
   String get chatMessageFailedToSend => 'Không gửi được tin nhắn';
+
+  @override
+  String get chatMessageFailedToSendTapForOptions =>
+      'Không gửi được tin nhắn. Nhấn để xem tùy chọn.';
 
   @override
   String chatSendFailureDmRestricted(String settingsPath) {
@@ -6543,8 +6653,8 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# cộng đồng',
-      one: '# cộng đồng',
+      other: '$count cộng đồng',
+      one: '$count cộng đồng',
     );
     return 'Tất cả trừ $_temp0';
   }
@@ -6554,8 +6664,8 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# cộng đồng',
-      one: '# cộng đồng',
+      other: '$count cộng đồng',
+      one: '$count cộng đồng',
     );
     return 'Chỉ $_temp0';
   }
@@ -6584,14 +6694,14 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# giờ',
-      one: '# giờ',
+      other: '$hours giờ',
+      one: '$hours giờ',
     );
     String _temp1 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# phút',
-      one: '# phút',
+      other: '$minutes phút',
+      one: '$minutes phút',
     );
     return '$_temp0 và $_temp1';
   }
@@ -6601,8 +6711,8 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# giờ',
-      one: '# giờ',
+      other: '$hours giờ',
+      one: '$hours giờ',
     );
     return '$_temp0';
   }
@@ -6612,8 +6722,8 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# phút',
-      one: '# phút',
+      other: '$minutes phút',
+      one: '$minutes phút',
     );
     return '$_temp0';
   }
@@ -6623,8 +6733,8 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       seconds,
       locale: localeName,
-      other: '# giây',
-      one: '# giây',
+      other: '$seconds giây',
+      one: '$seconds giây',
     );
     return '$_temp0';
   }
@@ -6758,9 +6868,6 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
 
   @override
   String get forwardSuccessToast => 'Đã chuyển tiếp tin nhắn';
-
-  @override
-  String get forwardFailed => 'Không thể chuyển tiếp tin nhắn';
 
   @override
   String get forwardCommentSlowmodeDisabled =>
@@ -7171,6 +7278,12 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get chatEditNoChanges => 'Không có thay đổi nào để lưu';
 
   @override
+  String get chatEditFailed => 'Your message didn\'t update';
+
+  @override
+  String get chatEditFailedEditAgain => 'Edit again';
+
+  @override
   String get chatChannelNotReady =>
       'Kênh này chưa sẵn sàng. Vui lòng thử lại sau.';
 
@@ -7280,6 +7393,9 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
 
   @override
   String get composerAutocompleteStickersHeading => 'Nhãn dán';
+
+  @override
+  String get composerAutocompleteEmojisHeading => 'Emojis';
 
   @override
   String get composerAutocompleteGifsHeading => 'Ảnh GIF';
@@ -8902,19 +9018,19 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get purgePersonalNotesFailed => 'Không thể xóa ghi chú cá nhân';
 
   @override
-  String get userSettingsGroupYourAccount => 'TÀI KHOẢN CỦA BẠN';
+  String get userSettingsGroupYourAccount => 'Tài khoản của bạn';
 
   @override
-  String get userSettingsGroupBilling => 'BILLING';
+  String get userSettingsGroupBilling => 'Billing';
 
   @override
-  String get userSettingsGroupApplication => 'APPLICATION';
+  String get userSettingsGroupApplication => 'Application';
 
   @override
-  String get userSettingsGroupDeveloper => 'DEVELOPER';
+  String get userSettingsGroupDeveloper => 'Developer';
 
   @override
-  String get userSettingsGroupStaffOnly => 'STAFF-ONLY';
+  String get userSettingsGroupStaffOnly => 'Staff-only';
 
   @override
   String get userSettingsSearchPlaceholder => 'Tìm kiếm cài đặt...';
@@ -10819,6 +10935,9 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get chatJumpToBottom => 'Nhảy đến cuối';
 
   @override
+  String get chatUnreadDividerNew => 'Mới';
+
+  @override
   String get uiConfirm => 'Xác nhận';
 
   @override
@@ -11120,10 +11239,10 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get guildNavbarHelp => 'Trợ giúp';
 
   @override
-  String get scrollIndicatorNew => 'MỚI';
+  String get scrollIndicatorNew => 'Mới';
 
   @override
-  String get scrollIndicatorNewMessage => 'Tin nhắn mới';
+  String get scrollIndicatorNewMessages => 'Tin nhắn mới';
 
   @override
   String guildNavbarCollapseFolder(String folderName) {
@@ -12990,8 +13109,8 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# tin nhắn.',
-      one: '# tin nhắn.',
+      other: '$count tin nhắn.',
+      one: '$count tin nhắn.',
     );
     return 'Đã xóa $_temp0';
   }
@@ -13001,8 +13120,8 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Đã xóa # thành viên.',
-      one: 'Đã xóa # thành viên.',
+      other: 'Đã xóa $count thành viên.',
+      one: 'Đã xóa $count thành viên.',
     );
     return '$_temp0';
   }
@@ -13534,16 +13653,16 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
       'Không thể xóa cộng đồng này';
 
   @override
-  String get guildSettingsCategoryExpressions => 'EXPRESSIONS';
+  String get guildSettingsCategoryExpressions => 'Expressions';
 
   @override
-  String get guildSettingsCategoryCommunity => 'COMMUNITY';
+  String get guildSettingsCategoryCommunity => 'Community';
 
   @override
-  String get guildSettingsCategoryIntegrations => 'INTEGRATIONS';
+  String get guildSettingsCategoryIntegrations => 'Integrations';
 
   @override
-  String get guildSettingsCategoryPeople => 'PEOPLE';
+  String get guildSettingsCategoryPeople => 'People';
 
   @override
   String get guildSettingsOverviewBrandingTitle => 'Thương hiệu';
@@ -14825,7 +14944,7 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get forumPostArchived => 'Archived';
 
   @override
-  String get forumPostNewBadge => 'NEW';
+  String get forumPostNewBadge => 'Mới';
 
   @override
   String get forumPostStarterDeleted => 'The original message was deleted.';
@@ -14840,8 +14959,8 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new messages',
-      one: '1 new message',
+      other: '$count tin nhắn mới',
+      one: '$count tin nhắn mới',
     );
     return '$_temp0';
   }
@@ -15150,4 +15269,7 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String voiceP2pPeerFailedTitle(String name) {
     return 'Cannot connect directly to $name';
   }
+
+  @override
+  String get favoritesRenameCategory => 'Đổi tên danh mục';
 }

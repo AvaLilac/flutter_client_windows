@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Banner shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Coba lagi",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Terhubung",
     "@gatewayConnectedToast": {
         "description": "Banner shown when the gateway connection is restored."
@@ -2073,17 +2077,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Cari KLIPY",
+    "gifPickerSearchKlipy": "Cari Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Cari di Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Favorit",
     "@gifPickerFavorites": {
@@ -3138,10 +3138,6 @@
     "dangerZoneDeleteDescription": "Hapus permanen akunmu dan semua data terkait. Tindakan ini tidak dapat dibatalkan.",
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
-    },
-    "dangerZoneDeleteCancelSubscription": "Batalkan langganan Plutonium Anda yang aktif di pengaturan Plutonium sebelum menghapus akun Anda.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
     },
     "dangerZoneDeleteCannotDeleteAccount": "Tidak bisa menghapus akun",
     "@dangerZoneDeleteCannotDeleteAccount": {
@@ -7040,7 +7036,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Tampilkan obrolan dengan {count, plural, one {# pesan belum dibaca} other {# pesan belum dibaca}}",
+    "voiceTextChatShowUnread": "Tampilkan obrolan dengan {count, plural, one {{count} pesan belum dibaca} other {{count} pesan belum dibaca}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -7256,6 +7252,10 @@
     "chatMessageFailedToSend": "Gagal mengirim pesan",
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
+    },
+    "chatMessageFailedToSendTapForOptions": "Gagal mengirim pesan. Ketuk untuk opsi.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
     },
     "chatSendFailureDmRestricted": "Pesan Anda tidak dapat terkirim. Ini biasanya karena Anda tidak berbagi komunitas dengan penerima atau penerima hanya menerima pesan langsung dari teman. Anda mungkin juga perlu menyesuaikan pengaturan privasi pesan langsung Anda sendiri di {settingsPath}.",
     "@chatSendFailureDmRestricted": {
@@ -7765,7 +7765,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Semua kecuali {count, plural, one {# komunitas} other {# komunitas}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Semua kecuali {count, plural, one {{count} komunitas} other {{count} komunitas}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -7774,7 +7774,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Hanya {count, plural, one {# komunitas} other {# komunitas}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Hanya {count, plural, one {{count} komunitas} other {{count} komunitas}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -7803,7 +7803,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# jam} other {# jam}} dan {minutes, plural, one {# menit} other {# menit}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} jam} other {{hours} jam}} dan {minutes, plural, one {{minutes} menit} other {{minutes} menit}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -7815,7 +7815,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# jam} other {# jam}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} jam} other {{hours} jam}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -7824,7 +7824,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# menit} other {# menit}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} menit} other {{minutes} menit}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -7833,7 +7833,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# detik} other {# detik}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} detik} other {{seconds} detik}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -7925,10 +7925,6 @@
     "forwardSuccessToast": "Pesan diteruskan",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Gagal meneruskan pesan",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Komentar tidak tersedia karena saluran yang dipilih mengaktifkan mode lambat.",
     "@forwardCommentSlowmodeDisabled": {
@@ -10645,23 +10641,23 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "AKUN ANDA",
+    "userSettingsGroupYourAccount": "Akun Anda",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -12375,13 +12371,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "BARU",
+    "scrollIndicatorNew": "Baru",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "PESAN BARU",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Pesan baru",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Ciutkan {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -14510,7 +14506,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Menghapus # pesan.} other{Menghapus # pesan.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Menghapus {count} pesan.} other{Menghapus {count} pesan.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -14519,7 +14515,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Menghapus # anggota.} other{Menghapus # anggota.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Menghapus {count} anggota.} other{Menghapus {count} anggota.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -15199,19 +15195,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -16538,5 +16534,96 @@
     },
     "channelUnsupportedTitle": "Jenis saluran tidak didukung",
     "channelUnsupportedBody": "Versi aplikasi ini tidak mendukung jenis saluran ini.",
-    "channelDetailsUnsupportedChannel": "Saluran tidak didukung"
+    "channelDetailsUnsupportedChannel": "Saluran tidak didukung",
+    "forumPostNewBadge": "Baru",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} pesan baru} other {{count} pesan baru}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Baru",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, other {{unreadCount} baru}} sejak {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ baru sejak {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} pesan baru} other {{unreadCount} pesan baru}} sejak {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ pesan baru sejak {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Tandai sudah dibaca",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Tandai sudah dibaca",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Lompat ke pesan pertama yang belum dibaca",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Kamu sedang melihat pesan lama",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Lompat ke pesan terbaru",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Ganti nama kategori",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

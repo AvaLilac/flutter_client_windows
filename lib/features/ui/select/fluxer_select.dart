@@ -1,14 +1,12 @@
-import 'package:fluxer_app/core/router/shell_navigator_keys.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/picker_search_input.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
-import 'package:fluxer_app/features/ui/input/fluxer_input.dart';
 import 'package:fluxer_app/features/ui/preview/fluxer_widget_preview.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-/// An item in a [FluxerSelect] dropdown.
 class FluxerSelectItem<T> {
   const FluxerSelectItem({
     required this.value,
@@ -29,14 +27,13 @@ class FluxerSelectItem<T> {
   final bool enabled;
 }
 
-/// A dropdown select that uses a filled input-style trigger and opens
-/// options in a [FluxerBottomSheet].
 class FluxerSelect<T> extends StatefulWidget {
   FluxerSelect({
     required this.items,
     required ValueChanged<T> onChanged,
     this.value,
     this.label,
+    this.sheetTitle,
     this.hint,
     this.description,
     this.errorText,
@@ -47,7 +44,6 @@ class FluxerSelect<T> extends StatefulWidget {
     this.stretch = false,
     this.scrollableSheet = false,
     this.useRootNavigator = true,
-    this.useShellTabOverlayNavigator = false,
     super.key,
   }) : _onChanged = ((value) => onChanged(value as T));
 
@@ -55,6 +51,7 @@ class FluxerSelect<T> extends StatefulWidget {
   final ValueChanged<Object?> _onChanged;
   final T? value;
   final String? label;
+  final String? sheetTitle;
   final String? hint;
   final String? description;
   final String? errorText;
@@ -64,17 +61,9 @@ class FluxerSelect<T> extends StatefulWidget {
   final bool enabled;
   final bool stretch;
 
-  /// Opens the options in the scrollable (draggable) bottom-sheet variant even
-  /// when [enableSearch] is false. Use for longer option lists that should
-  /// behave like a full scrollable sheet rather than a content-sized menu.
   final bool scrollableSheet;
 
-  /// Whether the options sheet is shown on the root navigator.
   final bool useRootNavigator;
-
-  /// Shows the sheet on the mobile main tab shell overlay navigator so it
-  /// covers the bottom navigation bar without using the root navigator.
-  final bool useShellTabOverlayNavigator;
 
   @override
   State<FluxerSelect<T>> createState() => _FluxerSelectState<T>();
@@ -87,6 +76,7 @@ class _FluxerSelectState<T> extends State<FluxerSelect<T>> {
   ValueChanged<Object?> get _onChanged => widget._onChanged;
   T? get value => widget.value;
   String? get label => widget.label;
+  String? get sheetTitle => widget.sheetTitle ?? widget.label;
   String? get hint => widget.hint;
   String? get description => widget.description;
   String? get errorText => widget.errorText;
@@ -97,7 +87,6 @@ class _FluxerSelectState<T> extends State<FluxerSelect<T>> {
   bool get stretch => widget.stretch;
   bool get scrollableSheet => widget.scrollableSheet;
   bool get useRootNavigator => widget.useRootNavigator;
-  bool get useShellTabOverlayNavigator => widget.useShellTabOverlayNavigator;
 
   @override
   Widget build(BuildContext context) {
@@ -213,13 +202,13 @@ class _FluxerSelectState<T> extends State<FluxerSelect<T>> {
     BuildContext sheetContext, {
     required ValueChanged<T> onSelected,
   }) {
-    final layout = sheetContext.layout;
     return ListView(
       shrinkWrap: true,
-      physics: const ClampingScrollPhysics(),
       padding: FluxerBottomSheet.scrollViewPadding(
         sheetContext,
-        padding: EdgeInsets.only(bottom: layout.s4),
+        padding: EdgeInsets.only(
+          bottom: FluxerBottomSheet.bottomGapOf(sheetContext),
+        ),
       ),
       children: [
         FluxerBottomSheetSection(
@@ -245,37 +234,19 @@ class _FluxerSelectState<T> extends State<FluxerSelect<T>> {
   Future<void> _showOptions(BuildContext context) async {
     setState(() => _isOpen = true);
 
-    final BuildContext? shellTabOverlayContext = useShellTabOverlayNavigator
-        ? shellTabOverlayNavigatorKey.currentContext
-        : null;
-    if (useShellTabOverlayNavigator && shellTabOverlayContext == null) {
-      if (mounted) {
-        setState(() => _isOpen = false);
-      }
-      return;
-    }
-    final BuildContext sheetHostContext = shellTabOverlayContext ?? context;
-    final bool sheetUsesRootNavigator =
-        !useShellTabOverlayNavigator && useRootNavigator;
-
-    // Apply on tap. Nested dialog/sheet routes can complete with null even
-    // after a successful selection.
     var didSelect = false;
     void handleSelected(BuildContext sheetContext, T selected) {
       didSelect = true;
       _onChanged(selected);
-      Navigator.of(
-        sheetContext,
-        rootNavigator: sheetUsesRootNavigator,
-      ).pop(selected);
+      Navigator.of(sheetContext, rootNavigator: useRootNavigator).pop(selected);
     }
 
     late final Future<T?> sheetFuture;
     if (enableSearch || scrollableSheet) {
       sheetFuture = FluxerBottomSheet.showScrollable<T>(
-        sheetHostContext,
-        title: label,
-        useRootNavigator: sheetUsesRootNavigator,
+        context,
+        title: sheetTitle,
+        useRootNavigator: useRootNavigator,
         initialChildSize: enableSearch
             ? FluxerBottomSheet.scrollableSheetSize
             : FluxerBottomSheet.scrollableSheetHalfSize,
@@ -293,17 +264,14 @@ class _FluxerSelectState<T> extends State<FluxerSelect<T>> {
       );
     } else {
       sheetFuture = FluxerBottomSheet.show<T>(
-        sheetHostContext,
-        title: label,
+        context,
+        title: sheetTitle,
         maxHeight: 0.58,
-        useRootNavigator: sheetUsesRootNavigator,
+        useRootNavigator: useRootNavigator,
         variant: FluxerBottomSheetVariant.menu,
-        builder: (sheetContext, close) => FluxerBottomSheetDismissDragTarget(
-          onDismiss: close,
-          child: _buildStaticSelectBody(
-            sheetContext,
-            onSelected: (selected) => handleSelected(sheetContext, selected),
-          ),
+        builder: (sheetContext, close) => _buildStaticSelectBody(
+          sheetContext,
+          onSelected: (selected) => handleSelected(sheetContext, selected),
         ),
       );
     }
@@ -366,18 +334,10 @@ class _FluxerSelectSheetState<T> extends State<_FluxerSelectSheet<T>> {
       children: [
         if (widget.enableSearch)
           FluxerBottomSheetSection(
-            child: FluxerInput(
+            child: PickerSearchInput.inline(
               controller: _searchController,
-              hint: widget.searchHint ?? l10n.uiSearchPlaceholder,
+              hintText: widget.searchHint ?? l10n.uiSearchPlaceholder,
               autofocus: true,
-              prefixIcon: Padding(
-                padding: const EdgeInsets.all(12),
-                child: PhosphorIcon(
-                  PhosphorIconsBold.magnifyingGlass,
-                  size: 18,
-                  color: colors.textSecondary,
-                ),
-              ),
               onChanged: (value) => setState(() => _query = value),
             ),
           ),
@@ -399,7 +359,9 @@ class _FluxerSelectSheetState<T> extends State<_FluxerSelectSheet<T>> {
                   controller: widget.scrollController,
                   padding: FluxerBottomSheet.scrollViewPadding(
                     context,
-                    padding: EdgeInsets.only(bottom: layout.s4),
+                    padding: EdgeInsets.only(
+                      bottom: FluxerBottomSheet.bottomGapOf(context),
+                    ),
                   ),
                   children: [
                     FluxerBottomSheetSection(

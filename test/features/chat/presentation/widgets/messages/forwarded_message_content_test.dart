@@ -1,6 +1,7 @@
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme.dart';
@@ -19,6 +20,7 @@ import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_markdown/fluxer_markdown.dart';
 import 'package:riverpod/src/framework.dart' show Override;
 
+import '../../../../../helpers/open_test_database.dart';
 import '../../../../../helpers/test_l10n.dart';
 import '../../../../../helpers/wide_layout_test_sizes.dart';
 
@@ -75,6 +77,7 @@ void main() {
             type: EmbedType.image,
             image: EmbedMedia(
               url: 'https://cdn.example/embed-0.png',
+              proxyUrl: 'https://media.example/embed-0.png',
               width: 400,
               height: 300,
             ),
@@ -83,6 +86,7 @@ void main() {
             type: EmbedType.image,
             image: EmbedMedia(
               url: 'https://cdn.example/embed-1.png',
+              proxyUrl: 'https://media.example/embed-1.png',
               width: 400,
               height: 300,
             ),
@@ -154,6 +158,7 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
+            fluxerDatabaseProvider.overrideWithValue(openTestDatabase()),
             favoriteMemesProvider.overrideWith((ref) => Stream.value(const [])),
           ],
           child: _content(
@@ -174,6 +179,7 @@ void main() {
 
       expect(find.byType(AttachmentMediaViewerShell), findsOneWidget);
       expect(find.byType(SavedMediaFavoriteToolbarButton), findsOneWidget);
+      await releaseTestWidgetTree(tester);
     },
   );
 

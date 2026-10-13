@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Tentar novamente",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Conectado",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Pesquisar KLIPY",
+    "gifPickerSearchKlipy": "Pesquisar Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Pesquisar Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Favoritos",
     "@gifPickerFavorites": {
@@ -2590,10 +2590,6 @@
     "dangerZoneDeleteDescription": "Exclua permanentemente sua conta e todos os dados associados. Esta ação não pode ser desfeita.",
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
-    },
-    "dangerZoneDeleteCancelSubscription": "Cancele sua assinatura ativa do Plutonium nas configurações do Plutonium antes de excluir sua conta.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
     },
     "dangerZoneDeleteCannotDeleteAccount": "Não é possível excluir a conta",
     "@dangerZoneDeleteCannotDeleteAccount": {
@@ -5138,7 +5134,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Mostrar chat com {count, plural, one {# mensagem não lida} other {# mensagens não lidas}}",
+    "voiceTextChatShowUnread": "Mostrar chat com {count, plural, one {{count} mensagem não lida} other {{count} mensagens não lidas}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5351,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "Falha ao enviar mensagem. Toque para ver as opções.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "Sua mensagem não pôde ser entregue. Isso geralmente ocorre porque você não compartilha uma comunidade com o destinatário ou o destinatário só aceita mensagens diretas de amigos. Você também pode precisar ajustar suas próprias configurações de privacidade de mensagens diretas em {settingsPath}.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5451,10 +5451,6 @@
     "forwardSuccessToast": "Mensagem encaminhada",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Falha ao encaminhar mensagem",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Comentários indisponíveis porque um canal selecionado tem o modo lento ativado.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6110,19 +6106,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "SUA CONTA",
+    "userSettingsGroupYourAccount": "Sua conta",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6727,10 +6723,6 @@
     "scrollIndicatorNew": "NEW",
     "@scrollIndicatorNew": {
         "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
-    },
-    "scrollIndicatorNewMessage": "NOVA MENSAGEM",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
     },
     "guildNavbarCollapseFolder": "Recolher {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -8153,7 +8145,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Excluída # mensagem.} other{Excluídas # mensagens.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Excluída {count} mensagem.} other{Excluídas {count} mensagens.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8162,7 +8154,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Membro removido #.} other{Membros removidos #.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Membro removido {count}.} other{Membros removidos {count}.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8319,19 +8311,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -8794,5 +8786,9 @@
     "lookAndFeelChatWallpaperPickFailed": "Não foi possível definir esta imagem como seu papel de parede.",
     "@lookAndFeelChatWallpaperPickFailed": {
         "description": "Toast shown when a custom wallpaper image cannot be decoded or saved."
+    },
+    "favoritesRenameCategory": "Renomear categoria",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
     }
 }

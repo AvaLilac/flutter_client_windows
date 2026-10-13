@@ -1,10 +1,10 @@
 import 'dart:convert';
 
+import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
 import 'package:fluxer_app/core/permissions/permission_resolver.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/features/guilds/domain/guild.dart';
-import 'package:fluxer_app/features/guilds/providers/guild_list_view_model.dart';
+import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/members/domain/member.dart';
 import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -14,7 +14,10 @@ part 'guild_permissions_provider.g.dart';
 @Riverpod(keepAlive: true)
 class GuildPermissions extends _$GuildPermissions {
   @override
-  Map<String, int> build() => {};
+  Map<String, int> build() {
+    ref.watch(currentUserIdProvider);
+    return {};
+  }
 
   Future<int> getPermissions(String guildId) async {
     if (state.containsKey(guildId)) {
@@ -56,19 +59,13 @@ class GuildPermissions extends _$GuildPermissions {
     state = {};
   }
 
-  /// Caches the resolved value, including a pending `0` when the current
-  /// user's member row is not loaded yet; gateway member add/update/chunk
-  /// events for the current user invalidate that entry via
-  /// [refreshPermissions]. Only an unknown guild stays uncached
-  /// (`shouldCache: false`), since its permission inputs are not yet known.
   Future<({int value, bool shouldCache})> _computePermissions(
     String guildId,
   ) async {
     final db = ref.read(fluxerDatabaseProvider);
     final String currentUserId = ref.read(userSettingsViewModelProvider).userId;
 
-    final guilds = ref.read(guildListViewModelProvider).guilds;
-    final Guild? guild = guilds.where((g) => g.id == guildId).firstOrNull;
+    final Server? guild = await db.guildDao.getServerById(guildId);
     if (guild == null) {
       return (value: 0, shouldCache: false);
     }

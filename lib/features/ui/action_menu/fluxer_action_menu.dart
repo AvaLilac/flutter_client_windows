@@ -7,7 +7,6 @@ import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart'
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart'
     show
         FluxerBottomSheet,
-        FluxerBottomSheetDismissDragTarget,
         FluxerBottomSheetGroupColumn,
         FluxerBottomSheetMenuItem,
         FluxerBottomSheetSection,
@@ -20,21 +19,12 @@ import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-/// Builder for action menu items that receives a close callback.
 typedef FluxerActionMenuBuilder =
     List<Widget> Function(BuildContext context, VoidCallback close);
 
-/// Context menu shown at a specific screen position.
-///
-/// Use [FluxerActionMenu.show] to display the menu as an overlay.
 class FluxerActionMenu {
   FluxerActionMenu._();
 
-  /// Shows an action menu with items from [builder].
-  ///
-  /// On mobile, displays a bottom sheet. On tablet/desktop, shows a positioned
-  /// overlay at [position]. The menu is dismissed when tapping outside,
-  /// pressing Escape, or calling the `close` callback passed to [builder].
   static Future<void> show(
     BuildContext context, {
     required Offset position,
@@ -57,42 +47,38 @@ class FluxerActionMenu {
       builder: (sheetContext, close) {
         final sections = _buildMobileSections(builder(sheetContext, close));
 
-        return FluxerBottomSheetDismissDragTarget(
-          onDismiss: close,
-          child: ListView(
-            shrinkWrap: true,
-            // Clamping physics lets the list scroll when needed; at the top,
-            // downward drags are handled by [FluxerBottomSheetDismissDragTarget].
-            physics: const ClampingScrollPhysics(),
-            padding: FluxerBottomSheet.scrollViewPadding(
-              sheetContext,
-              padding: EdgeInsets.only(bottom: sheetContext.layout.s2),
+        return ListView(
+          shrinkWrap: true,
+          padding: FluxerBottomSheet.scrollViewPadding(
+            sheetContext,
+            padding: EdgeInsets.only(
+              bottom: FluxerBottomSheet.bottomGapOf(sheetContext),
             ),
-            children: [
-              FluxerBottomSheetGroupColumn(
-                children: [
-                  for (final section in sections)
-                    FluxerBottomSheetSection(
-                      title: section.title,
-                      child: FluxerMenuGroup(
-                        children: [
-                          for (final item in section.items)
-                            FluxerBottomSheetMenuItem(
-                              label: item.label,
-                              hint: item.hint,
-                              icon: item.icon,
-                              iconColor: item.iconColor,
-                              isDanger: item.isDanger,
-                              enabled: item.enabled,
-                              onTap: item.onPressed,
-                            ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ],
           ),
+          children: [
+            FluxerBottomSheetGroupColumn(
+              children: [
+                for (final section in sections)
+                  FluxerBottomSheetSection(
+                    title: section.title,
+                    child: FluxerMenuGroup(
+                      children: [
+                        for (final item in section.items)
+                          FluxerBottomSheetMenuItem(
+                            label: item.label,
+                            hint: item.hint,
+                            icon: item.icon,
+                            iconColor: item.iconColor,
+                            isDanger: item.isDanger,
+                            enabled: item.enabled,
+                            onTap: item.onPressed,
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
         );
       },
     );
@@ -321,9 +307,6 @@ class FluxerMenuSectionHeader extends StatelessWidget {
   }
 }
 
-/// A single item in a [FluxerActionMenu].
-///
-/// Uses [FluxerTappable] for consistent hover behaviour.
 class FluxerMenuItem extends StatelessWidget {
   const FluxerMenuItem({
     required this.label,
@@ -569,7 +552,7 @@ class FluxerMenuSubmenuItem extends StatelessWidget {
                   ),
                 ),
                 PhosphorIcon(
-                  PhosphorIconsFill.caretRight,
+                  PhosphorIconsBold.caretRight,
                   size: 16,
                   color: colors.textSecondary,
                 ),
@@ -582,7 +565,6 @@ class FluxerMenuSubmenuItem extends StatelessWidget {
   }
 }
 
-/// A thin horizontal divider for use inside [FluxerActionMenu].
 class FluxerMenuDivider extends StatelessWidget {
   const FluxerMenuDivider({super.key});
 

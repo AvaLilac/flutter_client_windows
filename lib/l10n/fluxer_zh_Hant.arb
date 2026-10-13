@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "再試一次",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "已連線",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "搜尋 KLIPY",
+    "gifPickerSearchKlipy": "搜尋 Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "搜尋 Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "我的最愛",
     "@gifPickerFavorites": {
@@ -2435,7 +2435,7 @@
     "@securityPasskeysNone": {
         "description": "Shown when no passkeys are registered."
     },
-    "securityPasskeysCount": "{count, plural, =1{已註冊 1 個通行金鑰} other{已註冊 # 個通行金鑰}} (最多 10 個)",
+    "securityPasskeysCount": "{count, plural, =1{已註冊 1 個通行金鑰} other{已註冊 {count} 個通行金鑰}} (最多 10 個)",
     "@securityPasskeysCount": {
         "description": "Shows passkey count.",
         "placeholders": {
@@ -2590,10 +2590,6 @@
     "dangerZoneDeleteDescription": "永久刪除您的帳號和所有相關資料。此動作無法復原。",
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
-    },
-    "dangerZoneDeleteCancelSubscription": "刪除帳號前，請先在 Plutonium 設定中取消您的 Plutonium 付費方案。",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
     },
     "dangerZoneDeleteCannotDeleteAccount": "無法刪除帳號",
     "@dangerZoneDeleteCannotDeleteAccount": {
@@ -5138,7 +5134,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "顯示聊天（有 {count, plural, one {# 則未讀訊息} other {# 則未讀訊息}}）",
+    "voiceTextChatShowUnread": "顯示聊天（有 {count, plural, one {{count} 則未讀訊息} other {{count} 則未讀訊息}}）",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5351,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "無法傳送訊息。輕觸以選擇選項。",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "您的訊息無法送達。這通常是因為您與收件者沒有共同的社群，或是收件者僅接受朋友的直接訊息。您可能也需要在 {settingsPath} 中調整您自己的直接訊息隱私設定。",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5463,6 @@
     "forwardSuccessToast": "訊息已轉傳",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "訊息轉傳失敗",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "由於選取的頻道已啟用慢速模式，備註功能無法使用。",
     "@forwardCommentSlowmodeDisabled": {
@@ -6130,15 +6126,15 @@
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6692,11 +6688,11 @@
     },
     "scrollIndicatorNew": "新",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "新訊息",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "新訊息",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "收合「{folderName}」",
     "@guildNavbarCollapseFolder": {
@@ -8119,7 +8115,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{刪除 # 則訊息。} other{刪除 # 則訊息。}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{刪除 {count} 則訊息。} other{刪除 {count} 則訊息。}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8124,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{移除 # 位成員。} other{移除 # 位成員。}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{移除 {count} 位成員。} other{移除 {count} 位成員。}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8281,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -13711,7 +13707,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "所有社群，除了 {count, plural, one {# 個社群} other {# 個社群}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "所有社群，除了 {count, plural, one {{count} 個社群} other {{count} 個社群}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13720,7 +13716,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "僅限 {count, plural, one {# 個社群} other {# 個社群}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "僅限 {count, plural, one {{count} 個社群} other {{count} 個社群}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13749,7 +13745,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# 小時} other {# 小時}}又{minutes, plural, one {# 分鐘} other {# 分鐘}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} 小時} other {{hours} 小時}}又{minutes, plural, one {{minutes} 分鐘} other {{minutes} 分鐘}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13761,7 +13757,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# 小時} other {# 小時}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} 小時} other {{hours} 小時}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13770,7 +13766,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# 分鐘} other {# 分鐘}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} 分鐘} other {{minutes} 分鐘}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13779,7 +13775,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# 秒} other {# 秒}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} 秒} other {{seconds} 秒}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14485,7 +14481,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -16513,5 +16509,96 @@
     },
     "channelUnsupportedTitle": "不支援的頻道類型",
     "channelUnsupportedBody": "此應用程式版本不支援此頻道類型。",
-    "channelDetailsUnsupportedChannel": "不支援的頻道"
+    "channelDetailsUnsupportedChannel": "不支援的頻道",
+    "forumPostNewBadge": "新訊息",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} 則新訊息} other {{count} 則新訊息}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "新訊息",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "自 {shortTime} 起有 {unreadCount, plural, other {{unreadCount} 則新訊息}}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "自 {shortTime} 起有超過 {unreadCount} 則新訊息",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "自 {compactTime} 起有 {unreadCount, plural, one {{unreadCount} 則新訊息} other {{unreadCount} 則新訊息}}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "自 {compactTime} 起有超過 {unreadCount} 則新訊息",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "標示為已讀",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "標示為已讀",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "跳到第一則未讀訊息",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "您正在檢視較舊的訊息",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "跳到最新訊息",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "重新命名類別",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

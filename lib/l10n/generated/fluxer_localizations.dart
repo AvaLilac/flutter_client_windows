@@ -167,6 +167,66 @@ abstract class FluxerLocalizations {
   /// **'We fluxed up!'**
   String get reconnectingTitle;
 
+  /// Bottom bar action that returns the message list to the newest messages.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to present'**
+  String get chatJumpToPresent;
+
+  /// Bottom bar text shown while the message list is detached from the present.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re viewing older messages'**
+  String get chatViewingOlderMessages;
+
+  /// Accessible label for the new messages bar text button.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to first unread message'**
+  String get chatNewMessagesBarJumpToFirstUnread;
+
+  /// Wide new messages bar action.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as read'**
+  String get chatNewMessagesBarMarkAsRead;
+
+  /// Compact new messages bar action.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark read'**
+  String get chatNewMessagesBarMarkRead;
+
+  /// Wide new messages bar label when the unread count is a lower bound.
+  ///
+  /// In en, this message translates to:
+  /// **'{unreadCount}+ new messages since {compactTime}'**
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  );
+
+  /// Wide new messages bar label. compactTime is the date and time of the oldest unread message.
+  ///
+  /// In en, this message translates to:
+  /// **'{unreadCount, plural, one {{unreadCount} new message} other {{unreadCount} new messages}} since {compactTime}'**
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  );
+
+  /// Compact new messages bar label when the unread count is a lower bound.
+  ///
+  /// In en, this message translates to:
+  /// **'{unreadCount}+ new since {shortTime}'**
+  String chatNewMessagesBarNewSinceEstimated(int unreadCount, String shortTime);
+
+  /// Compact new messages bar label. shortTime is the time of the oldest unread message.
+  ///
+  /// In en, this message translates to:
+  /// **'{unreadCount, plural, one {{unreadCount} new} other {{unreadCount} new}} since {shortTime}'**
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime);
+
   /// Subtitle on the reconnecting screen explaining a temporary instance outage.
   ///
   /// In en, this message translates to:
@@ -178,6 +238,12 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Reconnecting…'**
   String get gatewayReconnectingToast;
+
+  /// Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get gatewayReconnectTryAgain;
 
   /// Banner shown when the gateway connection is restored.
   ///
@@ -584,6 +650,12 @@ abstract class FluxerLocalizations {
   /// **'Next'**
   String get next;
 
+  /// Generic create action label in a full-screen form header.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get create;
+
   /// Title for the MFA challenge screen.
   ///
   /// In en, this message translates to:
@@ -655,6 +727,12 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'This will remove the saved session for this account.'**
   String get accountRemoveDescription;
+
+  /// Title of the confirmation before signing out of one saved account. The identifier is the account's username.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out of {identifier}?'**
+  String accountSignOutTitle(String identifier);
 
   /// Label shown on accounts with expired sessions.
   ///
@@ -2279,7 +2357,7 @@ abstract class FluxerLocalizations {
   /// Member count label for group DMs.
   ///
   /// In en, this message translates to:
-  /// **'{count} Members'**
+  /// **'{count, plural, =1{1 Member} other{{count} Members}}'**
   String dmGroupMemberCount(int count);
 
   /// Mute duration option: 15 minutes.
@@ -2864,10 +2942,10 @@ abstract class FluxerLocalizations {
   /// **'Search GIFs'**
   String get gifPickerSearch;
 
-  /// GIF picker search placeholder for KLIPY.
+  /// GIF picker search placeholder for Klipy.
   ///
   /// In en, this message translates to:
-  /// **'Search KLIPY'**
+  /// **'Search Klipy'**
   String get gifPickerSearchKlipy;
 
   /// GIF picker search placeholder for Tenor.
@@ -2875,12 +2953,6 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Search Tenor'**
   String get gifPickerSearchTenor;
-
-  /// Short powered-by KLIPY label in the GIF picker search field.
-  ///
-  /// In en, this message translates to:
-  /// **'KLIPY'**
-  String get gifPickerPoweredByKlipy;
 
   /// Favorites category tile in the GIF picker.
   ///
@@ -4291,12 +4363,6 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Permanently delete your account and all associated data. This action cannot be undone.'**
   String get dangerZoneDeleteDescription;
-
-  /// Warning about active subscription before deletion.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel your active Plutonium subscription in Plutonium settings before deleting your account.'**
-  String get dangerZoneDeleteCancelSubscription;
 
   /// Title for the guild ownership warning modal when trying to delete account.
   ///
@@ -9720,7 +9786,7 @@ abstract class FluxerLocalizations {
   /// Accessibility label when voice channel text chat has unread messages.
   ///
   /// In en, this message translates to:
-  /// **'Show chat with {count, plural, one {# unread message} other {# unread messages}}'**
+  /// **'Show chat with {count, plural, one {{count} unread message} other {{count} unread messages}}'**
   String voiceTextChatShowUnread(int count);
 
   /// Error when the user enables video but camera access is denied.
@@ -9987,6 +10053,54 @@ abstract class FluxerLocalizations {
   /// **'This message couldn\'t be loaded.'**
   String get notificationsMessageUnavailable;
 
+  /// Title of a Notifications row for a message that mentions the user. place is a server and channel or a group name.
+  ///
+  /// In en, this message translates to:
+  /// **'{author} mentioned you in {place}:'**
+  String notificationsMentionedYouIn(String author, String place);
+
+  /// Title of a Notifications row for a reply that pings the user. place is a server and channel or a group name.
+  ///
+  /// In en, this message translates to:
+  /// **'{author} replied to you in {place}:'**
+  String notificationsRepliedToYouIn(String author, String place);
+
+  /// Title of a Notifications row for a mention inside a direct message.
+  ///
+  /// In en, this message translates to:
+  /// **'{author} mentioned you:'**
+  String notificationsMentionedYou(String author);
+
+  /// Title of a Notifications row for a reply that pings the user inside a direct message.
+  ///
+  /// In en, this message translates to:
+  /// **'{author} replied to you:'**
+  String notificationsRepliedToYou(String author);
+
+  /// Server and channel a notification came from, used inside the Notifications row title.
+  ///
+  /// In en, this message translates to:
+  /// **'{server} – {channel}'**
+  String notificationsMentionPlace(String server, String channel);
+
+  /// Button on a new Notifications row that opens the channel with a reply to that message started.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a reply'**
+  String get notificationsSendReply;
+
+  /// Section label above Notifications rows the user has already seen.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent activity'**
+  String get notificationsRecentActivity;
+
+  /// Menu action that removes a row from the Notifications list.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove notification'**
+  String get notificationsRemoveNotification;
+
   /// Character counter tooltip showing how many characters remain.
   ///
   /// In en, this message translates to:
@@ -10014,6 +10128,12 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Failed to send message'**
   String get chatMessageFailedToSend;
+
+  /// Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send message. Tap for options.'**
+  String get chatMessageFailedToSendTapForOptions;
 
   /// Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.
   ///
@@ -10738,13 +10858,13 @@ abstract class FluxerLocalizations {
   /// Summary value when community filter is in exclude mode.
   ///
   /// In en, this message translates to:
-  /// **'All except {count, plural, one {# community} other {# communities}}'**
+  /// **'All except {count, plural, one {{count} community} other {{count} communities}}'**
   String privacyDashboardDataRequestSummaryGuildExclude(int count);
 
   /// Summary value when community filter is in include-only mode.
   ///
   /// In en, this message translates to:
-  /// **'Only {count, plural, one {# community} other {# communities}}'**
+  /// **'Only {count, plural, one {{count} community} other {{count} communities}}'**
   String privacyDashboardDataRequestSummaryGuildInclude(int count);
 
   /// Summary chip for open DMs only.
@@ -10780,25 +10900,25 @@ abstract class FluxerLocalizations {
   /// Duration label with hours and minutes.
   ///
   /// In en, this message translates to:
-  /// **'{hours, plural, one {# hour} other {# hours}} and {minutes, plural, one {# minute} other {# minutes}}'**
+  /// **'{hours, plural, one {{hours} hour} other {{hours} hours}} and {minutes, plural, one {{minutes} minute} other {{minutes} minutes}}'**
   String privacyDashboardDurationHoursMinutes(int hours, int minutes);
 
   /// Duration label with hours only.
   ///
   /// In en, this message translates to:
-  /// **'{hours, plural, one {# hour} other {# hours}}'**
+  /// **'{hours, plural, one {{hours} hour} other {{hours} hours}}'**
   String privacyDashboardDurationHours(int hours);
 
   /// Duration label with minutes only.
   ///
   /// In en, this message translates to:
-  /// **'{minutes, plural, one {# minute} other {# minutes}}'**
+  /// **'{minutes, plural, one {{minutes} minute} other {{minutes} minutes}}'**
   String privacyDashboardDurationMinutes(int minutes);
 
   /// Duration label with seconds only.
   ///
   /// In en, this message translates to:
-  /// **'{seconds, plural, one {# second} other {# seconds}}'**
+  /// **'{seconds, plural, one {{seconds} second} other {{seconds} seconds}}'**
   String privacyDashboardDurationSeconds(int seconds);
 
   /// Error message when privacy settings fail to load.
@@ -11028,12 +11148,6 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Message forwarded'**
   String get forwardSuccessToast;
-
-  /// Toast shown when forwarding a message fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to forward message'**
-  String get forwardFailed;
 
   /// Notice shown in the forward sheet when the optional comment is disabled due to slowmode on a selected destination.
   ///
@@ -11725,6 +11839,18 @@ abstract class FluxerLocalizations {
   /// **'No changes to save'**
   String get chatEditNoChanges;
 
+  /// Toast when saving an edit to a message fails and the message reverts.
+  ///
+  /// In en, this message translates to:
+  /// **'Your message didn\'t update'**
+  String get chatEditFailed;
+
+  /// Action on the failed edit toast that reopens the editor with the unsaved text.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit again'**
+  String get chatEditFailedEditAgain;
+
   /// Toast when send is attempted before the channel has finished loading.
   ///
   /// In en, this message translates to:
@@ -11922,6 +12048,12 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Stickers'**
   String get composerAutocompleteStickersHeading;
+
+  /// Section heading in composer autocomplete for emoji suggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Emojis'**
+  String get composerAutocompleteEmojisHeading;
 
   /// Heading above GIF autocomplete results.
   ///
@@ -14652,31 +14784,31 @@ abstract class FluxerLocalizations {
   /// Section heading for account-related items in user settings navigation.
   ///
   /// In en, this message translates to:
-  /// **'YOUR ACCOUNT'**
+  /// **'Your account'**
   String get userSettingsGroupYourAccount;
 
   /// Section heading for billing items in user settings navigation.
   ///
   /// In en, this message translates to:
-  /// **'BILLING'**
+  /// **'Billing'**
   String get userSettingsGroupBilling;
 
   /// Section heading for app preference items in user settings navigation.
   ///
   /// In en, this message translates to:
-  /// **'APPLICATION'**
+  /// **'Application'**
   String get userSettingsGroupApplication;
 
   /// Section heading for developer items in user settings navigation.
   ///
   /// In en, this message translates to:
-  /// **'DEVELOPER'**
+  /// **'Developer'**
   String get userSettingsGroupDeveloper;
 
   /// Section heading for staff-only items in user settings navigation.
   ///
   /// In en, this message translates to:
-  /// **'STAFF-ONLY'**
+  /// **'Staff-only'**
   String get userSettingsGroupStaffOnly;
 
   /// Placeholder for the user settings search field.
@@ -17921,6 +18053,12 @@ abstract class FluxerLocalizations {
   /// **'Jump to bottom'**
   String get chatJumpToBottom;
 
+  /// Badge on the unread divider line in the message list. Rendered in uppercase.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get chatUnreadDividerNew;
+
   /// Generic confirm action label for modals and sheets.
   ///
   /// In en, this message translates to:
@@ -18431,17 +18569,17 @@ abstract class FluxerLocalizations {
   /// **'Help'**
   String get guildNavbarHelp;
 
-  /// Scroll pill shown when unread guilds are off-screen in the guild navbar.
+  /// Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase.
   ///
   /// In en, this message translates to:
-  /// **'NEW'**
+  /// **'New'**
   String get scrollIndicatorNew;
 
-  /// Scroll pill shown when unread channels are off-screen in the channel sidebar.
+  /// Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase.
   ///
   /// In en, this message translates to:
-  /// **'NEW MESSAGE'**
-  String get scrollIndicatorNewMessage;
+  /// **'New messages'**
+  String get scrollIndicatorNewMessages;
 
   /// Tooltip when collapsing a guild folder in the navbar.
   ///
@@ -21495,13 +21633,13 @@ abstract class FluxerLocalizations {
   /// Audit log option detail sentence.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Deleted # message.} other{Deleted # messages.}}'**
+  /// **'{count, plural, =1{Deleted {count} message.} other{Deleted {count} messages.}}'**
   String auditLogOptionDeletedMessages(int count);
 
   /// Audit log option detail sentence.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Removed # member.} other{Removed # members.}}'**
+  /// **'{count, plural, =1{Removed {count} member.} other{Removed {count} members.}}'**
   String auditLogOptionRemovedMembers(int count);
 
   /// Audit log option detail sentence.
@@ -22383,25 +22521,25 @@ abstract class FluxerLocalizations {
   /// Sidebar category for emoji and stickers.
   ///
   /// In en, this message translates to:
-  /// **'EXPRESSIONS'**
+  /// **'Expressions'**
   String get guildSettingsCategoryExpressions;
 
   /// Sidebar category for discovery and vanity URL.
   ///
   /// In en, this message translates to:
-  /// **'COMMUNITY'**
+  /// **'Community'**
   String get guildSettingsCategoryCommunity;
 
   /// Sidebar category for webhooks.
   ///
   /// In en, this message translates to:
-  /// **'INTEGRATIONS'**
+  /// **'Integrations'**
   String get guildSettingsCategoryIntegrations;
 
   /// Sidebar category for members, invites, and bans.
   ///
   /// In en, this message translates to:
-  /// **'PEOPLE'**
+  /// **'People'**
   String get guildSettingsCategoryPeople;
 
   /// No description provided for @guildSettingsOverviewBrandingTitle.
@@ -24573,7 +24711,7 @@ abstract class FluxerLocalizations {
   /// Forum and media channel UI.
   ///
   /// In en, this message translates to:
-  /// **'NEW'**
+  /// **'New'**
   String get forumPostNewBadge;
 
   /// Forum and media channel UI.
@@ -24591,7 +24729,7 @@ abstract class FluxerLocalizations {
   /// Forum and media channel UI.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 new message} other{{count} new messages}}'**
+  /// **'{count, plural, one {{count} new message} other {{count} new messages}}'**
   String forumPostNewMessages(int count);
 
   /// Forum and media channel UI.
@@ -25109,6 +25247,12 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Cannot connect directly to {name}'**
   String voiceP2pPeerFailedTitle(String name);
+
+  /// Favorites category context menu action and sheet title for renaming a favorites category.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename category'**
+  String get favoritesRenameCategory;
 }
 
 class _FluxerLocalizationsDelegate

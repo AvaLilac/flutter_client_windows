@@ -7,7 +7,6 @@ import 'package:fluxer_app/core/theme/fluxer_theme.dart';
 import 'package:fluxer_app/core/theme/themes/dark.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/chat_expression_expandable_sheet.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/expression_panel_provider.dart';
-import 'package:fluxer_app/features/chat/utils/composer/inline_expression_panel_layout.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 import '../../../../../helpers/test_l10n.dart';
@@ -17,6 +16,9 @@ const double _kAnchorHeight = 291;
 const double _kDragHandleHeight = 36;
 const double _kDockedContentHeight = _kAnchorHeight - _kDragHandleHeight;
 const double _kTextareaHeight = 72;
+const TargetPlatformVariant _kTouchPlatforms = TargetPlatformVariant(
+  <TargetPlatform>{TargetPlatform.android, TargetPlatform.iOS},
+);
 
 void main() {
   final FluxerColorTheme colorTheme = buildDarkColorTheme();
@@ -76,14 +78,13 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('panel height stays within anchor and 80% screen bounds', (
+    testWidgets('panel height stays below the header and rubber-bands down', (
       tester,
     ) async {
       await _pumpSheet(tester, colorTheme: colorTheme);
       final Finder dragTarget = find.byKey(kChatExpressionSheetDragHeaderKey);
       final Finder sheet = find.byKey(kChatExpressionSheetKey);
-      final double maxHeight =
-          _kMobileViewport.height * kInlineExpressionPanelMaxScreenFraction;
+      final double maxHeight = _kMobileViewport.height;
       final TestGesture expandGesture = await tester.startGesture(
         tester.getCenter(dragTarget),
       );
@@ -99,10 +100,14 @@ void main() {
       await tester.pump();
       expect(
         tester.getSize(sheet).height,
-        greaterThanOrEqualTo(_kAnchorHeight - 1),
+        greaterThanOrEqualTo(_kAnchorHeight - kExpressionSheetRubberBandLimit),
       );
       await collapseGesture.up();
       await tester.pumpAndSettle();
+      expect(
+        tester.getSize(sheet).height,
+        greaterThanOrEqualTo(_kAnchorHeight - 1),
+      );
     });
 
     testWidgets('list pull up expands docked sheet to expanded height', (
@@ -120,6 +125,53 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.getSize(sheet).height, greaterThan(dockedHeight + 40));
     });
+
+    testWidgets('slow list drag up expands the docked sheet before scrolling', (
+      tester,
+    ) async {
+      await _pumpSheet(tester, colorTheme: colorTheme);
+      final Finder sheet = find.byKey(kChatExpressionSheetKey);
+      final double dockedHeight = tester.getSize(sheet).height;
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(find.byType(Scrollable).last),
+      );
+      for (int i = 0; i < 20; i++) {
+        await gesture.moveBy(const Offset(0, -3));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(_listPosition(tester).pixels, 0);
+      expect(tester.getSize(sheet).height, greaterThan(dockedHeight + 40));
+      for (int i = 0; i < 60; i++) {
+        await gesture.moveBy(const Offset(0, -3));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(tester.getSize(sheet).height, greaterThan(dockedHeight + 150));
+    }, variant: _kTouchPlatforms);
+
+    testWidgets('slow list drag up scrolls a docked list that is not at top', (
+      tester,
+    ) async {
+      await _pumpSheet(tester, colorTheme: colorTheme);
+      _listPosition(tester).jumpTo(100);
+      await tester.pump();
+      final Finder sheet = find.byKey(kChatExpressionSheetKey);
+      final double dockedHeight = tester.getSize(sheet).height;
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(find.byType(Scrollable).last),
+      );
+      for (int i = 0; i < 20; i++) {
+        await gesture.moveBy(const Offset(0, -3));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(_listPosition(tester).pixels, greaterThan(120));
+      expect(tester.getSize(sheet).height, closeTo(dockedHeight, 1));
+      await tester.pump(const Duration(milliseconds: 300));
+      await gesture.up();
+      await tester.pumpAndSettle();
+    }, variant: _kTouchPlatforms);
 
     testWidgets('list pull down collapses expanded sheet to docked height', (
       tester,
@@ -520,4 +572,8 @@ Future<void> _pumpSheet(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+ScrollPosition _listPosition(WidgetTester tester) {
+  return tester.state<ScrollableState>(find.byType(Scrollable).last).position;
 }

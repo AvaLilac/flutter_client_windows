@@ -6,7 +6,6 @@ import 'package:fluxer_app/features/channels/domain/channel_access_icon_flags.da
 import 'package:fluxer_app/material_ui.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-// Might be good to look into creating a custom font with icons embedded
 const String _kAssetText = 'assets/images/icons/channels/text.svg';
 const String _kAssetTextLocked = 'assets/images/icons/channels/text_locked.svg';
 const String _kAssetTextNsfw = 'assets/images/icons/channels/text_nsfw.svg';
@@ -144,11 +143,6 @@ class ChannelIcon extends StatelessWidget {
       e2eeEncrypted: e2eeEncrypted,
     );
     if (asset != null) {
-      // Channel SVGs all use fill="currentColor"; tint via SvgTheme so the
-      // color is baked into the decoded picture at parse time. A runtime
-      // colorFilter would instead force vector_graphics to saveLayer on every
-      // icon paint (RenderPictureVectorGraphic.paint), which dominated raster
-      // time while scrolling the channel list.
       return SvgPicture.asset(
         asset,
         width: size,
@@ -156,7 +150,6 @@ class ChannelIcon extends StatelessWidget {
         theme: SvgTheme(currentColor: resolvedColor),
       );
     }
-    // Backup Icon
     return PhosphorIcon(
       iconDataFor(displayType),
       size: size,
@@ -191,5 +184,52 @@ class ChannelIcon extends StatelessWidget {
       case ChannelType.dmPersonalNotes:
         return PhosphorIconsBold.hash;
     }
+  }
+}
+
+const List<String> _kSidebarChannelAssets = <String>[
+  _kAssetText,
+  _kAssetTextLocked,
+  _kAssetTextNsfw,
+  _kAssetVoice,
+  _kAssetVoiceLocked,
+  _kAssetVoiceNsfw,
+  _kAssetVoiceNoConnect,
+  _kAssetVoiceE2ee,
+  _kAssetLink,
+  _kAssetLinkLocked,
+  _kAssetLinkNsfw,
+  _kAssetAnnouncement,
+  _kAssetAnnouncementLocked,
+  _kAssetAnnouncementNsfw,
+];
+
+class ChannelIconPrewarm extends StatelessWidget {
+  const ChannelIconPrewarm({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color highlight = context.colors.textPrimary;
+    final Color idle = context.colors.textTertiaryMuted;
+    final List<Color> colors = <Color>[
+      highlight,
+      idle,
+      highlight.withValues(alpha: highlight.a * 0.5),
+      idle.withValues(alpha: idle.a * 0.5),
+    ];
+    return Offstage(
+      child: Wrap(
+        children: <Widget>[
+          for (final Color color in colors)
+            for (final String asset in _kSidebarChannelAssets)
+              SvgPicture.asset(
+                asset,
+                width: 1,
+                height: 1,
+                theme: SvgTheme(currentColor: color),
+              ),
+        ],
+      ),
+    );
   }
 }

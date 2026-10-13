@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme.dart';
@@ -17,6 +18,7 @@ import 'package:fluxer_app/features/ui/media_viewer/touch_media_viewer_page.dart
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 
+import '../../../helpers/open_test_database.dart';
 import '../../../helpers/test_l10n.dart';
 
 class _TouchPrimaryModality extends InputModalityNotifier {
@@ -65,10 +67,24 @@ Widget _mouseApp(Widget child) {
   );
 }
 
+Widget _touchAppWithFavorites(Widget child) {
+  return ProviderScope(
+    overrides: [
+      inputModalityProvider.overrideWith(_TouchPrimaryModality.new),
+      favoriteMemesProvider.overrideWith(
+        (Ref ref) => Stream<List<FavoriteMeme>>.value(const <FavoriteMeme>[]),
+      ),
+    ],
+    child: _materialApp(child),
+  );
+}
+
 Widget _mouseAppWithFavorites(Widget child) {
+  final database = fluxerDatabaseProvider.overrideWithValue(openTestDatabase());
   return ProviderScope(
     overrides: [
       inputModalityProvider.overrideWith(_MousePrimaryModality.new),
+      database,
       favoriteMemesProvider.overrideWith(
         (Ref ref) => Stream<List<FavoriteMeme>>.value(const <FavoriteMeme>[]),
       ),
@@ -296,6 +312,7 @@ void main() {
       await tester.pump();
 
       expect(find.byTooltip('Add to favorites'), findsOneWidget);
+      await releaseTestWidgetTree(tester);
     });
 
     testWidgets('uses touch gesture page when touch is primary', (
@@ -321,6 +338,35 @@ void main() {
       await tester.pump();
 
       expect(find.byType(TouchMediaViewerPage), findsOneWidget);
+    });
+
+    testWidgets('long-pressing the media opens the options sheet', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _touchAppWithFavorites(
+          const AttachmentMediaViewerShell(
+            items: [
+              AttachmentMediaViewerItem(
+                url: _testAttachmentImageUrl,
+                filename: _testAttachmentImageFilename,
+              ),
+            ],
+            initialIndex: 0,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Copy link'), findsNothing);
+
+      await tester.longPress(find.byType(TouchMediaViewerPage));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Copy link'), findsOneWidget);
     });
 
     testWidgets(
@@ -494,6 +540,121 @@ void main() {
         (null, null),
       ]);
     });
+
+    testWidgets('viewer page animates GIFs when reduced motion is on', (
+      tester,
+    ) async {
+      _useLowEndPhoneSurface(tester);
+
+      await tester.pumpWidget(
+        _touchApp(
+          Builder(
+            builder: (BuildContext context) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: true),
+              child: const AttachmentMediaViewerShell(
+                items: [
+                  AttachmentMediaViewerItem(
+                    url: 'https://cdn.example.com/attachments/1/clip.gif',
+                    filename: 'clip.gif',
+                    width: 400,
+                    height: 300,
+                    contentType: 'image/gif',
+                  ),
+                  _landscapePhoto,
+                ],
+                initialIndex: 0,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(_disableAnimations(tester, BoxFit.contain), [false]);
+      expect(_disableAnimations(tester, BoxFit.cover), [true, true]);
+    });
+  });
+
+  group('touch pinch zoom', () {
+    Future<void> pumpTouchViewer(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        _touchApp(
+          const AttachmentMediaViewerShell(
+            items: [_landscapePhoto, _landscapePhoto],
+            initialIndex: 0,
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    double currentScale(WidgetTester tester) {
+      final InteractiveViewer viewer = tester.widget<InteractiveViewer>(
+        find.byType(InteractiveViewer).first,
+      );
+      return viewer.transformationController!.value.getMaxScaleOnAxis();
+    }
+
+    double currentPage(WidgetTester tester) {
+      final PageView pageView = tester.widget<PageView>(find.byType(PageView));
+      return pageView.controller!.page!;
+    }
+
+    Future<void> pinchMovingOneFinger(
+      WidgetTester tester,
+      Offset fingerDelta,
+    ) async {
+      final Offset center = tester.getCenter(
+        find.byType(TouchMediaViewerPage).first,
+      );
+      final TestGesture anchor = await tester.startGesture(
+        center - const Offset(30, 30),
+        pointer: 1,
+      );
+      final TestGesture mover = await tester.startGesture(
+        center + const Offset(30, 30),
+        pointer: 2,
+      );
+      for (int i = 0; i < 12; i++) {
+        await mover.moveBy(fingerDelta / 12);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      final double scale = currentScale(tester);
+      await mover.up();
+      await anchor.up();
+      await tester.pump();
+      expect(scale, greaterThan(1.2));
+    }
+
+    testWidgets('pinch zooms when one finger moves vertically', (tester) async {
+      await pumpTouchViewer(tester);
+      await pinchMovingOneFinger(tester, const Offset(0, 90));
+      await tester.pumpAndSettle();
+      expect(find.byType(AttachmentMediaViewerShell), findsOneWidget);
+    });
+
+    testWidgets('pinch zooms when one finger moves horizontally', (
+      tester,
+    ) async {
+      await pumpTouchViewer(tester);
+      await pinchMovingOneFinger(tester, const Offset(90, 0));
+      await tester.pumpAndSettle();
+      expect(currentPage(tester), 0);
+    });
+
+    testWidgets('a one finger horizontal swipe still pages', (tester) async {
+      await pumpTouchViewer(tester);
+      await tester.fling(
+        find.byType(TouchMediaViewerPage).first,
+        const Offset(-300, 0),
+        1500,
+      );
+      await tester.pumpAndSettle();
+      expect(currentPage(tester), 1);
+    });
   });
 }
 
@@ -533,5 +694,15 @@ List<(int?, int?)> _decodeCaps(WidgetTester tester, BoxFit fit) {
         (CachedNetworkImage image) =>
             (image.memCacheWidth, image.memCacheHeight),
       )
+      .toList();
+}
+
+List<bool> _disableAnimations(WidgetTester tester, BoxFit fit) {
+  return tester
+      .elementList(find.byType(CachedNetworkImage))
+      .where(
+        (Element element) => (element.widget as CachedNetworkImage).fit == fit,
+      )
+      .map(MediaQuery.disableAnimationsOf)
       .toList();
 }

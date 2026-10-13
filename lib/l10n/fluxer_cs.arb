@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Zkusit znovu",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Připojeno",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Hledat KLIPY",
+    "gifPickerSearchKlipy": "Hledat Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Hledat Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Oblíbené",
     "@gifPickerFavorites": {
@@ -2591,10 +2591,6 @@
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
     },
-    "dangerZoneDeleteCancelSubscription": "Před smazáním účtu zrušte svou aktivní předplatné Plutonium v nastavení Plutonium.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
-    },
     "dangerZoneDeleteCannotDeleteAccount": "Účet nelze smazat",
     "@dangerZoneDeleteCannotDeleteAccount": {
         "description": "Title for the guild ownership warning modal when trying to delete account."
@@ -2685,7 +2681,7 @@
     "@invalidCode": {
         "description": "Error message when a verification code is invalid."
     },
-    "relativeTimeYears": "{count, plural, =1{před 1 rokem} other{před # lety}}",
+    "relativeTimeYears": "{count, plural, =1{před 1 rokem} other{před {count} lety}}",
     "@relativeTimeYears": {
         "description": "Relative time in years.",
         "placeholders": {
@@ -2694,7 +2690,7 @@
             }
         }
     },
-    "relativeTimeMonths": "{count, plural, =1{před 1 měsícem} other{před # měsíci}}",
+    "relativeTimeMonths": "{count, plural, =1{před 1 měsícem} other{před {count} měsíci}}",
     "@relativeTimeMonths": {
         "description": "Relative time in months.",
         "placeholders": {
@@ -2703,7 +2699,7 @@
             }
         }
     },
-    "relativeTimeDays": "{count, plural, =1{před 1 dnem} other{před # dny}}",
+    "relativeTimeDays": "{count, plural, =1{před 1 dnem} other{před {count} dny}}",
     "@relativeTimeDays": {
         "description": "Relative time in days.",
         "placeholders": {
@@ -2712,7 +2708,7 @@
             }
         }
     },
-    "relativeTimeHours": "{count, plural, =1{před 1 hodinou} other{před # hodinami}}",
+    "relativeTimeHours": "{count, plural, =1{před 1 hodinou} other{před {count} hodinami}}",
     "@relativeTimeHours": {
         "description": "Relative time in hours.",
         "placeholders": {
@@ -2721,7 +2717,7 @@
             }
         }
     },
-    "relativeTimeMinutes": "{count, plural, =1{před 1 minutou} other{před # minutami}}",
+    "relativeTimeMinutes": "{count, plural, =1{před 1 minutou} other{před {count} minutami}}",
     "@relativeTimeMinutes": {
         "description": "Relative time in minutes.",
         "placeholders": {
@@ -5138,7 +5134,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Zobrazit chat s {count, plural, one {# nepřečtenou zprávou} other {# nepřečtenými zprávami}}",
+    "voiceTextChatShowUnread": "Zobrazit chat s {count, plural, one {{count} nepřečtenou zprávou} other {{count} nepřečtenými zprávami}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5351,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "Nepodařilo se odeslat zprávu. Klepnutím zobrazíte možnosti.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "Vaši zprávu nebylo možné doručit. Obvykle je to proto, že nesdílíte komunitu s příjemcem nebo příjemce přijímá přímé zprávy pouze od přátel. Možná budete muset také upravit svá vlastní nastavení soukromí pro přímé zprávy v části {settingsPath}.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5463,6 @@
     "forwardSuccessToast": "Zpráva přeposlána",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Zprávu se nepodařilo přeposlat",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Komentáře nejsou k dispozici, protože vybraný kanál má povolený režim zpomalení.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6126,19 +6122,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "VÁŠ ÚČET",
+    "userSettingsGroupYourAccount": "Váš účet",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6690,13 +6686,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "NOVÉ",
+    "scrollIndicatorNew": "Nové",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "NOVÁ ZPRÁVA",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Nové zprávy",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Sbalit složku {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -8119,7 +8115,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Smazána # zpráva.} other{Smazány # zprávy.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Smazána {count} zpráva.} other{Smazány {count} zprávy.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8124,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Odstraněn # člen.} other{Odstraněni # členové.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Odstraněn {count} člen.} other{Odstraněni {count} členové.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8281,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -12220,7 +12216,7 @@
     "@networkErrorMessage": {
         "description": "Generic message shown when a network request fails."
     },
-    "relativeTimeWeeks": "{count, plural, =1{před týdnem} other{před # týdny}}",
+    "relativeTimeWeeks": "{count, plural, =1{před týdnem} other{před {count} týdny}}",
     "@relativeTimeWeeks": {
         "description": "Relative time in weeks.",
         "placeholders": {
@@ -13711,7 +13707,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Vše kromě {count, plural, one {# komunity} other {# komunit}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Vše kromě {count, plural, one {{count} komunity} other {{count} komunit}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13720,7 +13716,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Pouze {count, plural, one {# komunita} other {# komunity}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Pouze {count, plural, one {{count} komunita} other {{count} komunity}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13749,7 +13745,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# hodina} few {# hodiny} many {# hodiny} other {# hodin}} a {minutes, plural, one {# minuta} few {# minuty} many {# minuty} other {# minut}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} hodina} few {{hours} hodiny} many {{hours} hodiny} other {{hours} hodin}} a {minutes, plural, one {{minutes} minuta} few {{minutes} minuty} many {{minutes} minuty} other {{minutes} minut}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13761,7 +13757,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# hodina} few {# hodiny} many {# hodiny} other {# hodin}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} hodina} few {{hours} hodiny} many {{hours} hodiny} other {{hours} hodin}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13770,7 +13766,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# minuta} few {# minuty} many {# minut} other {# minuty}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} minuta} few {{minutes} minuty} many {{minutes} minut} other {{minutes} minuty}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13779,7 +13775,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# sekunda} few {# sekundy} many {# sekund} other {# sekundy}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} sekunda} few {{seconds} sekundy} many {{seconds} sekund} other {{seconds} sekundy}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14485,7 +14481,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -15647,7 +15643,7 @@
             }
         }
     },
-    "guildMembersJoinedHoursAgo": "{count, plural, one {před hodinou} other {před # hodinami}}",
+    "guildMembersJoinedHoursAgo": "{count, plural, one {před hodinou} other {před {count} hodinami}}",
     "@guildMembersJoinedHoursAgo": {
         "description": "Relative join time on the community members page.",
         "placeholders": {
@@ -16513,5 +16509,96 @@
     },
     "channelUnsupportedTitle": "Nepodporovaný typ kanálu",
     "channelUnsupportedBody": "Tato verze aplikace nepodporuje tento typ kanálu.",
-    "channelDetailsUnsupportedChannel": "Nepodporovaný kanál"
+    "channelDetailsUnsupportedChannel": "Nepodporovaný kanál",
+    "forumPostNewBadge": "Nové",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} nová zpráva} other {{count} nových zpráv}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Nové",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} nová} few {{unreadCount} nové} many {{unreadCount} nové} other {{unreadCount} nových}} od {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ nových od {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} nová zpráva} few {{unreadCount} nové zprávy} many {{unreadCount} nové zprávy} other {{unreadCount} nových zpráv}} od {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ nových zpráv od {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Označit jako přečtené",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Označit jako přečtené",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Přejít na první nepřečtenou zprávu",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Zobrazujete starší zprávy",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Přejít na aktuální zprávy",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Přejmenovat kategorii",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

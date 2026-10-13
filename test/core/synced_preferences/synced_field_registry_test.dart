@@ -17,7 +17,7 @@ void main() {
         return fields;
       }),
     );
-    expect(registered, hasLength(21));
+    expect(registered, hasLength(27));
     expect(registered.toSet(), {
       SyncedPreferenceField.favorites,
       SyncedPreferenceField.accessibility,
@@ -26,6 +26,7 @@ void main() {
       SyncedPreferenceField.sidebar,
       SyncedPreferenceField.privacy,
       SyncedPreferenceField.memberList,
+      SyncedPreferenceField.recentMentions,
       SyncedPreferenceField.unreadChannels,
       SyncedPreferenceField.voicePrompts,
       SyncedPreferenceField.sound,
@@ -35,8 +36,13 @@ void main() {
       SyncedPreferenceField.textualPreview,
       SyncedPreferenceField.emojiPicker,
       SyncedPreferenceField.stickerPicker,
+      SyncedPreferenceField.memesPicker,
+      SyncedPreferenceField.emoji,
+      SyncedPreferenceField.guildNsfwAgreements,
+      SyncedPreferenceField.mentionFrecency,
+      SyncedPreferenceField.channelFrecency,
       SyncedPreferenceField.favoriteGifs,
-      SyncedPreferenceField.chatInput,
+      SyncedPreferenceField.saveCameraUploadsToDevice,
       SyncedPreferenceField.doubleTapReaction,
       SyncedPreferenceField.doubleTapAction,
       SyncedPreferenceField.swipeRightToLeftAction,

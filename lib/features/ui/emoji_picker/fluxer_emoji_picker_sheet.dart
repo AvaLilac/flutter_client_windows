@@ -1,12 +1,58 @@
+import 'package:fluxer_app/core/theme/fluxer_motion_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/favorite_meme.dart';
 import 'package:fluxer_app/features/chat/domain/gif_selection.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/expression_picker.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/expression_segmented_tabs.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/sticker_picker_provider.dart';
+import 'package:fluxer_app/features/chat/utils/composer/inline_expression_panel_layout.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_sheet_motion.dart';
 import 'package:fluxer_app/features/ui/emoji_picker/fluxer_selected_emoji.dart';
-import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
+import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+
+const Duration kReactionPickerRiseDuration = Duration(milliseconds: 400);
+const double kReactionPickerRiseStartFraction = 0.558;
+const Curve kReactionPickerRiseSpring = FluxerSpringCurve(
+  stiffness: 870,
+  damping: 38.4,
+  duration: kReactionPickerRiseDuration,
+);
+
+class ReactionPickerRiseCurve extends Curve {
+  const ReactionPickerRiseCurve({required this.start});
+
+  final double start;
+
+  @override
+  double transformInternal(double t) =>
+      start + (1 - start) * kReactionPickerRiseSpring.transform(t);
+}
+
+double reactionPickerSheetHeight(BuildContext context) {
+  final MediaQueryData view = MediaQueryData.fromView(View.of(context));
+  return view.size.height - view.viewPadding.top - kExpressionSheetTopInset;
+}
+
+AnimationStyle? reactionPickerAnimationStyle(
+  BuildContext context, {
+  required double sheetHeight,
+}) {
+  if (context.motion.sheet <= Duration.zero || sheetHeight <= 0) {
+    return null;
+  }
+  final double screenHeight = MediaQuery.sizeOf(context).height;
+  return AnimationStyle(
+    duration: kReactionPickerRiseDuration,
+    curve: ReactionPickerRiseCurve(
+      start: (kReactionPickerRiseStartFraction * screenHeight / sheetHeight)
+          .clamp(0.0, 1.0),
+    ),
+    reverseDuration: kFluxerSheetCloseDuration,
+    reverseCurve: Curves.linear,
+  );
+}
 
 class FluxerEmojiPickerSheet {
   FluxerEmojiPickerSheet._();
@@ -27,24 +73,35 @@ class FluxerEmojiPickerSheet {
     ],
     ExpressionPickerTab initialTab = ExpressionPickerTab.emojis,
     String? channelId,
-    bool trackEmojiUsageOnSelect = true,
   }) {
+    final bool emojiOnly =
+        visibleTabs.length == 1 &&
+        visibleTabs.first == ExpressionPickerTab.emojis;
+    final bool edgeHandle = emojiOnly && title == null && subtitle == null;
+    final double? sheetHeight = emojiOnly
+        ? reactionPickerSheetHeight(context)
+        : null;
     return FluxerBottomSheet.showScrollable<void>(
       context,
       title: title,
       subtitle: subtitle,
+      sheetHeight: sheetHeight,
+      showDragHandle: !edgeHandle,
+      animationStyle: sheetHeight == null
+          ? null
+          : reactionPickerAnimationStyle(context, sheetHeight: sheetHeight),
       builder: (context, scrollController, close) {
         return _SheetContent(
           scrollController: scrollController,
           visibleTabs: visibleTabs,
           initialTab: initialTab,
+          showEdgeHandle: edgeHandle,
           onClose: close,
           onEmojiSelected: onEmojiSelected,
           onGifSelected: onGifSelected,
           onStickerSelected: onStickerSelected,
           onFavoriteMemeSelected: onFavoriteMemeSelected,
           channelId: channelId,
-          trackEmojiUsageOnSelect: trackEmojiUsageOnSelect,
         );
       },
     );
@@ -56,25 +113,25 @@ class _SheetContent extends StatefulWidget {
     required this.scrollController,
     required this.visibleTabs,
     required this.initialTab,
+    required this.showEdgeHandle,
     required this.onClose,
     this.onEmojiSelected,
     this.onGifSelected,
     this.onStickerSelected,
     this.onFavoriteMemeSelected,
     this.channelId,
-    this.trackEmojiUsageOnSelect = true,
   });
 
   final ScrollController scrollController;
   final List<ExpressionPickerTab> visibleTabs;
   final ExpressionPickerTab initialTab;
+  final bool showEdgeHandle;
   final VoidCallback onClose;
   final ValueChanged<FluxerSelectedEmoji>? onEmojiSelected;
   final ValueChanged<FluxerSelectedGif>? onGifSelected;
   final ValueChanged<StickerEntry>? onStickerSelected;
   final ValueChanged<FavoriteMemeSelection>? onFavoriteMemeSelected;
   final String? channelId;
-  final bool trackEmojiUsageOnSelect;
 
   @override
   State<_SheetContent> createState() => _SheetContentState();
@@ -89,13 +146,6 @@ class _SheetContentState extends State<_SheetContent> {
     _selectedTab = widget.initialTab;
   }
 
-  String _tabLabel(ExpressionPickerTab tab) => switch (tab) {
-    ExpressionPickerTab.gifs => 'GIFs',
-    ExpressionPickerTab.memes => 'Media',
-    ExpressionPickerTab.stickers => 'Stickers',
-    ExpressionPickerTab.emojis => 'Emojis',
-  };
-
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.only(
@@ -104,6 +154,8 @@ class _SheetContentState extends State<_SheetContent> {
     child: Column(
       children: [
         if (widget.visibleTabs.length > 1) _buildSegmentedTabs(context),
+        if (widget.showEdgeHandle)
+          const FluxerBottomSheetEdgeHandle(height: 22),
         const SizedBox(height: 8),
         Expanded(
           child: ExpressionPicker(
@@ -131,7 +183,9 @@ class _SheetContentState extends State<_SheetContent> {
             initialTab: _selectedTab,
             showTabs: false,
             channelId: widget.channelId,
-            trackEmojiUsageOnSelect: widget.trackEmojiUsageOnSelect,
+            autofocusSearch:
+                widget.visibleTabs.length == 1 &&
+                widget.visibleTabs.first == ExpressionPickerTab.emojis,
           ),
         ),
       ],
@@ -139,60 +193,15 @@ class _SheetContentState extends State<_SheetContent> {
   );
 
   Widget _buildSegmentedTabs(BuildContext context) {
-    final colors = context.colors;
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.backgroundTertiary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Row(
-            children: widget.visibleTabs.map((tab) {
-              final isActive = tab == _selectedTab;
-              return Expanded(
-                child: FluxerGestureDetector(
-                  onTap: () => setState(() => _selectedTab = tab),
-                  child: AnimatedContainer(
-                    duration: context.motion.normal,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? colors.backgroundSecondary
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: isActive
-                          ? const [
-                              BoxShadow(
-                                color: Color.fromRGBO(0, 0, 0, 0.08),
-                                blurRadius: 2,
-                                offset: Offset(0, 1),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Text(
-                      _tabLabel(tab),
-                      textAlign: TextAlign.center,
-                      style: context.textStyles.categoryName.copyWith(
-                        height: 18 / 14,
-                        color: isActive
-                            ? colors.textPrimary
-                            : colors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
+      padding: const EdgeInsets.only(top: 8),
+      child: ExpressionSegmentedTabs(
+        tabs: widget.visibleTabs,
+        selected: _selectedTab,
+        labelOf: (ExpressionPickerTab tab) =>
+            expressionTabLabel(tab, FluxerLocalizations.of(context)),
+        onSelected: (ExpressionPickerTab tab) =>
+            setState(() => _selectedTab = tab),
       ),
     );
   }

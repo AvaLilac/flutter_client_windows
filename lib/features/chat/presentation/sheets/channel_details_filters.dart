@@ -23,7 +23,6 @@ class _SearchFilterChip extends StatelessWidget {
     final background = isActive
         ? colors.brandPrimary
         : colors.backgroundSecondaryAlt;
-    final borderColor = isActive ? colors.brandPrimary : colors.borderColor;
     final labelColor = isActive ? Colors.white : colors.textSecondary;
     final valueColor = isActive ? Colors.white : colors.textPrimary;
     final iconColor = isActive ? Colors.white : colors.textSecondary;
@@ -34,11 +33,7 @@ class _SearchFilterChip extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(20),
-          ),
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -188,6 +183,7 @@ class _DmUserFilterSheetLoaderState
         ...buildDmRemoteRecipientIds(
           parseDmChannelRecipientIds(dmRow.recipientIds),
           dmRow.recipientId,
+          isGroup: isDmGroupType(dmRow.type),
         ),
       if (currentUserId != null && currentUserId.isNotEmpty) currentUserId,
     };
@@ -364,23 +360,18 @@ class _GuildUserSearchFilterSheetState
     return Padding(
       padding: FluxerBottomSheet.scrollViewPadding(
         context,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          FluxerBottomSheet.bottomGapOf(context),
+        ),
       ),
       child: Column(
         children: <Widget>[
-          FluxerInput(
+          PickerSearchInput.inline(
             controller: _searchController,
-            hint: l10n.channelDetailsSearchUsersHint,
-            prefixIcon: const PhosphorIcon(PhosphorIconsBold.magnifyingGlass),
-            suffixIcon: _searchTerm.isNotEmpty
-                ? const PhosphorIcon(PhosphorIconsBold.x)
-                : null,
-            onSuffixTap: _searchTerm.isNotEmpty
-                ? () {
-                    _searchController.clear();
-                  }
-                : null,
-            textInputAction: TextInputAction.search,
+            hintText: l10n.channelDetailsSearchUsersHint,
             autofocus: true,
           ),
           const SizedBox(height: 12),
@@ -539,23 +530,18 @@ class _UserFilterSheetState extends State<_UserFilterSheet> {
     return Padding(
       padding: FluxerBottomSheet.scrollViewPadding(
         context,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          FluxerBottomSheet.bottomGapOf(context),
+        ),
       ),
       child: Column(
         children: [
-          FluxerInput(
+          PickerSearchInput.inline(
             controller: _searchController,
-            hint: l10n.channelDetailsSearchUsersHint,
-            prefixIcon: const PhosphorIcon(PhosphorIconsBold.magnifyingGlass),
-            suffixIcon: _searchTerm.isNotEmpty
-                ? const PhosphorIcon(PhosphorIconsBold.x)
-                : null,
-            onSuffixTap: _searchTerm.isNotEmpty
-                ? () {
-                    _searchController.clear();
-                  }
-                : null,
-            textInputAction: TextInputAction.search,
+            hintText: l10n.channelDetailsSearchUsersHint,
           ),
           const SizedBox(height: 12),
           Expanded(
@@ -686,7 +672,7 @@ class _UserFilterRow extends StatelessWidget {
               ),
               if (isSelected) ...[
                 const SizedBox(width: 12),
-                PhosphorIcon(PhosphorIconsBold.check, size: 20, color: accent),
+                const FluxerSelectedCheck(),
               ],
             ],
           ),
@@ -738,7 +724,12 @@ class _HasFilterSheetState extends State<_HasFilterSheet> {
     return Padding(
       padding: FluxerBottomSheet.scrollViewPadding(
         context,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          FluxerBottomSheet.bottomGapOf(context),
+        ),
       ),
       child: Column(
         children: [

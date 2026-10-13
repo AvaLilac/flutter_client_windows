@@ -12,11 +12,83 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get reconnectingTitle => 'Me mokasimme!';
 
   @override
+  String get chatJumpToPresent => 'Siirry nykyhetkeen';
+
+  @override
+  String get chatViewingOlderMessages => 'Katselet vanhempia viestejä';
+
+  @override
+  String get chatNewMessagesBarJumpToFirstUnread =>
+      'Siirry ensimmäiseen lukemattomaan viestiin';
+
+  @override
+  String get chatNewMessagesBarMarkAsRead => 'Merkitse luetuksi';
+
+  @override
+  String get chatNewMessagesBarMarkRead => 'Merkitse luetuksi';
+
+  @override
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ uutta viestiä $compactTime alkaen';
+  }
+
+  @override
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount uutta viestiä',
+      one: '$unreadCount uusi viesti',
+    );
+    return '$_temp0 $compactTime alkaen';
+  }
+
+  @override
+  String chatNewMessagesBarNewSinceEstimated(
+    int unreadCount,
+    String shortTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ uutta viestiä $shortTime alkaen';
+  }
+
+  @override
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount uutta viestiä',
+      one: '$unreadCount uusi viesti',
+    );
+    return '$_temp0 $shortTime alkaen';
+  }
+
+  @override
   String get reconnectingBody =>
       'Jotain on vialla tässä instanssissa.\nPitäisi korjaantua hetken kuluttua!';
 
   @override
   String get gatewayReconnectingToast => 'Yhdistetään uudelleen…';
+
+  @override
+  String get gatewayReconnectTryAgain => 'Yritä uudelleen';
 
   @override
   String get gatewayConnectedToast => 'Yhdistetty';
@@ -272,6 +344,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get next => 'Seuraava';
 
   @override
+  String get create => 'Create';
+
+  @override
   String get mfaTitle => 'Kaksivaiheinen todennus';
 
   @override
@@ -310,6 +385,11 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get accountRemoveDescription =>
       'Tämä poistaa tallennetun istunnon tältä tililtä.';
+
+  @override
+  String accountSignOutTitle(String identifier) {
+    return 'Sign out of $identifier?';
+  }
 
   @override
   String get accountExpired => 'Vanhentunut';
@@ -1587,13 +1667,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get gifPickerSearch => 'Hae GIFejä';
 
   @override
-  String get gifPickerSearchKlipy => 'Hae KLIPYstä';
+  String get gifPickerSearchKlipy => 'Hae Klipystä';
 
   @override
   String get gifPickerSearchTenor => 'Hae Tenorista';
-
-  @override
-  String get gifPickerPoweredByKlipy => 'KLIPY';
 
   @override
   String get gifPickerFavorites => 'Suosikit';
@@ -2434,10 +2511,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get dangerZoneDeleteDescription =>
       'Poista tilisi ja kaikki siihen liittyvät tiedot pysyvästi. Tätä toimintoa ei voi kumota.';
-
-  @override
-  String get dangerZoneDeleteCancelSubscription =>
-      'Peruuta aktiivinen Plutonium-tilauksesi Plutonium-asetuksista ennen tilin poistamista.';
 
   @override
   String get dangerZoneDeleteCannotDeleteAccount => 'Tiliä ei voi poistaa';
@@ -5947,8 +6020,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# lukematonta viestiä',
-      one: '# lukematon viesti',
+      other: '$count lukematonta viestiä',
+      one: '$count lukematon viesti',
     );
     return 'Näytä chat, jossa on $_temp0';
   }
@@ -6096,6 +6169,40 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get notificationsMessageUnavailable => 'Tätä viestiä ei voitu ladata.';
 
   @override
+  String notificationsMentionedYouIn(String author, String place) {
+    return '$author mentioned you in $place:';
+  }
+
+  @override
+  String notificationsRepliedToYouIn(String author, String place) {
+    return '$author replied to you in $place:';
+  }
+
+  @override
+  String notificationsMentionedYou(String author) {
+    return '$author mentioned you:';
+  }
+
+  @override
+  String notificationsRepliedToYou(String author) {
+    return '$author replied to you:';
+  }
+
+  @override
+  String notificationsMentionPlace(String server, String channel) {
+    return '$server – $channel';
+  }
+
+  @override
+  String get notificationsSendReply => 'Send a reply';
+
+  @override
+  String get notificationsRecentActivity => 'Recent activity';
+
+  @override
+  String get notificationsRemoveNotification => 'Remove notification';
+
+  @override
   String characterCounterRemaining(int remaining) {
     return '$remaining merkkiä jäljellä';
   }
@@ -6114,6 +6221,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get chatMessageFailedToSend => 'Viestin lähettäminen epäonnistui';
+
+  @override
+  String get chatMessageFailedToSendTapForOptions =>
+      'Viestin lähettäminen epäonnistui. Napauta valintojen näyttämiseksi.';
 
   @override
   String chatSendFailureDmRestricted(String settingsPath) {
@@ -6556,8 +6667,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# yhteisöä',
-      one: '# yhteisö',
+      other: '$count yhteisöä',
+      one: '$count yhteisö',
     );
     return 'Kaikki paitsi $_temp0';
   }
@@ -6567,8 +6678,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# yhteisöä',
-      one: '# yhteisö',
+      other: '$count yhteisöä',
+      one: '$count yhteisö',
     );
     return 'Vain $_temp0';
   }
@@ -6597,14 +6708,14 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# tuntia',
-      one: '# tunti',
+      other: '$hours tuntia',
+      one: '$hours tunti',
     );
     String _temp1 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# minuuttia',
-      one: '# minuutti',
+      other: '$minutes minuuttia',
+      one: '$minutes minuutti',
     );
     return '$_temp0 ja $_temp1';
   }
@@ -6614,8 +6725,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# tuntia',
-      one: '# tunti',
+      other: '$hours tuntia',
+      one: '$hours tunti',
     );
     return '$_temp0';
   }
@@ -6625,8 +6736,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# minuuttia',
-      one: '# minuutti',
+      other: '$minutes minuuttia',
+      one: '$minutes minuutti',
     );
     return '$_temp0';
   }
@@ -6636,8 +6747,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       seconds,
       locale: localeName,
-      other: '# sekuntia',
-      one: '# sekunti',
+      other: '$seconds sekuntia',
+      one: '$seconds sekunti',
     );
     return '$_temp0';
   }
@@ -6770,9 +6881,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get forwardSuccessToast => 'Viesti välitetty';
-
-  @override
-  String get forwardFailed => 'Viestin välittäminen epäonnistui';
 
   @override
   String get forwardCommentSlowmodeDisabled =>
@@ -7185,6 +7293,12 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get chatEditNoChanges => 'Ei tallennettavia muutoksia';
 
   @override
+  String get chatEditFailed => 'Your message didn\'t update';
+
+  @override
+  String get chatEditFailedEditAgain => 'Edit again';
+
+  @override
   String get chatChannelNotReady =>
       'Tämä kanava ei ole vielä valmis. Yritä hetken kuluttua uudelleen.';
 
@@ -7294,6 +7408,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get composerAutocompleteStickersHeading => 'Tarrat';
+
+  @override
+  String get composerAutocompleteEmojisHeading => 'Emojis';
 
   @override
   String get composerAutocompleteGifsHeading => 'GIFit';
@@ -8916,19 +9033,19 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Henkilökohtaisia muistiinpanoja ei voitu tyhjentää';
 
   @override
-  String get userSettingsGroupYourAccount => 'TILISI';
+  String get userSettingsGroupYourAccount => 'Tilisi';
 
   @override
-  String get userSettingsGroupBilling => 'BILLING';
+  String get userSettingsGroupBilling => 'Billing';
 
   @override
-  String get userSettingsGroupApplication => 'APPLICATION';
+  String get userSettingsGroupApplication => 'Application';
 
   @override
-  String get userSettingsGroupDeveloper => 'DEVELOPER';
+  String get userSettingsGroupDeveloper => 'Developer';
 
   @override
-  String get userSettingsGroupStaffOnly => 'STAFF-ONLY';
+  String get userSettingsGroupStaffOnly => 'Staff-only';
 
   @override
   String get userSettingsSearchPlaceholder => 'Etsi asetuksia...';
@@ -10831,6 +10948,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get chatJumpToBottom => 'Siirry alareunaan';
 
   @override
+  String get chatUnreadDividerNew => 'Uudet';
+
+  @override
   String get uiConfirm => 'Vahvista';
 
   @override
@@ -11131,10 +11251,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get guildNavbarHelp => 'Ohje';
 
   @override
-  String get scrollIndicatorNew => 'UUSI';
+  String get scrollIndicatorNew => 'Uusi';
 
   @override
-  String get scrollIndicatorNewMessage => 'UUSI VIESTI';
+  String get scrollIndicatorNewMessages => 'Uudet viestit';
 
   @override
   String guildNavbarCollapseFolder(String folderName) {
@@ -13003,8 +13123,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Poistettu # viestiä.',
-      one: 'Poistettu # viesti.',
+      other: 'Poistettu $count viestiä.',
+      one: 'Poistettu $count viesti.',
     );
     return '$_temp0';
   }
@@ -13014,8 +13134,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Poistettu # jäsentä.',
-      one: 'Poistettu # jäsen.',
+      other: 'Poistettu $count jäsentä.',
+      one: 'Poistettu $count jäsen.',
     );
     return '$_temp0';
   }
@@ -13549,16 +13669,16 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Yhteisön poistaminen epäonnistui';
 
   @override
-  String get guildSettingsCategoryExpressions => 'EXPRESSIONS';
+  String get guildSettingsCategoryExpressions => 'Expressions';
 
   @override
-  String get guildSettingsCategoryCommunity => 'COMMUNITY';
+  String get guildSettingsCategoryCommunity => 'Community';
 
   @override
-  String get guildSettingsCategoryIntegrations => 'INTEGRATIONS';
+  String get guildSettingsCategoryIntegrations => 'Integrations';
 
   @override
-  String get guildSettingsCategoryPeople => 'PEOPLE';
+  String get guildSettingsCategoryPeople => 'People';
 
   @override
   String get guildSettingsOverviewBrandingTitle => 'Brändi';
@@ -14845,7 +14965,7 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get forumPostArchived => 'Archived';
 
   @override
-  String get forumPostNewBadge => 'NEW';
+  String get forumPostNewBadge => 'Uudet';
 
   @override
   String get forumPostStarterDeleted => 'The original message was deleted.';
@@ -14860,8 +14980,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new messages',
-      one: '1 new message',
+      other: '$count uutta viestiä',
+      one: '$count uusi viesti',
     );
     return '$_temp0';
   }
@@ -15170,4 +15290,7 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String voiceP2pPeerFailedTitle(String name) {
     return 'Cannot connect directly to $name';
   }
+
+  @override
+  String get favoritesRenameCategory => 'Nimeä kategoria uudelleen';
 }

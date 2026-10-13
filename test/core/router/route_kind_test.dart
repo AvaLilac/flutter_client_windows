@@ -15,6 +15,10 @@ void main() {
       expect(extractChannelId('/channels/guild-1/chan-1/msg-1'), 'chan-1');
     });
 
+    test('resolves favorites channel from message jump path', () {
+      expect(extractChannelId('/channels/@favorites/fav-1/msg-2'), 'fav-1');
+    });
+
     test('returns null for guild members route', () {
       expect(extractChannelId('/channels/guild-1/members'), isNull);
     });
@@ -27,6 +31,68 @@ void main() {
   group('classifyRoute', () {
     test('classifies discover route', () {
       expect(classifyRoute('/channels/@discover'), RouteKind.discover);
+    });
+  });
+
+  group('deletedChannelExitPath', () {
+    test('sends an open guild channel back to its guild root', () {
+      expect(
+        deletedChannelExitPath(
+          location: '/channels/guild-1/chan-1',
+          channelId: 'chan-1',
+        ),
+        '/channels/guild-1',
+      );
+    });
+
+    test('sends a guild message jump back to its guild root', () {
+      expect(
+        deletedChannelExitPath(
+          location: '/channels/guild-1/chan-1/msg-1',
+          channelId: 'chan-1',
+        ),
+        '/channels/guild-1',
+      );
+    });
+
+    test('sends an open DM back to the DM list', () {
+      expect(
+        deletedChannelExitPath(
+          location: '/channels/@me/dm-1',
+          channelId: 'dm-1',
+        ),
+        '/channels/@me',
+      );
+    });
+
+    test('sends an open favorite back to the favorites list', () {
+      expect(
+        deletedChannelExitPath(
+          location: '/channels/@favorites/chan-1',
+          channelId: 'chan-1',
+        ),
+        '/channels/@favorites',
+      );
+    });
+
+    test('leaves the route alone when another channel is open', () {
+      expect(
+        deletedChannelExitPath(
+          location: '/channels/guild-1/chan-2',
+          channelId: 'chan-1',
+        ),
+        isNull,
+      );
+    });
+
+    test('leaves the route alone off a chat route', () {
+      expect(
+        deletedChannelExitPath(
+          location: '/channels/guild-1',
+          channelId: 'chan-1',
+        ),
+        isNull,
+      );
     });
   });
 }

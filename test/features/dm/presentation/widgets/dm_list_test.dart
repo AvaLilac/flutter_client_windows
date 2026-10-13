@@ -6,25 +6,30 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxer_app/core/database/fluxer_database.dart' show User;
+import 'package:fluxer_app/core/database/fluxer_database.dart'
+    show DmChannel, FluxerDatabase, User;
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
+import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme.dart';
 import 'package:fluxer_app/core/theme/themes/dark.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
+import 'package:fluxer_app/features/channels/presentation/widgets/channel_unread_indicator.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_markdown.dart';
 import 'package:fluxer_app/features/dm/domain/dm_conversation.dart';
 import 'package:fluxer_app/features/dm/presentation/widgets/dm_list.dart';
 import 'package:fluxer_app/features/dm/presentation/widgets/dm_list_skeleton.dart';
+import 'package:fluxer_app/features/dm/presentation/widgets/dm_row_timestamp.dart';
 import 'package:fluxer_app/features/dm/providers/dm_list_presence_provider.dart';
 import 'package:fluxer_app/features/dm/providers/dm_list_scroll_store_provider.dart';
 import 'package:fluxer_app/features/dm/providers/dm_mute_provider.dart';
 import 'package:fluxer_app/features/dm/providers/dm_pinned_provider.dart';
 import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
+import 'package:fluxer_app/features/dm/providers/unread_dm_provider.dart';
 import 'package:fluxer_app/features/favorites/providers/favorite_channels_provider.dart';
 import 'package:fluxer_app/features/friends/domain/friend.dart';
 import 'package:fluxer_app/features/friends/providers/friend_providers.dart';
@@ -118,6 +123,31 @@ void main() {
 
       expect(router.routeInformationProvider.value.uri.path, '/channels/@me');
     });
+
+    testWidgets('Friends row shows the pending request count', (tester) async {
+      tester.view.physicalSize = kWideTestViewportSize;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            conversations: const <DmConversation>[],
+            pendingFriendRequests: 4,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Finder badge = find.byType(FluxerBadge);
+      expect(badge, findsOneWidget);
+      expect(
+        find.descendant(of: badge, matching: find.text('4')),
+        findsOneWidget,
+      );
+      expect(tester.widget<FluxerBadge>(badge).cutoutColor, isNull);
+    });
   });
 
   group('DMList mobile', () {
@@ -203,6 +233,32 @@ void main() {
 
       expect(find.text('Add friend'), findsOneWidget);
       expect(find.text("Friend's username"), findsOneWidget);
+    });
+
+    testWidgets('Add friends badge is a capped pill cut out of the sidebar', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            conversations: const [],
+            pendingFriendRequests: 120,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Finder badge = find.byType(FluxerBadge);
+      expect(badge, findsOneWidget);
+      expect(find.text('99+'), findsOneWidget);
+      expect(
+        tester.widget<FluxerBadge>(badge).cutoutColor,
+        buildDarkColorTheme().channelSidebarBackground,
+      );
+      expect(tester.getSize(badge).height, FluxerBadge.height);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('places the pin icon before the DM title on mobile rows', (
@@ -313,6 +369,280 @@ void main() {
     );
   });
 
+  group('DMList mobile rows', () {
+    DmConversation oneToOne({
+      required String id,
+      required String name,
+      int unreadCount = 0,
+      String? lastMessageId,
+      DateTime? lastMessageTime,
+    }) => DmConversation(
+      id: id,
+      type: 1,
+      recipientId: '2$id',
+      recipientName: name,
+      lastMessage: '',
+      lastMessageTime: lastMessageTime ?? _recentTime(),
+      lastMessageId: lastMessageId,
+      unreadCount: unreadCount,
+    );
+
+    Finder rowSurface(String name) => find
+        .ancestor(
+          of: findAppText(name),
+          matching: find.byType(FluxerSelectableRow),
+        )
+        .first;
+
+    testWidgets('selected DM uses the subtle list selection tokens', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+      final colors = buildDarkColorTheme();
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            dmMessagePreviewMode: DmMessagePreviewMode.none,
+            selectedChannelId: '100',
+            conversations: [oneToOne(id: '100', name: 'Monty')],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final FluxerSelectableRow row = tester.widget<FluxerSelectableRow>(
+        rowSurface('Monty'),
+      );
+      expect(row.isSelected, isTrue);
+      expect(row.selectedColor, colors.listItemSelectedBg);
+      expect(row.selectedBorderColor, colors.listItemSelectedBorder);
+      expect(row.borderRadius, BorderRadius.circular(12));
+    });
+
+    testWidgets('rows are 50pt boxes on a 55pt pitch with 32pt avatars', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            dmMessagePreviewMode: DmMessagePreviewMode.none,
+            conversations: [
+              oneToOne(id: '100', name: 'Monty'),
+              oneToOne(id: '101', name: 'Ada'),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Finder monty = find.descendant(
+        of: rowSurface('Monty'),
+        matching: find.byType(Container),
+      );
+      final Rect montyBox = tester.getRect(monty.first);
+      final Rect adaBox = tester.getRect(
+        find
+            .descendant(of: rowSurface('Ada'), matching: find.byType(Container))
+            .first,
+      );
+      expect(montyBox.height, 50);
+      expect(adaBox.top - montyBox.top, 55);
+      expect(montyBox.left, 8);
+      expect(
+        tester.getSize(
+          find
+              .descendant(
+                of: rowSurface('Monty'),
+                matching: find.byType(FluxerAvatar),
+              )
+              .first,
+        ),
+        const Size(32, 32),
+      );
+    });
+
+    testWidgets('unread title turns bold and bright, read stays muted', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+      final colors = buildDarkColorTheme();
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            dmMessagePreviewMode: DmMessagePreviewMode.none,
+            conversations: [
+              oneToOne(id: '100', name: 'Unread', unreadCount: 2),
+              oneToOne(id: '101', name: 'Read'),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final TextStyle unread = tester
+          .widget<Text>(findAppText('Unread'))
+          .style!;
+      final TextStyle read = tester.widget<Text>(findAppText('Read')).style!;
+      expect(unread.fontWeight, FontWeight.w600);
+      expect(unread.color, colors.textPrimary);
+      expect(read.fontWeight, FontWeight.w500);
+      expect(read.color, colors.textTertiary);
+    });
+
+    testWidgets('muted rows dim the whole row including the avatar', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            dmMessagePreviewMode: DmMessagePreviewMode.none,
+            mutedIds: {'100'},
+            conversations: [oneToOne(id: '100', name: 'Muted')],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Opacity opacity = tester.widget<Opacity>(
+        find
+            .ancestor(of: rowSurface('Muted'), matching: find.byType(Opacity))
+            .first,
+      );
+      expect(opacity.opacity, 0.5);
+      expect(
+        find.descendant(
+          of: find.byWidget(opacity),
+          matching: find.byType(FluxerAvatar),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('timestamp shows only for DMs with a message', (tester) async {
+      _setMobileSurface(tester);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            dmMessagePreviewMode: DmMessagePreviewMode.none,
+            conversations: [
+              oneToOne(id: '100', name: 'Chatty', lastMessageId: '900'),
+              oneToOne(id: '101', name: 'Empty'),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: rowSurface('Chatty'),
+          matching: find.byType(DmRowTimestamp),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: rowSurface('Empty'),
+          matching: find.byType(DmRowTimestamp),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('group DMs show no presence dot and no member count', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            dmMessagePreviewMode: DmMessagePreviewMode.none,
+            conversations: [
+              DmConversation(
+                id: '100',
+                type: 3,
+                name: 'Crew',
+                recipientId: '200',
+                recipientName: 'Crew',
+                lastMessage: '',
+                lastMessageTime: _recentTime(),
+                remoteRecipientIds: const ['200', '201'],
+                recipientCount: 3,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FluxerStatusIndicator), findsNothing);
+      expect(findAppText('3 Members'), findsNothing);
+    });
+
+    testWidgets('row state follows its conversation when the order changes', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+      final FluxerDatabase db = openTestDatabase();
+      addTearDown(db.close);
+      final GoRouter router = _dmListRouter();
+      addTearDown(router.dispose);
+      final DateTime base = _recentTime();
+      final List<DmConversation> first = [
+        oneToOne(id: '100', name: 'Alpha', lastMessageTime: base),
+        oneToOne(
+          id: '101',
+          name: 'Beta',
+          lastMessageTime: base.subtract(const Duration(minutes: 1)),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            dmMessagePreviewMode: DmMessagePreviewMode.none,
+            conversations: first,
+            database: db,
+          ),
+          routerConfig: router,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final State betaState = tester.state(rowSurface('Beta'));
+      final double betaTop = tester.getTopLeft(rowSurface('Beta')).dy;
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            dmMessagePreviewMode: DmMessagePreviewMode.none,
+            conversations: [
+              first[0],
+              oneToOne(
+                id: '101',
+                name: 'Beta',
+                lastMessageTime: base.add(const Duration(minutes: 1)),
+              ),
+            ],
+            database: db,
+          ),
+          routerConfig: router,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.getTopLeft(rowSurface('Beta')).dy, lessThan(betaTop));
+      expect(identical(tester.state(rowSurface('Beta')), betaState), isTrue);
+    });
+  });
+
   group('DMList presence scoping', () {
     testWidgets(
       'a single recipient presence change rebuilds only that row avatar',
@@ -372,9 +702,8 @@ void main() {
 
         expect(avatarFor('Alice').status, 'online');
         expect(avatarFor('Bob').status, 'online');
+        expect(avatarFor('Alice').size, 32);
 
-        // Sibling widgets that MUST be reused (not recreated) when only
-        // Alice's presence changes — proof the parent list did not rebuild.
         final aliceNameBefore = tester.widget<Text>(findAppText('Alice'));
         final bobNameBefore = tester.widget<Text>(findAppText('Bob'));
 
@@ -382,12 +711,9 @@ void main() {
         bobPresence.add(_testUser(id: '201', status: 'online'));
         await tester.pumpAndSettle();
 
-        // Correctness: only Alice's avatar status flipped.
         expect(avatarFor('Alice').status, 'offline');
         expect(avatarFor('Bob').status, 'online');
 
-        // Scoping: a list-level presence watch would recreate every row
-        // widget and fail these identity checks.
         expect(
           identical(aliceNameBefore, tester.widget<Text>(findAppText('Alice'))),
           isTrue,
@@ -447,7 +773,6 @@ void main() {
             dmMessagePreviewMode: DmMessagePreviewMode.none,
             recipientRows: Stream.value(const {
               '200': DmListRecipientRowData(
-                status: 'online',
                 customStatus: '{"text":"Playing games","emoji_animated":false}',
               ),
             }),
@@ -500,6 +825,160 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(MessageMarkdown), findsOneWidget);
+    });
+
+    testWidgets('keeps the unread dot on the selected unread DM', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            ..._buildOverrides(
+              conversations: [
+                DmConversation(
+                  id: '100',
+                  type: 1,
+                  recipientId: '200',
+                  recipientName: 'Monty',
+                  lastMessage: 'Unread while hidden',
+                  lastMessageAuthorId: '200',
+                  lastMessageAuthorName: 'Monty',
+                  lastMessageTime: _recentTime(),
+                  unreadCount: 2,
+                ),
+              ],
+            ),
+            activeChannelIdProvider.overrideWithValue('100'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ChannelUnreadIndicator), findsOneWidget);
+    });
+
+    testWidgets('unread rows turn bold and carry the mention count', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+      final DmChannel unreadRow = DmChannel(
+        id: '100',
+        type: 1,
+        recipientId: '200',
+        recipientCount: 1,
+        recipientIds: '["200"]',
+        nicksJson: '{}',
+        lastMessage: 'ping',
+        lastMessageTime: DateTime.utc(2026),
+        unreadCount: 3,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            unreadDms: UnreadDmState(
+              channels: [unreadRow],
+              unreadChannelIds: const {'100'},
+            ),
+            conversations: [
+              DmConversation(
+                id: '100',
+                type: 1,
+                recipientId: '200',
+                recipientName: 'Monty',
+                lastMessage: 'ping',
+                lastMessageTime: _recentTime(),
+                unreadCount: 3,
+              ),
+              DmConversation(
+                id: '101',
+                type: 1,
+                recipientId: '201',
+                recipientName: 'Quiet',
+                lastMessage: 'old',
+                lastMessageTime: _recentTime(),
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Text>(findAppText('Monty')).style?.fontWeight,
+        FontWeight.w600,
+      );
+      expect(
+        tester.widget<Text>(findAppText('Quiet')).style?.fontWeight,
+        FontWeight.w500,
+      );
+      final Finder badge = find.byType(FluxerBadge);
+      expect(badge, findsOneWidget);
+      expect(
+        find.descendant(of: badge, matching: find.text('3')),
+        findsOneWidget,
+      );
+      expect(tester.widget<FluxerBadge>(badge).cutoutColor, isNull);
+    });
+
+    testWidgets('mention badge fits a desktop row at large text', (
+      tester,
+    ) async {
+      tester.view.physicalSize = kWideTestViewportSize;
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final DmChannel unreadRow = DmChannel(
+        id: '100',
+        type: 1,
+        recipientId: '200',
+        recipientCount: 1,
+        recipientIds: '["200"]',
+        nicksJson: '{}',
+        lastMessage: 'ping',
+        lastMessageTime: DateTime.utc(2026),
+        unreadCount: 12,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            unreadDms: UnreadDmState(
+              channels: [unreadRow],
+              unreadChannelIds: const {'100'},
+            ),
+            conversations: [
+              DmConversation(
+                id: '100',
+                type: 1,
+                recipientId: '200',
+                recipientName: 'Monty',
+                lastMessage: 'ping',
+                lastMessageTime: _recentTime(),
+                unreadCount: 12,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      final Rect row = tester.getRect(
+        find
+            .ancestor(
+              of: find.byType(FluxerBadge),
+              matching: find.byType(FluxerSelectableRow),
+            )
+            .first,
+      );
+      final Rect badge = tester.getRect(find.byType(FluxerBadge));
+      expect(badge.top, greaterThanOrEqualTo(row.top));
+      expect(badge.bottom, lessThanOrEqualTo(row.bottom));
     });
 
     testWidgets('shows attachment fallback text', (tester) async {
@@ -626,7 +1105,6 @@ void main() {
       final double scrolledOffset = _dmListScrollOffset(tester);
       expect(scrolledOffset, greaterThan(0));
 
-      // Leaving the DM root swaps the sidebar, disposing the list.
       router.go('/channels/guild');
       await tester.pumpAndSettle();
       expect(find.byType(DMList), findsNothing);
@@ -752,9 +1230,17 @@ List<Override> _buildOverrides({
   Map<String, Stream<User?>>? userPresenceStreams,
   DmMessagePreviewMode dmMessagePreviewMode = DmMessagePreviewMode.all,
   bool hasReceivedInitialConversations = true,
+  String? selectedChannelId,
+  Set<String> mutedIds = const <String>{},
+  FluxerDatabase? database,
+  UnreadDmState unreadDms = const UnreadDmState(),
+  int pendingFriendRequests = 0,
 }) {
-  final db = openTestDatabase();
+  final db = database ?? openTestDatabase();
   return [
+    unreadDmChannelsProvider.overrideWith(
+      () => _FakeUnreadDmChannels(unreadDms),
+    ),
     fluxerDatabaseProvider.overrideWithValue(db),
     userSettingsStatusProvider.overrideWithValue(null),
     ..._userPresenceOverrides(
@@ -783,10 +1269,12 @@ List<Override> _buildOverrides({
     pinnedDmChannelOrderProvider.overrideWith(
       (ref) => Stream.value(pinnedOrder),
     ),
-    mutedDmChannelIdsProvider.overrideWith(
-      (ref) => Stream.value(const <String>{}),
+    mutedDmChannelIdsProvider.overrideWith((ref) => Stream.value(mutedIds)),
+    if (selectedChannelId != null)
+      activeChannelIdProvider.overrideWithValue(selectedChannelId),
+    pendingFriendRequestCountProvider.overrideWith(
+      (ref) => Stream.value(pendingFriendRequests),
     ),
-    pendingFriendRequestCountProvider.overrideWith((ref) => Stream.value(0)),
     friendsListProvider.overrideWith((ref) => Stream.value(friendsList)),
     friendNicknameProvider.overrideWith((ref, userId) => Stream.value(null)),
     allChannelsProvider.overrideWith(
@@ -798,6 +1286,15 @@ List<Override> _buildOverrides({
       _VerifiedUserSettingsViewModel.new,
     ),
   ];
+}
+
+class _FakeUnreadDmChannels extends UnreadDmChannels {
+  _FakeUnreadDmChannels(this._state);
+
+  final UnreadDmState _state;
+
+  @override
+  UnreadDmState build() => _state;
 }
 
 class _TestAppearancePreferences extends AppearancePreferences {
@@ -840,30 +1337,30 @@ class _VerifiedUserSettingsViewModel extends UserSettingsViewModel {
   }
 }
 
+GoRouter _dmListRouter() => GoRouter(
+  initialLocation: '/channels/@me',
+  routes: <RouteBase>[
+    GoRoute(
+      path: '/channels/@me',
+      builder: (BuildContext context, GoRouterState state) {
+        return const Scaffold(body: DMList());
+      },
+    ),
+    GoRoute(
+      path: '/channels/@me/:channelId',
+      builder: (BuildContext context, GoRouterState state) {
+        return const Scaffold(body: DMList());
+      },
+    ),
+  ],
+);
+
 Widget _buildTestApp({
   required List<Override> overrides,
   GoRouter? routerConfig,
 }) {
   final colorTheme = buildDarkColorTheme();
-  final GoRouter router =
-      routerConfig ??
-      GoRouter(
-        initialLocation: '/channels/@me',
-        routes: <RouteBase>[
-          GoRoute(
-            path: '/channels/@me',
-            builder: (BuildContext context, GoRouterState state) {
-              return const Scaffold(body: DMList());
-            },
-          ),
-          GoRoute(
-            path: '/channels/@me/:channelId',
-            builder: (BuildContext context, GoRouterState state) {
-              return const Scaffold(body: DMList());
-            },
-          ),
-        ],
-      );
+  final GoRouter router = routerConfig ?? _dmListRouter();
 
   return ProviderScope(
     overrides: <Override>[

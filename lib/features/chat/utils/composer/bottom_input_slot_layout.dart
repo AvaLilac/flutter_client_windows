@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
-import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet_drag.dart';
 import 'package:fluxer_app/shared/gestures/expandable_sheet_gestures.dart';
 
 enum BottomInputTransition { idle, lockingToPanel, lockingToKeyboard }
@@ -14,8 +13,11 @@ const double kShortKeyboardInsetGap = 48;
 const double kMinImeKeyboardHeight = 120;
 const double kInlineExpressionPanelAnchorMagneticFraction = 0.12;
 const double kInlineExpressionPanelDismissHeightFraction = 0.55;
+const double kInlineExpressionPanelDismissVelocity = 300;
 const double kInlineExpressionPanelExpandedSnapMidpointFraction =
     kExpandableSheetSnapMidpointFraction;
+
+const double kMobileComposerBottomGap = 10;
 
 const double kIosFallbackKeyboardHeight = 291;
 const double kAndroidFallbackKeyboardHeightFraction = 0.38;
@@ -80,7 +82,7 @@ double resolveBottomInputSlotHeight({
   double? heldSlotHeightOverride,
   bool unmeasuredKeyboardReserved = false,
 }) {
-  if (heldSlotHeightOverride != null && heldSlotHeightOverride > 0) {
+  if (heldSlotHeightOverride != null) {
     return heldSlotHeightOverride;
   }
   if (transition != BottomInputTransition.idle) {
@@ -135,7 +137,7 @@ InlineExpressionPanelSnapTarget inlineExpressionPanelSnapTarget({
   required double velocity,
   required double anchorHeight,
   required double expandedHeight,
-  double dismissVelocity = kFluxerBottomSheetDismissVelocity,
+  double dismissVelocity = kInlineExpressionPanelDismissVelocity,
   double expandVelocity = -kExpandableSheetFlingVelocityThreshold,
 }) {
   final double magneticZone =
@@ -181,8 +183,6 @@ bool shouldEmitKeyboardHeightUpdate({
       kKeyboardHeightQuantizeThreshold;
 }
 
-/// Android native keyboardHeight includes systemBars; strip the same event's
-/// [nativeSafeAreaBottom] to IME-only units (do not use MediaQuery.padding).
 double resolveNativeImeOnlyHeight({
   required double nativeKeyboardHeight,
   required double nativeSafeAreaBottom,
@@ -218,7 +218,6 @@ double resolvedKeyboardInsetBottom(BuildContext context) {
   );
 }
 
-/// viewInsets when it is non-zero, otherwise the native height.
 double resolveDualSourceLiveKeyboardHeight({
   required double nativeHeight,
   required double viewInsetsHeight,
@@ -243,21 +242,31 @@ double resolveTransitionLockHeight({
   required double liveKeyboardHeight,
   required double anchorHeight,
 }) {
-  return math.max(liveKeyboardHeight, anchorHeight);
+  return isImeKeyboardHeight(liveKeyboardHeight)
+      ? liveKeyboardHeight
+      : anchorHeight;
 }
 
 double resolveKeyboardSpacerRawHeight({
   required double viewInsetBottom,
   required double slotHeight,
   required bool keyboardLayoutActive,
+  double syncedViewInsetBottom = 0,
+  bool viewInsetOwnsSpacer = false,
 }) {
+  if (viewInsetOwnsSpacer && viewInsetBottom <= 0) {
+    return 0;
+  }
   if (!keyboardLayoutActive) {
     if (viewInsetBottom <= 0) {
       return 0;
     }
     return viewInsetBottom;
   }
-  final double resolved = math.max(viewInsetBottom, slotHeight);
+  final double pendingShrink = viewInsetBottom > 0
+      ? math.max(0, syncedViewInsetBottom - viewInsetBottom)
+      : 0;
+  final double resolved = math.max(viewInsetBottom, slotHeight - pendingShrink);
   return resolved > 0 ? resolved : 0;
 }
 
@@ -292,10 +301,7 @@ double resolvePanelReservedLayoutHeight({
   required double grossAnchorHeight,
   bool useExactSlotHeight = false,
 }) {
-  if (useExactSlotHeight && slotHeight > 0) {
-    return slotHeight;
-  }
-  if (slotHeight > 0) {
+  if (useExactSlotHeight || slotHeight > 0) {
     return slotHeight;
   }
   if (netAnchorHeight > 0) {
@@ -315,81 +321,10 @@ double bottomInputKeyboardSpacerHeight({
   required double slotHeight,
   required double homeIndicatorInset,
 }) {
-  return math.max(slotHeight, homeIndicatorInset);
-}
-
-bool shouldSplitBottomInputSpacerHomeIndicator({
-  required double totalHeight,
-  required double spacerHeight,
-  required double homeIndicatorInset,
-  required double liveKeyboardHeight,
-  required bool trackLiveKeyboardHeight,
-}) {
-  if (homeIndicatorInset <= 0 || totalHeight <= homeIndicatorInset) {
-    return false;
-  }
-  if (liveKeyboardHeight <= 0) {
-    return totalHeight - homeIndicatorInset >= kMinImeKeyboardHeight;
-  }
-  if (totalHeight >= liveKeyboardHeight + homeIndicatorInset - 1) {
-    return true;
-  }
-  return !trackLiveKeyboardHeight &&
-      totalHeight < spacerHeight &&
-      totalHeight > homeIndicatorInset;
-}
-
-({double bodyHeight, double indicatorHeight}) splitBottomInputSpacerHeights({
-  required double totalHeight,
-  required double homeIndicatorInset,
-  required bool splitHomeIndicator,
-}) {
-  if (totalHeight <= 0) {
-    return (bodyHeight: 0, indicatorHeight: 0);
-  }
-  if (totalHeight <= homeIndicatorInset) {
-    return (bodyHeight: 0, indicatorHeight: totalHeight);
-  }
-  if (!splitHomeIndicator || homeIndicatorInset <= 0) {
-    return (bodyHeight: totalHeight, indicatorHeight: 0);
-  }
-  return (
-    bodyHeight: totalHeight - homeIndicatorInset,
-    indicatorHeight: homeIndicatorInset,
+  return math.max(
+    slotHeight,
+    math.max(0, homeIndicatorInset - kMobileComposerBottomGap),
   );
-}
-
-double resolveBottomInputAnimatedSpacerPaintHeight({
-  required double spacerHeight,
-  required double viewInsetBottom,
-  required double homeIndicatorInset,
-  required bool trackLiveKeyboardHeight,
-}) {
-  if (spacerHeight <= 0) {
-    return 0;
-  }
-  if (trackLiveKeyboardHeight) {
-    return spacerHeight;
-  }
-  if (viewInsetBottom > 0) {
-    return math.min(spacerHeight, viewInsetBottom);
-  }
-  if (spacerHeight <= homeIndicatorInset) {
-    return spacerHeight;
-  }
-  return 0;
-}
-
-bool shouldTrackKeyboardInsetForAnimatedSpacer({
-  required double spacerHeight,
-  required double viewInsetBottom,
-  required double paintHeight,
-  required bool trackLiveKeyboardHeight,
-}) {
-  if (trackLiveKeyboardHeight) {
-    return true;
-  }
-  return viewInsetBottom > 0 && paintHeight < spacerHeight;
 }
 
 bool chatLayoutReservesBottomSafeArea({

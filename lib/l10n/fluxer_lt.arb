@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Bandyti dar kartą",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Prijungta",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Ieškoti KLIPY",
+    "gifPickerSearchKlipy": "Ieškoti Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Ieškoti Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Mėgstamiausi",
     "@gifPickerFavorites": {
@@ -2590,10 +2590,6 @@
     "dangerZoneDeleteDescription": "Visam laikui ištrinkite savo paskyrą ir visus susijusius duomenis. Šio veiksmo anuliuoti negalima.",
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
-    },
-    "dangerZoneDeleteCancelSubscription": "Prieš ištrindami paskyrą, atšaukite aktyvią Plutonium prenumeratą Plutonium nustatymuose.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
     },
     "dangerZoneDeleteCannotDeleteAccount": "Negalima ištrinti paskyros",
     "@dangerZoneDeleteCannotDeleteAccount": {
@@ -5138,7 +5134,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Rodyti pokalbį su {count, plural, one {# neskaityta žinutė} other {# neskaitytos žinutės}}",
+    "voiceTextChatShowUnread": "Rodyti pokalbį su {count, plural, one {{count} neskaityta žinutė} other {{count} neskaitytos žinutės}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5351,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "Nepavyko išsiųsti žinutės. Palieskite, kad pamatytumėte parinktis.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "Jūsų žinutė negalėjo būti pristatyta. Paprastai taip nutinka, jei nesidalinate bendruomene su gavėju arba gavėjas priima tiesioginius pranešimus tik iš draugų. Taip pat gali tekti pakoreguoti savo tiesioginių pranešimų privatumo nustatymus skiltyje {settingsPath}.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5463,6 @@
     "forwardSuccessToast": "Žinutė persiųsta",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Nepavyko persiųsti žinutės",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Komentarai nepasiekiami, nes pasirinktame kanale įjungtas lėtasis režimas.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6126,19 +6122,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "JŪSŲ SĄSKAITA",
+    "userSettingsGroupYourAccount": "Jūsų sąskaita",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6690,13 +6686,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "NAUJA",
+    "scrollIndicatorNew": "Nauja",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "NAUJAS PRANEŠIMAS",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Naujos žinutės",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Sutraukti aplanką „{folderName}“",
     "@guildNavbarCollapseFolder": {
@@ -8119,7 +8115,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Ištrinta # žinutė.} other{Ištrinta # žinučių.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Ištrinta {count} žinutė.} other{Ištrinta {count} žinučių.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8124,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Pašalintas # narys.} other{Pašalinti # nariai.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Pašalintas {count} narys.} other{Pašalinti {count} nariai.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8281,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -8699,7 +8695,7 @@
             }
         }
     },
-    "userProfileTimezoneDurationMinutes": "{minutes, plural, one {# minutė} few {# minutės} other {# minučių}}",
+    "userProfileTimezoneDurationMinutes": "{minutes, plural, one {{minutes} minutė} few {{minutes} minutės} other {{minutes} minučių}}",
     "@userProfileTimezoneDurationMinutes": {
         "description": "Minutes-only duration phrase in the profile timezone section.",
         "placeholders": {
@@ -8793,7 +8789,7 @@
     "@systemCallDurationOneHour": {
         "description": "Duration label when a call lasted about one hour."
     },
-    "systemCallDurationYears": "{count, plural, one {# metus} few {# metus} other {# metų}}",
+    "systemCallDurationYears": "{count, plural, one {{count} metus} few {{count} metus} other {{count} metų}}",
     "@systemCallDurationYears": {
         "description": "Duration label for multiple years in a call duration.",
         "placeholders": {
@@ -8802,7 +8798,7 @@
             }
         }
     },
-    "systemCallDurationMonths": "{count, plural, one {# mėnesį} few {# mėnesius} other {# mėnesių}}",
+    "systemCallDurationMonths": "{count, plural, one {{count} mėnesį} few {{count} mėnesius} other {{count} mėnesių}}",
     "@systemCallDurationMonths": {
         "description": "Duration label for multiple months in a call duration.",
         "placeholders": {
@@ -8811,7 +8807,7 @@
             }
         }
     },
-    "systemCallDurationWeeks": "{count, plural, one {# savaitę} few {# savaites} other {# savaičių}}",
+    "systemCallDurationWeeks": "{count, plural, one {{count} savaitę} few {{count} savaites} other {{count} savaičių}}",
     "@systemCallDurationWeeks": {
         "description": "Duration label for multiple weeks in a call duration.",
         "placeholders": {
@@ -8820,7 +8816,7 @@
             }
         }
     },
-    "systemCallDurationDays": "{count, plural, one {# dieną} few {# dienas} other {# dienų}}",
+    "systemCallDurationDays": "{count, plural, one {{count} dieną} few {{count} dienas} other {{count} dienų}}",
     "@systemCallDurationDays": {
         "description": "Duration label for multiple days in a call duration.",
         "placeholders": {
@@ -8829,7 +8825,7 @@
             }
         }
     },
-    "systemCallDurationHours": "{count, plural, one {# valandą} few {# valandas} other {# valandų}}",
+    "systemCallDurationHours": "{count, plural, one {{count} valandą} few {{count} valandas} other {{count} valandų}}",
     "@systemCallDurationHours": {
         "description": "Duration label for multiple hours in a call duration.",
         "placeholders": {
@@ -8838,7 +8834,7 @@
             }
         }
     },
-    "systemCallDurationMinutes": "{count, plural, one {# minutę} few {# minutes} other {# minučių}}",
+    "systemCallDurationMinutes": "{count, plural, one {{count} minutę} few {{count} minutes} other {{count} minučių}}",
     "@systemCallDurationMinutes": {
         "description": "Duration label for multiple minutes in a call duration.",
         "placeholders": {
@@ -13711,7 +13707,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Visos, išskyrus {count, plural, one {# bendruomenę} other {# bendruomenes}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Visos, išskyrus {count, plural, one {{count} bendruomenę} other {{count} bendruomenes}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13720,7 +13716,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Tik {count, plural, one {# bendruomenė} other {# bendruomenės}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Tik {count, plural, one {{count} bendruomenė} other {{count} bendruomenės}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13749,7 +13745,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# valanda} other {# valandos}} ir {minutes, plural, one {# minutė} other {# minutės}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} valanda} other {{hours} valandos}} ir {minutes, plural, one {{minutes} minutė} other {{minutes} minutės}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13761,7 +13757,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# valanda} few {# valandos} other {# valandų}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} valanda} few {{hours} valandos} other {{hours} valandų}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13770,7 +13766,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# minutė} few {# minutės} other {# minučių}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} minutė} few {{minutes} minutės} other {{minutes} minučių}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13779,7 +13775,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# sekundė} few {# sekundės} other {# sekundžių}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} sekundė} few {{seconds} sekundės} other {{seconds} sekundžių}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14485,7 +14481,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -16513,5 +16509,96 @@
     },
     "channelUnsupportedTitle": "Nepalaikomas kanalo tipas",
     "channelUnsupportedBody": "Ši programos versija nepalaiko šio kanalo tipo.",
-    "channelDetailsUnsupportedChannel": "Nepalaikomas kanalas"
+    "channelDetailsUnsupportedChannel": "Nepalaikomas kanalas",
+    "forumPostNewBadge": "Nauja",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} nauja žinutė} other {{count} naujos žinutės}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Nauja",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} nauja} few {{unreadCount} naujos} many {{unreadCount} naujos} other {{unreadCount} naujų}} nuo {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ naujų nuo {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} nauja žinutė} few {{unreadCount} naujos žinutės} many {{unreadCount} naujos žinutės} other {{unreadCount} naujų žinučių}} nuo {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ naujų žinučių nuo {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Pažymėti kaip perskaitytą",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Pažymėti kaip perskaitytą",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Pereiti prie pirmos neperskaitytos žinutės",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Peržiūrite senesnes žinutes",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Pereiti į dabartį",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Pervadinti kategoriją",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

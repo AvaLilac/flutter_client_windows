@@ -6,7 +6,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'guild_channel_unread_snapshot_provider.g.dart';
 
-/// Per-channel unread state for one guild, used by the sidebar entry flattener.
 @riverpod
 Map<String, UnreadState> guildChannelUnreadSnapshot(Ref ref, String guildId) {
   final List<ChannelCategory> categories = ref.watch(
@@ -20,8 +19,32 @@ Map<String, UnreadState> guildChannelUnreadSnapshot(Ref ref, String guildId) {
     for (final ChannelCategory category in categories)
       for (final Channel channel in category.channels)
         channel.id:
-            ref.watch(channelUnreadProvider(channel.id)).value ??
+            ref.watch(channelUnreadOrLastKnownProvider(channel.id)) ??
             const UnreadState(),
   };
   return Map<String, UnreadState>.unmodifiable(snapshot);
+}
+
+@riverpod
+bool guildChannelUnreadKnown(Ref ref, String guildId) {
+  final List<ChannelCategory> categories = ref.watch(
+    channelListViewModelProvider.select(
+      (ChannelListState state) => state.guild?.id == guildId
+          ? state.categories
+          : const <ChannelCategory>[],
+    ),
+  );
+  for (final ChannelCategory category in categories) {
+    for (final Channel channel in category.channels) {
+      final bool known = ref.watch(
+        channelUnreadOrLastKnownProvider(
+          channel.id,
+        ).select((UnreadState? unread) => unread != null),
+      );
+      if (!known) {
+        return false;
+      }
+    }
+  }
+  return true;
 }

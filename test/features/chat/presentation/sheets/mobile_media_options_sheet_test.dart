@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
@@ -19,6 +20,7 @@ import 'package:fluxer_app/features/settings/providers/appearance_preferences_pr
 import 'package:fluxer_app/material_ui.dart';
 import 'package:riverpod/src/framework.dart' show Override;
 
+import '../../../../helpers/open_test_database.dart';
 import '../../../../helpers/test_l10n.dart';
 
 const String _testAttachmentUrl =
@@ -30,8 +32,12 @@ const String _externalEmbedUrl =
 
 Widget _wrap(Widget child, {List<Override> overrides = const []}) {
   final colorTheme = buildDarkColorTheme();
+  final Override database = fluxerDatabaseProvider.overrideWithValue(
+    openTestDatabase(),
+  );
   return ProviderScope(
     overrides: <Override>[
+      database,
       favoriteMemesProvider.overrideWith(
         (Ref ref) => Stream<List<FavoriteMeme>>.value(const <FavoriteMeme>[]),
       ),
@@ -128,6 +134,44 @@ void main() {
     expect(find.text('Open in browser'), findsOneWidget);
   });
 
+  testWidgets('download is shown for embed media with a media URL', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        Consumer(
+          builder: (BuildContext context, WidgetRef ref, Widget? child) {
+            return Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () {
+                    unawaited(
+                      showMobileMediaOptionsSheet(
+                        context: context,
+                        ref: ref,
+                        launchContext: const MediaOptionsLaunchContext(
+                          fallbackUrl: 'https://tenor.com/view/wave-gif-1',
+                          embedIndex: 0,
+                          downloadUrl:
+                              'https://fluxerusercontent.com/external/sig/https/media.tenor.com/wave.mp4',
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Download'), findsOneWidget);
+  });
+
   testWidgets('download is shown for uploaded attachments', (tester) async {
     await tester.pumpWidget(
       _wrap(
@@ -145,6 +189,7 @@ void main() {
                           fallbackUrl: _testAttachmentUrl,
                           attachmentId: 'attachment-id',
                           filename: 'video.mp4',
+                          downloadUrl: _testAttachmentUrl,
                         ),
                       ),
                     );
@@ -359,11 +404,125 @@ void main() {
     await tester.tap(deleteAttachment.first);
     await tester.pumpAndSettle();
 
-    // Confirm the deletion via the confirm sheet
     await tester.tap(deleteAttachment.last);
     await tester.pumpAndSettle();
 
     expect(viewerClosed, isTrue);
     expect(find.text('options'), findsNothing);
+  });
+  testWidgets('forward closes the media viewer and keeps the forward sheet', (
+    tester,
+  ) async {
+    const Attachment attachment = Attachment(
+      id: 'attachment-id',
+      filename: 'image.png',
+      url: _testImageUrl,
+      contentType: 'image/png',
+    );
+    final Message message = Message(
+      id: 'message-id',
+      channelId: 'channel-id',
+      authorId: 'author-id',
+      authorName: 'Author',
+      content: '',
+      timestamp: DateTime(2026),
+      attachments: const <Attachment>[attachment],
+    );
+    var forwardOpened = 0;
+
+    await tester.pumpWidget(
+      _wrap(
+        overrides: <Override>[
+          appearancePreferencesProvider.overrideWithValue(
+            const AppearancePreferencesState(),
+          ),
+          isMessageSavedProvider(
+            message.id,
+          ).overrideWith((Ref ref) => Stream<bool>.value(false)),
+        ],
+        Consumer(
+          builder: (BuildContext context, WidgetRef ref, Widget? child) {
+            return Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () {
+                    showGeneralDialog<void>(
+                      context: context,
+                      pageBuilder: (BuildContext dialogContext, _, _) {
+                        return Scaffold(
+                          body: Center(
+                            child: TextButton(
+                              onPressed: () {
+                                unawaited(
+                                  showMobileMediaOptionsSheet(
+                                    context: dialogContext,
+                                    ref: ref,
+                                    launchContext: MediaOptionsLaunchContext(
+                                      fallbackUrl: _testImageUrl,
+                                      attachmentId: attachment.id,
+                                      filename: attachment.filename,
+                                      actionScope: MessageMediaActionScope(
+                                        message: message,
+                                        permissions:
+                                            const MessageActionPermissions(
+                                              isOwnMessage: false,
+                                              isDmChannel: false,
+                                              canDelete: false,
+                                              canReport: false,
+                                              canAddReactions: false,
+                                              canPinMessage: false,
+                                              canManageMessages: false,
+                                              canSendMessages: true,
+                                              developerMode: false,
+                                            ),
+                                        callbacks: MessageActionCallbacks(
+                                          onForward: () {
+                                            forwardOpened++;
+                                            showModalBottomSheet<void>(
+                                              context: rootNavigatorKey
+                                                  .currentContext!,
+                                              useRootNavigator: true,
+                                              builder: (_) =>
+                                                  const Text('forward picker'),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    onCloseViewer: () =>
+                                        Navigator.of(dialogContext).pop(),
+                                  ),
+                                );
+                              },
+                              child: const Text('options'),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  child: const Text('open viewer'),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open viewer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('options'));
+    await tester.pumpAndSettle();
+
+    final Finder forward = find.text('Forward');
+    await tester.ensureVisible(forward);
+    await tester.pumpAndSettle();
+    await tester.tap(forward);
+    await tester.pumpAndSettle();
+
+    expect(forwardOpened, 1);
+    expect(find.text('options'), findsNothing);
+    expect(find.text('forward picker'), findsOneWidget);
   });
 }

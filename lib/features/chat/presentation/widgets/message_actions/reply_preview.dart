@@ -6,8 +6,7 @@ import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
-import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_item.dart'
-    show MessageItem;
+import 'package:fluxer_app/features/chat/presentation/widgets/composer/mobile_composer_bar.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_markdown.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/chat/providers/messages/channel_message_stream_provider.dart';
@@ -30,12 +29,6 @@ const double _kReplyPreviewFontSize = 14;
 const double _kReplyPreviewLineHeight = 18 / _kReplyPreviewFontSize;
 const double _kReplyPreviewAuthorMaxWidthRatio = 0.3;
 
-/// The inline reply indicator shown above a message that
-/// is a reply. Displays the replied-to author's avatar or
-/// reply icon in dense mode, plus name and content preview.
-///
-/// The curved connector line is handled by
-/// [ReplyConnectorPainter] in [MessageItem].
 class InlineReplyPreview extends ConsumerWidget {
   final Message message;
   final String? guildId;
@@ -319,24 +312,6 @@ class _ReplyPreviewContent extends ConsumerWidget {
   }
 }
 
-/// Paints the curved "L" connector line from the
-/// replier's avatar area upward and across to the
-/// reply preview row.
-///
-/// The line goes:
-///   1. Up from just above the replier's avatar center
-///   2. Curves right with a rounded corner
-///   3. Extends horizontally to meet the reply
-///      preview row
-///
-/// [avatarCenterX] -- x offset of the replier avatar
-///   center (from left of widget)
-/// [lineTop]       -- y offset where the horizontal arm
-///   meets the reply row
-/// [lineBottom]    -- y offset where the vertical arm
-///   starts (just above avatar)
-/// [horizontalEnd] -- x offset where the horizontal arm
-///   ends (start of reply content)
 class ReplyConnectorPainter extends CustomPainter {
   final double avatarCenterX;
   final double lineTop;
@@ -432,8 +407,6 @@ class CompactReplyConnectorPainter extends CustomPainter {
       color != oldDelegate.color;
 }
 
-/// The reply bar shown above the input when the user
-/// is composing a reply.
 class ReplyInputBar extends ConsumerWidget {
   final Message replyTo;
   final String guildId;
@@ -469,32 +442,34 @@ class ReplyInputBar extends ConsumerWidget {
     final bool canMention = guildId.isNotEmpty && !isOwnMessage && !isWebhook;
     final bool shouldMention = shouldReplyMention && canMention;
     final Color activeMentionColor = context.colors.markupMentionText;
-    final Widget row = Row(
-      children: [
-        Expanded(
-          child: RichText(
-            overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-              style: context.textStyles.bodySmall,
-              children: [
-                TextSpan(
-                  text: 'Replying to ',
-                  style: context.textStyles.bodySmall.copyWith(
-                    color: context.colors.textPrimaryMuted,
-                  ),
-                ),
-                TextSpan(
-                  text: replyAuthorDisplay.displayName,
-                  style: context.textStyles.categoryName.copyWith(
-                    color: context.colors.textChat,
-                  ),
-                ),
-              ],
+    final Widget title = RichText(
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        style: context.textStyles.bodySmall,
+        children: [
+          TextSpan(
+            text: 'Replying to ',
+            style: context.textStyles.bodySmall.copyWith(
+              color: context.colors.textPrimaryMuted,
             ),
           ),
-        ),
-        if (canMention)
-          Tooltip(
+          TextSpan(
+            text: replyAuthorDisplay.displayName,
+            style: context.textStyles.categoryName.copyWith(
+              color: context.colors.textChat,
+            ),
+          ),
+        ],
+      ),
+    );
+    final Color inactiveMentionColor = wideComposerAction
+        ? context.colors.textPrimaryMuted
+        : context.colors.textTertiaryMuted;
+    final Color mentionColor = shouldMention
+        ? activeMentionColor
+        : inactiveMentionColor;
+    final Widget? mentionToggle = canMention
+        ? Tooltip(
             message: shouldMention
                 ? l10n.chatReplyMentionDisableTooltip
                 : l10n.chatReplyMentionEnableTooltip,
@@ -515,28 +490,24 @@ class ReplyInputBar extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(4),
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: wideComposerAction ? 6 : 12,
-                    vertical: wideComposerAction ? 6 : 8,
+                    horizontal: 6,
+                    vertical: wideComposerAction ? 6 : 4,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       PhosphorIcon(
                         PhosphorIconsBold.at,
-                        size: 20,
-                        color: shouldMention
-                            ? activeMentionColor
-                            : context.colors.textPrimaryMuted,
+                        size: wideComposerAction ? 20 : 14,
+                        color: mentionColor,
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: wideComposerAction ? 4 : 2),
                       Text(
                         shouldMention
                             ? l10n.chatReplyMentionOn
                             : l10n.chatReplyMentionOff,
                         style: context.textStyles.categoryName.copyWith(
-                          color: shouldMention
-                              ? activeMentionColor
-                              : context.colors.textPrimaryMuted,
+                          color: mentionColor,
                         ),
                       ),
                     ],
@@ -544,34 +515,34 @@ class ReplyInputBar extends ConsumerWidget {
                 ),
               ),
             ),
-          ),
-        Semantics(
-          label: l10n.chatReplyCancel,
-          child: IconButton(
-            icon: const PhosphorIcon(PhosphorIconsFill.xCircle, size: 16),
-            color: context.colors.textPrimaryMuted,
-            onPressed: onCancel,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-          ),
-        ),
-      ],
-    );
-    if (wideComposerAction) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: row,
+          )
+        : null;
+    if (!wideComposerAction) {
+      return MobileComposerHeader(
+        title: title,
+        trailing: mentionToggle,
+        closeLabel: l10n.chatReplyCancel,
+        onClose: onCancel,
       );
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: context.colors.chatInputBackground,
-        border: Border(
-          top: BorderSide(color: context.colors.userAreaDividerColor),
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          Expanded(child: title),
+          ?mentionToggle,
+          Semantics(
+            label: l10n.chatReplyCancel,
+            child: IconButton(
+              icon: const PhosphorIcon(PhosphorIconsFill.xCircle, size: 16),
+              color: context.colors.textPrimaryMuted,
+              onPressed: onCancel,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            ),
+          ),
+        ],
       ),
-      child: row,
     );
   }
 
@@ -615,7 +586,6 @@ class ReplyInputBar extends ConsumerWidget {
   }
 }
 
-/// The edit bar shown above the input while message editing is active.
 class EditingInputBar extends StatelessWidget {
   final VoidCallback onCancel;
   final bool wideComposerAction;
@@ -628,50 +598,46 @@ class EditingInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget row = Row(
-      children: [
-        PhosphorIcon(
-          PhosphorIconsFill.pencilSimple,
-          size: 16,
-          color: context.colors.textPrimaryMuted,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            FluxerLocalizations.of(context).chatEditingMessage,
-            style: context.textStyles.bodySmall.copyWith(
-              color: context.colors.textPrimaryMuted,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        Semantics(
-          label: FluxerLocalizations.of(context).cancel,
-          child: IconButton(
-            icon: const PhosphorIcon(PhosphorIconsFill.xCircle, size: 16),
-            color: context.colors.textPrimaryMuted,
-            onPressed: onCancel,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-          ),
-        ),
-      ],
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final Widget icon = PhosphorIcon(
+      PhosphorIconsFill.pencilSimple,
+      size: wideComposerAction ? 16 : 14,
+      color: context.colors.textPrimaryMuted,
     );
-    if (wideComposerAction) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: row,
+    final Widget title = Text(
+      l10n.chatEditingMessage,
+      style: context.textStyles.bodySmall.copyWith(
+        color: context.colors.textPrimaryMuted,
+      ),
+      overflow: TextOverflow.ellipsis,
+    );
+    if (!wideComposerAction) {
+      return MobileComposerHeader(
+        leading: icon,
+        title: title,
+        closeLabel: l10n.cancel,
+        onClose: onCancel,
       );
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: context.colors.chatInputBackground,
-        border: Border(
-          top: BorderSide(color: context.colors.userAreaDividerColor),
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          icon,
+          const SizedBox(width: 8),
+          Expanded(child: title),
+          Semantics(
+            label: l10n.cancel,
+            child: IconButton(
+              icon: const PhosphorIcon(PhosphorIconsFill.xCircle, size: 16),
+              color: context.colors.textPrimaryMuted,
+              onPressed: onCancel,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            ),
+          ),
+        ],
       ),
-      child: row,
     );
   }
 }

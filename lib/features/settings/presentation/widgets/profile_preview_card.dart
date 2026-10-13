@@ -13,6 +13,8 @@ import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_ba
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_timezone_section.dart';
 import 'package:fluxer_app/features/profile/utils/premium_badge_visibility.dart';
 import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart'
+    show isMobileLayout;
 import 'package:fluxer_app/features/ui/avatar/fluxer_avatar.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button_size.dart';
@@ -147,38 +149,43 @@ class _ProfilePreviewCardState extends ConsumerState<ProfilePreviewCard> {
 
     final accentColor = Color(0xFF000000 | _effectiveAccentColor());
 
-    return Center(
-      child: Column(
-        children: [
-          Text(
-            l10n.profilePreviewLabel,
-            style: textStyles.label.copyWith(color: colors.textSecondary),
-          ),
-          SizedBox(height: layout.s4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 300),
-            child: Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: colors.backgroundPrimary,
-                borderRadius: layout.radiusMd,
-              ),
-              foregroundDecoration: BoxDecoration(
-                borderRadius: layout.radiusMd,
-                border: Border.all(color: accentColor, width: 2.5),
-              ),
-              child: _buildCardBody(
-                s,
-                accentColor,
-                colors,
-                textStyles,
-                layout,
-                l10n,
-              ),
+    final bool fillWidth = isMobileLayout(context);
+
+    return Column(
+      crossAxisAlignment: fillWidth
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.center,
+      children: [
+        Text(
+          l10n.profilePreviewLabel,
+          style: textStyles.label.copyWith(color: colors.textSecondary),
+        ),
+        SizedBox(height: layout.s4),
+        ConstrainedBox(
+          constraints: fillWidth
+              ? const BoxConstraints()
+              : const BoxConstraints(maxWidth: 300),
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: colors.backgroundPrimary,
+              borderRadius: layout.radiusMd,
+            ),
+            foregroundDecoration: BoxDecoration(
+              borderRadius: layout.radiusMd,
+              border: Border.all(color: accentColor, width: 2.5),
+            ),
+            child: _buildCardBody(
+              s,
+              accentColor,
+              colors,
+              textStyles,
+              layout,
+              l10n,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -191,16 +198,22 @@ class _ProfilePreviewCardState extends ConsumerState<ProfilePreviewCard> {
     FluxerLocalizations l10n,
   ) {
     final effectiveBio = _effectiveBio();
-    final bool selfHosted = ref.watch(
-      instanceRuntimeConfigProvider.select((config) => config.selfHosted),
+    final ({bool selfHosted, bool showsPremium}) instance = ref.watch(
+      instanceRuntimeConfigProvider.select(
+        (config) => (
+          selfHosted: config.selfHosted,
+          showsPremium: config.showsPremiumFeatures,
+        ),
+      ),
     );
     final PremiumBadgeVisibility premiumBadges =
         PremiumBadgeVisibility.fromSettings(s);
-    final bool showPremiumBadge = !selfHosted && premiumBadges.hasPlutonium;
+    final bool showPremiumBadge =
+        instance.showsPremium && premiumBadges.hasPlutonium;
     final hasBadges = UserProfileBadges.hasBadges(
       flags: s.publicFlags,
       hasPlutonium: showPremiumBadge,
-      selfHosted: selfHosted,
+      selfHosted: instance.selfHosted,
     );
 
     return LayoutBuilder(

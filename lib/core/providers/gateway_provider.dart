@@ -7,13 +7,14 @@ import 'package:fluxer_app/core/gateway/gateway_event_handler.dart';
 import 'package:fluxer_app/core/gateway/providers/gateway_event_providers.dart';
 import 'package:fluxer_app/core/permissions/channel_effective_permissions.dart';
 import 'package:fluxer_app/core/permissions/channel_permission_cache_provider.dart';
+import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_connection_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_performance_providers.dart';
 import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
+import 'package:fluxer_app/core/providers/gateway_reconnect_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart';
 import 'package:fluxer_app/core/providers/splash_exit_allowed_provider.dart';
-import 'package:fluxer_app/core/push/local_push_notifications.dart';
 import 'package:fluxer_app/core/push/pending_push_notification_path_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
@@ -24,15 +25,16 @@ import 'package:fluxer_app/features/auth/providers/auth_providers.dart';
 import 'package:fluxer_app/features/auth/providers/current_auth_session_provider.dart';
 import 'package:fluxer_app/features/bookmarks/providers/saved_messages_provider.dart';
 import 'package:fluxer_app/features/channels/data/read_state_repository.dart';
+import 'package:fluxer_app/features/channels/providers/ack_batcher_provider.dart';
 import 'package:fluxer_app/features/channels/providers/read_state_write_batcher_provider.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_read_viewport_provider.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
+import 'package:fluxer_app/features/chat/providers/messages/abandoned_message_sends_provider.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_realtime_events.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_realtime_provider.dart';
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_sync_provider.dart';
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_tracker.dart';
 import 'package:fluxer_app/features/chat/utils/messages/message_page_sync.dart';
-import 'package:fluxer_app/features/forum/providers/forum_first_messages_provider.dart';
 import 'package:fluxer_app/features/forum/providers/forum_post_unreads_provider.dart';
 import 'package:fluxer_app/features/friends/providers/blocked_user_ids_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/channel_member_count_cache_provider.dart';
@@ -45,19 +47,20 @@ import 'package:fluxer_app/features/members/providers/guild_member_chunk_waiter.
 import 'package:fluxer_app/features/members/providers/guild_roles_provider.dart';
 import 'package:fluxer_app/features/members/providers/member_list_desired_ranges_provider.dart';
 import 'package:fluxer_app/features/members/providers/member_list_viewport_provider.dart';
+import 'package:fluxer_app/features/notifications/providers/mention_filters_provider.dart';
 import 'package:fluxer_app/features/settings/providers/connections_view_model.dart';
 import 'package:fluxer_app/features/settings/providers/guild/known_guild_bans_provider.dart';
 import 'package:fluxer_app/features/settings/providers/guild/webhook_live_refresh_provider.dart';
 import 'package:fluxer_app/features/settings/providers/premium_settings_state_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
 import 'package:fluxer_app/features/settings/providers/webauthn_credentials_view_model.dart';
+import 'package:fluxer_app/features/shell/navigation/drawer_navigation_coordinator.dart';
 import 'package:fluxer_app/features/shell/providers/current_user_private_provider.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_app/features/threads/providers/thread_member_list_provider.dart';
 import 'package:fluxer_app/features/threads/providers/thread_ui_providers.dart';
 import 'package:fluxer_app/features/voice/providers/voice_channel_participants_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
+import 'package:fluxer_app/shared/services/guild_member_hydration_service.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:fluxer_dart/gateway.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -67,15 +70,15 @@ export 'gateway_reconnect_provider.dart';
 
 part 'gateway_provider.g.dart';
 
-/// Connects whenever [gatewayConnectionProvider] builds a new
-/// [GatewayConnection] (e.g. token or Dio churn). Startup alone is not enough
-/// because only that first instance received [GatewayConnection.connect].
-///
-/// Rotating sockets must clear [gatewayReadyProvider] until the next READY so
-/// navigation and voice do not assume an active session on a disconnected
-/// socket.
 @Riverpod(keepAlive: true)
 void gatewayConnectBinding(Ref ref) {
+  StreamSubscription<GatewayState>? backgroundDropGuard;
+  ref.onDispose(() => unawaited(backgroundDropGuard?.cancel()));
+
+  bool mayHoldGateway() =>
+      ref.read(appUiForegroundProvider) ||
+      shouldKeepGatewayConnectedForVoice(ref);
+
   ref.listen<GatewayConnection>(gatewayConnectionProvider, (
     GatewayConnection? previous,
     GatewayConnection next,
@@ -83,9 +86,20 @@ void gatewayConnectBinding(Ref ref) {
     if (previous != null) {
       ref.read(gatewayReadyProvider.notifier).reset();
       ref.read(guildAvailabilityProvider.notifier).clear();
-      ref.read(threadsGateProvider).resetConnection();
     }
-    unawaited(next.connect());
+    unawaited(backgroundDropGuard?.cancel());
+    backgroundDropGuard = next.stateChanges.listen((GatewayState state) {
+      if (state == GatewayState.reconnecting && !mayHoldGateway()) {
+        talker.info('[Gateway] Socket dropped in background, suspending');
+        unawaited(next.suspend());
+      }
+    });
+    if (mayHoldGateway()) {
+      unawaited(next.connect());
+      return;
+    }
+    talker.info('[Gateway] Started in background, suspended until resume');
+    unawaited(next.suspend());
   }, fireImmediately: true);
 }
 
@@ -144,6 +158,29 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
     ..listen<Set<String>>(blockedUserIdsProvider, (_, Set<String> next) {
       mentionCache.blockedUserIds = next;
     }, fireImmediately: true);
+  void syncVoiceSessionFromStates(List<VoiceState> states) {
+    final String? userId = currentUserId;
+    if (userId != null) {
+      for (final VoiceState vs in states) {
+        if (vs.userId == userId) {
+          ref
+              .read(voiceSessionProvider.notifier)
+              .handleSelfVoiceStateUpdate(vs);
+        }
+      }
+    }
+    final VoiceSessionState session = ref.read(voiceSessionProvider);
+    if (session.isConnected && session.channelId != null) {
+      final bool hasRelevantUpdate = states.any(
+        (VoiceState vs) =>
+            vs.channelId == session.channelId && vs.guildId == session.guildId,
+      );
+      if (hasRelevantUpdate) {
+        ref.read(voiceSessionProvider.notifier).syncE2eeFromVoiceStates();
+      }
+    }
+  }
+
   final handler = GatewayEventHandler(
     database: db,
     readStateRepository: ReadStateRepository(
@@ -151,10 +188,12 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
       db,
     ),
     readStateWriteBatcher: ref.read(readStateWriteBatcherProvider),
+    ackBatcher: ref.read(ackBatcherProvider),
     messageMentionContextCache: mentionCache,
     messageWriteBatcher: ref.read(messageWriteBatcherProvider),
     channelLastMessageIndex: ref.read(channelLastMessageIndexProvider),
     mentionFeedWriteBatcher: ref.read(mentionFeedWriteBatcherProvider),
+    resolveMentionFilters: () => ref.read(mentionFiltersPreferencesProvider),
     reactionWriteBatcher: ref.read(reactionWriteBatcherProvider),
     currentUserId: currentUserId,
     isAutoAckActive: (channelId) {
@@ -214,7 +253,6 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
       ref
           .read(voiceSessionProvider.notifier)
           .handleSelfVoiceStateUpdate(voiceState);
-      // Only sync E2EE if this update is for the current voice channel
       final VoiceSessionState session = ref.read(voiceSessionProvider);
       if (session.isConnected &&
           session.channelId != null &&
@@ -225,28 +263,20 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
     }),
     onVoiceStatesBulk: (states) => ifMounted(() {
       ref.read(voiceStatesMapProvider.notifier).updateBulk(states);
-      final String? userId = currentUserId;
-      if (userId != null) {
-        for (final VoiceState vs in states) {
-          if (vs.userId == userId) {
-            ref
-                .read(voiceSessionProvider.notifier)
-                .handleSelfVoiceStateUpdate(vs);
-          }
-        }
-      }
-      // Only sync E2EE if any of the bulk updates are for the current voice channel
-      final VoiceSessionState session = ref.read(voiceSessionProvider);
-      if (session.isConnected && session.channelId != null) {
-        final bool hasRelevantUpdate = states.any(
-          (VoiceState vs) =>
-              vs.channelId == session.channelId &&
-              vs.guildId == session.guildId,
-        );
-        if (hasRelevantUpdate) {
-          ref.read(voiceSessionProvider.notifier).syncE2eeFromVoiceStates();
-        }
-      }
+      syncVoiceSessionFromStates(states);
+    }),
+    onPassiveVoiceStates: (states) => ifMounted(() {
+      ref.read(voiceStatesMapProvider.notifier).updateBulk(states);
+    }),
+    onGuildVoiceStatesSnapshot: (guildId, states) => ifMounted(() {
+      ref.read(voiceStatesMapProvider.notifier).replaceGuild(guildId, states);
+      syncVoiceSessionFromStates(states);
+    }),
+    onGuildVoiceEnded: (guildId) => ifMounted(() {
+      ref
+          .read(voiceStatesMapProvider.notifier)
+          .replaceGuild(guildId, const <VoiceState>[]);
+      ref.read(voiceSessionProvider.notifier).handleGuildDeleted(guildId);
     }),
     onGatewayError: (event) => ifMounted(() {
       ref.read(voiceSessionProvider.notifier).handleGatewayError(event);
@@ -260,9 +290,6 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
     onVoiceSignal: (event) => ifMounted(() {
       ref.read(voiceSessionProvider.notifier).handleVoiceSignal(event);
     }),
-    onVoiceStateAck: (event) => ifMounted(() {
-      ref.read(voiceSessionProvider.notifier).handleVoiceStateAck(event);
-    }),
     onCallCreate: (event) => ifMounted(() {
       ref
           .read(activeCallsProvider.notifier)
@@ -271,8 +298,13 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
             messageId: event.messageId,
             region: event.region,
             ringing: event.ringing,
-            voiceStates: event.voiceStates,
           );
+      final List<VoiceState>? voiceStates = event.voiceStates;
+      if (voiceStates != null) {
+        ref
+            .read(voiceStatesMapProvider.notifier)
+            .replacePrivateChannel(event.channelId, voiceStates);
+      }
     }),
     onCallUpdate: (event) => ifMounted(() {
       ref
@@ -282,14 +314,18 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
             messageId: event.messageId,
             region: event.region,
             ringing: event.ringing,
-            voiceStates: event.voiceStates,
           );
+      final List<VoiceState>? voiceStates = event.voiceStates;
+      if (voiceStates != null) {
+        ref
+            .read(voiceStatesMapProvider.notifier)
+            .replacePrivateChannel(event.channelId, voiceStates);
+      }
       if (event.ringing == null) {
         final String? uid = ref.read(currentUserIdProvider);
         final bool userJoinedOnAnotherDevice =
             uid != null &&
-            (event.voiceStates?.any((VoiceState vs) => vs.userId == uid) ??
-                false);
+            (voiceStates?.any((VoiceState vs) => vs.userId == uid) ?? false);
         if (userJoinedOnAnotherDevice) {
           final VoiceSessionState voice = ref.read(voiceSessionProvider);
           final bool onThisDevice =
@@ -307,6 +343,9 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
     }),
     onCallDelete: (channelId) => ifMounted(() {
       ref.read(activeCallsProvider.notifier).deleteCall(channelId);
+      ref
+          .read(voiceStatesMapProvider.notifier)
+          .replacePrivateChannel(channelId, const <VoiceState>[]);
       ref
           .read(outgoingVoiceCallInitiatorProvider.notifier)
           .clearChannel(channelId);
@@ -347,6 +386,7 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
     onChannelDelete: (channelId) => ifMounted(() {
       ref.read(slowmodeTrackerProvider.notifier).clearChannel(channelId);
       ref.read(savedMessagesProvider.notifier).handleChannelDelete(channelId);
+      DrawerNavigationCoordinator.leaveDeletedChannel(ref.container, channelId);
     }),
     onSavedMessageCreate: (message) => ifMounted(() {
       ref.read(savedMessagesProvider.notifier).handleSavedCreate(message);
@@ -362,13 +402,30 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
         ..invalidate(channelLocalGuildChannelPermissionBitsProvider);
     }),
     onMessageCreate: (MessageCreateDispatch dispatch) => ifMounted(() {
+      final MessageResponseSchema message = dispatch.event.message;
+      final AbandonedMessageSends abandoned = ref.read(
+        abandonedMessageSendsProvider.notifier,
+      );
+      if (abandoned.isAbandoned(message.nonce)) {
+        unawaited(
+          abandoned.reclaim(
+            nonce: message.nonce!,
+            channelId: message.channelId,
+            messageId: message.id,
+          ),
+        );
+        return;
+      }
       messageBus.emit(
         MessageCreated(event: dispatch.event, snapshot: dispatch.snapshot),
       );
     }),
-    onMessageUpdate: (event) => ifMounted(() {
-      messageBus.emit(MessageUpdated(event));
-    }),
+    onMessageUpdate: (event, {required bool mentionsCurrentUser}) =>
+        ifMounted(() {
+          messageBus.emit(
+            MessageUpdated(event, mentionsCurrentUser: mentionsCurrentUser),
+          );
+        }),
     onMessageDelete: (event) => ifMounted(() {
       messageBus.emit(MessageDeleted(event));
     }),
@@ -395,6 +452,13 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
       ref
           .read(chatViewModelProvider.notifier)
           .applyExternalAck(channelId, manual: manual);
+    }),
+    onRelationshipsChanged: () => ifMounted(() {
+      unawaited(
+        ref
+            .read(chatViewModelProvider.notifier)
+            .recomputeMentionsAfterRelationshipChange(),
+      );
     }),
     onAuthSessionChange: (event) => ifMounted(() {
       final String? newToken = event.newToken;
@@ -445,38 +509,32 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
     onGuildAvailable: (guildId) => ifMounted(() {
       ref.read(guildAvailabilityProvider.notifier).setGuildAvailable(guildId);
     }),
-    onMembersChunk: (guildId, userIds, {nonce}) => ifMounted(() {
-      ref
-          .read(guildMemberChunkWaiterProvider)
-          .notifyChunk(
-            guildId,
-            userIds: userIds,
-            requestId: GuildMemberChunkWaiter.requestIdFromNonce(nonce),
-          );
-      unawaited(
-        ref
-            .read(memberCacheEvictorProvider)
-            .evictIfNeeded(
-              guildId: guildId,
-              protectedUserIds: collectProtectedMemberUserIds(
-                ref: ref,
-                guildId: guildId,
-              ),
-            ),
-      );
-    }),
-    onMembersChunkProgress:
-        (guildId, chunkIndex, chunkCount, userIds, {nonce}) => ifMounted(() {
+    onMembersChunk: (guildId, userIds, {required chunkCount, nonce}) =>
+        ifMounted(() {
           ref
               .read(guildMemberChunkWaiterProvider)
-              .notifyChunkProgress(
-                guildId,
-                chunkIndex,
-                chunkCount,
+              .notifyChunk(
+                nonce: nonce,
+                chunkCount: chunkCount,
                 userIds: userIds,
-                requestId: GuildMemberChunkWaiter.requestIdFromNonce(nonce),
               );
+          unawaited(
+            ref
+                .read(memberCacheEvictorProvider)
+                .evictIfNeeded(
+                  guildId: guildId,
+                  protectedUserIds: collectProtectedMemberUserIds(
+                    ref: ref,
+                    guildId: guildId,
+                  ),
+                ),
+          );
         }),
+    onGuildMembersSeen: (guildId, userIds) => ifMounted(() {
+      ref
+          .read(guildMemberHydrationServiceProvider)
+          .clearNonMembers(guildId, userIds);
+    }),
     onMemberListUpdate: (event) => ifMounted(() {
       ref.read(memberListUpdateBatcherProvider).enqueue(event);
     }),
@@ -485,11 +543,11 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
           .read(channelMemberCountCacheProvider.notifier)
           .applyUpdates(event.counts);
     }),
-    onGuildBanAdd: (guildId, user) => ifMounted(() {
-      ref.read(knownGuildBansProvider.notifier).noteBan(guildId, user.id);
+    onGuildBanAdd: (guildId, userId) => ifMounted(() {
+      ref.read(knownGuildBansProvider.notifier).noteBan(guildId, userId);
     }),
-    onGuildBanRemove: (guildId, user) => ifMounted(() {
-      ref.read(knownGuildBansProvider.notifier).noteUnban(guildId, user.id);
+    onGuildBanRemove: (guildId, userId) => ifMounted(() {
+      ref.read(knownGuildBansProvider.notifier).noteUnban(guildId, userId);
     }),
     onWebhooksUpdate: (guildId, channelId) => ifMounted(() {
       ref
@@ -499,34 +557,12 @@ Raw<StreamSubscription<GatewayEvent>?> gatewayEventListener(Ref ref) {
     onEntranceSoundPlay: (event) => ifMounted(() {
       ref.read(voiceSessionProvider.notifier).handleEntranceSoundPlay(event);
     }),
-    resolveDefaultHideMutedChannels: () =>
-        ref.mounted &&
-        ref.read(userSettingsViewModelProvider).defaultHideMutedChannels,
-    threadsGate: ref.read(threadsGateProvider),
     resolveParentThreadActor: (String guildId, String parentId) => ref.mounted
         // One-off snapshot; read does not retain the autoDispose family.
         // ignore: riverpod_lint/only_use_keep_alive_inside_keep_alive
         ? ref.read(parentThreadActorProvider(guildId, parentId))
         : null,
-    onThreadGateChanged: (guildId, {required active}) => ifMounted(() {
-      if (!active) {
-        ref.read(threadMemberListsProvider.notifier).clearGuild(guildId);
-        ref.read(forumPostUnreadsProvider.notifier).clearGuild(guildId);
-        ref.read(forumFirstMessagesProvider.notifier).clear();
-      } else {
-        unawaited(
-          LocalPushNotifications().ensureForumThreadCreatedChannel().catchError(
-            (Object _) {},
-          ),
-        );
-      }
-      ref
-          .read(guildSyncProvider.notifier)
-          .handleThreadGateChanged(guildId, active: active);
-      unawaited(
-        ref.read(channelPermissionCacheProvider.notifier).rebuildGuild(guildId),
-      );
-    }),
+    openChannelId: () => ref.mounted ? ref.read(activeChannelIdProvider) : null,
     onThreadMemberListUpdate: (event) => ifMounted(() {
       ref.read(threadMemberListsProvider.notifier).apply(event);
     }),

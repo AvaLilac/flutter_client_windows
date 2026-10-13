@@ -29,7 +29,6 @@ QuickSwitcherResult candidateToQuickSwitcherResult(
       :final subtitle,
       :final channelId,
       :final icon,
-      :final groupStatus,
       :final groupMembers,
     ) =>
       QuickSwitcherGroupDmResult(
@@ -37,7 +36,6 @@ QuickSwitcherResult candidateToQuickSwitcherResult(
         subtitle: subtitle,
         channelId: channelId,
         icon: icon,
-        groupStatus: groupStatus,
         groupMembers: groupMembers,
       ),
     QuickSwitcherChannelCandidate(
@@ -121,7 +119,6 @@ String? _resolveChannelSubtitle(
   FluxerLocalizations l10n,
   String? viewContext,
 ) {
-  // visit.guildId is set when the channel was opened from favorites.
   if (viewContext == 'favorites') {
     return l10n.quickSwitcherFavoritesLabel;
   }

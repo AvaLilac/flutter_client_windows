@@ -17,8 +17,8 @@ import 'package:fluxer_app/features/channels/utils/link_channel_navigator.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/channel_access_denied_sheet.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/mature_content/utils/channel_gate_navigator.dart';
+import 'package:fluxer_app/features/shell/utils/shell_popup_navigation.dart';
 
-/// Builds the in-app route for a resolved channel jump target.
 String buildChannelJumpRoutePath({
   required String channelId,
   String? guildId,
@@ -37,7 +37,6 @@ String buildChannelJumpRoutePath({
   return RoutePaths.guildChannel(guildId, channelId);
 }
 
-/// Parses `/channels/...` path segments into a [ChannelJumpLink], or null.
 ChannelJumpLink? channelJumpLinkFromPathSegments(List<String> segments) {
   if (segments.isEmpty || segments.first != 'channels') {
     return null;
@@ -185,6 +184,7 @@ ChannelJumpResolution _resolveNavigation({
 Future<void> _applyChannelJumpResolution({
   required ProviderContainer container,
   required ChannelJumpResolution resolution,
+  required bool dismissCoveringPages,
   BuildContext? context,
 }) async {
   switch (resolution) {
@@ -202,11 +202,12 @@ Future<void> _applyChannelJumpResolution({
     case ChannelJumpPending(:final path):
       container.read(pendingPushNotificationPathProvider.notifier).store(path);
     case ChannelJumpInPlace(:final channelId, :final messageId):
-      // A fresh jump intent: re-opens consumption so a deliberate repeat tap
-      // on the same message is honoured rather than treated as already done.
       container
           .read(channelJumpTargetLedgerProvider.notifier)
           .request(channelId: channelId, messageId: messageId);
+      if (dismissCoveringPages) {
+        popShellCoveringPages();
+      }
       await container
           .read(chatViewModelProvider.notifier)
           .goToRepliedMessage(channelId: channelId, messageId: messageId);
@@ -218,8 +219,6 @@ Future<void> _applyChannelJumpResolution({
       if (channel == null) {
         return;
       }
-      // Re-resolve after the await: the sheet that owned the original
-      // context is routinely dismissed by the tap that started the jump.
       final BuildContext? linkContext = (context != null && context.mounted)
           ? context
           : _rootContext();
@@ -232,17 +231,15 @@ Future<void> _applyChannelJumpResolution({
         channel: Channel.fromRow(channel),
       );
     case ChannelJumpRedirectGuild(:final guildId):
+      if (dismissCoveringPages) {
+        popShellCoveringPages();
+      }
       _navigateToPathViaContainer(container, RoutePaths.guild(guildId));
     case ChannelJumpNavigate(:final path, :final channelId, :final messageId):
       final db.Channel? channel = await container
           .read(fluxerDatabaseProvider)
           .channelDao
           .getChannelById(channelId);
-      // Always consult the gate. It answers "is a gate required" from the
-      // container alone, so an ungated channel still navigates without any
-      // context, and a gated one fails closed when there is nothing to show
-      // the prompt on. Skipping the call when the context is dead is what
-      // used to walk straight past the gate.
       final BuildContext? gateContext = (context != null && context.mounted)
           ? context
           : _rootContext();
@@ -261,20 +258,17 @@ Future<void> _applyChannelJumpResolution({
         return;
       }
       if (messageId != null && messageId.isNotEmpty) {
-        // Same fresh-intent reset as the in-place branch: the route is about to
-        // carry this message id durably, so consumption must start open.
         container
             .read(channelJumpTargetLedgerProvider.notifier)
             .request(channelId: channelId, messageId: messageId);
+      }
+      if (dismissCoveringPages) {
+        popShellCoveringPages();
       }
       _navigateToPathViaContainer(container, path);
   }
 }
 
-/// The root navigator's context, or null when it is not usable.
-///
-/// Callers fall back to this so a dismissed sheet degrades to the root
-/// navigator instead of silently disabling gates and dialogs.
 BuildContext? _rootContext() {
   final BuildContext? root = rootNavigatorKey.currentContext;
   return (root != null && root.mounted) ? root : null;
@@ -284,27 +278,24 @@ void _navigateToPathViaContainer(ProviderContainer container, String path) {
   navigateToContentViaContainer(container, path);
 }
 
-/// Jumps to [link].
-///
-/// Takes a [ProviderContainer] rather than a `WidgetRef` on purpose: callers
-/// routinely dismiss the widget that started the jump, and a ref or context
-/// captured inside this call chain would be dead by the time the awaits
-/// finish. Capture the container before the first await and pass it here.
 Future<void> navigateToChannelJumpLink({
   required ProviderContainer container,
   required ChannelJumpLink link,
   BuildContext? context,
+  bool dismissCoveringPages = false,
 }) {
   return _navigateToChannelJumpLink(
     container: container,
     context: context,
     link: link,
+    dismissCoveringPages: dismissCoveringPages,
   );
 }
 
 Future<void> navigateToChannelJumpLinkFromContext({
   required BuildContext context,
   required ChannelJumpLink link,
+  bool dismissCoveringPages = false,
 }) {
   if (!context.mounted) {
     return Future<void>.value();
@@ -313,18 +304,14 @@ Future<void> navigateToChannelJumpLinkFromContext({
     container: ProviderScope.containerOf(context),
     context: context,
     link: link,
+    dismissCoveringPages: dismissCoveringPages,
   );
 }
 
-/// Resolves and applies a jump.
-///
-/// The container is captured by the caller before any await, because the
-/// widget that started the jump is routinely dismissed by the same tap. The
-/// context is carried only so gates and dialogs have somewhere to appear, and
-/// is re-checked at each use rather than gating the whole operation.
 Future<void> _navigateToChannelJumpLink({
   required ProviderContainer container,
   required ChannelJumpLink link,
+  required bool dismissCoveringPages,
   BuildContext? context,
 }) async {
   talker.debug('[ChannelJump] link=$link');
@@ -335,6 +322,7 @@ Future<void> _navigateToChannelJumpLink({
   await _applyChannelJumpResolution(
     container: container,
     resolution: resolution,
+    dismissCoveringPages: dismissCoveringPages,
     context: (context != null && context.mounted) ? context : null,
   );
 }
@@ -381,6 +369,7 @@ Future<void> navigateToChannelJumpLinkVia({
   await _applyChannelJumpResolution(
     container: container,
     resolution: resolution,
+    dismissCoveringPages: false,
     context: (context != null && context.mounted) ? context : null,
   );
 }

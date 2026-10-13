@@ -35,7 +35,12 @@ Future<FolderMenuAction?> showFolderSubmenuBottomSheet(
         controller: scrollController,
         padding: FluxerBottomSheet.scrollViewPadding(
           sheetContext,
-          padding: EdgeInsets.fromLTRB(layout.s4, 0, layout.s4, layout.s4),
+          padding: EdgeInsets.fromLTRB(
+            layout.s4,
+            0,
+            layout.s4,
+            FluxerBottomSheet.bottomGapOf(sheetContext),
+          ),
         ),
         children: [
           FluxerBottomSheetGroupColumn(

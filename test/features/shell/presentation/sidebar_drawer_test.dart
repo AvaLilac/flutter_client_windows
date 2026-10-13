@@ -211,7 +211,6 @@ void main() {
       _buildDrawerApp(container: container, router: router),
     );
 
-    // Mid-screen, not the leading edge, must still capture the drag.
     final gesture = await tester.startGesture(const Offset(200, 400));
     await gesture.moveBy(const Offset(80, 0));
     await tester.pump();
@@ -559,7 +558,6 @@ void main() {
     expect(_sliderIgnorePointer(tester).ignoring, isFalse);
     expect(find.byKey(kDrawerPeekInactiveScrimKey), findsNothing);
 
-    // Closing drag starts mid-screen, not at the edge.
     await tester.dragFrom(const Offset(240, 400), const Offset(-260, 0));
     await tester.pumpAndSettle();
 
@@ -875,6 +873,55 @@ void main() {
     );
     expect(_sliderIgnorePointer(tester).ignoring, isFalse);
     expect(find.byKey(kDrawerPeekInactiveScrimKey), findsNothing);
+  });
+
+  testWidgets('marks the chat off screen while the channel list is open', (
+    tester,
+  ) async {
+    final router = _routerFor('/channels/guild/channel');
+    addTearDown(router.dispose);
+    final container = _containerFor(router);
+
+    await tester.pumpWidget(
+      _buildDrawerApp(container: container, router: router),
+    );
+    await tester.pump();
+
+    expect(_chatOnScreen(tester), isTrue);
+
+    container.read(currentRevealSideProvider.notifier).set(RevealSide.left);
+    await tester.pump();
+
+    expect(_chatOnScreen(tester), isFalse);
+
+    await tester.pumpAndSettle();
+    container.read(currentRevealSideProvider.notifier).set(RevealSide.main);
+    await tester.pump();
+
+    expect(_chatOnScreen(tester), isTrue);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('keeps the peeked chat on screen on compact-wide mobile', (
+    tester,
+  ) async {
+    final router = _routerFor('/channels/guild/channel');
+    addTearDown(router.dispose);
+    final container = _containerFor(router);
+
+    await tester.pumpWidget(
+      _buildDrawerApp(
+        container: container,
+        router: router,
+        size: const Size(984, 800),
+      ),
+    );
+    await tester.pump();
+
+    container.read(currentRevealSideProvider.notifier).set(RevealSide.left);
+    await tester.pumpAndSettle();
+
+    expect(_chatOnScreen(tester), isTrue);
   });
 
   testWidgets('wraps drawer layers in repaint boundaries', (tester) async {
@@ -1585,3 +1632,6 @@ double _sliderScrimOpacity(WidgetTester tester) {
       .color
       .a;
 }
+
+bool _chatOnScreen(WidgetTester tester) =>
+    tester.widget<ChatOnScreenScope>(find.byType(ChatOnScreenScope)).onScreen;

@@ -17,6 +17,10 @@ import 'package:fluxer_app/core/theme/color_utils.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/auth/presentation/widgets/instance_domain_icon.dart';
 import 'package:fluxer_app/features/auth/presentation/widgets/offline_account_switcher_link.dart';
+import 'package:fluxer_app/features/auth/providers/account_manager_provider.dart';
+import 'package:fluxer_app/features/dm/providers/unread_dm_provider.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_read_state_provider.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_read_state_ready_provider.dart';
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/shell/domain/service_status_incident.dart';
 import 'package:fluxer_app/features/shell/presentation/splash_reveal_overlay.dart';
@@ -45,10 +49,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   static const double _logoHeight = 85;
   static const Duration _pulseDuration = Duration(milliseconds: 1300);
   static const Duration _statusPageDisplayDelay = Duration(seconds: 5);
-  // Fires late enough that fast startups never fetch, early enough that the
-  // incident text is ready when _statusPageDisplayDelay reveals it.
   static const Duration _statusPrefetchDelay = Duration(milliseconds: 3500);
   static const Duration _problemsDelay = Duration(seconds: 10);
+  static const Duration _hydrationWaitLimit = Duration(milliseconds: 1500);
   static const Duration _footerFadeDuration = Duration(milliseconds: 400);
   static const Color _splashMutedText = Color(0xFF9B94B8);
   static const Color _splashLinkText = Color(0xFFC4B8F0);
@@ -65,6 +68,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   bool _timersStarted = false;
   bool _serviceUnavailableOutage = false;
   bool _exitRevealStarted = false;
+  bool _hydrationWaitExpired = false;
+  Timer? _hydrationWaitTimer;
+  bool _enteredForAccountSwitch = false;
   SplashRevealComplete? _revealComplete;
   final GlobalKey _logoKey = GlobalKey();
   ServiceStatusIncident? _frozenIncident;
@@ -83,6 +89,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return;
       }
       ref.read(splashExitAllowedProvider.notifier).reset();
+      _enteredForAccountSwitch = ref.read(accountManagerProvider).isSwitching;
       final SplashRevealComplete revealComplete = ref.read(
         splashRevealCompleteProvider.notifier,
       );
@@ -105,10 +112,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void dispose() {
     _cancelSplashTimers();
+    _hydrationWaitTimer?.cancel();
     _pulseController.dispose();
     final SplashRevealComplete? revealComplete = _revealComplete;
-    // dispose runs while the element tree is being finalized, when Riverpod
-    // rejects provider writes, so release the gate on the next frame.
     if (!_exitRevealStarted && revealComplete != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         revealComplete.complete();
@@ -147,6 +153,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   void _prepareForRelaunch() {
     _exitRevealStarted = false;
+    _hydrationWaitExpired = false;
+    _hydrationWaitTimer?.cancel();
+    _hydrationWaitTimer = null;
+    _enteredForAccountSwitch = ref.read(accountManagerProvider).isSwitching;
     _revealComplete ??= ref.read(splashRevealCompleteProvider.notifier);
     _revealComplete?.reset();
     ref.read(splashExitAllowedProvider.notifier).reset();
@@ -178,18 +188,40 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
     _revealComplete ??= ref.read(splashRevealCompleteProvider.notifier);
     final AsyncValue<void> startup = ref.read(appStartupProvider);
-    if (startup is! AsyncData<void> || !ref.read(gatewayReadyProvider)) {
+    if (startup is! AsyncData<void> ||
+        !ref.read(gatewayReadyProvider) ||
+        ref.read(accountManagerProvider).isSwitching) {
       return;
     }
     if (!ref.read(authStateProvider)) {
       _revealComplete?.complete();
       return;
     }
+    if (!_unreadsHydrated() && !_hydrationWaitExpired) {
+      _hydrationWaitTimer ??= Timer(_hydrationWaitLimit, () {
+        _hydrationWaitExpired = true;
+        _scheduleExitReveal();
+      });
+      return;
+    }
 
+    _hydrationWaitTimer?.cancel();
+    _hydrationWaitTimer = null;
     _exitRevealStarted = true;
     _cancelSplashTimers();
     _pulseController.stop();
 
+    final bool useLogoZoomTransition =
+        !_enteredForAccountSwitch &&
+        ref.read(
+          appearancePreferencesProvider.select(
+            (AppearancePreferencesState state) =>
+                state.mobileSplashZoomAnimation,
+          ),
+        );
+    ref
+        .read(splashRevealZoomProvider.notifier)
+        .setZoom(value: useLogoZoomTransition);
     final Color brand = context.colors.brandPrimary;
     SplashRevealOverlay.show(
       context: context,
@@ -198,17 +230,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       logoBrandSymbolColor: ColorUtils.bestContrastColor(brand.toARGB32()),
       logoCenterGlobal:
           _logoCenterGlobal() ?? MediaQuery.sizeOf(context).center(Offset.zero),
-      useLogoZoomTransition: ref.read(
-        appearancePreferencesProvider.select(
-          (AppearancePreferencesState state) => state.mobileSplashZoomAnimation,
-        ),
-      ),
+      useLogoZoomTransition: useLogoZoomTransition,
       animationsEnabled: !MediaQuery.disableAnimationsOf(context),
       onComplete: _revealComplete?.complete,
     );
     _allowSplashExit();
     setState(() {});
   }
+
+  bool _unreadsHydrated() =>
+      ref.read(guildReadStateReadyProvider) &&
+      ref.read(unreadDmChannelsProvider).loaded;
 
   Offset? _logoCenterGlobal() {
     final RenderObject? renderObject = _logoKey.currentContext
@@ -336,10 +368,35 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final bool isGatewayReady = ref.watch(gatewayReadyProvider);
     final bool isReady = isStartupComplete && isGatewayReady;
     ref
+      ..listen<bool>(
+        accountManagerProvider.select(
+          (AccountManagerState state) => state.isSwitching,
+        ),
+        (bool? previous, bool switching) {
+          if (switching) {
+            _enteredForAccountSwitch = true;
+            return;
+          }
+          _scheduleExitReveal();
+        },
+      )
       ..listen<bool>(gatewayReadyProvider, (bool? previous, bool _) {
         _cancelSplashIfReady();
         _scheduleExitReveal();
       })
+      ..listen<Map<String, GuildReadStateEntry>>(
+        guildReadStateProvider,
+        (_, _) {},
+      )
+      ..listen<bool>(guildReadStateReadyProvider, (bool? previous, bool _) {
+        _scheduleExitReveal();
+      })
+      ..listen<bool>(
+        unreadDmChannelsProvider.select((UnreadDmState state) => state.loaded),
+        (bool? previous, bool _) {
+          _scheduleExitReveal();
+        },
+      )
       ..listen<AsyncValue<void>>(appStartupProvider, (
         AsyncValue<void>? previous,
         AsyncValue<void> next,

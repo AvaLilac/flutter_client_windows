@@ -21,6 +21,10 @@ class RateLimitPacer {
     return _activeHit(_globalKey(options)) ?? _activeHit(_pathKey(options));
   }
 
+  void clear() {
+    _pacing.clear();
+  }
+
   void record(Response<dynamic> response) {
     if (response.statusCode != 429) {
       return;
@@ -86,7 +90,7 @@ class RateLimitPacer {
   }
 
   String _pathKey(RequestOptions options) =>
-      '${_origin(options)}${options.path}';
+      '${options.method} ${_origin(options)}${options.path}';
 
   String _globalKey(RequestOptions options) => 'global:${_origin(options)}';
 
@@ -110,11 +114,8 @@ class RateLimitPacer {
   }
 }
 
-final RateLimitPacer sharedRateLimitPacer = RateLimitPacer();
-
 class RateLimitInterceptor extends Interceptor {
-  RateLimitInterceptor({RateLimitPacer? pacer})
-    : _pacer = pacer ?? sharedRateLimitPacer;
+  RateLimitInterceptor({required this._pacer});
 
   final RateLimitPacer _pacer;
 

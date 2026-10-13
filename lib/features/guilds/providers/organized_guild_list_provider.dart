@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:fluxer_app/core/providers/database_provider.dart';
+import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/synced_preferences/engine/synced_preference_field.dart';
 import 'package:fluxer_app/core/synced_preferences/engine/synced_preferences_store.dart';
 import 'package:fluxer_app/features/guilds/data/guild_order_repository.dart';
@@ -36,7 +37,6 @@ class GuildNavbarFolder extends GuildNavbarItem {
   final String? icon;
   final List<Guild> guilds;
 
-  /// Whether to show the folder icon instead of the 2x2 grid when collapsed.
   bool get showIconWhenCollapsed => (flags & 1) != 0;
 }
 
@@ -78,8 +78,6 @@ List<GuildNavbarItem> computeOrganizedGuildList({
     for (final guild in folderGuilds) {
       placedGuildIds.add(guild.id);
     }
-    // Web app uses UNCATEGORIZED_FOLDER_ID = -1.
-    // Gateway may send null or -1 for uncategorized entries.
     if (folder.id == null || folder.id == -1) {
       for (final guild in folderGuilds) {
         items.add(GuildNavbarGuild(guild: guild));
@@ -227,7 +225,7 @@ Stream<List<UserSettingsResponseGuildFolders>> guildFolders(Ref ref) async* {
 
 @Riverpod(keepAlive: true)
 class OrganizedGuildList extends _$OrganizedGuildList {
-  var _hasPendingLocalOrder = false;
+  String? _serverFoldersAtLocalOrder;
 
   @override
   List<GuildNavbarItem> build() {
@@ -236,30 +234,14 @@ class OrganizedGuildList extends _$OrganizedGuildList {
     final Set<String> trackedUnavailableGuildIds = ref.watch(
       guildAvailabilityProvider,
     );
-    final computed = computeOrganizedGuildList(
-      guilds: guildState.guilds,
-      folders: folders,
-      trackedUnavailableGuildIds: trackedUnavailableGuildIds,
-    );
 
-    ref.listen(guildFoldersProvider, (previous, next) {
-      if (!_hasPendingLocalOrder) {
-        return;
-      }
-      final List<UserSettingsResponseGuildFolders>? incoming = next.value;
-      if (incoming == null) {
-        return;
-      }
-      _hasPendingLocalOrder = false;
-      state = computeOrganizedGuildList(
-        guilds: ref.read(guildListViewModelProvider).guilds,
-        folders: incoming,
-        trackedUnavailableGuildIds: ref.read(guildAvailabilityProvider),
+    if (_serverFoldersAtLocalOrder != jsonEncode(folders)) {
+      _serverFoldersAtLocalOrder = null;
+      return computeOrganizedGuildList(
+        guilds: guildState.guilds,
+        folders: folders,
+        trackedUnavailableGuildIds: trackedUnavailableGuildIds,
       );
-    });
-
-    if (!_hasPendingLocalOrder) {
-      return computed;
     }
 
     return stripOutageUnavailableFromNavbarItems(
@@ -344,7 +326,6 @@ class OrganizedGuildList extends _$OrganizedGuildList {
       return;
     }
 
-    // Generate a folder ID from the two guild IDs to keep it deterministic.
     final folderId = _allocateFolderId(
       items,
       candidateId:
@@ -356,7 +337,6 @@ class OrganizedGuildList extends _$OrganizedGuildList {
       guilds: [targetItem.guild, sourceItem.guild],
     );
 
-    // Remove higher index first to avoid shifting.
     if (sourceIndex > targetIndex) {
       items
         ..removeAt(sourceIndex)
@@ -392,7 +372,6 @@ class OrganizedGuildList extends _$OrganizedGuildList {
       );
     }
 
-    // If not found in a folder, look for a top-level guild.
     if (sourceGuild == null) {
       final sourceIndex = _findTopLevelIndex(items, guildId);
       if (sourceIndex == -1) {
@@ -611,7 +590,9 @@ class OrganizedGuildList extends _$OrganizedGuildList {
   }
 
   void _commitLocalMutation(List<GuildNavbarItem> items) {
-    _hasPendingLocalOrder = true;
+    _serverFoldersAtLocalOrder ??= jsonEncode(
+      ref.read(guildFoldersProvider).value ?? [],
+    );
     state = items;
     _persist();
   }
@@ -779,7 +760,10 @@ class FolderExpandedState extends _$FolderExpandedState {
   bool _isApplyingRemote = false;
 
   @override
-  Set<int> build() => {};
+  Set<int> build() {
+    ref.watch(currentUserIdProvider);
+    return {};
+  }
 
   Future<void> applySynced(Set<int> value) async {
     _isApplyingRemote = true;

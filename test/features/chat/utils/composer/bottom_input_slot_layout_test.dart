@@ -231,7 +231,7 @@ void main() {
       );
     });
 
-    test('keeps anchor when held slot height is zero during panel close', () {
+    test('uses zero slot height while held during panel close', () {
       expect(
         resolvePanelReservedLayoutHeight(
           slotHeight: 0,
@@ -239,7 +239,7 @@ void main() {
           grossAnchorHeight: 336,
           useExactSlotHeight: true,
         ),
-        302,
+        0,
       );
     });
 
@@ -414,13 +414,17 @@ void main() {
   });
 
   group('keyboard panel transition helpers', () {
-    test('transition lock uses max of live keyboard and anchor', () {
+    test('transition lock uses the live keyboard height', () {
       expect(
         resolveTransitionLockHeight(liveKeyboardHeight: 336, anchorHeight: 291),
         336,
       );
       expect(
-        resolveTransitionLockHeight(liveKeyboardHeight: 200, anchorHeight: 336),
+        resolveTransitionLockHeight(liveKeyboardHeight: 291, anchorHeight: 371),
+        291,
+      );
+      expect(
+        resolveTransitionLockHeight(liveKeyboardHeight: 0, anchorHeight: 336),
         336,
       );
     });
@@ -531,7 +535,7 @@ void main() {
       );
     });
 
-    test('held zero override keeps panel anchor instead of collapsing', () {
+    test('held slot height override can collapse to zero', () {
       expect(
         resolveBottomInputSlotHeight(
           isPanelOpen: true,
@@ -543,7 +547,7 @@ void main() {
           isKeyboardVisible: false,
           heldSlotHeightOverride: 0,
         ),
-        336,
+        0,
       );
     });
 
@@ -651,137 +655,11 @@ void main() {
     });
   });
 
-  group('splitBottomInputSpacerHeights', () {
-    test('keeps home indicator outside the animated body', () {
-      final ({double bodyHeight, double indicatorHeight}) split =
-          splitBottomInputSpacerHeights(
-            totalHeight: 336,
-            homeIndicatorInset: 34,
-            splitHomeIndicator: true,
-          );
-      expect(split.bodyHeight, 302);
-      expect(split.indicatorHeight, 34);
-    });
-
-    test('uses the full height for home-indicator-only spacers', () {
-      final ({double bodyHeight, double indicatorHeight}) split =
-          splitBottomInputSpacerHeights(
-            totalHeight: 34,
-            homeIndicatorInset: 34,
-            splitHomeIndicator: true,
-          );
-      expect(split.bodyHeight, 0);
-      expect(split.indicatorHeight, 34);
-    });
-
-    test('keeps net keyboard height in the animated body', () {
-      final ({double bodyHeight, double indicatorHeight}) split =
-          splitBottomInputSpacerHeights(
-            totalHeight: 302,
-            homeIndicatorInset: 34,
-            splitHomeIndicator: false,
-          );
-      expect(split.bodyHeight, 302);
-      expect(split.indicatorHeight, 0);
-    });
-  });
-
-  group('shouldSplitBottomInputSpacerHomeIndicator', () {
-    test('splits gross reserved heights', () {
-      expect(
-        shouldSplitBottomInputSpacerHomeIndicator(
-          totalHeight: 336,
-          spacerHeight: 336,
-          homeIndicatorInset: 34,
-          liveKeyboardHeight: 302,
-          trackLiveKeyboardHeight: true,
-        ),
-        isTrue,
-      );
-    });
-
-    test('keeps net keyboard heights intact', () {
-      expect(
-        shouldSplitBottomInputSpacerHomeIndicator(
-          totalHeight: 302,
-          spacerHeight: 302,
-          homeIndicatorInset: 34,
-          liveKeyboardHeight: 302,
-          trackLiveKeyboardHeight: true,
-        ),
-        isFalse,
-      );
-    });
-
-    test('splits while keyboard insets shrink during dismiss', () {
-      expect(
-        shouldSplitBottomInputSpacerHomeIndicator(
-          totalHeight: 180,
-          spacerHeight: 302,
-          homeIndicatorInset: 34,
-          liveKeyboardHeight: 302,
-          trackLiveKeyboardHeight: false,
-        ),
-        isTrue,
-      );
-    });
-  });
-
-  group('resolveBottomInputAnimatedSpacerPaintHeight', () {
-    test('tracks live keyboard height without clamping', () {
-      expect(
-        resolveBottomInputAnimatedSpacerPaintHeight(
-          spacerHeight: 336,
-          viewInsetBottom: 0,
-          homeIndicatorInset: 34,
-          trackLiveKeyboardHeight: true,
-        ),
-        336,
-      );
-    });
-
-    test('follows view insets while the keyboard is dismissing', () {
-      expect(
-        resolveBottomInputAnimatedSpacerPaintHeight(
-          spacerHeight: 302,
-          viewInsetBottom: 180,
-          homeIndicatorInset: 34,
-          trackLiveKeyboardHeight: false,
-        ),
-        180,
-      );
-    });
-
-    test('keeps home indicator fill when keyboard is closed', () {
-      expect(
-        resolveBottomInputAnimatedSpacerPaintHeight(
-          spacerHeight: 34,
-          viewInsetBottom: 0,
-          homeIndicatorInset: 34,
-          trackLiveKeyboardHeight: false,
-        ),
-        34,
-      );
-    });
-
-    test('clears held keyboard fill once insets are gone', () {
-      expect(
-        resolveBottomInputAnimatedSpacerPaintHeight(
-          spacerHeight: 302,
-          viewInsetBottom: 0,
-          homeIndicatorInset: 34,
-          trackLiveKeyboardHeight: false,
-        ),
-        0,
-      );
-    });
-  });
-
   group('bottomInputKeyboardSpacerHeight', () {
-    test('clamps slot height to home indicator inset', () {
+    test('keeps the composer gap above the home indicator inset', () {
       expect(
         bottomInputKeyboardSpacerHeight(slotHeight: 20, homeIndicatorInset: 34),
-        34,
+        24,
       );
       expect(
         bottomInputKeyboardSpacerHeight(
@@ -792,10 +670,14 @@ void main() {
       );
       expect(
         bottomInputKeyboardSpacerHeight(slotHeight: 0, homeIndicatorInset: 34),
-        34,
+        24,
       );
       expect(
         bottomInputKeyboardSpacerHeight(slotHeight: 0, homeIndicatorInset: 0),
+        0,
+      );
+      expect(
+        bottomInputKeyboardSpacerHeight(slotHeight: 0, homeIndicatorInset: 6),
         0,
       );
     });

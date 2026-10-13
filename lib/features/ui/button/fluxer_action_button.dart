@@ -1,4 +1,5 @@
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/preview/fluxer_widget_preview.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/material_ui.dart';
@@ -6,7 +7,6 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 enum FluxerActionButtonVariant { defaultStyle, danger }
 
-/// Stacked icon-and-label button used in sheet quick-action rows.
 class FluxerActionButton extends StatelessWidget {
   const FluxerActionButton({
     required this.icon,
@@ -38,7 +38,7 @@ class FluxerActionButton extends StatelessWidget {
       foreground = Colors.white;
       labelColor = Colors.white;
     } else {
-      background = colors.backgroundSecondaryAlt;
+      background = FluxerBottomSheet.cardColorOf(context);
       foreground = isDanger ? colors.statusDanger : colors.textPrimary;
       labelColor = isDanger ? colors.statusDanger : colors.textSecondary;
     }

@@ -7,7 +7,7 @@ import 'package:fluxer_app/features/profile/providers/user_presence_provider.dar
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_avatar.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_avatar_stack.dart';
-import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
+import 'package:fluxer_app/features/ui/spinner/fluxer_typing_dots.dart';
 import 'package:fluxer_app/features/ui/tooltip/fluxer_tooltip.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
@@ -18,7 +18,6 @@ import 'package:fluxer_app/shared/utils/guild_user_display.dart';
 const double _kAvatarSize = 12;
 const int _kMaxVisibleAvatars = 5;
 
-/// Typing indicator shown at the end of a guild channel list row.
 class ChannelListTypingIndicator extends ConsumerWidget {
   const ChannelListTypingIndicator({
     required this.channelId,
@@ -71,7 +70,7 @@ class ChannelListTypingIndicator extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              FluxerLoadingSpinner(color: indicatorColor),
+              FluxerTypingDots(color: indicatorColor),
               if (mode == ChannelTypingIndicatorMode.avatars) ...[
                 const SizedBox(width: 4),
                 _TypingAvatarStack(userIds: userIds, guildId: guildId),

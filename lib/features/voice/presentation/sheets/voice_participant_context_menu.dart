@@ -73,7 +73,7 @@ class VoiceParticipantContextMenu {
               sheetContext.layout.s4,
               0,
               sheetContext.layout.s4,
-              sheetContext.layout.s4,
+              FluxerBottomSheet.bottomGapOf(sheetContext),
             ),
           ),
         );

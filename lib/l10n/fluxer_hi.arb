@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Banner shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "फिर से कोशिश करें",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "कनेक्ट हो गया",
     "@gatewayConnectedToast": {
         "description": "Banner shown when the gateway connection is restored."
@@ -2073,17 +2077,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "KLIPY खोजें",
+    "gifPickerSearchKlipy": "Klipy खोजें",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Tenor पर खोजें",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "पसंदीदा",
     "@gifPickerFavorites": {
@@ -3138,10 +3138,6 @@
     "dangerZoneDeleteDescription": "अपना अकाउंट और उससे जुड़ा सारा डेटा हमेशा के लिए मिटा दें। इस कार्रवाई को पहले जैसा नहीं किया जा सकता।",
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
-    },
-    "dangerZoneDeleteCancelSubscription": "अपना खाता हटाने से पहले Plutonium सेटिंग में अपनी सक्रिय Plutonium सदस्यता रद्द करें।",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
     },
     "dangerZoneDeleteCannotDeleteAccount": "अकाउंट नहीं मिटाया जा सकता",
     "@dangerZoneDeleteCannotDeleteAccount": {
@@ -7040,7 +7036,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "{count, plural, one {# अपठित संदेश के साथ चैट दिखाएं} other {# अपठित संदेशों के साथ चैट दिखाएं}}",
+    "voiceTextChatShowUnread": "{count, plural, one {{count} अपठित संदेश के साथ चैट दिखाएं} other {{count} अपठित संदेशों के साथ चैट दिखाएं}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -7256,6 +7252,10 @@
     "chatMessageFailedToSend": "संदेश भेजने में विफल",
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
+    },
+    "chatMessageFailedToSendTapForOptions": "संदेश भेजने में विफल। विकल्पों के लिए टैप करें।",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
     },
     "chatSendFailureDmRestricted": "आपका संदेश डिलीवर नहीं हो सका। ऐसा आमतौर पर इसलिए होता है क्योंकि आप प्राप्तकर्ता के साथ कोई समुदाय साझा नहीं करते हैं या प्राप्तकर्ता केवल दोस्तों से डायरेक्ट मैसेज स्वीकार कर रहा है। आपको अपने डायरेक्ट मैसेज की गोपनीयता सेटिंग्स को {settingsPath} में भी एडजस्ट करने की आवश्यकता हो सकती है।",
     "@chatSendFailureDmRestricted": {
@@ -7765,7 +7765,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "{count, plural, one {# समुदाय को छोड़कर} other {# समुदायों को छोड़कर}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "{count, plural, one {{count} समुदाय को छोड़कर} other {{count} समुदायों को छोड़कर}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -7774,7 +7774,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "सिर्फ़ {count, plural, one {# कम्युनिटी} other {# कम्युनिटीज़}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "सिर्फ़ {count, plural, one {{count} कम्युनिटी} other {{count} कम्युनिटीज़}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -7803,7 +7803,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# घंटा} other {# घंटे}} और {minutes, plural, one {# मिनट} other {# मिनट}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} घंटा} other {{hours} घंटे}} और {minutes, plural, one {{minutes} मिनट} other {{minutes} मिनट}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -7815,7 +7815,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# घंटा} other {# घंटे}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} घंटा} other {{hours} घंटे}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -7824,7 +7824,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# मिनट} other {# मिनट}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} मिनट} other {{minutes} मिनट}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -7833,7 +7833,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# सेकंड} other {# सेकंड}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} सेकंड} other {{seconds} सेकंड}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -7925,10 +7925,6 @@
     "forwardSuccessToast": "मैसेज फ़ॉरवर्ड किया गया",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "मैसेज फ़ॉरवर्ड नहीं हो पाया",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "टिप्पणियाँ उपलब्ध नहीं हैं क्योंकि चयनित चैनल में स्लोमोड सक्षम है।",
     "@forwardCommentSlowmodeDisabled": {
@@ -10649,19 +10645,19 @@
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -12377,11 +12373,11 @@
     },
     "scrollIndicatorNew": "नया",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "नया संदेश",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "नए मैसेज",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "{folderName} को छोटा करें",
     "@guildNavbarCollapseFolder": {
@@ -14510,7 +14506,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{# संदेश हटाया गया।} other{# संदेश हटाए गए।}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{{count} संदेश हटाया गया।} other{{count} संदेश हटाए गए।}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -14519,7 +14515,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{# सदस्य हटाया गया।} other{# सदस्य हटाए गए।}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{{count} सदस्य हटाया गया।} other{{count} सदस्य हटाए गए।}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -15199,19 +15195,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -16538,5 +16534,96 @@
     },
     "channelUnsupportedTitle": "असमर्थित चैनल प्रकार",
     "channelUnsupportedBody": "ऐप का यह वर्शन इस चैनल प्रकार का समर्थन नहीं करता है।",
-    "channelDetailsUnsupportedChannel": "असमर्थित चैनल"
+    "channelDetailsUnsupportedChannel": "असमर्थित चैनल",
+    "forumPostNewBadge": "नया",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} नया संदेश} other {{count} नए संदेश}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "नया",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{shortTime} से {unreadCount, plural, one {{unreadCount} नया मैसेज} other {{unreadCount} नए मैसेज}}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{shortTime} से {unreadCount}+ नए मैसेज",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{compactTime} से {unreadCount, plural, one {{unreadCount} नया मैसेज} other {{unreadCount} नए मैसेज}}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{compactTime} से {unreadCount}+ नए मैसेज",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "पढ़ा गया मार्क करें",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "पढ़ा गया मार्क करें",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "पहले अपठित मैसेज पर जाएं",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "आप पुराने मैसेज देख रहे हैं",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "सबसे नए मैसेज पर जाएं",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "श्रेणी का नाम बदलें",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

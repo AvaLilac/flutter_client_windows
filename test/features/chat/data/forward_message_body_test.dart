@@ -15,8 +15,6 @@ void main() {
       expect(reference['channel_id'], 'chan_1');
       expect(reference['message_id'], 'msg_1');
 
-      // The server rejects forward refs that carry message content; the body
-      // must never include any of these (or the no-op `flags`).
       expect(body.containsKey('content'), isFalse);
       expect(body.containsKey('embeds'), isFalse);
       expect(body.containsKey('attachments'), isFalse);
@@ -57,6 +55,16 @@ void main() {
       expect(reference['attachment_ids'], <String>['a1', 'a2']);
       expect(reference['embed_indices'], <int>[0, 2]);
       expect(body['nonce'], 'nonce_1');
+    });
+
+    test('sends the comment flags with the forward', () {
+      final Map<String, dynamic> body = buildForwardMessageBody(
+        sourceChannelId: 'chan_1',
+        sourceMessageId: 'msg_1',
+        messageFlags: 4096,
+      );
+
+      expect(body['flags'], 4096);
     });
   });
 

@@ -81,7 +81,12 @@ Future<GuildAction?> showGuildBottomSheet(
         controller: scrollController,
         padding: FluxerBottomSheet.scrollViewPadding(
           sheetContext,
-          padding: EdgeInsets.fromLTRB(layout.s4, 0, layout.s4, layout.s4),
+          padding: EdgeInsets.fromLTRB(
+            layout.s4,
+            0,
+            layout.s4,
+            FluxerBottomSheet.bottomGapOf(sheetContext),
+          ),
         ),
         children: [FluxerBottomSheetGroupColumn(children: menuGroups)],
       );
@@ -154,7 +159,12 @@ void _openSubmenu(BuildContext context, GuildMenuSubmenu submenu) {
           controller: scrollController,
           padding: FluxerBottomSheet.scrollViewPadding(
             sheetContext,
-            padding: EdgeInsets.fromLTRB(layout.s4, 0, layout.s4, layout.s4),
+            padding: EdgeInsets.fromLTRB(
+              layout.s4,
+              0,
+              layout.s4,
+              FluxerBottomSheet.bottomGapOf(sheetContext),
+            ),
           ),
           children: [
             FluxerBottomSheetGroupColumn(

@@ -25,7 +25,6 @@ Future<ChannelDetailsJumpRequest?> showChannelSearchPage(
       });
 }
 
-/// Opens search as a full page and performs any jump it returns
 Future<void> showChannelSearchPageAndJump(
   BuildContext context, {
   required ProviderContainer container,
@@ -410,13 +409,13 @@ class _ChannelSearchPageState extends ConsumerState<ChannelSearchPage> {
     );
     final bool scopeIsCustom =
         state.query.uiScope != MessageSearchScopeFilter.current;
+    final bool showFilterReset =
+        _textController.text.isEmpty &&
+        (_hasActiveFilters ||
+            scopeIsCustom ||
+            state.query.uiSort != MessageSearchSortFilter.newest);
     final bool showResultCount =
         state.hasSearched && !state.isSearching && state.total > 0;
-    final bool showClear =
-        _textController.text.isNotEmpty ||
-        _hasActiveFilters ||
-        scopeIsCustom ||
-        state.query.uiSort != MessageSearchSortFilter.newest;
     final AsyncValue<ChannelSearchHistoryRepository> historyRepo = ref.watch(
       channelSearchHistoryRepositoryProvider,
     );
@@ -450,17 +449,23 @@ class _ChannelSearchPageState extends ConsumerState<ChannelSearchPage> {
         children: <Widget>[
           Padding(
             padding: EdgeInsets.fromLTRB(layout.s4, layout.s3, layout.s4, 0),
-            child: FluxerInput(
+            child: PickerSearchInput.inline(
               controller: _textController,
               focusNode: _focusNode,
-              hint: l10n.channelDetailsSearchHint,
-              prefixIcon: const PhosphorIcon(PhosphorIconsBold.magnifyingGlass),
-              suffixIcon: showClear
-                  ? const PhosphorIcon(PhosphorIconsBold.x)
-                  : null,
-              onSuffixTap: showClear ? _clearAll : null,
-              textInputAction: TextInputAction.search,
+              hintText: l10n.channelDetailsSearchHint,
               onSubmitted: (_) => _runSearch(),
+              onCleared: _clearAll,
+              rightCustomElement: showFilterReset
+                  ? FluxerGestureDetector(
+                      onTap: _clearAll,
+                      behavior: HitTestBehavior.opaque,
+                      child: PhosphorIcon(
+                        PhosphorIconsFill.xCircle,
+                        size: 16,
+                        color: context.colors.textTertiary,
+                      ),
+                    )
+                  : null,
             ),
           ),
           SizedBox(height: layout.s3),
@@ -897,12 +902,9 @@ class _ChannelSearchPageState extends ConsumerState<ChannelSearchPage> {
           );
         }
         final entry = state.results[index];
-        final label = entry.channelName == null
-            ? _formatDate(entry.message.timestamp)
-            : '#${entry.channelName} - ${_formatDate(entry.message.timestamp)}';
         return MessagePreviewTile(
           message: entry.message,
-          label: label,
+          label: entry.channelName == null ? null : '#${entry.channelName}',
           guildId: entry.guildId,
           onTap: () => _popWithJumpRequest(
             context,

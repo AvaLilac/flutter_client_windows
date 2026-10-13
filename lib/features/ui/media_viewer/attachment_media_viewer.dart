@@ -2,15 +2,18 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/accessibility/presentation/allow_image_frame_animation.dart';
 import 'package:fluxer_app/features/chat/domain/chat_fullscreen_video_launch_context.dart';
 import 'package:fluxer_app/features/chat/domain/media_options_launch_context.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/mobile_media_options_sheet.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_network_image.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/media_load_error_placeholder.dart';
+import 'package:fluxer_app/features/chat/utils/attachments/attachment_display_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/favorite_media_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/gif_preview_media_policy.dart';
 import 'package:fluxer_app/features/chat/utils/media/hdr_aware_image_url.dart';
@@ -21,6 +24,7 @@ import 'package:fluxer_app/features/settings/providers/appearance_preferences_pr
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/media_viewer/media_viewer_dismiss.dart';
+import 'package:fluxer_app/features/ui/media_viewer/media_viewer_drag_recognizers.dart';
 import 'package:fluxer_app/features/ui/media_viewer/touch_media_viewer_page.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
@@ -41,7 +45,7 @@ class AttachmentMediaViewerItem {
     this.linkUrl,
     this.proxyUrl,
     this.contentType,
-    this.isExpired = false,
+    this.downloadUrl,
     this.contentHash,
     this.description,
   });
@@ -56,7 +60,11 @@ class AttachmentMediaViewerItem {
       attachmentId: attachment.id,
       proxyUrl: attachment.proxyUrl,
       contentType: attachment.contentType,
-      isExpired: attachment.expired ?? false,
+      downloadUrl: attachmentEffectiveDownloadUrl(
+        url: attachment.url,
+        isExpired: attachment.expired ?? false,
+        proxyUrl: attachment.proxyUrl,
+      ),
       contentHash: attachment.contentHash,
       description: attachment.description,
     );
@@ -78,7 +86,7 @@ class AttachmentMediaViewerItem {
   }
 
   final String? contentType;
-  final bool isExpired;
+  final String? downloadUrl;
   final String? contentHash;
   final String? description;
 }
@@ -137,12 +145,8 @@ class AttachmentMediaViewerShell extends ConsumerStatefulWidget {
   final int initialIndex;
   final String? channelId;
 
-  /// When non-null, the action bar shows a Forward button; invoked with the
-  /// index of the item on screen when tapped (after the viewer closes).
   final void Function(int index)? onForward;
 
-  /// When non-null, the mobile overflow menu can show message-level actions
-  /// (reply, delete, etc.) in addition to media actions.
   final MessageMediaActionScope? actionScope;
 
   @override
@@ -165,6 +169,8 @@ class _AttachmentMediaViewerShellState
   bool _isDesktopDragging = false;
   double _touchDismissProgress = 0;
   bool _isTouchZoomed = false;
+  ScrollHoldController? _touchPageHold;
+  Drag? _touchPageDrag;
 
   int? _pageDecodeCap;
 
@@ -267,6 +273,31 @@ class _AttachmentMediaViewerShellState
     });
   }
 
+  void _handleTouchPageDragDown(DragDownDetails details) {
+    _touchPageHold = _pageController.position.hold(() {
+      _touchPageHold = null;
+    });
+  }
+
+  void _handleTouchPageDragStart(DragStartDetails details) {
+    _touchPageDrag = _pageController.position.drag(details, () {
+      _touchPageDrag = null;
+    });
+  }
+
+  void _handleTouchPageDragUpdate(DragUpdateDetails details) {
+    _touchPageDrag?.update(details);
+  }
+
+  void _handleTouchPageDragEnd(DragEndDetails details) {
+    _touchPageDrag?.end(details);
+  }
+
+  void _handleTouchPageDragCancel() {
+    _touchPageHold?.cancel();
+    _touchPageDrag?.cancel();
+  }
+
   void _handleTouchZoomChanged(bool isZoomed) {
     if (_isTouchZoomed == isZoomed) {
       return;
@@ -302,6 +333,12 @@ class _AttachmentMediaViewerShellState
     });
   }
 
+  bool _hasOptionsMenu(AttachmentMediaViewerItem item) =>
+      MediaOptionsLaunchContext.fromImageViewerItem(
+        item,
+        actionScope: widget.actionScope,
+      ).hasOptionsMenu;
+
   Future<void> _openOptions() async {
     final AttachmentMediaViewerItem currentItem = widget.items[_currentIndex];
     await showMobileMediaOptionsSheet(
@@ -316,38 +353,70 @@ class _AttachmentMediaViewerShellState
   }
 
   Widget _buildMediaPageView({required bool useTouchGestures}) {
+    final ScrollBehavior scrollBehavior = ScrollConfiguration.of(context);
+    final DeviceGestureSettings? gestureSettings =
+        MediaQuery.maybeGestureSettingsOf(context);
     return Listener(
       onPointerDown: (_) => _isPointerDownInsideContent = true,
       onPointerUp: (_) => _isPointerDownInsideContent = false,
       onPointerCancel: (_) => _isPointerDownInsideContent = false,
-      child: PageView.builder(
-        clipBehavior: Clip.none,
-        controller: _pageController,
-        physics: useTouchGestures
-            ? (_isTouchZoomed
-                  ? const NeverScrollableScrollPhysics()
-                  : const ClampingScrollPhysics())
-            : (_isDesktopZoomed
-                  ? const NeverScrollableScrollPhysics()
-                  : const ClampingScrollPhysics()),
-        onPageChanged: (int index) {
-          setState(() {
-            _currentIndex = index;
-            _desktopMediaHovered = false;
-            _isDesktopDragging = false;
-          });
-          _resetZoomState();
+      child: RawGestureDetector(
+        gestures: <Type, GestureRecognizerFactory>{
+          if (useTouchGestures && !_isTouchZoomed)
+            MediaViewerHorizontalDragGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<
+                  MediaViewerHorizontalDragGestureRecognizer
+                >(
+                  () => MediaViewerHorizontalDragGestureRecognizer(
+                    debugOwner: this,
+                    supportedDevices: scrollBehavior.dragDevices,
+                  ),
+                  (MediaViewerHorizontalDragGestureRecognizer instance) {
+                    instance
+                      ..onDown = _handleTouchPageDragDown
+                      ..onStart = _handleTouchPageDragStart
+                      ..onUpdate = _handleTouchPageDragUpdate
+                      ..onEnd = _handleTouchPageDragEnd
+                      ..onCancel = _handleTouchPageDragCancel
+                      ..velocityTrackerBuilder = scrollBehavior
+                          .velocityTrackerBuilder(context)
+                      ..multitouchDragStrategy = scrollBehavior
+                          .getMultitouchDragStrategy(context)
+                      ..gestureSettings = gestureSettings;
+                  },
+                ),
         },
-        itemCount: widget.items.length,
-        itemBuilder: (BuildContext context, int index) {
-          return _buildMediaPage(
-            context: context,
-            item: widget.items[index],
-            useTouchGestures: useTouchGestures,
-            index: index,
-          );
-        },
+        child: _buildPageView(useTouchGestures: useTouchGestures),
       ),
+    );
+  }
+
+  Widget _buildPageView({required bool useTouchGestures}) {
+    return PageView.builder(
+      clipBehavior: Clip.none,
+      controller: _pageController,
+      physics: useTouchGestures
+          ? const _ExternallyDraggedPagePhysics()
+          : (_isDesktopZoomed
+                ? const NeverScrollableScrollPhysics()
+                : const ClampingScrollPhysics()),
+      onPageChanged: (int index) {
+        setState(() {
+          _currentIndex = index;
+          _desktopMediaHovered = false;
+          _isDesktopDragging = false;
+        });
+        _resetZoomState();
+      },
+      itemCount: widget.items.length,
+      itemBuilder: (BuildContext context, int index) {
+        return _buildMediaPage(
+          context: context,
+          item: widget.items[index],
+          useTouchGestures: useTouchGestures,
+          index: index,
+        );
+      },
     );
   }
 
@@ -568,11 +637,6 @@ class _AttachmentMediaViewerShellState
     );
     final bool canGoPrevious = _currentIndex > 0;
     final bool canGoNext = _currentIndex < widget.items.length - 1;
-    final MediaOptionsLaunchContext optionsContext =
-        MediaOptionsLaunchContext.fromImageViewerItem(
-          currentItem,
-          actionScope: widget.actionScope,
-        );
     final Attachment? resolvedAttachment = widget.actionScope == null
         ? null
         : resolveMessageAttachment(
@@ -589,7 +653,7 @@ class _AttachmentMediaViewerShellState
           attachment: resolvedAttachment,
           forMediaViewerToolbar: true,
         );
-    final bool showOptionsButton = optionsContext.hasOptionsMenu;
+    final bool showOptionsButton = _hasOptionsMenu(currentItem);
     final double backdropBaseOpacity = isMobile ? 0.85 : 0.6;
     final double backdropOpacity = useTouchGestures
         ? mediaViewerDismissBackdropOpacity(
@@ -756,13 +820,15 @@ class _AttachmentMediaViewerShellState
     final bool isPortrait = (item.height ?? 0) > (item.width ?? 0);
     final Widget image = imageUrl.isEmpty
         ? errorPlaceholder
-        : ChatNetworkImage(
-            imageUrl: imageUrl,
-            filename: item.filename,
-            contentType: item.contentType,
-            memCacheWidth: isPortrait ? null : decodeCap,
-            memCacheHeight: isPortrait ? decodeCap : null,
-            errorPlaceholder: errorPlaceholder,
+        : AllowImageFrameAnimation(
+            child: ChatNetworkImage(
+              imageUrl: imageUrl,
+              filename: item.filename,
+              contentType: item.contentType,
+              memCacheWidth: isPortrait ? null : decodeCap,
+              memCacheHeight: isPortrait ? decodeCap : null,
+              errorPlaceholder: errorPlaceholder,
+            ),
           );
     final Widget media = MatureMediaOverlay(
       channelId: widget.channelId,
@@ -776,6 +842,7 @@ class _AttachmentMediaViewerShellState
         onDismissProgress: _handleTouchDismissProgress,
         onClose: _executeClose,
         onZoomChanged: _handleTouchZoomChanged,
+        onLongPress: _hasOptionsMenu(item) ? _openOptions : null,
         child: media,
       );
     }
@@ -1041,4 +1108,16 @@ class _MediaViewerThumbnailStrip extends ConsumerWidget {
       errorPlaceholder: errorPlaceholder,
     );
   }
+}
+
+class _ExternallyDraggedPagePhysics extends ClampingScrollPhysics {
+  const _ExternallyDraggedPagePhysics({super.parent});
+
+  @override
+  _ExternallyDraggedPagePhysics applyTo(ScrollPhysics? ancestor) {
+    return _ExternallyDraggedPagePhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) => false;
 }

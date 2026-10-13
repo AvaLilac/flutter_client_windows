@@ -179,7 +179,6 @@ class VoiceChannelParticipantGrid extends ConsumerStatefulWidget {
     super.key,
   });
 
-  /// Null for DM / private voice.
   final String? guildId;
   final String channelId;
 
@@ -2811,7 +2810,10 @@ class _VoiceStatusPill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            FluxerLoadingSpinner(color: context.colors.textPrimary),
+            FluxerLoadingSpinner(
+              color: context.colors.textPrimary,
+              size: FluxerLoadingSpinnerSize.small,
+            ),
             const SizedBox(width: 8),
             Text(
               label,

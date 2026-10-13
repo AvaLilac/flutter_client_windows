@@ -1,11 +1,43 @@
 import 'dart:async';
 
 import 'package:cross_file/cross_file.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as path_lib;
 import 'package:photo_manager/photo_manager.dart';
 
 enum AttachmentGalleryAccess { granted, denied }
+
+typedef AttachmentGalleryFile = ({XFile file, String filename});
+
+bool galleryAssetNeedsExport(String title) {
+  final String ext = path_lib.extension(title).toLowerCase();
+  return ext == '.heic' || ext == '.heif';
+}
+
+FilterOptionGroup attachmentGalleryFilterFor(TargetPlatform platform) {
+  return FilterOptionGroup(
+    orders: platform == TargetPlatform.iOS
+        ? const <OrderOption>[]
+        : const <OrderOption>[OrderOption()],
+  );
+}
+
+String galleryUploadFilename({
+  required String title,
+  required String filePath,
+}) {
+  final String trimmed = title.trim();
+  if (trimmed.isEmpty) {
+    return path_lib.basename(filePath);
+  }
+  if (!galleryAssetNeedsExport(trimmed)) {
+    return trimmed;
+  }
+  return '${path_lib.basenameWithoutExtension(trimmed)}'
+      '${path_lib.extension(filePath)}';
+}
 
 class AttachmentGalleryItem {
   const AttachmentGalleryItem({
@@ -29,7 +61,7 @@ abstract class AttachmentGallerySource {
 
   Future<Uint8List?> loadThumbnail(String id, {required int size});
 
-  Future<XFile?> resolveFile(String id);
+  Future<AttachmentGalleryFile?> resolveFile(String id);
 
   void addChangeListener(VoidCallback listener) {}
 
@@ -37,10 +69,6 @@ abstract class AttachmentGallerySource {
 }
 
 class PhotoManagerAttachmentGallerySource implements AttachmentGallerySource {
-  static final FilterOptionGroup _galleryFilter = FilterOptionGroup(
-    orders: const <OrderOption>[OrderOption()],
-  );
-
   final Map<String, AssetEntity> _assetsById = <String, AssetEntity>{};
   final List<VoidCallback> _changeListeners = <VoidCallback>[];
   bool _changeNotifyStarted = false;
@@ -83,7 +111,7 @@ class PhotoManagerAttachmentGallerySource implements AttachmentGallerySource {
   Future<AssetPathEntity?> _recentAlbum() async {
     final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
       onlyAll: true,
-      filterOption: _galleryFilter,
+      filterOption: attachmentGalleryFilterFor(defaultTargetPlatform),
     );
     if (albums.isEmpty) {
       return null;
@@ -150,16 +178,24 @@ class PhotoManagerAttachmentGallerySource implements AttachmentGallerySource {
   }
 
   @override
-  Future<XFile?> resolveFile(String id) async {
+  Future<AttachmentGalleryFile?> resolveFile(String id) async {
     final AssetEntity? asset = await _assetById(id);
     if (asset == null) {
       return null;
     }
-    final file = await asset.file;
+    final String title = await asset.titleAsync;
+    final bool export = galleryAssetNeedsExport(title);
+    final file = export ? await asset.file : await asset.originFile;
     if (file == null) {
       return null;
     }
-    return XFile(file.path, mimeType: asset.mimeType, name: asset.title);
+    return (
+      file: XFile(
+        file.path,
+        mimeType: export ? null : await asset.mimeTypeAsync,
+      ),
+      filename: galleryUploadFilename(title: title, filePath: file.path),
+    );
   }
 }
 

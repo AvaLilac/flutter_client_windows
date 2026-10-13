@@ -1,7 +1,7 @@
+import 'package:flutter/foundation.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_sheet_motion.dart';
 import 'package:fluxer_app/material_ui.dart';
 
-/// Handles the system back button for modal overlays such as FluxerBottomSheets
-/// and modals.
 Widget wrapFluxerOverlayBackHandler({
   required bool canDismiss,
   required VoidCallback? onBack,
@@ -40,6 +40,12 @@ class _FluxerOverlayBackHandlerState extends State<_FluxerOverlayBackHandler> {
 
   bool get _interceptsBack => widget.onBack != null || widget.onDismiss != null;
 
+  bool get _keyboardTakesBack => !_isTouchPlatform || _viewInsetBottom > 0;
+
+  static bool get _isTouchPlatform =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
   @override
   void initState() {
     super.initState();
@@ -49,17 +55,7 @@ class _FluxerOverlayBackHandlerState extends State<_FluxerOverlayBackHandler> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final double inset = MediaQuery.viewInsetsOf(context).bottom;
-    final bool keyboardClosed = _viewInsetBottom > 0 && inset == 0;
-    _viewInsetBottom = inset;
-    if (!keyboardClosed) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _unfocusEditableInOverlay();
-      }
-    });
+    _viewInsetBottom = MediaQuery.viewInsetsOf(context).bottom;
   }
 
   @override
@@ -83,7 +79,14 @@ class _FluxerOverlayBackHandlerState extends State<_FluxerOverlayBackHandler> {
     if (didPop) {
       return;
     }
-    if (_unfocusEditableInOverlay()) {
+    final ModalRoute<dynamic>? route = ModalRoute.of(context);
+    if (route is FluxerSheetRoute && route.isBarrierDismissing) {
+      if (widget.canDismiss) {
+        route.closeSelf();
+      }
+      return;
+    }
+    if (_keyboardTakesBack && _unfocusEditableInOverlay()) {
       return;
     }
     if (!widget.canDismiss) {
@@ -124,7 +127,9 @@ class _FluxerOverlayBackHandlerState extends State<_FluxerOverlayBackHandler> {
   @override
   Widget build(BuildContext context) {
     final bool canPop =
-        widget.canDismiss && !_interceptsBack && !_hasEditableFocus;
+        widget.canDismiss &&
+        !_interceptsBack &&
+        !(_hasEditableFocus && _keyboardTakesBack);
     return PopScope(
       canPop: canPop,
       onPopInvokedWithResult: (bool didPop, _) => _handlePopInvoked(didPop),

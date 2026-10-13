@@ -11,6 +11,7 @@ import 'package:fluxer_app/features/shell/presentation/mobile_main_tab_shell.dar
 import 'package:fluxer_app/features/shell/presentation/mobile_shell_back_scope.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/shell/utils/shell_popup_navigation.dart';
+import 'package:fluxer_app/features/ui/badge/fluxer_badge.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:go_router/go_router.dart';
 
@@ -41,9 +42,6 @@ class MobileShellScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The route-state providers defer their update by a frame in some
-    // scheduler phases; watching one keeps this shell rebuilding, while the
-    // router's live configuration is authoritative for the current frame.
     final String deferredBranchLocation = ref.watch(
       activeBranchLocationProvider,
     );
@@ -63,22 +61,25 @@ class MobileShellScaffold extends ConsumerWidget {
       onBranchSelected: (int index) =>
           _selectMobileShellBranch(navigationShell, index),
     );
-    return switch (mode) {
-      ShellLayoutMode.channelDrawer => MobileChannelDrawerShell(
-        shellLocation: activeBranchLocation,
-        navigationShell: navigationShell,
-        bottomNav: bottomNav,
-      ),
-      ShellLayoutMode.mainTab => MobileMainTabShell(
-        navigationShell: shellContent,
-        bottomNav: bottomNav,
-      ),
-      ShellLayoutMode.homeUtility => MobileHomeUtilityShell(
-        shellLocation: activeBranchLocation,
-        navigationShell: shellContent,
-        bottomNav: bottomNav,
-      ),
-    };
+    return FluxerEntranceSettleScope(
+      key: ValueKey<ShellLayoutMode>(mode),
+      child: switch (mode) {
+        ShellLayoutMode.channelDrawer => MobileChannelDrawerShell(
+          shellLocation: activeBranchLocation,
+          navigationShell: navigationShell,
+          bottomNav: bottomNav,
+        ),
+        ShellLayoutMode.mainTab => MobileMainTabShell(
+          navigationShell: shellContent,
+          bottomNav: bottomNav,
+        ),
+        ShellLayoutMode.homeUtility => MobileHomeUtilityShell(
+          shellLocation: activeBranchLocation,
+          navigationShell: shellContent,
+          bottomNav: bottomNav,
+        ),
+      },
+    );
   }
 }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluxer_app/core/providers/local_day_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
@@ -31,8 +32,6 @@ const double _kSystemMessageIconOpacity = 0.6;
 const Duration _kSystemMessageLongPressDuration = Duration(milliseconds: 500);
 const double _kSystemMessageLongPressMoveTolerance = 18;
 
-/// Renders a system message with an icon aligned to the avatar column,
-/// message text, and an inline timestamp at the end of the text.
 class SystemMessage extends ConsumerWidget {
   final Message message;
   final String? guildId;
@@ -152,6 +151,7 @@ class SystemMessage extends ConsumerWidget {
       FluxerLocalizations.of(context),
       Localizations.localeOf(context).toString(),
       use12Hour: ref.watch(use12HourTimeFormatProvider),
+      now: ref.watch(localDayProvider),
     );
     final TextStyle timestampStyle = context.textStyles.timestamp.copyWith(
       color: context.colors.textTertiaryMuted,

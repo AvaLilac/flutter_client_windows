@@ -1,21 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
+import 'package:fluxer_app/core/api/retry_interceptor.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
 import 'package:fluxer_app/core/talker.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'guild_user_settings_repository.g.dart';
 
-/// Debounce window for coalescing per-guild channel override PATCH requests
 const Duration kGuildUserSettingsPatchDebounce = Duration(seconds: 3);
+const Duration kGuildUserSettingsPatchRetryBaseDelay = Duration(seconds: 2);
+const Duration _kPatchRetryMaxDelay = Duration(seconds: 60);
 
 @Riverpod(keepAlive: true)
 GuildUserSettingsRepository guildUserSettingsRepository(Ref ref) {
@@ -47,10 +49,23 @@ class GuildUserSettingsRepository {
   GuildUserSettingsRepository(
     this._ref, {
     this._patchDebounce = kGuildUserSettingsPatchDebounce,
-  });
+    this._patchRetryBaseDelay = kGuildUserSettingsPatchRetryBaseDelay,
+  }) {
+    _ref.listen<String?>(fluxerAuthTokenProvider, (
+      String? previous,
+      String? next,
+    ) {
+      if (previous != next) {
+        _cancelPatchRetries();
+      }
+    });
+  }
 
   final Ref _ref;
   final Duration _patchDebounce;
+  final Duration _patchRetryBaseDelay;
+  final Map<String, int> _patchRetryAttempts = <String, int>{};
+  final Random _random = Random();
   final Map<String, Future<void>> _guildWriteChains = <String, Future<void>>{};
   final Map<String, Timer> _patchTimers = <String, Timer>{};
 
@@ -73,6 +88,13 @@ class GuildUserSettingsRepository {
       timer.cancel();
     }
     _patchTimers.clear();
+  }
+
+  void _cancelPatchRetries() {
+    for (final String guildId in _patchRetryAttempts.keys) {
+      _cancelPatchTimer(guildId);
+    }
+    _patchRetryAttempts.clear();
   }
 
   Future<void> flushPendingPatches({String? guildId}) async {
@@ -249,9 +271,9 @@ class GuildUserSettingsRepository {
     _patchTimers.remove(guildId);
   }
 
-  void _scheduleChannelOverridesPatch(String guildId) {
+  void _scheduleChannelOverridesPatch(String guildId, {Duration? delay}) {
     _patchTimers[guildId]?.cancel();
-    _patchTimers[guildId] = Timer(_patchDebounce, () {
+    _patchTimers[guildId] = Timer(delay ?? _patchDebounce, () {
       _patchTimers.remove(guildId);
       unawaited(
         _runSerialized<void>(guildId, () async {
@@ -323,14 +345,15 @@ class GuildUserSettingsRepository {
     required Map<String, ChannelOverrides> channelOverrides,
     bool rethrowOnFailure = false,
   }) async {
+    final String? sessionToken = _ref.read(fluxerAuthTokenProvider);
     try {
       final FluxerClient client = _ref.read(fluxerClientProvider);
       final FluxerDatabase db = _ref.read(fluxerDatabaseProvider);
       final UserGuildSettingsUpdateRequest body =
           UserGuildSettingsUpdateRequest(
-            channelOverrides: channelOverrides.isEmpty
-                ? const JsonNullable.undefined()
-                : JsonNullable.of(channelOverrides),
+            channelOverrides: JsonNullable.of(
+              channelOverrides.isEmpty ? null : channelOverrides,
+            ),
           );
       final UserGuildSettingsResponse response;
       if (guildId == '@me') {
@@ -341,32 +364,48 @@ class GuildUserSettingsRepository {
           body: body,
         );
       }
-      final Map<String, ChannelOverrides>? persistedOverrides =
-          _mergePersistedChannelOverrides(
-            requested: channelOverrides,
-            response: response.channelOverrides,
-          );
-      final Map<String, dynamic> persistedData = response.toJson()
-        ..['channel_overrides'] = persistedOverrides?.map(
-          (String key, ChannelOverrides value) =>
-              MapEntry<String, dynamic>(key, value.toJson()),
-        );
       await db.userGuildSettingsDao.upsert(
         UserGuildSettingsTableCompanion(
           guildId: Value(_storageGuildId(response.guildId, guildId)),
-          data: Value(jsonEncode(persistedData)),
+          data: Value(jsonEncode(response.toJson())),
         ),
       );
+      _patchRetryAttempts.remove(guildId);
     } on Object catch (error, stackTrace) {
-      talker.error(
-        '[GuildUserSettingsRepository] Failed to sync channel overrides to server',
-        error,
-        stackTrace,
-      );
+      final bool transient = isTransientNetworkError(error);
+      if (transient) {
+        talker.warning(
+          '[GuildUserSettingsRepository] Channel overrides sync failed, '
+          'will retry: $error',
+        );
+      } else {
+        talker.error(
+          '[GuildUserSettingsRepository] Failed to sync channel overrides to server',
+          error,
+          stackTrace,
+        );
+      }
       if (rethrowOnFailure) {
         rethrow;
       }
+      if (transient && _ref.read(fluxerAuthTokenProvider) == sessionToken) {
+        _scheduleChannelOverridesPatchRetry(guildId);
+      }
     }
+  }
+
+  void _scheduleChannelOverridesPatchRetry(String guildId) {
+    final int attempt = (_patchRetryAttempts[guildId] ?? 0) + 1;
+    _patchRetryAttempts[guildId] = attempt;
+    _scheduleChannelOverridesPatch(
+      guildId,
+      delay: jitteredBackoff(
+        attempt: attempt,
+        base: _patchRetryBaseDelay,
+        cap: _kPatchRetryMaxDelay,
+        random: _random,
+      ),
+    );
   }
 
   String _storageGuildId(String? responseGuildId, String requestGuildId) {
@@ -377,9 +416,6 @@ class GuildUserSettingsRepository {
   }
 
   Map<String, dynamic> _defaultUserGuildSettingsData(String guildId) {
-    final bool hideMutedChannels = _ref
-        .read(userSettingsViewModelProvider)
-        .defaultHideMutedChannels;
     return UserGuildSettingsResponse(
       guildId: guildId == '@me' ? null : guildId,
       messageNotifications: guildId == '@me'
@@ -390,26 +426,11 @@ class GuildUserSettingsRepository {
       mobilePush: true,
       suppressEveryone: false,
       suppressRoles: false,
-      hideMutedChannels: hideMutedChannels,
+      hideMutedChannels: false,
       channelOverrides: null,
       version: -1,
     ).toJson();
   }
-}
-
-Map<String, ChannelOverrides>? _mergePersistedChannelOverrides({
-  required Map<String, ChannelOverrides> requested,
-  required Map<String, ChannelOverrides>? response,
-}) {
-  if (requested.isEmpty && (response == null || response.isEmpty)) {
-    return null;
-  }
-  final Map<String, ChannelOverrides> merged =
-      Map<String, ChannelOverrides>.from(requested);
-  if (response != null) {
-    merged.addAll(response);
-  }
-  return merged;
 }
 
 ChannelOverrides _mergeChannelOverride({

@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Spróbuj ponownie",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Połączono",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Szukaj KLIPY",
+    "gifPickerSearchKlipy": "Szukaj Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Szukaj Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Ulubione",
     "@gifPickerFavorites": {
@@ -2590,10 +2590,6 @@
     "dangerZoneDeleteDescription": "Trwale usuń swoje konto i wszystkie powiązane dane. Tej operacji nie można cofnąć.",
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
-    },
-    "dangerZoneDeleteCancelSubscription": "Anuluj swoją aktywną subskrypcję Plutonium w ustawieniach Plutonium przed usunięciem konta.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
     },
     "dangerZoneDeleteCannotDeleteAccount": "Nie można usunąć konta",
     "@dangerZoneDeleteCannotDeleteAccount": {
@@ -5138,7 +5134,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Pokaż czat z {count, plural, one {# nieprzeczytaną wiadomością} other {# nieprzeczytanymi wiadomościami}}",
+    "voiceTextChatShowUnread": "Pokaż czat z {count, plural, one {{count} nieprzeczytaną wiadomością} other {{count} nieprzeczytanymi wiadomościami}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5351,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "Nie udało się wysłać wiadomości. Stuknij, aby zobaczyć opcje.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "Twoja wiadomość nie mogła zostać dostarczona. Zazwyczaj dzieje się tak, ponieważ nie dzielisz społeczności z odbiorcą lub odbiorca akceptuje wiadomości bezpośrednie tylko od znajomych. Może być również konieczne dostosowanie własnych ustawień prywatności wiadomości bezpośrednich w {settingsPath}.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5463,6 @@
     "forwardSuccessToast": "Wiadomość przesłana dalej",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Nie udało się przekazać wiadomości dalej",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Komentarze są niedostępne, ponieważ wybrany kanał ma włączony tryb wolny.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6126,19 +6122,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "TWOJE KONTO",
+    "userSettingsGroupYourAccount": "Twoje konto",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6690,13 +6686,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "NOWE",
+    "scrollIndicatorNew": "Nowe",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "NOWA WIADOMOŚĆ",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Nowe wiadomości",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Zwiń folder „{folderName}”",
     "@guildNavbarCollapseFolder": {
@@ -8119,7 +8115,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Usunięto # wiadomość.} other{Usunięto # wiadomości.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Usunięto {count} wiadomość.} other{Usunięto {count} wiadomości.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8124,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Usunięto # członka.} other{Usunięto # członków.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Usunięto {count} członka.} other{Usunięto {count} członków.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8281,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -11989,7 +11985,7 @@
             }
         }
     },
-    "embedGiftDurationWeeks": "{count, plural, =1{tydzień {productName}} other{# tygodni {productName}}}",
+    "embedGiftDurationWeeks": "{count, plural, =1{tydzień {productName}} other{{count} tygodni {productName}}}",
     "@embedGiftDurationWeeks": {
         "description": "Gift duration title in weeks.",
         "placeholders": {
@@ -12015,7 +12011,7 @@
             }
         }
     },
-    "embedGiftDurationYears": "{count, plural, =1{rok {productName}} other{# lat {productName}}}",
+    "embedGiftDurationYears": "{count, plural, =1{rok {productName}} other{{count} lat {productName}}}",
     "@embedGiftDurationYears": {
         "description": "Gift duration title in years.",
         "placeholders": {
@@ -12220,7 +12216,7 @@
     "@networkErrorMessage": {
         "description": "Generic message shown when a network request fails."
     },
-    "relativeTimeWeeks": "{count, plural, =1{1 tydzień temu} other{# tygodni temu}}",
+    "relativeTimeWeeks": "{count, plural, =1{1 tydzień temu} other{{count} tygodni temu}}",
     "@relativeTimeWeeks": {
         "description": "Relative time in weeks.",
         "placeholders": {
@@ -12238,7 +12234,7 @@
             }
         }
     },
-    "relativeTimeInHours": "{count, plural, =1{za godzinę} other{za # godzin}}",
+    "relativeTimeInHours": "{count, plural, =1{za godzinę} other{za {count} godzin}}",
     "@relativeTimeInHours": {
         "description": "Relative time in future hours.",
         "placeholders": {
@@ -12256,7 +12252,7 @@
             }
         }
     },
-    "relativeTimeInWeeks": "{count, plural, =1{za tydzień} other{za # tygodni}}",
+    "relativeTimeInWeeks": "{count, plural, =1{za tydzień} other{za {count} tygodni}}",
     "@relativeTimeInWeeks": {
         "description": "Relative time in future weeks.",
         "placeholders": {
@@ -12265,7 +12261,7 @@
             }
         }
     },
-    "relativeTimeInMonths": "{count, plural, =1{za 1 miesiąc} other{za # miesięcy}}",
+    "relativeTimeInMonths": "{count, plural, =1{za 1 miesiąc} other{za {count} miesięcy}}",
     "@relativeTimeInMonths": {
         "description": "Relative time in future months.",
         "placeholders": {
@@ -12274,7 +12270,7 @@
             }
         }
     },
-    "relativeTimeInYears": "{count, plural, =1{za rok} other{za # lat}}",
+    "relativeTimeInYears": "{count, plural, =1{za rok} other{za {count} lat}}",
     "@relativeTimeInYears": {
         "description": "Relative time in future years.",
         "placeholders": {
@@ -13711,7 +13707,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Wszystkie oprócz {count, plural, one {# społeczności} few {# społeczności} many {# społeczności} other {# społeczności}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Wszystkie oprócz {count, plural, one {{count} społeczności} few {{count} społeczności} many {{count} społeczności} other {{count} społeczności}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13720,7 +13716,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Tylko {count, plural, one {# społeczność} few {# społeczności} many {# społeczności} other {# społeczności}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Tylko {count, plural, one {{count} społeczność} few {{count} społeczności} many {{count} społeczności} other {{count} społeczności}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13749,7 +13745,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# godzina} few {# godziny} many {# godzin} other {# godzin}} i {minutes, plural, one {# minuta} few {# minuty} many {# minut} other {# minut}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} godzina} few {{hours} godziny} many {{hours} godzin} other {{hours} godzin}} i {minutes, plural, one {{minutes} minuta} few {{minutes} minuty} many {{minutes} minut} other {{minutes} minut}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13761,7 +13757,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# godzina} few {# godziny} many {# godzin} other {# godziny}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} godzina} few {{hours} godziny} many {{hours} godzin} other {{hours} godziny}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13770,7 +13766,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# minuta} few {# minuty} many {# minut} other {# minuty}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} minuta} few {{minutes} minuty} many {{minutes} minut} other {{minutes} minuty}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13779,7 +13775,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# sekunda} few {# sekundy} many {# sekund} other {# sekundy}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} sekunda} few {{seconds} sekundy} many {{seconds} sekund} other {{seconds} sekundy}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14485,7 +14481,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -16513,5 +16509,96 @@
     },
     "channelUnsupportedTitle": "Nieobsługiwany typ kanału",
     "channelUnsupportedBody": "Ta wersja aplikacji nie obsługuje tego typu kanału.",
-    "channelDetailsUnsupportedChannel": "Nieobsługiwany kanał"
+    "channelDetailsUnsupportedChannel": "Nieobsługiwany kanał",
+    "forumPostNewBadge": "Nowe",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} nowa wiadomość} other {{count} nowe wiadomości}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Nowe",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} nowa} few {{unreadCount} nowe} many {{unreadCount} nowych} other {{unreadCount} nowej}} od {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ nowych od {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} nowa wiadomość} few {{unreadCount} nowe wiadomości} many {{unreadCount} nowych wiadomości} other {{unreadCount} nowych wiadomości}} od {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ nowych wiadomości od {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Oznacz jako przeczytane",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Oznacz jako przeczytane",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Przejdź do pierwszej nieprzeczytanej wiadomości",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Wyświetlasz starsze wiadomości",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Przejdź do najnowszych",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Zmień nazwę kategorii",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

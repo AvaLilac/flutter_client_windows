@@ -315,9 +315,6 @@ class UserSettingsViewState {
 
   bool get hasTotpMfa => authenticatorTypes.contains(0);
 
-  bool get hasActiveSubscription =>
-      premiumType == UserPremiumTypes.subscription.json && !premiumWillCancel;
-
   bool get trustAllDomains =>
       external_link_utils.trustAllDomains(trustedDomains);
 
@@ -921,10 +918,6 @@ class UserSettingsViewModel extends _$UserSettingsViewModel {
 
   void _watchUser(String userId) {
     final db = ref.read(fluxerDatabaseProvider);
-    // Project to only the fields this view state consumes, then dedupe: a
-    // presence-only write (status/customStatus) re-emits the user row but
-    // yields an equal record, so `.distinct()` filters it out and avoids a
-    // needless `state=` notification storm on every PRESENCE_UPDATE.
     final subscription = db.userDao
         .watchUserById(userId)
         .map(
@@ -1027,6 +1020,7 @@ class UserSettingsViewModel extends _$UserSettingsViewModel {
         UsersCompanion(
           id: Value(profile.id),
           username: Value(profile.username),
+          mentionFlags: Value(profile.mentionFlags?.json),
           bio: Value(profile.bio),
           pronouns: Value(profile.pronouns),
           accentColor: Value(profile.accentColor),

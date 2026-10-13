@@ -20,6 +20,7 @@ class AttachmentListRenderer extends StatelessWidget {
     this.messageId,
     this.spoilerSyncScope,
     this.messageNonce,
+    this.messageSendFailed = false,
     this.channelId,
     this.messageFlags = 0,
     this.mediaActionScope,
@@ -35,6 +36,7 @@ class AttachmentListRenderer extends StatelessWidget {
   final String? messageId;
   final String? spoilerSyncScope;
   final String? messageNonce;
+  final bool messageSendFailed;
   final String? channelId;
   final int messageFlags;
   final MessageMediaActionScope? mediaActionScope;
@@ -48,7 +50,7 @@ class AttachmentListRenderer extends StatelessWidget {
         .where(
           (Attachment attachment) =>
               inlineAttachmentMedia &&
-              attachment.isPreviewMedia &&
+              attachment.isInlineMedia &&
               attachmentHasLoadableUrl(attachment),
         )
         .toList();
@@ -59,7 +61,7 @@ class AttachmentListRenderer extends StatelessWidget {
     for (final Attachment attachment in attachments) {
       final bool isMediaAttachment =
           inlineAttachmentMedia &&
-          attachment.isPreviewMedia &&
+          attachment.isInlineMedia &&
           attachmentHasLoadableUrl(attachment);
       if (shouldRenderMediaGrid && isMediaAttachment) {
         if (!hasRenderedGrid) {
@@ -99,6 +101,7 @@ class AttachmentListRenderer extends StatelessWidget {
               : 0,
           messageId: messageId,
           messageNonce: messageNonce,
+          messageSendFailed: messageSendFailed,
           channelId: channelId,
           messageFlags: messageFlags,
           mediaActionScope: mediaActionScope,

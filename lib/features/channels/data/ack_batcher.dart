@@ -1,5 +1,10 @@
 import 'dart:async';
+import 'dart:math';
 
+import 'package:clock/clock.dart';
+import 'package:dio/dio.dart';
+import 'package:fluxer_app/core/api/dio_error_message.dart';
+import 'package:fluxer_app/core/api/retry_interceptor.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_dart/export.dart';
 
@@ -25,19 +30,19 @@ class AckBatcher {
     this.batchSize = kAckBatchSize,
     this.retryBaseDelay = kAckRetryBaseDelay,
     this.retryMaxDelay = kAckRetryMaxDelay,
-  }) {
+    Random? random,
+  }) : _random = random ?? Random() {
     _queueBatchDelay = batchDelay;
   }
 
   final FluxerClient _client;
 
-  /// Applies the authoritative read states the server returns for a flushed
-  /// ack batch (ack id + mention count + version), keeping local state in sync.
   final Future<void> Function(ReadStateAckResponse response)? onResponse;
   final Duration batchDelay;
   final int batchSize;
   final Duration retryBaseDelay;
   final Duration retryMaxDelay;
+  final Random _random;
 
   final Map<String, _PendingAck> _pending = {};
   Timer? _flushTimer;
@@ -50,7 +55,7 @@ class AckBatcher {
     if (_disposed || _pending.isEmpty) {
       return;
     }
-    final DateTime now = DateTime.now();
+    final DateTime now = clock.now();
     final DateTime cap = now.add(_queueBatchDelay);
     for (final _PendingAck entry in _pending.values) {
       if (entry.deadline.isAfter(cap)) {
@@ -69,7 +74,7 @@ class AckBatcher {
     if (_disposed) {
       return;
     }
-    final now = DateTime.now();
+    final now = clock.now();
     final deadline = (immediate || hadMentions)
         ? now
         : now.add(_queueBatchDelay);
@@ -86,6 +91,12 @@ class AckBatcher {
       }
     }
     _rescheduleTimer();
+  }
+
+  void clear() {
+    _pending.clear();
+    _flushTimer?.cancel();
+    _flushTimer = null;
   }
 
   void cancel(String channelId) {
@@ -124,7 +135,7 @@ class AckBatcher {
       try {
         await flushPending(force: true);
       } on Object catch (e, s) {
-        talker.error('[AckBatcher] dispose flush failed', e, s);
+        _logFailure('dispose flush failed', e, s);
       }
     }
   }
@@ -135,7 +146,7 @@ class AckBatcher {
       _flushTimer = null;
       return;
     }
-    final now = DateTime.now();
+    final now = clock.now();
     DateTime? nextDeadline;
     for (final entry in _pending.values) {
       if (nextDeadline == null || entry.deadline.isBefore(nextDeadline)) {
@@ -155,7 +166,7 @@ class AckBatcher {
   }
 
   Future<void> _drainDueEntries({required bool force}) async {
-    final now = DateTime.now();
+    final now = clock.now();
     final hasDue =
         force || _pending.values.any((e) => !e.deadline.isAfter(now));
     if (!hasDue) {
@@ -184,40 +195,65 @@ class AckBatcher {
       );
       try {
         final response = await _client.readStates.ackReadStates(body: body);
-        for (final entry in chunk) {
-          final current = _pending[entry.key];
-          if (current != null && current.messageId == entry.value.messageId) {
-            _pending.remove(entry.key);
-          }
-        }
+        _removeSent(chunk);
         final onResponse = this.onResponse;
         if (onResponse != null) {
           await onResponse(response);
         }
       } on Object catch (e, s) {
-        talker.error('[AckBatcher] bulk ack chunk failed', e, s);
+        _logFailure('bulk ack chunk failed', e, s);
+        if (_isRejected(e)) {
+          _removeSent(chunk);
+          continue;
+        }
+        final int retryAfterMs = e is DioException
+            ? retryAfterMsFromDioException(e) ?? 0
+            : 0;
         for (final entry in chunk) {
           final current = _pending[entry.key];
           if (current == null) {
             continue;
           }
-          current
-            ..attempt += 1
-            ..deadline = DateTime.now().add(_retryDelay(current.attempt));
+          current.attempt += 1;
+          final Duration backoff = _retryDelay(current.attempt);
+          current.deadline = clock.now().add(
+            Duration(milliseconds: max(backoff.inMilliseconds, retryAfterMs)),
+          );
         }
       }
     }
     _rescheduleTimer();
   }
 
-  Duration _retryDelay(int attempt) {
-    var ms = retryBaseDelay.inMilliseconds;
-    for (var i = 1; i < attempt; i++) {
-      ms *= 2;
-      if (ms >= retryMaxDelay.inMilliseconds) {
-        return retryMaxDelay;
+  void _removeSent(List<MapEntry<String, _PendingAck>> chunk) {
+    for (final entry in chunk) {
+      final current = _pending[entry.key];
+      if (current != null && current.messageId == entry.value.messageId) {
+        _pending.remove(entry.key);
       }
     }
-    return Duration(milliseconds: ms);
+  }
+
+  bool _isRejected(Object error) {
+    if (error is! DioException) {
+      return false;
+    }
+    final int? status = error.response?.statusCode;
+    return status != null && status >= 400 && status < 500 && status != 429;
+  }
+
+  Duration _retryDelay(int attempt) => jitteredBackoff(
+    attempt: attempt,
+    base: retryBaseDelay,
+    cap: retryMaxDelay,
+    random: _random,
+  );
+
+  void _logFailure(String message, Object error, StackTrace stackTrace) {
+    if (isTransientNetworkError(error)) {
+      talker.warning('[AckBatcher] $message, will retry: $error');
+      return;
+    }
+    talker.error('[AckBatcher] $message', error, stackTrace);
   }
 }

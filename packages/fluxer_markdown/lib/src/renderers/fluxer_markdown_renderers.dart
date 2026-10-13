@@ -19,6 +19,7 @@ import 'package:fluxer_markdown/src/utils/markup_spacing.dart';
 import 'package:fluxer_markdown/src/utils/masked_link_guards.dart';
 import 'package:fluxer_markdown/src/utils/monospace_text_style.dart';
 import 'package:fluxer_markdown/src/widgets/emoji_asset_image.dart';
+import 'package:fluxer_markdown/src/widgets/emoji_frame_boundary.dart';
 import 'package:fluxer_markdown/src/widgets/fluxer_live_timestamp.dart';
 import 'package:fluxer_markdown/src/widgets/fluxer_markdown_link_registry.dart';
 import 'package:fluxer_markdown/src/widgets/system_emoji_fallback.dart';
@@ -246,8 +247,6 @@ Widget wrapFluxerMarkdownSelectable({
   return SelectionArea(contextMenuBuilder: menuBuilder, child: body);
 }
 
-/// Renders a pre-parsed AST and hosts inline spoiler reveal state itself
-/// because the text-flow path never runs for provided ASTs.
 Widget buildFluxerMarkdownProvidedAst({
   required BuildContext context,
   required List<md.Node> nodes,
@@ -317,10 +316,8 @@ void appendTrailingInlineWidget(
   spans
     ..add(TextSpan(text: ' ', style: baseStyle))
     ..add(
-      WidgetSpan(
-        alignment: PlaceholderAlignment.baseline,
-        baseline: TextBaseline.alphabetic,
-        child: trailingInlineWidget,
+      FluxerLineBoundedWidgetSpan(
+        child: MediaQuery.withNoTextScaling(child: trailingInlineWidget),
       ),
     );
 }
@@ -551,7 +548,12 @@ class _MarkdownBlockRenderer {
         return [
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
-            child: _buildBlockSpoilerElement(node),
+            child: MediaQuery.withNoTextScaling(
+              child: _buildBlockSpoilerElement(
+                node,
+                textScaler: TextScaler.noScaling,
+              ),
+            ),
           ),
         ];
       default:
@@ -653,8 +655,11 @@ class _MarkdownBlockRenderer {
     TextAlign? textAlign,
     Widget? trailingInlineWidget,
     String emptySpanPlaceholder = '\n',
+    TextScaler? textScaler,
   }) {
     final effectiveStyle = style ?? baseStyle;
+    final TextScaler effectiveTextScaler =
+        textScaler ?? MediaQuery.textScalerOf(context);
     final spans = _MarkdownInlineRenderer(
       context: context,
       baseStyle: effectiveStyle,
@@ -675,7 +680,7 @@ class _MarkdownBlockRenderer {
         text: TextSpan(text: emptySpanPlaceholder, style: effectiveStyle),
         baseStyle: effectiveStyle,
         textAlign: textAlign ?? TextAlign.start,
-        textScaler: MediaQuery.textScalerOf(context),
+        textScaler: effectiveTextScaler,
         maxLines: maxLines,
         overflow: overflow,
         textWidthBasis: maxLines != null
@@ -691,7 +696,7 @@ class _MarkdownBlockRenderer {
       text: TextSpan(style: effectiveStyle, children: spans),
       baseStyle: effectiveStyle,
       textAlign: textAlign ?? TextAlign.start,
-      textScaler: MediaQuery.textScalerOf(context),
+      textScaler: effectiveTextScaler,
       maxLines: maxLines,
       overflow: overflow,
       textWidthBasis: maxLines != null || trailingInlineWidget != null
@@ -746,13 +751,13 @@ class _MarkdownBlockRenderer {
     return _buildParagraph(node.children ?? const [], style: subtextStyle);
   }
 
-  Widget _buildBlockSpoilerElement(md.Element node) {
+  Widget _buildBlockSpoilerElement(md.Element node, {TextScaler? textScaler}) {
     return _FluxerSpoilerSpan(
       initiallyRevealed: config.spoilersInitiallyRevealed,
       textColor: baseStyle.color,
       spoilerSyncController: config.spoilerSyncController,
       syncKeys: _collectSpoilerSyncKeys(node, config.spoilerSyncKeyNormalizer),
-      child: _buildParagraph(node.children ?? const []),
+      child: _buildParagraph(node.children ?? const [], textScaler: textScaler),
     );
   }
 
@@ -1328,15 +1333,17 @@ class _MarkdownInlineRenderer {
           return WidgetSpan(
             alignment: PlaceholderAlignment.baseline,
             baseline: TextBaseline.alphabetic,
-            child: FluxerLiveTimestamp(
-              format: () =>
-                  _formatTimestampText(
-                    node,
-                    localeName: localeName,
-                    formatter: formatter,
-                  ) ??
-                  '',
-              style: timestampStyle,
+            child: MediaQuery.withNoTextScaling(
+              child: FluxerLiveTimestamp(
+                format: () =>
+                    _formatTimestampText(
+                      node,
+                      localeName: localeName,
+                      formatter: formatter,
+                    ) ??
+                    '',
+                style: timestampStyle,
+              ),
             ),
           );
         }
@@ -1358,20 +1365,21 @@ class _MarkdownInlineRenderer {
           ),
           effectiveStyle: effectiveStyle,
         );
-      // Jumbo only changes size; emoji always render as images (issue #655).
       case FluxerMarkdownElementTags.emojiUnicode:
       case FluxerMarkdownElementTags.emojiCustom:
         return WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: FluxerEmojiWidget(
-            element: node,
-            baseStyle: effectiveStyle,
-            unicodeEmojiUrlBuilder: config.unicodeEmojiUrlBuilder,
-            customEmojiUrlBuilder: config.customEmojiUrlBuilder,
-            animateCustomEmoji: config.animateCustomEmoji,
-            onEmojiLongPress: config.onEmojiLongPress,
-            jumbo: jumbo,
-            fitToLineHeight: features.isRestrictedInlinePreview,
+          child: MediaQuery.withNoTextScaling(
+            child: FluxerEmojiWidget(
+              element: node,
+              baseStyle: effectiveStyle,
+              unicodeEmojiUrlBuilder: config.unicodeEmojiUrlBuilder,
+              customEmojiUrlBuilder: config.customEmojiUrlBuilder,
+              animateCustomEmoji: config.animateCustomEmoji,
+              onEmojiLongPress: config.onEmojiLongPress,
+              jumbo: jumbo,
+              fitToLineHeight: features.isRestrictedInlinePreview,
+            ),
           ),
         );
       default:
@@ -1399,8 +1407,9 @@ class _MarkdownInlineRenderer {
       final widget = config.linkWidgetBuilder?.call(context, href, style);
       if (widget != null) {
         return WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: widget,
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: MediaQuery.withNoTextScaling(child: widget),
         );
       }
     }
@@ -1462,7 +1471,11 @@ class _MarkdownInlineRenderer {
     final href = element.attributes['href'] ?? element.textContent;
     final widget = config.linkWidgetBuilder?.call(context, href, style);
     if (widget != null) {
-      return WidgetSpan(alignment: PlaceholderAlignment.middle, child: widget);
+      return WidgetSpan(
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        child: MediaQuery.withNoTextScaling(child: widget),
+      );
     }
     return _buildLink(element, style);
   }
@@ -1474,9 +1487,10 @@ class _MarkdownInlineRenderer {
     required FluxerMentionBuilder? builder,
   }) {
     if (builder != null) {
-      return WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: builder(context, element.textContent, style),
+      return FluxerLineBoundedWidgetSpan(
+        child: MediaQuery.withNoTextScaling(
+          child: builder(context, element.textContent, style),
+        ),
       );
     }
 
@@ -1488,12 +1502,13 @@ class _MarkdownInlineRenderer {
 
   InlineSpan _buildEveryoneMention(md.Element element, TextStyle style) {
     if (config.everyoneMentionBuilder != null) {
-      return WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: config.everyoneMentionBuilder!(
-          context,
-          element.textContent,
-          style,
+      return FluxerLineBoundedWidgetSpan(
+        child: MediaQuery.withNoTextScaling(
+          child: config.everyoneMentionBuilder!(
+            context,
+            element.textContent,
+            style,
+          ),
         ),
       );
     }
@@ -1508,13 +1523,14 @@ class _MarkdownInlineRenderer {
     final String command = element.textContent;
     final String? applicationId = element.attributes['id'];
     if (config.commandMentionBuilder != null && applicationId != null) {
-      return WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: config.commandMentionBuilder!(
-          context,
-          command,
-          applicationId,
-          style,
+      return FluxerLineBoundedWidgetSpan(
+        child: MediaQuery.withNoTextScaling(
+          child: config.commandMentionBuilder!(
+            context,
+            command,
+            applicationId,
+            style,
+          ),
         ),
       );
     }
@@ -1533,13 +1549,14 @@ class _MarkdownInlineRenderer {
     );
     final String? navigationId = element.attributes['nav-id'];
     if (config.guildNavigationMentionBuilder != null && navType != null) {
-      return WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: config.guildNavigationMentionBuilder!(
-          context,
-          navType,
-          navigationId,
-          style,
+      return FluxerLineBoundedWidgetSpan(
+        child: MediaQuery.withNoTextScaling(
+          child: config.guildNavigationMentionBuilder!(
+            context,
+            navType,
+            navigationId,
+            style,
+          ),
         ),
       );
     }
@@ -1581,17 +1598,19 @@ class _MarkdownInlineRenderer {
       return WidgetSpan(
         alignment: PlaceholderAlignment.baseline,
         baseline: TextBaseline.alphabetic,
-        child: _FluxerSpoilerSpan(
-          initiallyRevealed: config.spoilersInitiallyRevealed,
-          textColor: effectiveStyle.color,
-          spoilerSyncController: config.spoilerSyncController,
-          syncKeys: syncKeys,
-          child: buildFluxerBoundedRichText(
-            text: TextSpan(style: effectiveStyle, children: spoilerChildren),
-            baseStyle: effectiveStyle,
-            textScaler: MediaQuery.textScalerOf(context),
-            maxLines: maxLines,
-            overflow: overflow,
+        child: MediaQuery.withNoTextScaling(
+          child: _FluxerSpoilerSpan(
+            initiallyRevealed: config.spoilersInitiallyRevealed,
+            textColor: effectiveStyle.color,
+            spoilerSyncController: config.spoilerSyncController,
+            syncKeys: syncKeys,
+            child: buildFluxerBoundedRichText(
+              text: TextSpan(style: effectiveStyle, children: spoilerChildren),
+              baseStyle: effectiveStyle,
+              textScaler: TextScaler.noScaling,
+              maxLines: maxLines,
+              overflow: overflow,
+            ),
           ),
         ),
       );
@@ -2579,24 +2598,22 @@ class FluxerEmojiWidget extends StatelessWidget {
       px: px,
       errorChild: Text(':$name:'),
     );
-    return SizedBox(
-      width: size,
-      height: size,
-      // The text fallback clips inside this box, so a failed animated frame
-      // retries the static frame first (issue #776).
-      child: animated
-          ? _allowImageFrameAnimation(
-              context,
-              _buildCustomImage(
-                id: id,
-                animated: true,
-                cdnSize: cdnSize,
-                size: size,
-                px: px,
-                errorChild: staticImage,
-              ),
-            )
-          : staticImage,
+    if (!animated) {
+      return SizedBox(width: size, height: size, child: staticImage);
+    }
+    return FluxerEmojiFrameBoundary(
+      size: size,
+      child: _allowImageFrameAnimation(
+        context,
+        _buildCustomImage(
+          id: id,
+          animated: true,
+          cdnSize: cdnSize,
+          size: size,
+          px: px,
+          errorChild: staticImage,
+        ),
+      ),
     );
   }
 
@@ -2617,9 +2634,6 @@ class FluxerEmojiWidget extends StatelessWidget {
       cacheKey: 'emoji_${id}_${animated ? 'a2' : 's'}_$cdnSize',
       width: size,
       height: size,
-      // Cap one decode axis only. Capping both forces ResizeImagePolicy.exact,
-      // which stretches non-square emoji into a square (issue #445).
-      // Skip resize on animated frames; ResizeImage lags multi-frame decode.
       memCacheWidth: animated ? null : px,
       fadeInDuration: Duration.zero,
       fadeOutDuration: Duration.zero,

@@ -6,14 +6,14 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/limits/instance_limit_provider.dart';
 import 'package:fluxer_app/core/limits/limit_key.dart';
-import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_color_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/expression_picker_chrome.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/plutonium_upsell_banner.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_message_permissions_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/emoji_picker_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/expression_picker_preferences_provider.dart';
-import 'package:fluxer_app/features/chat/utils/composer/emoji_picker_display_categories.dart';
+import 'package:fluxer_app/features/chat/providers/pickers/expression_usage_provider.dart';
 import 'package:fluxer_app/features/chat/utils/composer/emoji_picker_layout_index.dart';
 import 'package:fluxer_app/features/chat/utils/composer/emoji_picker_precache.dart';
 import 'package:fluxer_app/features/chat/utils/composer/emoji_picker_rendering_policy.dart';
@@ -22,6 +22,7 @@ import 'package:fluxer_app/features/emoji/domain/emoji_info_data.dart';
 import 'package:fluxer_app/features/emoji/presentation/sheets/emoji_info_bottom_sheet.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/providers/organized_guild_list_provider.dart';
+import 'package:fluxer_app/features/ui/avatar/fluxer_guild_acronym.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
@@ -32,12 +33,9 @@ import 'package:fluxer_app/shared/utils/emoji_sprite_sheet.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const _kGridColumns = 9;
-const _kMobileGridColumns = 8;
-// 32 logical is a 1:1 blit of the 64px @2x cell at DPR 2 and matches the web picker.
+const _kMobileGridColumns = 9;
 const _kUnicodeEmojiSize = 32.0;
 const _kCustomEmojiSize = 40.0;
-const _kCellSize = 48.0;
-const double _kMobileCategoryBarHeight = 44;
 const int _kCustomEmojiRequestSize = kCustomEmojiPickerFetchSize;
 
 const Map<String, IconData> _kCategoryIcons = {
@@ -75,22 +73,18 @@ class EmojiPickerContent extends ConsumerStatefulWidget {
     this.isMobile = false,
     this.channelId,
     this.scrollController,
-    this.trackUsageOnSelect = true,
+    this.onBackspace,
     super.key,
   });
 
   final OnEmojiSelect? onSelect;
+  final VoidCallback? onBackspace;
   final ValueChanged<String?>? onHoveredEmojiChanged;
   final String searchQuery;
   final String skinTone;
   final bool isMobile;
   final String? channelId;
   final ScrollController? scrollController;
-
-  /// Whether selecting an emoji records it in the local frecency store.
-  /// Disabled when the picker drives reactions, since those are tracked
-  /// centrally in `ChatViewModel.toggleReaction` to avoid double-counting.
-  final bool trackUsageOnSelect;
 
   @override
   ConsumerState<EmojiPickerContent> createState() => _EmojiPickerContentState();
@@ -177,31 +171,36 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
   final Set<String> _prefetchedAheadIds = <String>{};
   String? _lastEnsuredCategoryKey;
 
-  List<Guild>? _cachedGuilds;
-  String? _cachedActiveGuildId;
-  bool? _cachedIsPremium;
-  bool? _cachedCanUseExternalEmojis;
-  List<GuildEmojiEntry>? _cachedAllGuildEmojis;
-  Map<Guild, List<GuildEmojiEntry>>? _cachedGroupedEmojis;
-  List<String>? _cachedFavoriteKeys;
-  Map<Guild, List<GuildEmojiEntry>>? _cachedFavoriteGuildEmojisByGuild;
-  List<_FavoriteEmojiItem>? _cachedFavoriteItems;
-  List<GuildNavbarItem>? _cachedOrganizedItems;
-  String? _cachedPickerGuildsActiveId;
-  List<Guild>? _cachedPickerGuilds;
-  List<String>? _cachedRankedUsageKeys;
-  Map<Guild, List<GuildEmojiEntry>>? _cachedFrecentSource;
-  List<FrecentEmojiItem>? _cachedFrecent;
-  Map<String, List<EmojiEntry>>? _cachedFrecentUnicode;
-  Map<String, List<EmojiEntry>>? _cachedFavoriteUnicode;
-  List<_FavoriteEmojiItem>? _cachedLayoutFavorites;
-  List<FrecentEmojiItem>? _cachedLayoutFrecent;
-  Map<Guild, List<GuildEmojiEntry>>? _cachedLayoutGuildEmojis;
-  List<String>? _cachedLayoutCollapsed;
-  Map<String, List<EmojiEntry>>? _cachedLayoutUnicode;
-  int? _cachedLayoutColumns;
-  bool? _cachedLayoutIncludeUpsell;
-  EmojiPickerLayoutIndex? _cachedLayoutIndex;
+  static List<Guild>? _cachedGuilds;
+  static String? _cachedActiveGuildId;
+  static bool? _cachedIsPremium;
+  static bool? _cachedCanUseExternalEmojis;
+  static List<GuildEmojiEntry>? _cachedAllGuildEmojis;
+  static Map<Guild, List<GuildEmojiEntry>>? _cachedGroupedEmojis;
+  static List<String>? _cachedFavoriteKeys;
+  static Map<Guild, List<GuildEmojiEntry>>? _cachedFavoriteGuildEmojisByGuild;
+  static List<_FavoriteEmojiItem>? _cachedFavoriteItems;
+  static List<GuildNavbarItem>? _cachedOrganizedItems;
+  static String? _cachedPickerGuildsActiveId;
+  static List<Guild>? _cachedPickerGuilds;
+  static List<String>? _cachedRankedUsageKeys;
+  List<String>? _pinnedRanking;
+  static List<String>? _cachedCollapsedSource;
+  static Map<Guild, List<GuildEmojiEntry>>? _cachedCollapsedGuilds;
+  static List<String>? _cachedCollapsedSectionKeys;
+  static Map<Guild, List<GuildEmojiEntry>>? _cachedFrecentSource;
+  static List<FrecentEmojiItem>? _cachedFrecent;
+  static Map<String, List<EmojiEntry>>? _cachedFrecentUnicode;
+  static Map<String, List<EmojiEntry>>? _cachedFavoriteUnicode;
+  static List<_FavoriteEmojiItem>? _cachedLayoutFavorites;
+  static List<FrecentEmojiItem>? _cachedLayoutFrecent;
+  static Map<Guild, List<GuildEmojiEntry>>? _cachedLayoutGuildEmojis;
+  static List<String>? _cachedLayoutCollapsed;
+  static Map<String, List<EmojiEntry>>? _cachedLayoutUnicode;
+  static int? _cachedLayoutColumns;
+  static EmojiPickerGridMetrics? _cachedLayoutMetrics;
+  static bool? _cachedLayoutIncludeUpsell;
+  static EmojiPickerLayoutIndex? _cachedLayoutIndex;
 
   late final int _upsellPreviewSeed;
 
@@ -259,6 +258,21 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
   }
 
   int get _columns => widget.isMobile ? _kMobileGridColumns : _kGridColumns;
+
+  EmojiPickerGridMetrics get _metrics => widget.isMobile
+      ? EmojiPickerGridMetrics.mobile
+      : EmojiPickerGridMetrics.standard;
+
+  double get _rowHeight => _metrics.rowHeight;
+
+  double get _unicodeEmojiSize =>
+      widget.isMobile ? kEmojiPickerMobileUnicodeSize : _kUnicodeEmojiSize;
+
+  double get _customEmojiSize =>
+      widget.isMobile ? kEmojiPickerMobileCustomSize : _kCustomEmojiSize;
+
+  double get _gridHorizontalPadding =>
+      widget.isMobile ? kEmojiPickerMobileHorizontalPadding : 8;
 
   void _setHoveredEmoji(String? name, {GuildEmojiEntry? customEmoji}) {
     _hoverState.value = _HoverState(name: name, customEmoji: customEmoji);
@@ -332,7 +346,6 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     required List<String> rankedUsageKeys,
     required Map<Guild, List<GuildEmojiEntry>> guildEmojisByGuild,
   }) {
-    // Registry identity doubles as the preload token for unicode keys.
     final unicodeCategories = EmojiRegistry.categories;
     final cached = _cachedFrecent;
     if (cached != null &&
@@ -365,31 +378,61 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     return emoji.surrogates;
   }
 
+  void _trackEmojiUsage(String key) {
+    unawaited(
+      ref
+          .read(expressionUsageProvider(ExpressionUsageKind.emoji).notifier)
+          .track(key),
+    );
+  }
+
   void _onEmojiSelected(EmojiEntry emoji) {
     final surrogates = _displaySurrogatesFor(emoji);
-    if (widget.trackUsageOnSelect) {
-      unawaited(
-        ref
-            .read(fluxerDatabaseProvider)
-            .emojiUsageDao
-            .trackUsage('unicode:${emoji.primaryName}'),
-      );
-      ref.invalidate(rankedEmojiUsageKeysProvider);
-    }
+    _trackEmojiUsage(unicodeEmojiFavoriteKey(emoji));
     widget.onSelect?.call(emoji.primaryName, surrogates);
   }
 
   void _onCustomEmojiSelected(GuildEmojiEntry emoji) {
-    if (widget.trackUsageOnSelect) {
-      unawaited(
-        ref
-            .read(fluxerDatabaseProvider)
-            .emojiUsageDao
-            .trackUsage('custom:${emoji.guildId}:${emoji.id}'),
-      );
-      ref.invalidate(rankedEmojiUsageKeysProvider);
-    }
+    _trackEmojiUsage(emoji.favoriteKey);
     widget.onSelect?.call(emoji.name, emoji.markdown);
+  }
+
+  List<String> _pinnedRankedUsageKeys({required bool watch}) {
+    final List<String>? pinned = _pinnedRanking;
+    if (pinned != null) {
+      return pinned;
+    }
+    final AsyncValue<List<String>> ranking = watch
+        ? ref.watch(rankedEmojiUsageKeysProvider)
+        : ref.read(rankedEmojiUsageKeysProvider);
+    final List<String>? value = ranking.value;
+    if (value == null) {
+      return const <String>[];
+    }
+    return _pinnedRanking = value;
+  }
+
+  List<String> _collapsedSectionKeys(
+    List<String> collapsed,
+    Map<Guild, List<GuildEmojiEntry>> guildEmojisByGuild,
+  ) {
+    final cached = _cachedCollapsedSectionKeys;
+    if (cached != null &&
+        identical(_cachedCollapsedSource, collapsed) &&
+        identical(_cachedCollapsedGuilds, guildEmojisByGuild)) {
+      return cached;
+    }
+    final Set<String> guildIds = {
+      for (final Guild guild in guildEmojisByGuild.keys) guild.id,
+    };
+    final List<String> keys = [
+      for (final String id in collapsed)
+        if (guildIds.contains(id)) 'guild-$id' else id,
+    ];
+    _cachedCollapsedSource = collapsed;
+    _cachedCollapsedGuilds = guildEmojisByGuild;
+    _cachedCollapsedSectionKeys = keys;
+    return keys;
   }
 
   void _showUnicodeEmojiActions(EmojiEntry emoji) {
@@ -427,9 +470,6 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
         ref.watch(allGuildEmojisForPickerProvider).value ?? const [];
     final favoriteKeys =
         ref.watch(favoriteEmojiKeysProvider).value ?? const <String>[];
-    final collapsedCategories =
-        ref.watch(collapsedEmojiPickerCategoriesProvider).value ??
-        const <String>[];
     final guildEmojisByGuild = _groupedEmojisFor(
       guilds: guilds,
       activeGuildId: activeGuildId,
@@ -437,8 +477,14 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
       canUseExternalEmojis: canUseExternalEmojis,
       allGuildEmojis: allGuildEmojis,
     );
-    final rankedUsageKeys =
-        ref.watch(rankedEmojiUsageKeysProvider).value ?? const <String>[];
+    final collapsedCategories = widget.isMobile
+        ? const <String>[]
+        : _collapsedSectionKeys(
+            ref.watch(collapsedEmojiPickerCategoriesProvider).value ??
+                const <String>[],
+            guildEmojisByGuild,
+          );
+    final rankedUsageKeys = _pinnedRankedUsageKeys(watch: true);
     final frecent = _frecentFor(
       rankedUsageKeys: rankedUsageKeys,
       guildEmojisByGuild: guildEmojisByGuild,
@@ -469,37 +515,6 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     ).canUseExternalEmojis;
   }
 
-  Map<Guild, List<GuildEmojiEntry>> _readGuildEmojisByGuild() {
-    final activeGuildId = resolveGuildIdForChannel(ref, widget.channelId);
-    final guilds = _guildsFor(
-      organized: ref.read(organizedGuildListProvider),
-      activeGuildId: activeGuildId,
-    );
-    final bool hasGlobalExpressions = ref.read(
-      instanceFeatureEnabledProvider(LimitKeys.featureGlobalExpressions),
-    );
-    final canUseExternalEmojis = _readCanUseExternalEmojis();
-    final emojis = ref.read(allGuildEmojisForPickerProvider).value ?? const [];
-    return _groupedEmojisFor(
-      guilds: guilds,
-      activeGuildId: activeGuildId,
-      isPremium: hasGlobalExpressions,
-      canUseExternalEmojis: canUseExternalEmojis,
-      allGuildEmojis: emojis,
-    );
-  }
-
-  bool _readCanUseExternalEmojis() {
-    final channelId = widget.channelId;
-    if (channelId == null || channelId.isEmpty) {
-      return true;
-    }
-    return readChannelMessagePermissionsForComposer(
-      ref,
-      channelId,
-    ).canUseExternalEmojis;
-  }
-
   List<_FavoriteEmojiItem> _favoriteEmojiItems(
     List<String> favoriteKeys,
     Map<Guild, List<GuildEmojiEntry>> guildEmojisByGuild,
@@ -520,27 +535,17 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
       _cachedFavoriteItems = const <_FavoriteEmojiItem>[];
       return const <_FavoriteEmojiItem>[];
     }
-    final customByKey = <String, GuildEmojiEntry>{};
-    for (final emoji in guildEmojisByGuild.values.expand((entry) => entry)) {
-      customByKey[emoji.favoriteKey] = emoji;
-    }
-
-    final items = <_FavoriteEmojiItem>[];
-    for (final key in favoriteKeys) {
-      if (key.startsWith('unicode:')) {
-        final emoji = EmojiRegistry.entryByName(
-          key.substring('unicode:'.length),
-        );
-        if (emoji != null) {
-          items.add(_FavoriteUnicodeEmojiItem(emoji));
-        }
-        continue;
-      }
-      final customEmoji = customByKey[key];
-      if (customEmoji != null) {
-        items.add(_FavoriteCustomEmojiItem(customEmoji));
-      }
-    }
+    final Set<String> favorites = favoriteKeys.toSet();
+    final items = <_FavoriteEmojiItem>[
+      for (final EmojiEntry emoji in EmojiRegistry.allEmojis)
+        if (favorites.contains(unicodeEmojiFavoriteKey(emoji)))
+          _FavoriteUnicodeEmojiItem(emoji),
+      for (final GuildEmojiEntry emoji in guildEmojisByGuild.values.expand(
+        (entry) => entry,
+      ))
+        if (favorites.contains(emoji.favoriteKey))
+          _FavoriteCustomEmojiItem(emoji),
+    ];
     _cachedFavoriteKeys = favoriteKeys;
     _cachedFavoriteGuildEmojisByGuild = guildEmojisByGuild;
     _cachedFavoriteItems = items;
@@ -599,6 +604,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
         identical(_cachedLayoutGuildEmojis, data.guildEmojisByGuild) &&
         identical(_cachedLayoutCollapsed, data.collapsedCategories) &&
         _cachedLayoutColumns == _columns &&
+        identical(_cachedLayoutMetrics, _metrics) &&
         _cachedLayoutIncludeUpsell == includeUpsell) {
       return cached;
     }
@@ -610,6 +616,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
       collapsedCategories: data.collapsedCategories,
       columns: _columns,
       includeUpsell: includeUpsell,
+      metrics: _metrics,
     );
     _cachedLayoutUnicode = unicodeCategories;
     _cachedLayoutFavorites = data.favoriteItems;
@@ -617,6 +624,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     _cachedLayoutGuildEmojis = data.guildEmojisByGuild;
     _cachedLayoutCollapsed = data.collapsedCategories;
     _cachedLayoutColumns = _columns;
+    _cachedLayoutMetrics = _metrics;
     _cachedLayoutIncludeUpsell = includeUpsell;
     _cachedLayoutIndex = index;
     return index;
@@ -669,6 +677,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     final int maxAnimated = emojiPickerMaxAnimatedEmojis(
       columns: _columns,
       viewportHeight: _viewportHeight,
+      cellSize: _rowHeight,
     );
     final Set<String> animatedIds = _searchCustomResults != null
         ? animatedCustomEmojiIdsForSearchGrid(
@@ -678,6 +687,8 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
             viewportHeight: _viewportHeight,
             maxAnimated: maxAnimated,
             scrollSettled: scrollSettled,
+            verticalPadding: widget.isMobile ? 12 : 4,
+            rowHeight: _rowHeight,
           )
         : _layoutIndex?.animatedCustomEmojiIds(
                 scrollOffset: scrollOffset,
@@ -755,117 +766,21 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     if (!_scrollController.hasClients) {
       return;
     }
-
-    final ctx = _categoryKeys[category]?.currentContext;
-    if (ctx != null) {
-      Scrollable.ensureVisible(
-        ctx,
-        duration: context.motion.panel,
-        curve: Curves.easeOut,
-      );
+    final double? top = _layoutIndex?.headerTop(category);
+    if (top == null) {
       return;
     }
-
-    final approxOffset = _approximateOffsetForCategory(category);
-    final clamped = approxOffset.clamp(
-      0.0,
-      _scrollController.position.maxScrollExtent,
-    );
-
-    unawaited(
-      _scrollController
-          .animateTo(
-            clamped,
-            duration: context.motion.panel,
-            curve: Curves.easeOut,
-          )
-          .then((_) => _refineScrollToCategory(category)),
-    );
-  }
-
-  void _refineScrollToCategory(String category) {
-    if (!mounted) {
+    final ScrollPosition position = _scrollController.position;
+    final double target = top.clamp(0.0, position.maxScrollExtent);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _scrollController.jumpTo(target);
       return;
     }
-    final settled = _categoryKeys[category]?.currentContext;
-    if (settled == null) {
-      return;
-    }
-    Scrollable.ensureVisible(
-      settled,
-      duration: context.motion.fast,
+    _scrollController.animateTo(
+      target,
+      duration: context.motion.panel,
       curve: Curves.easeOut,
     );
-  }
-
-  double _approximateOffsetForCategory(String category) {
-    if (category == 'favorites') {
-      return 0;
-    }
-
-    final categories = emojiPickerDisplayCategories(EmojiRegistry.categories);
-    final collapsedCategories =
-        ref.read(collapsedEmojiPickerCategoriesProvider).value ??
-        const <String>[];
-    final guildEmojisByGuild = _readGuildEmojisByGuild();
-    final frecent = _frecentFor(
-      rankedUsageKeys:
-          ref.read(rankedEmojiUsageKeysProvider).value ?? const <String>[],
-      guildEmojisByGuild: guildEmojisByGuild,
-    );
-    final favoriteItems = _favoriteEmojiItems(
-      ref.read(favoriteEmojiKeysProvider).value ?? const <String>[],
-      guildEmojisByGuild,
-    );
-
-    double offset = 0;
-
-    if (favoriteItems.isNotEmpty) {
-      offset += 26;
-      if (!collapsedCategories.contains('favorites')) {
-        offset += (favoriteItems.length / _columns).ceil() * _kCellSize;
-      }
-      offset += 12;
-    }
-
-    if (category == 'frequently-used') {
-      return offset;
-    }
-
-    if (frecent.isNotEmpty) {
-      offset += 26;
-      if (!collapsedCategories.contains('frequently-used')) {
-        offset += (frecent.length / _columns).ceil() * _kCellSize;
-      }
-      offset += 12;
-    }
-
-    for (final entry in guildEmojisByGuild.entries) {
-      final guildKey = 'guild-${entry.key.id}';
-      if (category == guildKey) {
-        return offset;
-      }
-      offset += 12 + 26;
-      if (!collapsedCategories.contains(guildKey)) {
-        offset += (entry.value.length / _columns).ceil() * _kCellSize;
-      }
-    }
-
-    for (final cat in kEmojiCategoryOrder) {
-      if (cat == category) {
-        break;
-      }
-      final emojis = categories[cat];
-      if (emojis == null || emojis.isEmpty) {
-        continue;
-      }
-      offset += 12 + 26;
-      if (!collapsedCategories.contains(cat)) {
-        offset += (emojis.length / _columns).ceil() * _kCellSize;
-      }
-    }
-
-    return offset;
   }
 
   @override
@@ -993,15 +908,20 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
         return GridView.builder(
           scrollCacheExtent: ScrollCacheExtent.pixels(
             _isFirstFrameSettled
-                ? emojiPickerCacheExtent(rowHeight: _kCellSize)
+                ? emojiPickerCacheExtent(rowHeight: _rowHeight)
                 : 0,
           ),
           controller: _scrollController,
           addAutomaticKeepAlives: false,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: EdgeInsets.fromLTRB(
+            _gridHorizontalPadding,
+            widget.isMobile ? 12 : 4,
+            _gridHorizontalPadding,
+            4,
+          ),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: _columns,
-            mainAxisExtent: _kCellSize,
+            mainAxisExtent: _rowHeight,
           ),
           itemCount: totalCount,
           itemBuilder: (context, i) {
@@ -1042,13 +962,13 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
         return CustomScrollView(
           scrollCacheExtent: ScrollCacheExtent.pixels(
             _isFirstFrameSettled
-                ? emojiPickerCacheExtent(rowHeight: _kCellSize)
+                ? emojiPickerCacheExtent(rowHeight: _rowHeight)
                 : 0,
           ),
           controller: _scrollController,
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: EdgeInsets.symmetric(horizontal: _gridHorizontalPadding),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (BuildContext context, int index) => _buildLayoutEntry(
@@ -1077,9 +997,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     required bool shouldBuildUpsell,
   }) {
     return switch (entry) {
-      EmojiPickerTopPaddingEntry() => const SizedBox(
-        height: kEmojiPickerTopPadding,
-      ),
+      EmojiPickerTopPaddingEntry(:final height) => SizedBox(height: height),
       EmojiPickerUpsellEntry() =>
         shouldBuildUpsell
             ? Padding(
@@ -1087,21 +1005,26 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
                 child: _buildUpsellBanner(context, data),
               )
             : const SizedBox.shrink(),
-      EmojiPickerSectionGapEntry() => const SizedBox(
-        height: kEmojiPickerSectionGap,
-      ),
-      EmojiPickerSectionHeaderEntry(:final categoryKey) => KeyedSubtree(
-        key: _keyForCategory(categoryKey),
-        child: _buildCategoryHeader(
-          categoryKey,
-          colors,
-          data.collapsedCategories,
-          labelOverride: _headerLabelOverride(categoryKey, data),
-          guild: _headerGuild(categoryKey, data),
+      EmojiPickerSectionGapEntry(:final height) => SizedBox(height: height),
+      EmojiPickerSectionHeaderEntry(:final categoryKey, :final height) =>
+        KeyedSubtree(
+          key: _keyForCategory(categoryKey),
+          child: widget.isMobile
+              ? _buildMobileCategoryHeader(
+                  categoryKey,
+                  height: height,
+                  labelOverride: _headerLabelOverride(categoryKey, data),
+                )
+              : _buildCategoryHeader(
+                  categoryKey,
+                  colors,
+                  data.collapsedCategories,
+                  labelOverride: _headerLabelOverride(categoryKey, data),
+                  guild: _headerGuild(categoryKey, data),
+                ),
         ),
-      ),
-      EmojiPickerCustomEmojiRowEntry(:final emojis) => SizedBox(
-        height: kEmojiPickerCellSize,
+      EmojiPickerCustomEmojiRowEntry(:final emojis, :final height) => SizedBox(
+        height: height,
         child: Row(
           children: [
             for (final GuildEmojiEntry emoji in emojis)
@@ -1111,8 +1034,8 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
           ],
         ),
       ),
-      EmojiPickerUnicodeEmojiRowEntry(:final emojis) => SizedBox(
-        height: kEmojiPickerCellSize,
+      EmojiPickerUnicodeEmojiRowEntry(:final emojis, :final height) => SizedBox(
+        height: height,
         child: Row(
           children: [
             for (final EmojiEntry emoji in emojis)
@@ -1122,8 +1045,8 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
           ],
         ),
       ),
-      EmojiPickerFavoriteEmojiRowEntry(:final items) => SizedBox(
-        height: kEmojiPickerCellSize,
+      EmojiPickerFavoriteEmojiRowEntry(:final items, :final height) => SizedBox(
+        height: height,
         child: Row(
           children: [
             for (final EmojiPickerFavoriteRowItem item in items)
@@ -1133,8 +1056,8 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
           ],
         ),
       ),
-      EmojiPickerFrecentEmojiRowEntry(:final items) => SizedBox(
-        height: kEmojiPickerCellSize,
+      EmojiPickerFrecentEmojiRowEntry(:final items, :final height) => SizedBox(
+        height: height,
         child: Row(
           children: [
             for (final FrecentEmojiItem item in items)
@@ -1197,6 +1120,29 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     };
   }
 
+  String _sectionLabel(String category, {String? labelOverride}) {
+    final l10n = FluxerLocalizations.of(context);
+    return labelOverride ??
+        switch (category) {
+          'favorites' => 'Favorites',
+          'frequently-used' => l10n.emojiFrequentlyUsed,
+          _ => _categoryLabel(category, l10n),
+        };
+  }
+
+  Widget _buildMobileCategoryHeader(
+    String category, {
+    required double height,
+    String? labelOverride,
+  }) {
+    return ExpressionSectionHeader(
+      label: _sectionLabel(category, labelOverride: labelOverride),
+      height: height,
+      textTop: 9,
+      horizontalInset: 5.5,
+    );
+  }
+
   Widget _buildCategoryHeader(
     String category,
     FluxerColorTheme colors,
@@ -1204,15 +1150,8 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     String? labelOverride,
     Guild? guild,
   }) {
-    final l10n = FluxerLocalizations.of(context);
     final isCollapsed = collapsedCategories.contains(category);
-    final label =
-        labelOverride ??
-        switch (category) {
-          'favorites' => 'Favorites',
-          'frequently-used' => l10n.emojiFrequentlyUsed,
-          _ => _categoryLabel(category, l10n),
-        };
+    final label = _sectionLabel(category, labelOverride: labelOverride);
     final leadingIcon = guild != null
         ? _GuildIcon(guild: guild, size: 16)
         : category == 'favorites'
@@ -1279,17 +1218,16 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
         ? SpriteEmoji(
             index: emoji.spriteIndex,
             diversityIndex: emoji.diversityIndex,
-            size: _kUnicodeEmojiSize,
+            size: _unicodeEmojiSize,
             skinTone: widget.skinTone,
           )
-        : SpriteEmoji(index: emoji.spriteIndex, size: _kUnicodeEmojiSize);
+        : SpriteEmoji(index: emoji.spriteIndex, size: _unicodeEmojiSize);
 
     if (!usesHover) {
       return _PressableEmojiCell(
         semanticLabel: emoji.primaryName,
         onTap: () => _onEmojiSelected(emoji),
         onLongPress: () => _showUnicodeEmojiActions(emoji),
-        usePressFeedback: !widget.isMobile,
         child: Center(child: sprite),
       );
     }
@@ -1333,14 +1271,14 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
       animated: widget.isMobile && emoji.animated,
       isInView: widget.isMobile && emoji.animated ? animate : null,
       requestSize: _kCustomEmojiRequestSize,
-      size: _kCustomEmojiSize,
+      size: _customEmojiSize,
       errorBuilder: (ctx) => SizedBox(
-        width: _kCustomEmojiSize,
-        height: _kCustomEmojiSize,
+        width: _customEmojiSize,
+        height: _customEmojiSize,
         child: Center(
           child: PhosphorIcon(
             PhosphorIconsBold.imageBroken,
-            size: _kCustomEmojiSize * 0.55,
+            size: _customEmojiSize * 0.55,
             color: colors.textTertiary,
           ),
         ),
@@ -1369,7 +1307,6 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
         semanticLabel: emoji.name,
         onTap: () => _onCustomEmojiSelected(emoji),
         onLongPress: () => _showCustomEmojiActions(emoji),
-        usePressFeedback: !widget.isMobile,
         child: Center(child: image),
       );
     }
@@ -1420,7 +1357,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
         listenable: _visibilityNotifier,
         builder: (BuildContext context, Widget? _) {
           final String? activeCategory =
-              EmojiPickerVisibilityScope.activeCategory(context);
+              _visibilityNotifier.value.activeCategoryKey;
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
@@ -1474,63 +1411,69 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     _EmojiPickerData data,
   ) {
     final l10n = FluxerLocalizations.of(context);
+    final VoidCallback? onBackspace = widget.onBackspace;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: colors.backgroundModifierAccent)),
-      ),
-      child: SizedBox(
-        height: _kMobileCategoryBarHeight,
-        child: ListenableBuilder(
-          listenable: _visibilityNotifier,
-          builder: (BuildContext context, Widget? _) {
-            final String? activeCategory =
-                EmojiPickerVisibilityScope.activeCategory(context);
-            return ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              children: [
-                if (data.favoriteItems.isNotEmpty)
-                  _CategoryButton(
-                    key: _keyForCategoryButton('favorites'),
-                    icon: PhosphorIconsFill.star,
-                    tooltip: 'Favorites',
-                    isActive: activeCategory == 'favorites',
-                    onTap: () => _scrollToCategory('favorites'),
+    return ExpressionRail(
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: ListenableBuilder(
+              listenable: _visibilityNotifier,
+              builder: (BuildContext context, Widget? _) {
+                final String? activeCategory =
+                    _visibilityNotifier.value.activeCategoryKey;
+                return ListView(
+                  scrollDirection: Axis.horizontal,
+                  itemExtent: kExpressionRailPitch,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: kExpressionRailSidePadding,
                   ),
-                if (data.frecent.isNotEmpty)
-                  _CategoryButton(
-                    key: _keyForCategoryButton('frequently-used'),
-                    icon: PhosphorIconsFill.clock,
-                    tooltip: l10n.emojiFrequentlyUsed,
-                    isActive: activeCategory == 'frequently-used',
-                    onTap: () => _scrollToCategory('frequently-used'),
-                  ),
-                ...data.guildEmojisByGuild.keys.map(
-                  (Guild guild) => _GuildCategoryButton(
-                    key: _keyForCategoryButton('guild-${guild.id}'),
-                    guild: guild,
-                    isActive: activeCategory == 'guild-${guild.id}',
-                    onTap: () => _scrollToCategory('guild-${guild.id}'),
-                  ),
-                ),
-                ...kEmojiCategoryOrder.map((String cat) {
-                  final IconData? icon = _kCategoryIcons[cat];
-                  if (icon == null) {
-                    return const SizedBox.shrink();
-                  }
-                  return _CategoryButton(
-                    key: _keyForCategoryButton(cat),
-                    icon: icon,
-                    tooltip: _categoryLabel(cat, l10n),
-                    isActive: activeCategory == cat,
-                    onTap: () => _scrollToCategory(cat),
-                  );
-                }),
-              ],
-            );
-          },
-        ),
+                  children: [
+                    if (data.favoriteItems.isNotEmpty)
+                      ExpressionRailButton(
+                        key: _keyForCategoryButton('favorites'),
+                        label: 'Favorites',
+                        icon: PhosphorIconsFill.star,
+                        isActive: activeCategory == 'favorites',
+                        onTap: () => _scrollToCategory('favorites'),
+                      ),
+                    if (data.frecent.isNotEmpty)
+                      ExpressionRailButton(
+                        key: _keyForCategoryButton('frequently-used'),
+                        label: l10n.emojiFrequentlyUsed,
+                        icon: PhosphorIconsFill.clock,
+                        isActive: activeCategory == 'frequently-used',
+                        onTap: () => _scrollToCategory('frequently-used'),
+                      ),
+                    ...data.guildEmojisByGuild.keys.map(
+                      (Guild guild) => ExpressionRailButton(
+                        key: _keyForCategoryButton('guild-${guild.id}'),
+                        label: guild.name,
+                        image: _GuildIcon(
+                          guild: guild,
+                          size: kExpressionRailGuildIconSize,
+                        ),
+                        isActive: activeCategory == 'guild-${guild.id}',
+                        onTap: () => _scrollToCategory('guild-${guild.id}'),
+                      ),
+                    ),
+                    for (final String cat in kEmojiCategoryOrder)
+                      if (_kCategoryIcons[cat] case final IconData icon)
+                        ExpressionRailButton(
+                          key: _keyForCategoryButton(cat),
+                          label: _categoryLabel(cat, l10n),
+                          icon: icon,
+                          isActive: activeCategory == cat,
+                          onTap: () => _scrollToCategory(cat),
+                        ),
+                  ],
+                );
+              },
+            ),
+          ),
+          if (onBackspace != null)
+            _MobileBackspaceButton(onPressed: onBackspace),
+        ],
       ),
     );
   }
@@ -1613,14 +1556,12 @@ class _PressableEmojiCell extends StatefulWidget {
     this.semanticLabel,
     this.onTap,
     this.onLongPress,
-    this.usePressFeedback = true,
   });
 
   final Widget child;
   final String? semanticLabel;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-  final bool usePressFeedback;
 
   @override
   State<_PressableEmojiCell> createState() => _PressableEmojiCellState();
@@ -1642,31 +1583,28 @@ class _PressableEmojiCellState extends State<_PressableEmojiCell> {
 
   void _handleTapCancel() => _setPressed(false);
 
+  void _handleLongPress() {
+    _setPressed(false);
+    widget.onLongPress?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
-    Widget cell;
-    if (!widget.usePressFeedback) {
-      cell = FluxerGestureDetector(
-        key: widget.key,
-        onTap: widget.onTap,
-        onLongPress: widget.onLongPress,
+    final Widget cell = FluxerGestureDetector(
+      key: widget.key,
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress == null ? null : _handleLongPress,
+      onTapDown: _handleTapDown,
+      onTapUp: _handleTapUp,
+      onTapCancel: _handleTapCancel,
+      child: AnimatedOpacity(
+        duration: _isPressed
+            ? Duration.zero
+            : const Duration(milliseconds: 120),
+        opacity: _isPressed ? 0.5 : 1,
         child: widget.child,
-      );
-    } else {
-      cell = FluxerGestureDetector(
-        key: widget.key,
-        onTap: widget.onTap,
-        onLongPress: widget.onLongPress,
-        onTapDown: _handleTapDown,
-        onTapUp: _handleTapUp,
-        onTapCancel: _handleTapCancel,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 120),
-          opacity: _isPressed ? 0.6 : 1,
-          child: widget.child,
-        ),
-      );
-    }
+      ),
+    );
     if (widget.semanticLabel == null) {
       return cell;
     }
@@ -1718,6 +1656,35 @@ class _CategoryButton extends StatelessWidget {
                       : colors.textPrimaryMuted,
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MobileBackspaceButton extends StatelessWidget {
+  const _MobileBackspaceButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: MaterialLocalizations.of(context).deleteButtonTooltip,
+      child: FluxerGestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: SizedBox(
+          width: 50,
+          height: kExpressionRailHeight,
+          child: Center(
+            child: PhosphorIcon(
+              PhosphorIconsFill.backspace,
+              size: kExpressionRailGlyphSize,
+              color: expressionRailIdleIconColor(context),
             ),
           ),
         ),
@@ -1827,13 +1794,7 @@ class _GuildInitial extends StatelessWidget {
       color: colors.backgroundSecondary,
       shape: BoxShape.circle,
     ),
-    alignment: Alignment.center,
-    child: Text(
-      name.isNotEmpty ? name[0].toUpperCase() : '?',
-      style: context.textStyles.smallText.copyWith(
-        fontSize: size <= 16 ? 8 : 11,
-        color: colors.textPrimaryMuted,
-      ),
-    ),
+    clipBehavior: Clip.antiAlias,
+    child: FluxerGuildAcronym(name: name, color: colors.textPrimaryMuted),
   );
 }

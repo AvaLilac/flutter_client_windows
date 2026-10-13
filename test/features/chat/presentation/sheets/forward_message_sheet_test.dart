@@ -19,11 +19,9 @@ import 'package:fluxer_app/core/theme/themes/dark.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/providers/channel_list_view_model.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
-import 'package:fluxer_app/features/chat/data/message_repository.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/forward_message_sheet.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/composer_autocomplete_field.dart';
-import 'package:fluxer_app/features/chat/providers/core/chat_providers.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/chat/providers/messages/forward_destinations_provider.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_length_limits_provider.dart';
@@ -45,10 +43,6 @@ import 'package:riverpod/src/framework.dart' show Override;
 
 import '../../../../helpers/open_test_database.dart';
 import '../../../../helpers/test_l10n.dart';
-
-// ---------------------------------------------------------------------------
-// Source media detection helpers (pure)
-// ---------------------------------------------------------------------------
 
 Message _message({
   String channelId = 'c1',
@@ -86,15 +80,9 @@ MessageSnapshot _snapshot({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Widget-test fixtures
-// ---------------------------------------------------------------------------
-
 const String _userId = 'user_1';
 const String _guildId = 'guild_1';
 
-/// Drives a dependency-triggered reload (not a refresh) of the overridden
-/// destinations provider in the no-flicker regression test.
 class _ReloadTrigger extends Notifier<int> {
   @override
   int build() => 0;
@@ -430,7 +418,6 @@ void main() {
         findsOneWidget,
       );
 
-      // Tapping again deselects.
       await tester.tap(find.text('general'));
       await tester.pump();
       expect(
@@ -511,9 +498,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('general'), findsOneWidget);
 
-      // A forward mutates channels/DMs that the provider watches, so it reloads
-      // while the recompute is still pending. The retained list must stay
-      // visible instead of flashing the loading spinner (web parity).
       source = () => reloadGate.future;
       ProviderScope.containerOf(
         tester.element(find.text('general')),
@@ -560,14 +544,42 @@ void main() {
       final FluxerDatabase db = await _seedDb();
       await _openSheet(tester, db);
 
-      // Below 80% of the 2000-char limit the counter stays hidden.
       expect(find.text('100'), findsNothing);
 
       await tester.enterText(find.byType(TextField).last, 'a' * 1900);
       await tester.pump();
 
-      // 1900/2000 leaves 100 remaining, now surfaced by the counter.
       expect(find.text('100'), findsOneWidget);
+    });
+  });
+
+  group('comment typing', () {
+    testWidgets('keeps typing when a hardware keyboard hides the soft one', (
+      WidgetTester tester,
+    ) async {
+      final FluxerDatabase db = await _seedDb();
+      await _openSheet(tester, db);
+      final Finder field = find.byType(TextField).last;
+      await tester.showKeyboard(field);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+
+      tester.view.viewInsets = FakeViewPadding.zero;
+      await tester.pumpAndSettle();
+      final EditableText editable = tester.widget<EditableText>(
+        find.descendant(of: field, matching: find.byType(EditableText)),
+      );
+      expect(editable.focusNode.hasFocus, isTrue);
+
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: 'abc',
+          selection: TextSelection.collapsed(offset: 3),
+        ),
+      );
+      await tester.pump();
+      expect(editable.controller.text, 'abc');
     });
   });
 
@@ -669,10 +681,8 @@ void main() {
       final FluxerDatabase db = await _seedDb();
       await _openSheet(tester, db);
 
-      // Issue 2: the comment affordance is not the anchored desktop popout.
       expect(find.byType(FluxerEmojiPickerPopout), findsNothing);
 
-      // Issue 1: the emoji button lives inside the comment input field.
       final Finder smiley = find.byWidgetPredicate(
         (Widget widget) =>
             widget is PhosphorIcon && widget.icon == PhosphorIconsFill.smiley,
@@ -689,11 +699,11 @@ void main() {
   });
 
   group('successful send', () {
-    testWidgets('pops the sheet before navigating to the destination', (
+    testWidgets('closes without waiting for the forward to be delivered', (
       WidgetTester tester,
     ) async {
       final FluxerDatabase db = await _seedDb();
-      final _FakeMessageRepository repository = _FakeMessageRepository();
+      final List<_ForwardCall> forwards = <_ForwardCall>[];
       final _RecordingRouter router = _RecordingRouter();
 
       await tester.pumpWidget(
@@ -701,10 +711,11 @@ void main() {
           db,
           _message(channelId: 'source-chan'),
           extraOverrides: <Override>[
-            messageRepositoryProvider.overrideWithValue(repository),
             fluxerRouterProvider.overrideWithValue(router),
             currentRevealSideProvider.overrideWith(_MainRevealSide.new),
-            chatViewModelProvider.overrideWith(_FakeChatViewModel.new),
+            chatViewModelProvider.overrideWith(
+              () => _FakeChatViewModel(forwards),
+            ),
             shouldShowMatureContentGateProvider(
               'general',
             ).overrideWith((ref) => false),
@@ -721,7 +732,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(repository.calls, 1);
+      expect(forwards, hasLength(1));
+      expect(forwards.single.sourceMessageId, 'm1');
+      expect(forwards.single.destinationChannelIds, <String>['general']);
+      expect(forwards.single.delivered.isCompleted, isFalse);
       expect(find.text(testL10n.forwardMessageTitle), findsNothing);
       expect(router.locations, <String>[
         RoutePaths.guildChannel(_guildId, 'general'),
@@ -730,21 +744,15 @@ void main() {
   });
 }
 
-class _FakeMessageRepository extends Fake implements MessageRepository {
-  int calls = 0;
+class _ForwardCall {
+  _ForwardCall({
+    required this.sourceMessageId,
+    required this.destinationChannelIds,
+  });
 
-  @override
-  Future<void> forwardMessage({
-    required String sourceChannelId,
-    required String sourceMessageId,
-    required List<String> destinationChannelIds,
-    String? sourceGuildId,
-    List<String>? attachmentIds,
-    List<int>? embedIndices,
-    String? comment,
-  }) async {
-    calls += 1;
-  }
+  final String sourceMessageId;
+  final List<String> destinationChannelIds;
+  final Completer<void> delivered = Completer<void>();
 }
 
 class _MainRevealSide extends CurrentRevealSide {
@@ -762,6 +770,10 @@ class _RecordingRouter extends Fake implements GoRouter {
 }
 
 class _FakeChatViewModel extends ChatViewModel {
+  _FakeChatViewModel([this.forwards = const <_ForwardCall>[]]);
+
+  final List<_ForwardCall> forwards;
+
   @override
   ChatViewState build() => const ChatViewState(
     channelId: 'source-chan',
@@ -786,4 +798,22 @@ class _FakeChatViewModel extends ChatViewModel {
     String? targetMessageId,
     bool loadMessages = true,
   }) async {}
+
+  @override
+  Future<void> forwardMessage({
+    required String sourceChannelId,
+    required String sourceMessageId,
+    required List<String> destinationChannelIds,
+    String? sourceGuildId,
+    List<String>? attachmentIds,
+    List<int>? embedIndices,
+    String? comment,
+  }) {
+    final _ForwardCall call = _ForwardCall(
+      sourceMessageId: sourceMessageId,
+      destinationChannelIds: destinationChannelIds,
+    );
+    forwards.add(call);
+    return call.delivered.future;
+  }
 }

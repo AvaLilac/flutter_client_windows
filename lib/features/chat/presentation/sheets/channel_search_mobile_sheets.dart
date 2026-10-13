@@ -3,6 +3,7 @@ import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/providers/channel_list_view_model.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/search/channel_search_option_card.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/picker_search_input.dart';
 import 'package:fluxer_app/features/chat/utils/search/channel_search_utils.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
@@ -112,7 +113,12 @@ class _ChannelSearchMoreFiltersSheetState
     return Padding(
       padding: FluxerBottomSheet.scrollViewPadding(
         context,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          FluxerBottomSheet.bottomGapOf(context),
+        ),
       ),
       child: Column(
         children: <Widget>[
@@ -356,15 +362,18 @@ class _ChannelSearchChannelFilterSheetState
     return Padding(
       padding: FluxerBottomSheet.scrollViewPadding(
         context,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          FluxerBottomSheet.bottomGapOf(context),
+        ),
       ),
       child: Column(
         children: <Widget>[
-          FluxerInput(
+          PickerSearchInput.inline(
             controller: _searchController,
-            hint: l10n.channelDetailsSearchChannelsHint,
-            prefixIcon: const PhosphorIcon(PhosphorIconsBold.magnifyingGlass),
-            textInputAction: TextInputAction.search,
+            hintText: l10n.channelDetailsSearchChannelsHint,
             autofocus: true,
           ),
           const SizedBox(height: 12),
@@ -427,8 +436,7 @@ class _ChannelFilterRow extends StatelessWidget {
     final accent = colors.brandPrimaryLight;
     final background = isSelected
         ? accent.withValues(alpha: 0.10)
-        : Colors.transparent;
-    final borderColor = isSelected ? accent : colors.borderColor;
+        : FluxerBottomSheet.cardColorOf(context);
 
     return Material(
       color: background,
@@ -436,11 +444,7 @@ class _ChannelFilterRow extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(12),
-          ),
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
@@ -464,7 +468,7 @@ class _ChannelFilterRow extends StatelessWidget {
               ),
               if (isSelected) ...[
                 const SizedBox(width: 12),
-                PhosphorIcon(PhosphorIconsBold.check, size: 20, color: accent),
+                const FluxerSelectedCheck(),
               ],
             ],
           ),

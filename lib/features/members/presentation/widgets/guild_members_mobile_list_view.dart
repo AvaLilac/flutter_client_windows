@@ -5,6 +5,7 @@ import 'package:fluxer_app/core/database/fluxer_database.dart' as drift_db;
 import 'package:fluxer_app/core/instance/instance_config_snapshot.dart';
 import 'package:fluxer_app/core/providers/active_instance_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/picker_search_input.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_providers.dart';
 import 'package:fluxer_app/features/members/domain/guild_members_search_models.dart';
 import 'package:fluxer_app/features/members/presentation/widgets/guild_member_search_row.dart';
@@ -16,7 +17,6 @@ import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_dart/export.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class GuildMembersMobileListView extends ConsumerStatefulWidget {
   const GuildMembersMobileListView({
@@ -118,15 +118,10 @@ class _GuildMembersMobileListViewState
                   ),
                 ],
                 const SizedBox(height: 12),
-                FluxerInput(
+                PickerSearchInput.inline(
                   controller: _searchController,
-                  hint: l10n.guildSettingsMembersSearchHint,
+                  hintText: l10n.guildSettingsMembersSearchHint,
                   enabled: !state.indexing,
-                  prefixIcon: PhosphorIcon(
-                    PhosphorIconsBold.magnifyingGlass,
-                    size: 20,
-                    color: context.colors.textSecondary,
-                  ),
                   onChanged: notifier.setSearchQuery,
                 ),
                 if (state.indexing) ...<Widget>[
@@ -154,11 +149,9 @@ class _GuildMembersMobileListViewState
           ),
         ),
         if (state.showProgress && state.members.isEmpty)
-          SliverFillRemaining(
+          const SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(
-              child: FluxerLoadingSpinner(color: context.colors.brandPrimary),
-            ),
+            child: Center(child: FluxerLoadingSpinner()),
           )
         else if (state.showError)
           SliverFillRemaining(
@@ -192,13 +185,9 @@ class _GuildMembersMobileListViewState
               (BuildContext context, int index) {
                 if (index >= state.members.length) {
                   return state.isLoadingMore
-                      ? Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Center(
-                            child: FluxerLoadingSpinner(
-                              color: context.colors.brandPrimary,
-                            ),
-                          ),
+                      ? const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(child: FluxerLoadingSpinner()),
                         )
                       : const SizedBox.shrink();
                 }
@@ -455,18 +444,16 @@ class _MobileFilterChips extends ConsumerWidget {
                 for (final JoinSourceType type in JoinSourceType.$valuesDefined)
                   FluxerBottomSheetMenuItem(
                     label: _joinSourceLabel(l10n, type),
-                    isSelected: filter.sourceTypes.contains(type),
+                    isSelected:
+                        filter.sourceTypes.length == 1 &&
+                        filter.sourceTypes.first == type,
                     onTap: () {
-                      final List<JoinSourceType> next =
-                          List<JoinSourceType>.from(filter.sourceTypes);
-                      if (next.contains(type)) {
-                        next.remove(type);
-                      } else {
-                        next.add(type);
-                      }
                       notifier.setJoinMethodFilter(
-                        filter.copyWith(sourceTypes: next),
+                        GuildMembersJoinMethodFilter(
+                          sourceTypes: <JoinSourceType>[type],
+                        ),
                       );
+                      close();
                     },
                   ),
               ],
@@ -484,7 +471,6 @@ class _MobileFilterChips extends ConsumerWidget {
     final GuildMembersSearch notifier = ref.read(
       guildMembersSearchProvider(guildId).notifier,
     );
-    final List<String> selected = state.roleFilter;
     final List<drift_db.Role> sorted = roles.values.toList()
       ..sort(
         (drift_db.Role a, drift_db.Role b) => b.position.compareTo(a.position),
@@ -500,33 +486,39 @@ class _MobileFilterChips extends ConsumerWidget {
             ScrollController scrollController,
             VoidCallback close,
           ) {
-            return _MembersFilterOptionsList(
-              sheetContext: sheetContext,
-              scrollController: scrollController,
-              children: <Widget>[
-                FluxerBottomSheetMenuItem(
-                  label: l10n.guildMembersClearAll,
-                  isSelected: selected.isEmpty,
-                  onTap: () {
-                    notifier.setRoleFilter(<String>[]);
-                    close();
-                  },
-                ),
-                for (final drift_db.Role role in sorted)
-                  FluxerBottomSheetMenuItem(
-                    label: role.name,
-                    isSelected: selected.contains(role.id),
-                    onTap: () {
-                      final List<String> next = List<String>.from(selected);
-                      if (next.contains(role.id)) {
-                        next.remove(role.id);
-                      } else {
-                        next.add(role.id);
-                      }
-                      notifier.setRoleFilter(next);
-                    },
-                  ),
-              ],
+            return Consumer(
+              builder: (BuildContext context, WidgetRef ref, Widget? child) {
+                final List<String> selected = ref.watch(
+                  guildMembersSearchProvider(
+                    guildId,
+                  ).select((GuildMembersSearchState s) => s.roleFilter),
+                );
+                return _MembersFilterOptionsList(
+                  sheetContext: sheetContext,
+                  scrollController: scrollController,
+                  children: <Widget>[
+                    FluxerBottomSheetMenuItem(
+                      label: l10n.guildMembersClearAll,
+                      enabled: selected.isNotEmpty,
+                      onTap: () => notifier.setRoleFilter(<String>[]),
+                    ),
+                    for (final drift_db.Role role in sorted)
+                      FluxerBottomSheetMenuItem(
+                        label: role.name,
+                        isSelected: selected.contains(role.id),
+                        onTap: () {
+                          final List<String> next = List<String>.from(selected);
+                          if (next.contains(role.id)) {
+                            next.remove(role.id);
+                          } else {
+                            next.add(role.id);
+                          }
+                          notifier.setRoleFilter(next);
+                        },
+                      ),
+                  ],
+                );
+              },
             );
           },
     );
@@ -570,12 +562,13 @@ class _MembersFilterOptionsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = sheetContext.layout;
     return ListView(
       controller: scrollController,
       padding: FluxerBottomSheet.scrollViewPadding(
         sheetContext,
-        padding: EdgeInsets.only(bottom: layout.s4),
+        padding: EdgeInsets.only(
+          bottom: FluxerBottomSheet.bottomGapOf(sheetContext),
+        ),
       ),
       children: <Widget>[
         FluxerBottomSheetSection(child: FluxerMenuGroup(children: children)),
@@ -600,8 +593,7 @@ class _MembersFilterPill extends StatelessWidget {
     final colors = context.colors;
     final background = isActive
         ? colors.brandPrimary
-        : colors.backgroundSecondaryAlt;
-    final borderColor = isActive ? colors.brandPrimary : colors.borderColor;
+        : FluxerBottomSheet.cardColorOf(context);
     final labelColor = isActive ? Colors.white : colors.textSecondary;
 
     final Widget chip = Material(
@@ -611,10 +603,6 @@ class _MembersFilterPill extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(20),
-          ),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           alignment: Alignment.center,
           child: Text(

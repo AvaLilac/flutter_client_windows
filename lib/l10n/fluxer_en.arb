@@ -4,6 +4,76 @@
     "@reconnectingTitle": {
         "description": "Title on the reconnecting / instance error screen."
     },
+    "chatJumpToPresent": "Jump to present",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "chatViewingOlderMessages": "You're viewing older messages",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Jump to first unread message",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatNewMessagesBarMarkAsRead": "Mark as read",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarMarkRead": "Mark read",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ new messages since {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} new message} other {{unreadCount} new messages}} since {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ new since {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} new} other {{unreadCount} new}} since {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
     "reconnectingBody": "Something is wrong with the instance.\nShould be fixed in a second!",
     "@reconnectingBody": {
         "description": "Subtitle on the reconnecting screen explaining a temporary instance outage."
@@ -11,6 +81,10 @@
     "gatewayReconnectingToast": "Reconnecting…",
     "@gatewayReconnectingToast": {
         "description": "Banner shown when the gateway connection is lost and reconnecting."
+    },
+    "gatewayReconnectTryAgain": "Try again",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
     },
     "gatewayConnectedToast": "Connected",
     "@gatewayConnectedToast": {
@@ -389,6 +463,10 @@
     "@next": {
         "description": "Generic next button label."
     },
+    "create": "Create",
+    "@create": {
+        "description": "Generic create action label in a full-screen form header."
+    },
     "mfaTitle": "Two-factor authentication",
     "@mfaTitle": {
         "description": "Title for the MFA challenge screen."
@@ -436,6 +514,15 @@
     "accountRemoveDescription": "This will remove the saved session for this account.",
     "@accountRemoveDescription": {
         "description": "Description for the remove account confirmation modal."
+    },
+    "accountSignOutTitle": "Sign out of {identifier}?",
+    "@accountSignOutTitle": {
+        "description": "Title of the confirmation before signing out of one saved account. The identifier is the account's username.",
+        "placeholders": {
+            "identifier": {
+                "type": "String"
+            }
+        }
     },
     "accountExpired": "Expired",
     "@accountExpired": {
@@ -1640,7 +1727,7 @@
     "@dmInviteSendFailed": {
         "description": "Toast shown when sending a community invite from the DM menu fails."
     },
-    "dmGroupMemberCount": "{count} Members",
+    "dmGroupMemberCount": "{count, plural, =1{1 Member} other{{count} Members}}",
     "@dmGroupMemberCount": {
         "description": "Member count label for group DMs.",
         "placeholders": {
@@ -2078,17 +2165,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Search KLIPY",
+    "gifPickerSearchKlipy": "Search Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Search Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Favorites",
     "@gifPickerFavorites": {
@@ -3143,10 +3226,6 @@
     "dangerZoneDeleteDescription": "Permanently delete your account and all associated data. This action cannot be undone.",
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
-    },
-    "dangerZoneDeleteCancelSubscription": "Cancel your active Plutonium subscription in Plutonium settings before deleting your account.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
     },
     "dangerZoneDeleteCannotDeleteAccount": "Cannot delete account",
     "@dangerZoneDeleteCannotDeleteAccount": {
@@ -7584,7 +7663,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Show chat with {count, plural, one {# unread message} other {# unread messages}}",
+    "voiceTextChatShowUnread": "Show chat with {count, plural, one {{count} unread message} other {{count} unread messages}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -7769,6 +7848,72 @@
     "@notificationsMessageUnavailable": {
         "description": "Shown when an inbox mention row has no backing message row."
     },
+    "notificationsMentionedYouIn": "{author} mentioned you in {place}:",
+    "@notificationsMentionedYouIn": {
+        "description": "Title of a Notifications row for a message that mentions the user. place is a server and channel or a group name.",
+        "placeholders": {
+            "author": {
+                "type": "String"
+            },
+            "place": {
+                "type": "String"
+            }
+        }
+    },
+    "notificationsRepliedToYouIn": "{author} replied to you in {place}:",
+    "@notificationsRepliedToYouIn": {
+        "description": "Title of a Notifications row for a reply that pings the user. place is a server and channel or a group name.",
+        "placeholders": {
+            "author": {
+                "type": "String"
+            },
+            "place": {
+                "type": "String"
+            }
+        }
+    },
+    "notificationsMentionedYou": "{author} mentioned you:",
+    "@notificationsMentionedYou": {
+        "description": "Title of a Notifications row for a mention inside a direct message.",
+        "placeholders": {
+            "author": {
+                "type": "String"
+            }
+        }
+    },
+    "notificationsRepliedToYou": "{author} replied to you:",
+    "@notificationsRepliedToYou": {
+        "description": "Title of a Notifications row for a reply that pings the user inside a direct message.",
+        "placeholders": {
+            "author": {
+                "type": "String"
+            }
+        }
+    },
+    "notificationsMentionPlace": "{server} – {channel}",
+    "@notificationsMentionPlace": {
+        "description": "Server and channel a notification came from, used inside the Notifications row title.",
+        "placeholders": {
+            "server": {
+                "type": "String"
+            },
+            "channel": {
+                "type": "String"
+            }
+        }
+    },
+    "notificationsSendReply": "Send a reply",
+    "@notificationsSendReply": {
+        "description": "Button on a new Notifications row that opens the channel with a reply to that message started."
+    },
+    "notificationsRecentActivity": "Recent activity",
+    "@notificationsRecentActivity": {
+        "description": "Section label above Notifications rows the user has already seen."
+    },
+    "notificationsRemoveNotification": "Remove notification",
+    "@notificationsRemoveNotification": {
+        "description": "Menu action that removes a row from the Notifications list."
+    },
     "characterCounterRemaining": "{remaining} characters left",
     "@characterCounterRemaining": {
         "description": "Character counter tooltip showing how many characters remain.",
@@ -7800,6 +7945,10 @@
     "chatMessageFailedToSend": "Failed to send message",
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
+    },
+    "chatMessageFailedToSendTapForOptions": "Failed to send message. Tap for options.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
     },
     "chatSendFailureDmRestricted": "Your message could not be delivered. This is usually because you don't share a community with the recipient or the recipient is only accepting direct messages from friends. You may also need to adjust your own direct message privacy settings in {settingsPath}.",
     "@chatSendFailureDmRestricted": {
@@ -8309,7 +8458,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "All except {count, plural, one {# community} other {# communities}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "All except {count, plural, one {{count} community} other {{count} communities}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -8318,7 +8467,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Only {count, plural, one {# community} other {# communities}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Only {count, plural, one {{count} community} other {{count} communities}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -8347,7 +8496,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# hour} other {# hours}} and {minutes, plural, one {# minute} other {# minutes}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} hour} other {{hours} hours}} and {minutes, plural, one {{minutes} minute} other {{minutes} minutes}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -8359,7 +8508,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# hour} other {# hours}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} hour} other {{hours} hours}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -8368,7 +8517,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# minute} other {# minutes}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} minute} other {{minutes} minutes}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -8377,7 +8526,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# second} other {# seconds}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} second} other {{seconds} seconds}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -8545,10 +8694,6 @@
     "forwardSuccessToast": "Message forwarded",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Failed to forward message",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Comments are unavailable because a selected channel has slowmode enabled.",
     "@forwardCommentSlowmodeDisabled": {
@@ -9070,6 +9215,14 @@
     "@chatEditNoChanges": {
         "description": "Toast when the user tries to save an edit without changing the message."
     },
+    "chatEditFailed": "Your message didn't update",
+    "@chatEditFailed": {
+        "description": "Toast when saving an edit to a message fails and the message reverts."
+    },
+    "chatEditFailedEditAgain": "Edit again",
+    "@chatEditFailedEditAgain": {
+        "description": "Action on the failed edit toast that reopens the editor with the unsaved text."
+    },
     "chatChannelNotReady": "This channel is not ready yet. Try again in a moment.",
     "@chatChannelNotReady": {
         "description": "Toast when send is attempted before the channel has finished loading."
@@ -9224,6 +9377,10 @@
     "composerAutocompleteStickersHeading": "Stickers",
     "@composerAutocompleteStickersHeading": {
         "description": "Section heading in composer autocomplete for stickers."
+    },
+    "composerAutocompleteEmojisHeading": "Emojis",
+    "@composerAutocompleteEmojisHeading": {
+        "description": "Section heading in composer autocomplete for emoji suggestions."
     },
     "composerAutocompleteGifsHeading": "GIFs",
     "@composerAutocompleteGifsHeading": {
@@ -11281,23 +11438,23 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "YOUR ACCOUNT",
+    "userSettingsGroupYourAccount": "Your account",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -12771,6 +12928,10 @@
     "@chatJumpToBottom": {
         "description": "Accessible label for the chat jump-to-bottom button."
     },
+    "chatUnreadDividerNew": "New",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
     "uiConfirm": "Confirm",
     "@uiConfirm": {
         "description": "Generic confirm action label for modals and sheets."
@@ -13160,13 +13321,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "NEW",
+    "scrollIndicatorNew": "New",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "NEW MESSAGE",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "New messages",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Collapse {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -15786,7 +15947,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Deleted # message.} other{Deleted # messages.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Deleted {count} message.} other{Deleted {count} messages.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -15795,7 +15956,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Removed # member.} other{Removed # members.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Removed {count} member.} other{Removed {count} members.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -16491,19 +16652,19 @@
     "@guildSettingsDeleteCommunityFailed": {
         "description": "Error toast when deleting a community fails."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -17389,7 +17550,7 @@
     "@forumPostArchived": {
         "description": "Forum and media channel UI."
     },
-    "forumPostNewBadge": "NEW",
+    "forumPostNewBadge": "New",
     "@forumPostNewBadge": {
         "description": "Forum and media channel UI."
     },
@@ -17409,7 +17570,7 @@
             }
         }
     },
-    "forumPostNewMessages": "{count, plural, =1{1 new message} other{{count} new messages}}",
+    "forumPostNewMessages": "{count, plural, one {{count} new message} other {{count} new messages}}",
     "@forumPostNewMessages": {
         "description": "Forum and media channel UI.",
         "placeholders": {
@@ -17809,5 +17970,9 @@
                 "type": "String"
             }
         }
+    },
+    "favoritesRenameCategory": "Rename category",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
     }
 }

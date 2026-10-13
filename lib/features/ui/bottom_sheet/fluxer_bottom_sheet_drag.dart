@@ -1,9 +1,8 @@
-const double kFluxerBottomSheetDismissDragDistance = 50;
-const double kFluxerBottomSheetDismissVelocity = 300;
+const double kFluxerBottomSheetDismissHeightFraction = 0.5;
+const double kFluxerBottomSheetDismissVelocity = 800;
 const double kFluxerBottomSheetHalfSize = 0.5;
 const double kFluxerBottomSheetFullSize = 0.95;
 
-/// Floor used while dragging so the sheet can follow the finger past half.
 const double kFluxerBottomSheetDragMinSize = 0.05;
 
 const double _kSnapEpsilon = 0.001;
@@ -26,13 +25,11 @@ double fluxerBottomSheetSizeAfterDrag({
 bool fluxerBottomSheetShouldDismissAfterDrag({
   required double dragDistance,
   required double velocity,
-  double dismissDragDistance = kFluxerBottomSheetDismissDragDistance,
-  double dismissVelocity = kFluxerBottomSheetDismissVelocity,
-}) => dragDistance > dismissDragDistance || velocity > dismissVelocity;
+  required double sheetHeight,
+}) =>
+    dragDistance > sheetHeight * kFluxerBottomSheetDismissHeightFraction ||
+    velocity > kFluxerBottomSheetDismissVelocity;
 
-/// Returns the half or full snap size, or `null` when the sheet should close.
-///
-/// [velocity] is logical pixels per second, positive downward.
 double? fluxerBottomSheetSnapTarget({
   required double size,
   required double halfSize,
@@ -41,16 +38,20 @@ double? fluxerBottomSheetSnapTarget({
   double availablePixels = 1,
 }) {
   if (fullSize - halfSize <= _kSnapEpsilon) {
-    return fullSize;
+    final bool closes =
+        velocity > kFluxerBottomSheetDismissVelocity ||
+        size < fullSize * kFluxerBottomSheetDismissHeightFraction;
+    return closes ? null : fullSize;
   }
 
-  if (size < halfSize - _kSnapEpsilon) {
+  final bool atOrBelowHalf = size <= halfSize + _kSnapEpsilon;
+  if (atOrBelowHalf &&
+      (velocity > kFluxerBottomSheetDismissVelocity ||
+          size < halfSize * kFluxerBottomSheetDismissHeightFraction)) {
     return null;
   }
-
-  final bool atHalf = size <= halfSize + _kSnapEpsilon;
-  if (atHalf && velocity > kFluxerBottomSheetDismissVelocity) {
-    return null;
+  if (size < halfSize) {
+    return halfSize;
   }
 
   double projected = size;

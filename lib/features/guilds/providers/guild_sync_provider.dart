@@ -2,27 +2,20 @@ import 'dart:async';
 
 import 'package:fluxer_app/core/providers/gateway_provider.dart';
 import 'package:fluxer_app/core/talker.dart';
-import 'package:fluxer_app/features/members/providers/guild_member_chunk_waiter.dart';
 import 'package:fluxer_app/features/members/providers/guild_roles_provider.dart';
 import 'package:fluxer_app/features/members/providers/member_providers.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_dart/gateway.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'guild_sync_provider.g.dart';
 
-LazyRequestSubscription guildSyncSubscription({required bool threads}) =>
-    threads
-    ? const LazyRequestSubscription(active: true, sync: true, threads: true)
-    : const LazyRequestSubscription(active: true, sync: true);
+const Duration kMemberListSyncSettleDelay = Duration(seconds: 3);
 
-LazyRequestSubscription threadGateFlipSubscription({required bool active}) =>
-    active
-    ? const LazyRequestSubscription(threads: true)
-    : const LazyRequestSubscription(
-        threads: false,
-        threadMemberLists: <String>[],
-      );
+const LazyRequestSubscription kGuildSyncSubscription = LazyRequestSubscription(
+  active: true,
+  sync: true,
+  threads: true,
+);
 
 @Riverpod(keepAlive: true)
 class GuildSync extends _$GuildSync {
@@ -41,11 +34,7 @@ class GuildSync extends _$GuildSync {
 
     try {
       connection.sendLazyRequest(
-        subscriptions: {
-          guildId: guildSyncSubscription(
-            threads: ref.read(threadsGateProvider).isActive(guildId),
-          ),
-        },
+        subscriptions: {guildId: kGuildSyncSubscription},
       );
       state = {...state, guildId};
       prefetchGuildRoles(ref.read(memberRepositoryProvider), guildId);
@@ -54,23 +43,8 @@ class GuildSync extends _$GuildSync {
     }
   }
 
-  void handleThreadGateChanged(String guildId, {required bool active}) {
-    if (!state.contains(guildId)) {
-      return;
-    }
-    final connection = ref.read(gatewayConnectionProvider);
-    if (connection.state != GatewayState.connected) {
-      return;
-    }
-    connection.sendLazyRequest(
-      subscriptions: {guildId: threadGateFlipSubscription(active: active)},
-    );
-  }
-
   Future<void> backfillMembersIfSparse(String guildId) async {
-    await ref
-        .read(guildMemberChunkWaiterProvider)
-        .waitForChunk(guildId, timeout: const Duration(seconds: 3));
+    await Future<void>.delayed(kMemberListSyncSettleDelay);
     try {
       await ref.read(memberRepositoryProvider).backfillMembersIfSparse(guildId);
     } on Object catch (e) {

@@ -2,14 +2,13 @@ import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
+import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/accessibility/domain/text_scale.dart';
 import 'package:fluxer_app/features/accessibility/presentation/allow_image_frame_animation.dart';
 import 'package:fluxer_app/features/profile/providers/user_presence_provider.dart';
-import 'package:fluxer_app/features/ui/avatar/avatar_status_layout.dart';
-import 'package:fluxer_app/features/ui/status_indicator/fluxer_mobile_online_status_indicator.dart';
-import 'package:fluxer_app/features/ui/status_indicator/fluxer_status_indicator.dart';
-import 'package:fluxer_app/features/ui/status_indicator/fluxer_typing_status_indicator.dart';
+import 'package:fluxer_app/features/profile/providers/user_settings_status_provider.dart';
+import 'package:fluxer_app/features/ui/avatar/fluxer_avatar_status_badge.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 const _kFallbackColors = [
@@ -20,20 +19,13 @@ const _kFallbackColors = [
   Color(0xFFED4245),
 ];
 
-const Duration _kStatusTransitionDuration = Duration(milliseconds: 160);
-
-enum _AvatarShape { circle, rounded }
-
-enum _StatusCutoutShape { circle, typingPill, mobilePhone }
-
 class FluxerAvatar extends StatelessWidget {
   const FluxerAvatar({
     this.imageUrl,
     this.fallbackText,
     this.size = 32,
     super.key,
-  }) : _shape = _AvatarShape.circle,
-       status = null,
+  }) : status = null,
        showStatus = false,
        isTyping = false,
        isMobileStatus = false,
@@ -41,7 +33,8 @@ class FluxerAvatar extends StatelessWidget {
        userId = null,
        icon = null,
        iconColor = null,
-       iconBackgroundColor = null;
+       iconBackgroundColor = null,
+       fadeInDuration = Duration.zero;
 
   const FluxerAvatar.user({
     required this.userId,
@@ -53,44 +46,27 @@ class FluxerAvatar extends StatelessWidget {
     this.isTyping = false,
     this.isMobileStatus = false,
     this.avatarColor,
+    this.fadeInDuration = Duration.zero,
     super.key,
-  }) : _shape = _AvatarShape.circle,
-       icon = null,
+  }) : icon = null,
        iconColor = null,
        iconBackgroundColor = null;
 
-  const FluxerAvatar.guild({
-    this.imageUrl,
-    this.fallbackText,
-    this.size = 44,
-    super.key,
-  }) : _shape = _AvatarShape.rounded,
-       status = null,
-       showStatus = false,
-       isTyping = false,
-       isMobileStatus = false,
-       avatarColor = null,
-       userId = null,
-       icon = null,
-       iconColor = null,
-       iconBackgroundColor = null;
-
-  /// Icon centered on a colored disc — use for channel-type avatars.
   const FluxerAvatar.icon({
     required IconData this.icon,
     this.size = 40,
     this.iconColor,
     this.iconBackgroundColor,
     super.key,
-  }) : _shape = _AvatarShape.circle,
-       imageUrl = null,
+  }) : imageUrl = null,
        fallbackText = null,
        status = null,
        showStatus = false,
        isTyping = false,
        isMobileStatus = false,
        avatarColor = null,
-       userId = null;
+       userId = null,
+       fadeInDuration = Duration.zero;
 
   factory FluxerAvatar.fromUserRow(
     db.User user, {
@@ -146,10 +122,10 @@ class FluxerAvatar extends StatelessWidget {
   final bool isMobileStatus;
   final int? avatarColor;
   final String? userId;
-  final _AvatarShape _shape;
   final IconData? icon;
   final Color? iconColor;
   final Color? iconBackgroundColor;
+  final Duration fadeInDuration;
 
   bool get _isUserAvatar => userId != null;
 
@@ -166,37 +142,14 @@ class FluxerAvatar extends StatelessWidget {
     return _kFallbackColors[text.hashCode.abs() % _kFallbackColors.length];
   }
 
-  BorderRadius get _borderRadius => _shape == _AvatarShape.rounded
-      ? BorderRadius.circular(size * 0.27)
-      : BorderRadius.circular(size / 2);
-
-  bool get _showsStatusBadge => isTyping || (showStatus && status != null);
-
-  String get _resolvedStatus => status ?? 'offline';
-
-  bool _isMobileOnline() {
-    return isMobileOnlineStatus(
-      isMobileStatus: isMobileStatus,
-      status: _resolvedStatus,
-      isTyping: isTyping,
-      size: size,
-    );
-  }
+  BorderRadius get _borderRadius => BorderRadius.circular(size / 2);
 
   @override
   Widget build(BuildContext context) {
-    final resolvedUrl = _resolvedImageUrl;
-    final hasStatus = _showsStatusBadge;
     final iconData = icon;
-    final bool isMobileOnline = _isMobileOnline();
-    final AvatarStatusLayout layout = AvatarStatusLayout.forAvatarSize(size);
-    final _StatusCutoutShape cutoutShape = isTyping
-        ? _StatusCutoutShape.typingPill
-        : isMobileOnline
-        ? _StatusCutoutShape.mobilePhone
-        : _StatusCutoutShape.circle;
+    final String? resolvedUrl = _resolvedImageUrl;
 
-    Widget avatarContent;
+    final Widget avatarContent;
     if (iconData != null) {
       avatarContent = Container(
         width: size,
@@ -213,80 +166,34 @@ class FluxerAvatar extends StatelessWidget {
           ),
         ),
       );
-    } else if (resolvedUrl != null) {
-      avatarContent = buildFluxerNetworkAvatarImage(
-        context: context,
+    } else if (_isUserAvatar) {
+      avatarContent = FluxerNetworkAvatarImage(
         size: size,
         imageUrl: resolvedUrl,
-        customImageUrl: imageUrl,
-        defaultImageUrl: _defaultAvatarUrl,
-        borderRadius: _borderRadius,
-        onFinalError: _isUserAvatar
-            ? () => SizedBox(width: size, height: size)
-            : () => _buildLetterFallbackAvatar(context),
+        fallbackImageUrl: _defaultAvatarUrl,
+        placeholderColor: avatarColor == null ? null : Color(avatarColor!),
+        fadeInDuration: fadeInDuration,
       );
-    } else if (_isUserAvatar) {
-      avatarContent = SizedBox(width: size, height: size);
+    } else if (resolvedUrl != null) {
+      avatarContent = FluxerNetworkAvatarImage(
+        size: size,
+        imageUrl: resolvedUrl,
+        borderRadius: _borderRadius,
+        errorBuilder: () => _buildLetterFallbackAvatar(context),
+      );
     } else {
       avatarContent = _buildLetterFallbackAvatar(context);
     }
 
-    if (hasStatus) {
-      avatarContent = ClipPath(
-        clipper: _StatusCutoutClipper(
-          cutoutRadius: layout.cutoutRadius,
-          statusCutoutCenter: layout.statusCutoutCenter,
-          cutoutShape: cutoutShape,
-          typingCutoutRect: layout.typingCutoutRect,
-          phoneCutoutRect: layout.phoneCutoutRect,
-        ),
-        child: avatarContent,
-      );
+    if (!_isUserAvatar) {
+      return avatarContent;
     }
-
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          avatarContent,
-          if (hasStatus)
-            AnimatedPositioned(
-              duration: _kStatusTransitionDuration,
-              curve: Curves.easeOut,
-              right: isTyping
-                  ? layout.typingRight
-                  : isMobileOnline
-                  ? size - layout.phoneCutoutRect.right
-                  : layout.statusRight,
-              bottom: isTyping
-                  ? layout.typingBottom
-                  : isMobileOnline
-                  ? size - layout.phoneCutoutRect.bottom
-                  : layout.statusBottom,
-              child: isTyping
-                  ? FluxerTypingStatusIndicator(
-                      status: _resolvedStatus,
-                      width: layout.typingWidth,
-                      height: layout.typingHeight,
-                    )
-                  : isMobileOnline
-                  ? FluxerMobileOnlineStatusIndicator(
-                      width: layout.phoneCutoutRect.width,
-                      height: layout.phoneCutoutRect.height,
-                      borderWidth: mobileStatusBorderWidth(
-                        statusDotSize: layout.statusDotSize,
-                        cutoutRadius: layout.cutoutRadius,
-                      ),
-                    )
-                  : FluxerStatusIndicator(
-                      status: _resolvedStatus,
-                      size: layout.statusDotSize,
-                    ),
-            ),
-        ],
-      ),
+    return FluxerAvatarStatusBadge(
+      size: size,
+      status: showStatus ? status : null,
+      isTyping: isTyping,
+      isMobileStatus: isMobileStatus,
+      child: avatarContent,
     );
   }
 
@@ -320,47 +227,6 @@ class FluxerAvatar extends StatelessWidget {
   }
 }
 
-class _StatusCutoutClipper extends CustomClipper<Path> {
-  const _StatusCutoutClipper({
-    required this.cutoutRadius,
-    required this.statusCutoutCenter,
-    required this.cutoutShape,
-    required this.typingCutoutRect,
-    required this.phoneCutoutRect,
-  });
-
-  final double cutoutRadius;
-  final Offset statusCutoutCenter;
-  final _StatusCutoutShape cutoutShape;
-  final RRect typingCutoutRect;
-  final RRect phoneCutoutRect;
-
-  @override
-  Path getClip(Size size) {
-    final Path path = Path()
-      ..addOval(Rect.fromLTWH(0, 0, size.width, size.height));
-    switch (cutoutShape) {
-      case _StatusCutoutShape.typingPill:
-        path.addRRect(typingCutoutRect);
-      case _StatusCutoutShape.mobilePhone:
-        path.addRRect(phoneCutoutRect);
-      case _StatusCutoutShape.circle:
-        path.addOval(
-          Rect.fromCircle(center: statusCutoutCenter, radius: cutoutRadius),
-        );
-    }
-    return path..fillType = PathFillType.evenOdd;
-  }
-
-  @override
-  bool shouldReclip(covariant _StatusCutoutClipper oldClipper) =>
-      cutoutRadius != oldClipper.cutoutRadius ||
-      statusCutoutCenter != oldClipper.statusCutoutCenter ||
-      cutoutShape != oldClipper.cutoutShape ||
-      typingCutoutRect != oldClipper.typingCutoutRect ||
-      phoneCutoutRect != oldClipper.phoneCutoutRect;
-}
-
 class _FluxerUserPresenceAvatar extends ConsumerWidget {
   const _FluxerUserPresenceAvatar({
     required this.userId,
@@ -383,11 +249,14 @@ class _FluxerUserPresenceAvatar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final presenceUser = ref.watch(userPresenceProvider(userId)).value;
+    final presenceUser = watchLastKnownUserPresence(ref, userId);
+    final String? selfStatus = ref.watch(currentUserIdProvider) == userId
+        ? ref.watch(userSettingsStatusProvider)?.status
+        : null;
     return FluxerAvatar.user(
       imageUrl: imageUrl,
       fallbackText: fallbackText,
-      status: presenceUser?.status,
+      status: presenceUser?.status ?? selfStatus ?? 'offline',
       size: size,
       showStatus: showStatus,
       isTyping: isTyping,
@@ -398,49 +267,68 @@ class _FluxerUserPresenceAvatar extends ConsumerWidget {
   }
 }
 
-Widget buildFluxerNetworkAvatarImage({
-  required BuildContext context,
-  required double size,
-  required String imageUrl,
-  String? customImageUrl,
-  String? defaultImageUrl,
-  BorderRadius? borderRadius,
-  Widget Function()? onFinalError,
-}) {
-  final double devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-  final BorderRadius resolvedBorderRadius =
-      borderRadius ?? BorderRadius.circular(size / 2);
-  final Widget emptyFallback =
-      onFinalError?.call() ?? SizedBox(width: size, height: size);
+class FluxerNetworkAvatarImage extends StatelessWidget {
+  const FluxerNetworkAvatarImage({
+    required this.size,
+    required this.imageUrl,
+    this.fallbackImageUrl,
+    this.borderRadius,
+    this.placeholderColor,
+    this.errorBuilder,
+    this.fadeInDuration = Duration.zero,
+    super.key,
+  });
 
-  Widget networkImage(String url, {required Widget Function() onError}) {
-    final bool animated = url.contains('animated=true');
-    Widget image = CachedNetworkImage(
-      imageUrl: url,
-      width: size,
-      height: size,
-      // Skip resize on animated frames; ResizeImage freezes multi-frame decode.
-      memCacheWidth: animated ? null : (size * devicePixelRatio).round(),
-      fit: BoxFit.cover,
-      fadeInDuration: Duration.zero,
-      fadeOutDuration: Duration.zero,
-      errorBuilder: (_, _, _) => onError(),
+  final double size;
+  final String? imageUrl;
+  final String? fallbackImageUrl;
+  final BorderRadius? borderRadius;
+  final Color? placeholderColor;
+  final Widget Function()? errorBuilder;
+  final Duration fadeInDuration;
+
+  @override
+  Widget build(BuildContext context) {
+    final double devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    Widget placeholder() => SizedBox.square(
+      dimension: size,
+      child: ColoredBox(
+        color: placeholderColor ?? context.colors.backgroundModifierAccent,
+      ),
     );
-    if (animated) {
-      image = AllowImageFrameAnimation(child: image);
-    }
-    return ClipRRect(borderRadius: resolvedBorderRadius, child: image);
-  }
+    Widget finalError() => errorBuilder?.call() ?? placeholder();
 
-  return networkImage(
-    imageUrl,
-    onError: () {
-      if (customImageUrl != null &&
-          defaultImageUrl != null &&
-          imageUrl != defaultImageUrl) {
-        return networkImage(defaultImageUrl, onError: () => emptyFallback);
-      }
-      return emptyFallback;
-    },
-  );
+    Widget networkImage(String url, {required Widget Function() onError}) {
+      final bool animated = url.contains('animated=true');
+      final Widget image = CachedNetworkImage(
+        imageUrl: url,
+        width: size,
+        height: size,
+        memCacheWidth: animated ? null : (size * devicePixelRatio).round(),
+        fit: BoxFit.cover,
+        fadeInDuration: fadeInDuration,
+        fadeInCurve: Curves.linear,
+        fadeOutDuration: Duration.zero,
+        useOldImageOnUrlChange: true,
+        placeholder: (_, _) => placeholder(),
+        errorBuilder: (_, _, _) => onError(),
+      );
+      return animated ? AllowImageFrameAnimation(child: image) : image;
+    }
+
+    final String? url = imageUrl;
+    final String? fallbackUrl = fallbackImageUrl;
+    final Widget image = url == null
+        ? finalError()
+        : networkImage(
+            url,
+            onError: () => fallbackUrl != null && url != fallbackUrl
+                ? networkImage(fallbackUrl, onError: finalError)
+                : finalError(),
+          );
+    return ClipRRect(
+      borderRadius: borderRadius ?? BorderRadius.circular(size / 2),
+      child: image,
+    );
+  }
 }

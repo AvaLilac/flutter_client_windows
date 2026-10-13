@@ -52,9 +52,6 @@ class _UserLinkedDevicesState extends ConsumerState<UserLinkedDevices> {
     if (state.isLoading) {
       body = const Center(child: FluxerLoadingSpinner());
     } else if (state.error != null || current == null) {
-      // Mirrors the web client: if the gateway-supplied session id hash is
-      // unavailable or does not match any returned session, refuse to render
-      // the list (any revocation would risk targeting the wrong session).
       body = _buildLoadError(context, colors, layout, l10n);
     } else {
       final others = state.sessions.where((s) => s != current).toList();
@@ -85,7 +82,7 @@ class _UserLinkedDevicesState extends ConsumerState<UserLinkedDevices> {
     FluxerLocalizations l10n,
   ) {
     return Padding(
-      padding: EdgeInsets.all(layout.s4),
+      padding: EdgeInsets.symmetric(vertical: layout.s4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -132,7 +129,7 @@ class _UserLinkedDevicesState extends ConsumerState<UserLinkedDevices> {
   ) {
     final state = ref.watch(linkedDevicesViewModelProvider);
     return Padding(
-      padding: EdgeInsets.fromLTRB(layout.s4, layout.s4, layout.s4, 0),
+      padding: EdgeInsets.only(top: layout.s4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -496,10 +493,6 @@ class _UserLinkedDevicesState extends ConsumerState<UserLinkedDevices> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
-
 class _AuthSessionCard extends StatelessWidget {
   const _AuthSessionCard({
     required this.session,
@@ -751,12 +744,6 @@ class _DeviceActionButtonState extends State<_DeviceActionButton> {
                       : (hovered || pressed)
                       ? colors.textPrimary
                       : colors.textTertiary;
-                  final Color borderColor =
-                      FluxerButtonVariant.secondary.borderColor(
-                        colors,
-                        hovered: hovered,
-                      ) ??
-                      colors.backgroundModifierAccent;
                   return Container(
                     width: _kDeviceActionSize,
                     height: _kDeviceActionSize,
@@ -764,7 +751,10 @@ class _DeviceActionButtonState extends State<_DeviceActionButton> {
                     decoration: BoxDecoration(
                       color: background,
                       borderRadius: radius,
-                      border: Border.all(color: borderColor),
+                      border: FluxerButtonVariant.secondary.border(
+                        colors,
+                        hovered: hovered,
+                      ),
                     ),
                     child: PhosphorIcon(
                       widget.icon,

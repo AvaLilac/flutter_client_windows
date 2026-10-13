@@ -104,7 +104,7 @@ class _QuickSwitcherSheetBodyState
     final bool isSearchTab = state.activeTab == QuickSwitcherSheetTab.search;
     _syncSearchControllers(state);
     return ColoredBox(
-      color: context.colors.backgroundSecondary,
+      color: context.colors.backgroundSecondaryAlt,
       child: Column(
         children: <Widget>[
           SizedBox(height: context.layout.s2),
@@ -168,6 +168,7 @@ class _QuickSwitcherSheetBodyState
       children: <Widget>[
         PickerSearchInput(
           controller: _searchController,
+          focusNode: _searchFocusNode,
           hintText: l10n.quickSwitcherSearchPlaceholder,
           topPadding: 0,
           bottomPadding: 0,
@@ -199,7 +200,7 @@ class _QuickSwitcherSheetBodyState
           child: QuickSwitcherFriendsList(
             searchQuery: state.friendsSearchQuery,
             scrollController: widget.scrollController,
-            onFriendSelected: widget.onClose,
+            onNavigatedAway: widget.onClose,
           ),
         ),
       ],
@@ -232,7 +233,6 @@ class _QuickSwitcherSheetBodyState
     final List<Widget> children = <Widget>[];
     for (int i = 0; i < state.results.length; i++) {
       final QuickSwitcherResult result = state.results[i];
-      // Headers only appear once the user types; default results have none.
       if (result is QuickSwitcherHeaderResult) {
         children.add(
           Padding(
@@ -242,10 +242,7 @@ class _QuickSwitcherSheetBodyState
               context.layout.s3,
               context.layout.s1 + 2,
             ),
-            child: Text(
-              result.title,
-              style: context.textStyles.smallText.copyWith(letterSpacing: 0.64),
-            ),
+            child: Text(result.title, style: context.textStyles.smallText),
           ),
         );
         continue;
@@ -277,7 +274,9 @@ class _QuickSwitcherSheetBodyState
       physics: const AlwaysScrollableScrollPhysics(),
       padding: FluxerBottomSheet.scrollViewPadding(
         context,
-        padding: EdgeInsets.only(bottom: context.layout.s5),
+        padding: EdgeInsets.only(
+          bottom: FluxerBottomSheet.bottomGapOf(context),
+        ),
       ),
       children: children,
     );
@@ -292,7 +291,9 @@ class _QuickSwitcherSheetBodyState
       physics: const AlwaysScrollableScrollPhysics(),
       padding: FluxerBottomSheet.scrollViewPadding(
         context,
-        padding: EdgeInsets.only(bottom: context.layout.s5),
+        padding: EdgeInsets.only(
+          bottom: FluxerBottomSheet.bottomGapOf(context),
+        ),
       ),
       children: <Widget>[
         SizedBox(

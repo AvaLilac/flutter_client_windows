@@ -23,7 +23,9 @@ import 'package:fluxer_app/core/push/relay_consent/push_relay_consent_provider.d
 import 'package:fluxer_app/core/push/services/apple_push_service.dart';
 import 'package:fluxer_app/core/push/services/unified_push_service.dart';
 import 'package:fluxer_app/features/auth/providers/auth_providers.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_sticker_image.dart';
 import 'package:fluxer_app/features/settings/providers/haptics_preferences_provider.dart';
+import 'package:fluxer_app/features/ui/input/text_editing_shortcuts.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
@@ -47,12 +49,7 @@ void _configureImagePicker() {
 
 void _runFluxerApp(ProviderContainer container) {
   runApp(
-    ProviderScope(
-      child: UncontrolledProviderScope(
-        container: container,
-        child: const FluxerApp(),
-      ),
-    ),
+    UncontrolledProviderScope(container: container, child: const FluxerApp()),
   );
 }
 
@@ -86,6 +83,9 @@ Future<void> _bootstrapFluxer(List<String> args) async {
     return;
   }
 
+  if (Platform.isAndroid) {
+    installImeEditingShortcutHandler();
+  }
   configureFluxerMobileDetection();
   configureFluxerImageCache();
   configureFluxerErrorUi();
@@ -97,8 +97,6 @@ Future<void> _bootstrapFluxer(List<String> args) async {
   );
 
   final ProviderContainer container = ProviderContainer();
-  // Chat-attachment audio is platform-channel bound and independent of the
-  // observability/FCM chain; observability consent stays ahead of Firebase.
   await Future.wait<void>([
     FluxerObservability.instance.traceAsync(
       'app.bootstrap.chat_attachment_audio',
@@ -109,6 +107,7 @@ Future<void> _bootstrapFluxer(List<String> args) async {
         container.read(observabilityReportingProvider.notifier).load(),
         container.read(pushRelayConsentProvider.notifier).load(),
         container.read(hapticsPreferencesProvider.notifier).load(),
+        loadMessageStickerAspectRatios(),
       ]);
       await FluxerObservability.instance.traceAsync(
         'app.bootstrap.fcm',
@@ -118,7 +117,7 @@ Future<void> _bootstrapFluxer(List<String> args) async {
     if (Platform.isIOS || Platform.isAndroid)
       FluxerObservability.instance.traceAsync(
         'app.bootstrap.app_media_audio_session',
-        prepareAppMediaAudioSession,
+        AppMediaAudioSession.instance.configure,
       ),
   ]);
   FluxerObservability.instance.traceSync(
@@ -172,10 +171,6 @@ Future<void> _bootstrapFluxer(List<String> args) async {
     },
   );
 
-  // First frame no longer waits for session validation: the router keeps the
-  // splash up until startup settles and the gateway delivers READY, and the
-  // splash surfaces startup errors as a retry. Engine warmup (shaders, fonts,
-  // first raster) overlaps the network round-trips instead of following them.
   unawaited(
     FluxerObservability.instance.traceAsync('app.startup.provider', () async {
       try {

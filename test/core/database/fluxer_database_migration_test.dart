@@ -4,18 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-/// Last schema version known to the test suite. Bump this when adding a new
-/// migration and extend the tests below if the new step introduces guarded
-/// columns or tables.
-const int _expectedSchemaVersion = 93;
+const int _expectedSchemaVersion = 97;
 
-/// First version whose migration steps are written to be re-entrant against
-/// the current schema. Stamp the current schema at each version in this
-/// range and run onUpgrade to verify that the migration does not fail when
-/// objects it creates already exist.
 const int _guardedBaselineVersion = 67;
 
-/// Columns added by guarded migration steps, per table.
 const Map<String, List<String>> _guardedColumns = <String, List<String>>{
   'user_preferences': <String>[
     'voice_settings_json',
@@ -74,6 +66,12 @@ const Map<String, List<String>> _guardedColumns = <String, List<String>>{
     'hdr_display_mode',
     'chat_wallpaper_json',
     'show_alt_text_on_images',
+    'emoji_usage_json',
+    'sticker_usage_json',
+    'meme_usage_json',
+    'favorite_meme_ids_json',
+    'collapsed_meme_picker_categories_json',
+    'synced_preferences_dirty_fields_json',
   ],
   'messages': <String>[
     'call_json',
@@ -86,7 +84,7 @@ const Map<String, List<String>> _guardedColumns = <String, List<String>>{
   ],
   'dm_channels': <String>['nicks_json'],
   'composer_drafts': <String>['reply_mentioning'],
-  'servers': <String>['vanity_url_code', 'thread_channels_active'],
+  'servers': <String>['vanity_url_code'],
   'channels': <String>[
     'owner_id',
     'flags',
@@ -147,22 +145,16 @@ Map<String, Set<String>> _schemaColumns(Database raw) {
 int _userVersion(Database raw) =>
     raw.select('PRAGMA user_version').single['user_version'] as int;
 
-/// Creates the full current schema on [raw] via `onCreate`, then stamps
-/// `user_version` back to [version]. This simulates a database that already
-/// contains the objects a migration step will create.
 Future<void> _stampCurrentSchemaAsVersion(Database raw, int version) async {
   final FluxerDatabase db = FluxerDatabase.forTesting(
     NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
   );
-  // Any statement forces the lazy open, which runs onCreate -> createAll.
   await db.customSelect('SELECT 1').get();
   await db.customStatement('PRAGMA user_version = $version');
   await db.close();
 }
 
 void main() {
-  // Tests intentionally open the same raw database twice (stamp, then
-  // migrate); drift's shared-instance warning is expected here.
   drift.driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   group('FluxerDatabase migration', () {
@@ -187,7 +179,6 @@ void main() {
         addTearDown(raw.close);
         await _stampCurrentSchemaAsVersion(raw, _guardedBaselineVersion);
 
-        // Sanity: tables already have the new columns, but the version lies.
         for (final MapEntry<String, List<String>> entry
             in _guardedColumns.entries) {
           expect(_tableColumns(raw, entry.key), containsAll(entry.value));
@@ -199,9 +190,6 @@ void main() {
         );
         addTearDown(db.close);
 
-        // Forces the open, running onUpgrade. Without the guards the
-        // ALTER TABLE ... ADD COLUMN statements would throw
-        // SqliteException(1): duplicate column name.
         final UserPreferencesTableData? prefs = await db.userPreferencesDao
             .getPreferences('user-1');
         expect(prefs, isNull);
@@ -223,13 +211,86 @@ void main() {
       },
     );
 
+    test('upgrade drops the local mention filter table', () async {
+      final Database raw = sqlite3.openInMemory();
+      addTearDown(raw.close);
+      await _stampCurrentSchemaAsVersion(raw, 93);
+      raw.execute(
+        'CREATE TABLE notification_mention_prefs (id INTEGER PRIMARY KEY)',
+      );
+
+      final FluxerDatabase db = FluxerDatabase.forTesting(
+        NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+      );
+      addTearDown(db.close);
+      await db.notificationDao.getMentionFeedOrdered();
+
+      expect(_userVersion(raw), db.schemaVersion);
+      expect(_schemaTables(raw), isNot(contains('notification_mention_prefs')));
+    });
+
+    test(
+      'upgrade moves local expression usage to the active account',
+      () async {
+        final Database raw = sqlite3.openInMemory();
+        addTearDown(raw.close);
+        await _stampCurrentSchemaAsVersion(raw, 94);
+        for (final String column in <String>[
+          'emoji_usage_json',
+          'sticker_usage_json',
+          'meme_usage_json',
+          'favorite_meme_ids_json',
+          'collapsed_meme_picker_categories_json',
+          'synced_preferences_dirty_fields_json',
+        ]) {
+          raw.execute('ALTER TABLE user_preferences DROP COLUMN $column');
+        }
+        raw
+          ..execute(
+            'CREATE TABLE emoji_usage (key TEXT NOT NULL PRIMARY KEY, '
+            'use_count INTEGER NOT NULL DEFAULT 1, '
+            'last_used INTEGER NOT NULL)',
+          )
+          ..execute(
+            "INSERT INTO emoji_usage VALUES ('unicode:heart', 4, 1700000000), "
+            "('custom:1:2', 2, 1700000100), "
+            "('sticker:1:3', 5, 1700000200), "
+            "('meme:4', 1, 1700000300)",
+          )
+          ..execute(
+            'INSERT INTO auth_sessions (user_id, is_valid, last_active, '
+            "created_at) VALUES ('old', 1, 10, 10), ('me', 1, 20, 20), "
+            "('gone', 0, 30, 30)",
+          );
+
+        final FluxerDatabase db = FluxerDatabase.forTesting(
+          NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+        );
+        addTearDown(db.close);
+
+        final UserPreferencesTableData? prefs = await db.userPreferencesDao
+            .getPreferences('me');
+        expect(
+          prefs?.emojiUsageJson,
+          '{"unicode:heart":[4,1700000000000],"custom:1:2":[2,1700000100000]}',
+        );
+        expect(prefs?.stickerUsageJson, '{"1:3":[5,1700000200000]}');
+        expect(prefs?.memeUsageJson, '{"4":[1,1700000300000]}');
+        expect(
+          prefs?.syncedPreferencesDirtyFieldsJson,
+          '["emojiPicker","memesPicker","stickerPicker"]',
+        );
+        expect(await db.userPreferencesDao.getPreferences('old'), isNull);
+        expect(_schemaTables(raw), isNot(contains('emoji_usage')));
+        expect(_userVersion(raw), db.schemaVersion);
+      },
+    );
+
     test('upgrade from guarded baseline adds columns when missing', () async {
       final Database raw = sqlite3.openInMemory();
       addTearDown(raw.close);
       await _stampCurrentSchemaAsVersion(raw, _guardedBaselineVersion);
 
-      // Rebuild the genuine pre-68 shape by dropping the drifted columns
-      // again (DROP COLUMN needs the host libsqlite3 to be >= 3.35).
       for (final String table in _guardedTables) {
         raw.execute('DROP TABLE $table');
       }
@@ -250,8 +311,6 @@ void main() {
       );
       addTearDown(db.close);
 
-      // The generated select references all current columns, so this would
-      // throw "no such column" if the migration had not added them.
       final UserPreferencesTableData? prefs = await db.userPreferencesDao
           .getPreferences('user-1');
       expect(prefs, isNull);
@@ -295,9 +354,6 @@ void main() {
         );
         addTearDown(db.close);
 
-        // Forces the open and runs onUpgrade(from: $from). The migration
-        // steps must tolerate objects that already exist because the
-        // current schema was created by onCreate before stamping.
         await db.customSelect('SELECT 1').get();
 
         expect(_userVersion(raw), db.schemaVersion);
@@ -305,83 +361,104 @@ void main() {
       });
     }
 
-    test(
-      'upgrade from 90 keeps rows and leaves every guild inactive',
-      () async {
-        const Map<String, List<String>> added = <String, List<String>>{
-          'servers': <String>['thread_channels_active'],
-          'messages': <String>['thread_json'],
-          'read_states': <String>['flags', 'missing_since'],
-        };
-        final Database raw = sqlite3.openInMemory();
-        addTearDown(raw.close);
-        final FluxerDatabase seed = FluxerDatabase.forTesting(
-          NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
-        );
-        await seed.guildDao.upsertServer(
-          ServersCompanion.insert(id: 'g1', name: 'Guild'),
-        );
-        await seed.channelDao.upsertChannels(<ChannelsCompanion>[
-          ChannelsCompanion.insert(id: 'c1', guildId: 'g1', name: 'general'),
-          ChannelsCompanion.insert(
-            id: 'v1',
-            guildId: 'g1',
-            name: 'voice',
-            type: const drift.Value(2),
-            position: const drift.Value(1),
-          ),
-        ]);
-        await seed.readStateDao.upsertReadState(
-          const ReadStatesCompanion(
-            channelId: drift.Value('c1'),
-            lastMessageId: drift.Value('10'),
-            mentionCount: drift.Value(2),
-          ),
-        );
-        await seed.customStatement('PRAGMA user_version = 90');
-        await seed.close();
-        raw
-          ..execute('DROP TABLE thread_members')
-          ..execute('DROP INDEX idx_channels_guild_parent_type');
-        for (final MapEntry<String, List<String>> entry
-            in <String, List<String>>{
-              ...added,
-              'channels': _guardedColumns['channels']!,
-            }.entries) {
-          for (final String column in entry.value) {
-            raw.execute('ALTER TABLE ${entry.key} DROP COLUMN $column');
-          }
+    test('upgrade from 90 keeps rows', () async {
+      const Map<String, List<String>> added = <String, List<String>>{
+        'messages': <String>['thread_json'],
+        'read_states': <String>['flags', 'missing_since'],
+      };
+      final Database raw = sqlite3.openInMemory();
+      addTearDown(raw.close);
+      final FluxerDatabase seed = FluxerDatabase.forTesting(
+        NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+      );
+      await seed.guildDao.upsertServer(
+        ServersCompanion.insert(id: 'g1', name: 'Guild'),
+      );
+      await seed.channelDao.upsertChannels(<ChannelsCompanion>[
+        ChannelsCompanion.insert(id: 'c1', guildId: 'g1', name: 'general'),
+        ChannelsCompanion.insert(
+          id: 'v1',
+          guildId: 'g1',
+          name: 'voice',
+          type: const drift.Value(2),
+          position: const drift.Value(1),
+        ),
+      ]);
+      await seed.readStateDao.upsertReadState(
+        const ReadStatesCompanion(
+          channelId: drift.Value('c1'),
+          lastMessageId: drift.Value('10'),
+          mentionCount: drift.Value(2),
+        ),
+      );
+      await seed.customStatement('PRAGMA user_version = 90');
+      await seed.close();
+      raw
+        ..execute('DROP TABLE thread_members')
+        ..execute('DROP INDEX idx_channels_guild_parent_type');
+      for (final MapEntry<String, List<String>> entry in <String, List<String>>{
+        ...added,
+        'channels': _guardedColumns['channels']!,
+      }.entries) {
+        for (final String column in entry.value) {
+          raw.execute('ALTER TABLE ${entry.key} DROP COLUMN $column');
         }
+      }
 
-        final FluxerDatabase db = FluxerDatabase.forTesting(
-          NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
-        );
-        addTearDown(db.close);
+      final FluxerDatabase db = FluxerDatabase.forTesting(
+        NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+      );
+      addTearDown(db.close);
 
-        final List<Channel> channels = await db.channelDao.getChannels('g1');
-        expect(channels.map((Channel c) => c.id), <String>['c1', 'v1']);
-        expect(
-          await db.channelDao.getChannels('g1', includeThreads: true),
-          channels,
-        );
-        for (final Channel channel in channels) {
-          expect(channel.threadArchived, isNull);
-          expect(channel.flags, isNull);
-          expect(channel.availableTagsJson, isNull);
-        }
-        expect(
-          (await db.guildDao.getServerById('g1'))?.threadChannelsActive,
-          false,
-        );
-        final ReadState? readState = await db.readStateDao.getReadState('c1');
-        expect(readState?.lastMessageId, '10');
-        expect(readState?.mentionCount, 2);
-        expect(readState?.flags, isNull);
-        expect(readState?.missingSince, isNull);
-        expect(await db.threadDao.getJoinedThreadIds(), isEmpty);
-        expect(_userVersion(raw), _expectedSchemaVersion);
-      },
-    );
+      final List<Channel> channels = await db.channelDao.getChannels('g1');
+      expect(channels.map((Channel c) => c.id), <String>['c1', 'v1']);
+      expect(
+        await db.channelDao.getChannels('g1', includeThreads: true),
+        channels,
+      );
+      for (final Channel channel in channels) {
+        expect(channel.threadArchived, isNull);
+        expect(channel.flags, isNull);
+        expect(channel.availableTagsJson, isNull);
+      }
+      final ReadState? readState = await db.readStateDao.getReadState('c1');
+      expect(readState?.lastMessageId, '10');
+      expect(readState?.mentionCount, 2);
+      expect(readState?.flags, isNull);
+      expect(readState?.missingSince, isNull);
+      expect(await db.threadDao.getJoinedThreadIds(), isEmpty);
+      expect(_userVersion(raw), _expectedSchemaVersion);
+    });
+
+    test('upgrade from 96 drops the thread gate column', () async {
+      final Database raw = sqlite3.openInMemory();
+      addTearDown(raw.close);
+      final FluxerDatabase seed = FluxerDatabase.forTesting(
+        NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+      );
+      await seed.guildDao.upsertServer(
+        ServersCompanion.insert(id: 'g1', name: 'Guild'),
+      );
+      await seed.customStatement('PRAGMA user_version = 96');
+      await seed.close();
+      raw.execute(
+        'ALTER TABLE servers ADD COLUMN thread_channels_active '
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+
+      final FluxerDatabase db = FluxerDatabase.forTesting(
+        NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+      );
+      addTearDown(db.close);
+      await db.customSelect('SELECT 1').get();
+
+      expect(
+        _tableColumns(raw, 'servers'),
+        isNot(contains('thread_channels_active')),
+      );
+      expect((await db.guildDao.getServerById('g1'))?.name, 'Guild');
+      expect(_userVersion(raw), _expectedSchemaVersion);
+    });
 
     test(
       'schema after guarded baseline upgrade matches fresh onCreate',

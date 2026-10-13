@@ -12,6 +12,12 @@ const double kEmojiPickerTopPadding = 4;
 const double kEmojiPickerHeaderHeight = 26;
 const double kEmojiPickerUpsellEstimatedHeight = 72;
 
+const double kEmojiPickerMobileRowHeight = 41;
+const double kEmojiPickerMobileHeaderHeight = 30;
+const double kEmojiPickerMobileHorizontalPadding = 4.5;
+const double kEmojiPickerMobileUnicodeSize = 30;
+const double kEmojiPickerMobileCustomSize = 33;
+
 const Duration kEmojiPickerScrollSettleDelay = Duration(milliseconds: 120);
 
 double emojiPickerCacheExtent({
@@ -19,7 +25,6 @@ double emojiPickerCacheExtent({
   int overscanRows = kEmojiPickerOverscanRows,
 }) => rowHeight * overscanRows;
 
-/// The extra row covers partial rows cut at both viewport edges.
 int emojiPickerMaxAnimatedEmojis({
   required int columns,
   required double viewportHeight,

@@ -228,8 +228,6 @@ class ThemePreferenceState {
   final bool syncThemeColorsFromThemeStudio;
   final bool syncThemeColorsToThemeStudio;
 
-  /// Non-null while a server PATCH for this theme is in flight. UI uses this
-  /// to disable swatches and surface a spinner on the targeted swatch.
   final FluxerThemeMode? inflightTheme;
 
   final FluxerColorTheme darkColorTheme;
@@ -417,7 +415,10 @@ class ThemePreference extends _$ThemePreference {
       if (decoded is! Map<String, dynamic>) {
         return false;
       }
-      await _applyRemoteUserSettings(UserSettingsResponse.fromJson(decoded));
+      await _applyRemoteUserSettings(
+        UserSettingsResponse.fromJson(decoded),
+        fromCache: true,
+      );
       return true;
     } on Object catch (e, st) {
       talker.warning('[ThemePreference] Cached settings apply failed', e, st);
@@ -436,21 +437,22 @@ class ThemePreference extends _$ThemePreference {
     }
   }
 
-  Future<void> _applyRemoteUserSettings(UserSettingsResponse settings) async {
+  Future<void> _applyRemoteUserSettings(
+    UserSettingsResponse settings, {
+    bool fromCache = false,
+  }) async {
     await ref
         .read(syncedPreferencesStoreProvider)
         .hydrateFromUserSettings(
           settings,
           themeCustomizationApplier: applySyncedThemeCustomization,
+          fromCache: fromCache,
         );
     if (state.syncAcrossDevices && state.mode != FluxerThemeMode.system) {
       await applyServerSettings(settings);
     }
   }
 
-  /// Switches the theme. When sync is active and the target is non-system,
-  /// blocks on a server PATCH and only commits on success. Throws on failure
-  /// so the caller (UI) can surface a toast.
   Future<void> setTheme(FluxerThemeMode mode) async {
     if (state.inflightTheme != null) {
       return;
@@ -557,9 +559,6 @@ class ThemePreference extends _$ThemePreference {
     }
   }
 
-  /// Toggles cross-device theme sync. Toggling ON pushes the current theme
-  /// and blocks on the ack — on failure, the toggle reverts. Throws on
-  /// failure so the caller can surface a toast.
   Future<void> setSyncAcrossDevices({required bool value}) async {
     if (state.mode == FluxerThemeMode.system) {
       return;
@@ -591,11 +590,6 @@ class ThemePreference extends _$ThemePreference {
     }
   }
 
-  /// Apply settings received from the server (READY hydration or
-  /// `USER_SETTINGS_UPDATE` echo). No-op when sync is effectively disabled
-  /// (raw flag off OR the device is in system mode), or when a local change
-  /// is already in flight (we don't want a stale echo to fight it). Persists
-  /// locally; never pushes back.
   Future<void> applyServerSettings(UserSettingsResponse settings) async {
     final String? currentUserId = ref.read(currentUserIdProvider);
     if (_userId == null ||

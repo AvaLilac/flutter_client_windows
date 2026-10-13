@@ -12,11 +12,87 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get reconnectingTitle => 'Щось пішло не так!';
 
   @override
+  String get chatJumpToPresent => 'Перейти до останніх повідомлень';
+
+  @override
+  String get chatViewingOlderMessages => 'Ви переглядаєте старіші повідомлення';
+
+  @override
+  String get chatNewMessagesBarJumpToFirstUnread =>
+      'Перейти до першого непрочитаного повідомлення';
+
+  @override
+  String get chatNewMessagesBarMarkAsRead => 'Позначити як прочитане';
+
+  @override
+  String get chatNewMessagesBarMarkRead => 'Позначити прочитаним';
+
+  @override
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ нових повідомлень з $compactTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount нових повідомлень',
+      many: '$unreadCount нових повідомлень',
+      few: '$unreadCount нові повідомлення',
+      one: '$unreadCount нове повідомлення',
+    );
+    return '$_temp0 з $compactTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewSinceEstimated(
+    int unreadCount,
+    String shortTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ нових з $shortTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount нового',
+      many: '$unreadCount нових',
+      few: '$unreadCount нові',
+      one: '$unreadCount нове',
+    );
+    return '$_temp0 з $shortTime';
+  }
+
+  @override
   String get reconnectingBody =>
       'Щось не так з інстансом.\nМає виправитись за секунду!';
 
   @override
   String get gatewayReconnectingToast => 'Повторне підключення…';
+
+  @override
+  String get gatewayReconnectTryAgain => 'Спробувати ще раз';
 
   @override
   String get gatewayConnectedToast => 'Підключено';
@@ -273,6 +349,9 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get next => 'Далі';
 
   @override
+  String get create => 'Create';
+
+  @override
   String get mfaTitle => 'Двофакторна автентифікація';
 
   @override
@@ -310,6 +389,11 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   @override
   String get accountRemoveDescription =>
       'Це видалить збережений сеанс для цього облікового запису.';
+
+  @override
+  String accountSignOutTitle(String identifier) {
+    return 'Sign out of $identifier?';
+  }
 
   @override
   String get accountExpired => 'Термін дії закінчився';
@@ -1536,7 +1620,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get emojiSearchEmpty => 'Емоджі не знайдено за вашим запитом';
 
   @override
-  String get emojiAutocompleteDefaultLabel => 'Стандартний емодзі';
+  String get emojiAutocompleteDefaultLabel => 'Стандартний емоджі';
 
   @override
   String emojiInfoDefaultDescription(String productName) {
@@ -1556,7 +1640,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
       'Це власне емоджі зі спільноти. Щоб використовувати це емоджі, попросіть автора надіслати запрошення.';
 
   @override
-  String get emojiInfoFromHeader => 'Цей емодзі з';
+  String get emojiInfoFromHeader => 'Цей емоджі з';
 
   @override
   String get emojiInfoDiscoverableCommunity => 'Спільнота в Discovery';
@@ -1592,13 +1676,10 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get gifPickerSearch => 'Пошук GIF';
 
   @override
-  String get gifPickerSearchKlipy => 'Пошук KLIPY';
+  String get gifPickerSearchKlipy => 'Пошук Klipy';
 
   @override
   String get gifPickerSearchTenor => 'Пошук Tenor';
-
-  @override
-  String get gifPickerPoweredByKlipy => 'KLIPY';
 
   @override
   String get gifPickerFavorites => 'Вибране';
@@ -1947,7 +2028,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get aboutMeHelperText =>
-      'Можна використовувати посилання, емодзі та Markdown.';
+      'Можна використовувати посилання, емоджі та Markdown.';
 
   @override
   String get emojiPickerTitle => 'Емоджі';
@@ -2438,10 +2519,6 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
       'Безповоротно видалити свій обліковий запис та всі пов\'язані дані. Цю дію не можна скасувати.';
 
   @override
-  String get dangerZoneDeleteCancelSubscription =>
-      'Скасуйте свою активну підписку Plutonium у налаштуваннях Plutonium перед видаленням облікового запису.';
-
-  @override
   String get dangerZoneDeleteCannotDeleteAccount =>
       'Неможливо видалити обліковий запис';
 
@@ -2614,7 +2691,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'за # днів',
+      other: 'за $count днів',
       one: 'за 1 день',
     );
     return '$_temp0';
@@ -5203,7 +5280,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get messagesMediaAutocompleteDefaultEmojisLabel =>
-      'Показувати стандартні емодзі в автозаповненні виразів';
+      'Показувати стандартні емоджі в автозаповненні виразів';
 
   @override
   String get messagesMediaAutocompleteCustomEmojisLabel =>
@@ -5968,8 +6045,8 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# непрочитаними повідомленнями',
-      one: '# непрочитаним повідомленням',
+      other: '$count непрочитаними повідомленнями',
+      one: '$count непрочитаним повідомленням',
     );
     return 'Показати чат з $_temp0';
   }
@@ -6117,6 +6194,40 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
       'Не вдалося завантажити це повідомлення.';
 
   @override
+  String notificationsMentionedYouIn(String author, String place) {
+    return '$author mentioned you in $place:';
+  }
+
+  @override
+  String notificationsRepliedToYouIn(String author, String place) {
+    return '$author replied to you in $place:';
+  }
+
+  @override
+  String notificationsMentionedYou(String author) {
+    return '$author mentioned you:';
+  }
+
+  @override
+  String notificationsRepliedToYou(String author) {
+    return '$author replied to you:';
+  }
+
+  @override
+  String notificationsMentionPlace(String server, String channel) {
+    return '$server – $channel';
+  }
+
+  @override
+  String get notificationsSendReply => 'Send a reply';
+
+  @override
+  String get notificationsRecentActivity => 'Recent activity';
+
+  @override
+  String get notificationsRemoveNotification => 'Remove notification';
+
+  @override
   String characterCounterRemaining(int remaining) {
     return '$remaining символів залишилося';
   }
@@ -6135,6 +6246,10 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get chatMessageFailedToSend => 'Не вдалося надіслати повідомлення';
+
+  @override
+  String get chatMessageFailedToSendTapForOptions =>
+      'Не вдалося надіслати повідомлення. Торкніться, щоб вибрати параметри.';
 
   @override
   String chatSendFailureDmRestricted(String settingsPath) {
@@ -6582,10 +6697,10 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# спільнот',
-      many: '# спільнот',
-      few: '# спільнот',
-      one: '# спільноти',
+      other: '$count спільнот',
+      many: '$count спільнот',
+      few: '$count спільнот',
+      one: '$count спільноти',
     );
     return 'Усі, крім $_temp0';
   }
@@ -6595,10 +6710,10 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# спільноти',
-      many: '# спільнот',
-      few: '# спільноти',
-      one: '# спільнота',
+      other: '$count спільноти',
+      many: '$count спільнот',
+      few: '$count спільноти',
+      one: '$count спільнота',
     );
     return 'Лише $_temp0';
   }
@@ -6627,18 +6742,18 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# годин',
-      many: '# годин',
-      few: '# години',
-      one: '# година',
+      other: '$hours годин',
+      many: '$hours годин',
+      few: '$hours години',
+      one: '$hours година',
     );
     String _temp1 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# хвилин',
-      many: '# хвилин',
-      few: '# хвилини',
-      one: '# хвилина',
+      other: '$minutes хвилин',
+      many: '$minutes хвилин',
+      few: '$minutes хвилини',
+      one: '$minutes хвилина',
     );
     return '$_temp0 і $_temp1';
   }
@@ -6648,10 +6763,10 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# години',
-      many: '# годин',
-      few: '# години',
-      one: '# година',
+      other: '$hours години',
+      many: '$hours годин',
+      few: '$hours години',
+      one: '$hours година',
     );
     return '$_temp0';
   }
@@ -6661,10 +6776,10 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# хвилини',
-      many: '# хвилин',
-      few: '# хвилини',
-      one: '# хвилина',
+      other: '$minutes хвилини',
+      many: '$minutes хвилин',
+      few: '$minutes хвилини',
+      one: '$minutes хвилина',
     );
     return '$_temp0';
   }
@@ -6674,10 +6789,10 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       seconds,
       locale: localeName,
-      other: '# секунди',
-      many: '# секунд',
-      few: '# секунди',
-      one: '# секунда',
+      other: '$seconds секунди',
+      many: '$seconds секунд',
+      few: '$seconds секунди',
+      one: '$seconds секунда',
     );
     return '$_temp0';
   }
@@ -6713,7 +6828,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get doubleTapReactionEditSubtitle =>
-      'Виберіть емодзі для подвійного дотику';
+      'Виберіть емоджі для подвійного дотику';
 
   @override
   String get messagesMediaGesturesSectionTitle => 'Gestures';
@@ -6809,9 +6924,6 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get forwardSuccessToast => 'Повідомлення переслано';
-
-  @override
-  String get forwardFailed => 'Не вдалося переслати повідомлення';
 
   @override
   String get forwardCommentSlowmodeDisabled =>
@@ -7228,6 +7340,12 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get chatEditNoChanges => 'Немає змін для збереження';
 
   @override
+  String get chatEditFailed => 'Your message didn\'t update';
+
+  @override
+  String get chatEditFailedEditAgain => 'Edit again';
+
+  @override
   String get chatChannelNotReady =>
       'Цей канал ще не готовий. Спробуйте ще раз за мить.';
 
@@ -7338,6 +7456,9 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get composerAutocompleteStickersHeading => 'Стікери';
+
+  @override
+  String get composerAutocompleteEmojisHeading => 'Emojis';
 
   @override
   String get composerAutocompleteGifsHeading => 'GIF-файли';
@@ -8970,19 +9091,19 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get purgePersonalNotesFailed => 'Не вдалося очистити особисті нотатки';
 
   @override
-  String get userSettingsGroupYourAccount => 'ВАШ ОБЛІКОВИЙ ЗАПИС';
+  String get userSettingsGroupYourAccount => 'Ваш обліковий запис';
 
   @override
-  String get userSettingsGroupBilling => 'BILLING';
+  String get userSettingsGroupBilling => 'Billing';
 
   @override
-  String get userSettingsGroupApplication => 'APPLICATION';
+  String get userSettingsGroupApplication => 'Application';
 
   @override
-  String get userSettingsGroupDeveloper => 'DEVELOPER';
+  String get userSettingsGroupDeveloper => 'Developer';
 
   @override
-  String get userSettingsGroupStaffOnly => 'STAFF-ONLY';
+  String get userSettingsGroupStaffOnly => 'Staff-only';
 
   @override
   String get userSettingsSearchPlaceholder => 'Шукати налаштування…';
@@ -9390,11 +9511,11 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get storePlutoniumPriceOr => 'або';
 
   @override
-  String get storePlutoniumEmojiTitle => 'Ваші емодзі всюди';
+  String get storePlutoniumEmojiTitle => 'Ваші емоджі всюди';
 
   @override
   String get storePlutoniumEmojiBody =>
-      'Додавайте власні емодзі та стікери з будь-яких спільнот до кожного чату та спільноти, в яких ви перебуваєте.';
+      'Додавайте власні емоджі та стікери з будь-яких спільнот до кожного чату та спільноти, в яких ви перебуваєте.';
 
   @override
   String get storePlutoniumProfileTitle => 'Профіль, що виділяється';
@@ -9460,11 +9581,11 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get storePlutoniumCompareAnimatedEmoji =>
-      'Використовуйте анімовані емодзі в повідомленнях';
+      'Використовуйте анімовані емоджі в повідомленнях';
 
   @override
   String get storePlutoniumCompareCustomEmoji =>
-      'Використовуйте власні емодзі та стікери в будь-якій спільноті';
+      'Використовуйте власні емоджі та стікери в будь-якій спільноті';
 
   @override
   String get storePlutoniumCompareVideo =>
@@ -9506,7 +9627,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get storePlutoniumHighlightEmoji =>
-      'Власні емодзі та стікери в будь-якому чаті';
+      'Власні емоджі та стікери в будь-якому чаті';
 
   @override
   String get storePlutoniumHighlightProfile =>
@@ -10430,7 +10551,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get advancedSettingShowDefaultEmojisAutocompleteLabel =>
-      'Показувати стандартні емодзі в автозаповненні виразів';
+      'Показувати стандартні емоджі в автозаповненні виразів';
 
   @override
   String get advancedSettingShowCustomEmojisAutocompleteLabel =>
@@ -10610,7 +10731,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get advancedSettingBuiltInReverseImageSearchDescription =>
-      'Увімкніть або вимкніть вбудовані сервіси зворотного пошуку зображень. Увімкнені сервіси з\'являються в контекстному меню зображень, аватарів, банерів, стікерів та емодзі.';
+      'Увімкніть або вимкніть вбудовані сервіси зворотного пошуку зображень. Увімкнені сервіси з\'являються в контекстному меню зображень, аватарів, банерів, стікерів та емоджі.';
 
   @override
   String get advancedSettingCustomReverseImageSearchLabel =>
@@ -10908,6 +11029,9 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get chatJumpToBottom => 'Перейти донизу';
+
+  @override
+  String get chatUnreadDividerNew => 'Нове';
 
   @override
   String get uiConfirm => 'Підтвердити';
@@ -11211,10 +11335,10 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get guildNavbarHelp => 'Довідка';
 
   @override
-  String get scrollIndicatorNew => 'НОВЕ';
+  String get scrollIndicatorNew => 'Нове';
 
   @override
-  String get scrollIndicatorNewMessage => 'НОВЕ ПОВІДОМЛЕННЯ';
+  String get scrollIndicatorNewMessages => 'Нові повідомлення';
 
   @override
   String guildNavbarCollapseFolder(String folderName) {
@@ -11980,10 +12104,10 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get permissionCreateEmojiStickersDescription =>
-      'Завантажувати нові емодзі та стікери, а також керувати власними творіннями.';
+      'Завантажувати нові емоджі та стікери, а також керувати власними творіннями.';
 
   @override
-  String get permissionManageEmojiStickers => 'Керувати емодзі та стікерами';
+  String get permissionManageEmojiStickers => 'Керувати емоджі та стікерами';
 
   @override
   String get permissionManageEmojiStickersDescription =>
@@ -13083,8 +13207,8 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Видалено # повідомлень.',
-      one: 'Видалено # повідомлення.',
+      other: 'Видалено $count повідомлень.',
+      one: 'Видалено $count повідомлення.',
     );
     return '$_temp0';
   }
@@ -13094,8 +13218,8 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Видалено # учасників.',
-      one: 'Видалено # учасника.',
+      other: 'Видалено $count учасників.',
+      one: 'Видалено $count учасника.',
     );
     return '$_temp0';
   }
@@ -13628,16 +13752,16 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
       'Не вдалося видалити цю спільноту';
 
   @override
-  String get guildSettingsCategoryExpressions => 'EXPRESSIONS';
+  String get guildSettingsCategoryExpressions => 'Expressions';
 
   @override
-  String get guildSettingsCategoryCommunity => 'COMMUNITY';
+  String get guildSettingsCategoryCommunity => 'Community';
 
   @override
-  String get guildSettingsCategoryIntegrations => 'INTEGRATIONS';
+  String get guildSettingsCategoryIntegrations => 'Integrations';
 
   @override
-  String get guildSettingsCategoryPeople => 'PEOPLE';
+  String get guildSettingsCategoryPeople => 'People';
 
   @override
   String get guildSettingsOverviewBrandingTitle => 'Брендування';
@@ -13960,7 +14084,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String guildSettingsEmojiUploadRequirements(String maxSize) {
-    return 'Назви емодзі мають містити щонайменше 2 символи та можуть складатися з літер, цифр і підкреслень. Розмір емодзі має бути меншим за $maxSize. Статичні зображення автоматично змінюються до розміру 128x128 пікселів і стискаються. Анімовані емодзі та SVG мають одразу відповідати обмеженню.';
+    return 'Назви емоджі мають містити щонайменше 2 символи та можуть складатися з літер, цифр і підкреслень. Розмір емоджі має бути меншим за $maxSize. Статичні зображення автоматично змінюються до розміру 128x128 пікселів і стискаються. Анімовані емоджі та SVG мають одразу відповідати обмеженню.';
   }
 
   @override
@@ -14939,7 +15063,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get forumPostArchived => 'Archived';
 
   @override
-  String get forumPostNewBadge => 'NEW';
+  String get forumPostNewBadge => 'Нове';
 
   @override
   String get forumPostStarterDeleted => 'The original message was deleted.';
@@ -14954,8 +15078,8 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new messages',
-      one: '1 new message',
+      other: '$count нових повідомлень',
+      one: '$count нове повідомлення',
     );
     return '$_temp0';
   }
@@ -15264,4 +15388,7 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String voiceP2pPeerFailedTitle(String name) {
     return 'Cannot connect directly to $name';
   }
+
+  @override
+  String get favoritesRenameCategory => 'Перейменувати категорію';
 }

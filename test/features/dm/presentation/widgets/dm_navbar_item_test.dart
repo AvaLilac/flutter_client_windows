@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart'
-    show FluxerDatabase;
+    show DmChannel, DmChannelsCompanion, FluxerDatabase;
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
+import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme.dart';
@@ -20,7 +22,11 @@ import 'package:fluxer_app/features/mature_content/domain/mature_content_types.d
 import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
 import 'package:fluxer_app/features/profile/providers/user_presence_provider.dart';
 import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/ui/avatar/fluxer_avatar.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_avatar_cluster.dart';
+import 'package:fluxer_app/features/ui/badge/fluxer_badge.dart';
+import 'package:fluxer_app/features/ui/status_indicator/fluxer_status_indicator.dart';
+import 'package:fluxer_app/features/ui/status_indicator/fluxer_typing_status_indicator.dart';
 import 'package:fluxer_app/l10n/fluxer_localizations_delegates.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
@@ -129,6 +135,47 @@ void main() {
       await releaseTestWidgetTree(tester);
     });
 
+    testWidgets('keeps the mention badge on the selected DM', (tester) async {
+      final router = _buildRouter(
+        home: const DmNavbarItem(
+          channelId: '1000000000000000001',
+          recipientId: '1000000000000000002',
+          displayName: 'Alpha',
+          type: 1,
+        ),
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          router: router,
+          activeChannelId: '1000000000000000001',
+          unreadState: UnreadDmState(
+            channels: [
+              DmChannel(
+                id: '1000000000000000001',
+                type: 1,
+                recipientId: '1000000000000000002',
+                recipientCount: 1,
+                recipientIds: '["1000000000000000002"]',
+                nicksJson: '{}',
+                lastMessage: '',
+                lastMessageTime: DateTime.fromMillisecondsSinceEpoch(0),
+                unreadCount: 2,
+              ),
+            ],
+            unreadChannelIds: const {'1000000000000000001'},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FluxerBadge), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+
+      await releaseTestWidgetTree(tester);
+    });
+
     testWidgets('group DM without uploaded icon renders member cluster', (
       tester,
     ) async {
@@ -172,11 +219,110 @@ void main() {
         find.byType(FluxerAvatarCluster),
       );
       expect(cluster.iconUrl, isNull);
+      expect(cluster.isTyping, isFalse);
       expect(cluster.members.map((member) => member.userId), [
         '1000000000000000011',
         '1000000000000000012',
-        '1000000000000000013',
       ]);
+      expect(find.byType(FluxerStatusIndicator), findsNothing);
+      expect(find.byType(FluxerTypingStatusIndicator), findsNothing);
+      expect(
+        find.ancestor(
+          of: find.byType(FluxerAvatarCluster),
+          matching: find.byWidgetPredicate(
+            (Widget widget) =>
+                widget is ClipRRect ||
+                widget is ClipRect ||
+                widget is ClipOval ||
+                (widget is AnimatedContainer &&
+                    widget.clipBehavior != Clip.none),
+          ),
+        ),
+        findsNothing,
+        reason: 'the rail must not clip the typing pill past the avatar edge',
+      );
+    });
+
+    testWidgets('1:1 rail avatar shows no presence or typing', (tester) async {
+      final router = _buildRouter(
+        home: const DmNavbarItem(
+          channelId: '1000000000000000001',
+          recipientId: '1000000000000000002',
+          displayName: 'Alpha',
+          type: 1,
+        ),
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(_buildTestApp(router: router));
+      await tester.pumpAndSettle();
+
+      final FluxerAvatar avatar = tester.widget<FluxerAvatar>(
+        find.byType(FluxerAvatar),
+      );
+      expect(avatar.showStatus, isFalse);
+      expect(avatar.isTyping, isFalse);
+
+      await releaseTestWidgetTree(tester);
+    });
+
+    testWidgets('mention badge stays visible and unclipped when selected', (
+      tester,
+    ) async {
+      const String channelId = '1000000000000000001';
+      await _database.dmChannelDao.upsertDmChannels(const [
+        DmChannelsCompanion(
+          id: Value(channelId),
+          recipientId: Value('1000000000000000002'),
+          unreadCount: Value(4),
+        ),
+      ]);
+      final DmChannel row = (await _database.dmChannelDao.getDmChannelById(
+        channelId,
+      ))!;
+      final router = _buildRouter(
+        home: const DmNavbarItem(
+          channelId: channelId,
+          recipientId: '1000000000000000002',
+          displayName: 'Alpha',
+          type: 1,
+        ),
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          router: router,
+          unreadState: UnreadDmState(
+            channels: [row],
+            unreadChannelIds: const {channelId},
+          ),
+          activeChannelId: channelId,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Finder badge = find.byType(FluxerBadge);
+      expect(badge, findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: badge,
+          matching: find.byWidgetPredicate(
+            (Widget widget) =>
+                widget is ClipRRect ||
+                widget is ClipOval ||
+                widget is ClipPath ||
+                (widget is Container && widget.clipBehavior != Clip.none),
+          ),
+        ),
+        findsNothing,
+      );
+      final Rect badgeRect = tester.getRect(badge);
+      final Rect itemRect = tester.getRect(find.byType(DmNavbarItem));
+      expect(badgeRect.right, lessThanOrEqualTo(itemRect.right));
+
+      await releaseTestWidgetTree(tester);
     });
   });
 }
@@ -203,7 +349,12 @@ GoRouter _buildRouter({required Widget home}) {
   );
 }
 
-Widget _buildTestApp({required GoRouter router, DmViewState? dmViewState}) {
+Widget _buildTestApp({
+  required GoRouter router,
+  DmViewState? dmViewState,
+  String? activeChannelId,
+  UnreadDmState? unreadState,
+}) {
   final colorTheme = buildDarkColorTheme();
   final overrides = <Override>[
     fluxerDatabaseProvider.overrideWithValue(_database),
@@ -252,16 +403,19 @@ Widget _buildTestApp({required GoRouter router, DmViewState? dmViewState}) {
     ).overrideWith((ref) => MatureContentGateReason.none),
     unreadDmChannelsProvider.overrideWith(
       () => _FakeUnreadDmChannels(
-        const UnreadDmState(
-          unreadChannelIds: {
-            '1000000000000000001',
-            '1000000000000000003',
-            '1000000000000000005',
-            '1000000000000000007',
-          },
-        ),
+        unreadState ??
+            const UnreadDmState(
+              unreadChannelIds: {
+                '1000000000000000001',
+                '1000000000000000003',
+                '1000000000000000005',
+                '1000000000000000007',
+              },
+            ),
       ),
     ),
+    if (activeChannelId != null)
+      activeChannelIdProvider.overrideWithValue(activeChannelId),
   ];
 
   return ProviderScope(

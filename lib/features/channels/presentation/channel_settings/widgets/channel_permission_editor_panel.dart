@@ -4,14 +4,13 @@ import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/domain/channel_permission_overwrite_update.dart';
 import 'package:fluxer_app/features/channels/domain/channel_permission_spec.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/picker_search_input.dart';
 import 'package:fluxer_app/features/settings/domain/guild/roles/guild_role_permission_spec.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/guild/permissions/permission_overwrite_category.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/guild/permissions/permission_state_buttons.dart';
 import 'package:fluxer_app/features/settings/providers/guild/permission_layout_provider.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button_size.dart';
-import 'package:fluxer_app/features/ui/input/fluxer_input.dart';
 import 'package:fluxer_app/features/ui/tooltip/fluxer_tooltip.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
@@ -92,9 +91,6 @@ class _ChannelPermissionEditorPanelState
         generateChannelPermissionSpec(
           FluxerLocalizations.of(context),
           widget.channel.type,
-          threads: ref.read(
-            threadChannelsActiveProvider(widget.channel.guildId),
-          ),
         );
     for (final GuildPermissionCategorySpec spec in specs) {
       for (final GuildPermissionEntry permission in spec.permissions) {
@@ -173,12 +169,8 @@ class _ChannelPermissionEditorPanelState
         Row(
           children: <Widget>[
             Expanded(
-              child: FluxerInput(
-                hint: l10n.channelSettingsPermissionsSearchPlaceholder,
-                prefixIcon: const PhosphorIcon(
-                  PhosphorIconsBold.magnifyingGlass,
-                  size: 16,
-                ),
+              child: PickerSearchInput.inline(
+                hintText: l10n.channelSettingsPermissionsSearchPlaceholder,
                 onChanged: (String value) =>
                     setState(() => _searchQuery = value),
               ),
@@ -226,13 +218,7 @@ class _ChannelPermissionEditorPanelState
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     final PermissionLayoutState layout = ref.watch(permissionLayoutProvider);
     final List<GuildPermissionCategorySpec> specs = filterGuildPermissionSpec(
-      specs: generateChannelPermissionSpec(
-        l10n,
-        widget.channel.type,
-        threads: ref.watch(
-          threadChannelsActiveProvider(widget.channel.guildId),
-        ),
-      ),
+      specs: generateChannelPermissionSpec(l10n, widget.channel.type),
       query: _searchQuery,
     );
     final ChannelPermissionState? allPermissionsState = _allPermissionsState(

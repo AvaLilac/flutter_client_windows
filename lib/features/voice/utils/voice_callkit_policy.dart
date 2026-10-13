@@ -8,6 +8,7 @@ const String kVoiceCallKitExtraMessageId = 'messageId';
 const String kVoiceCallKitExtraIsDm = 'isDm';
 const String kVoiceCallKitExtraTargetUserId = 'targetUserId';
 const String kVoiceCallKitExtraGuildId = 'guildId';
+const String kVoiceCallKitExtraActiveVoice = 'activeVoice';
 const Duration kVoiceCallKitGatewayRingSyncDelay = Duration(seconds: 10);
 
 enum VoiceCallKitSessionKind { incomingRing, activeVoice }
@@ -38,6 +39,17 @@ class VoiceCallKitSession {
   final String? connectionId;
   final String? targetUserId;
   final String? guildId;
+}
+
+bool isStaleNativeVoiceCallOnLaunch({
+  required Map<String, dynamic>? extra,
+  required String? channelId,
+  required String? interruptedChannelId,
+}) {
+  if (extra?[kVoiceCallKitExtraActiveVoice] == true) {
+    return true;
+  }
+  return channelId != null && channelId == interruptedChannelId;
 }
 
 bool incomingRingBelongsToOtherAccount({
@@ -191,7 +203,6 @@ bool shouldDismissCallKitOnForeground({
   if (isInVoice) {
     return false;
   }
-  // CallKit UI makes the app inactive. Only swap to in-app UI when resumed.
   return lifecycleState == AppLifecycleState.resumed;
 }
 

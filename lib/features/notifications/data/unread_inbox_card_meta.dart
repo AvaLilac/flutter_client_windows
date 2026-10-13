@@ -1,13 +1,15 @@
 import 'package:fluxer_app/core/database/fluxer_database.dart' as drift_db;
 import 'package:fluxer_app/features/channels/domain/channel.dart' as domain;
+import 'package:fluxer_app/features/dm/data/dm_conversation_mapper.dart';
+import 'package:fluxer_app/features/dm/domain/dm_channel_types.dart';
+import 'package:fluxer_app/features/dm/domain/dm_conversation.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
+import 'package:fluxer_app/features/notifications/data/mention_header_loader.dart';
+import 'package:fluxer_app/features/notifications/domain/mention_header.dart';
 import 'package:fluxer_app/features/notifications/domain/unread_inbox_entry.dart';
 
 const String _kFallbackDmTitle = 'DM';
 
-/// Snapshot of the metadata rendered in an unread-inbox card header: channel
-/// title, optional guild line, channel-type icon hint, and the rounded
-/// server-icon avatar inputs.
 class UnreadInboxCardMeta {
   const UnreadInboxCardMeta({
     required this.channelTitle,
@@ -16,6 +18,8 @@ class UnreadInboxCardMeta {
     required this.guildIconDisplayUrl,
     required this.guildUnavailableForIcon,
     required this.guildIconName,
+    this.dmUser,
+    this.groupDm,
   });
 
   factory UnreadInboxCardMeta.empty() => const UnreadInboxCardMeta(
@@ -33,11 +37,10 @@ class UnreadInboxCardMeta {
   final String? guildIconDisplayUrl;
   final bool guildUnavailableForIcon;
   final String guildIconName;
+  final drift_db.User? dmUser;
+  final DmConversation? groupDm;
 }
 
-/// Resolves the display metadata (title, guild line, and icon inputs) for
-/// an [UnreadInboxEntry]. Always returns a usable snapshot — falls back to
-/// `'DM'` for unknown DM channels.
 Future<UnreadInboxCardMeta> loadUnreadInboxCardMeta(
   drift_db.FluxerDatabase db,
   UnreadInboxEntry entry,
@@ -52,24 +55,28 @@ Future<UnreadInboxCardMeta> _loadDmMeta(
   drift_db.FluxerDatabase db,
   String channelId,
 ) async {
+  final MentionHeaderResult result = await loadMentionHeaderForChannelId(
+    db,
+    channelId,
+  );
+  final String title = result.header.isDm ? result.header.primary : '';
   final drift_db.DmChannel? dm = await db.dmChannelDao.getDmChannelById(
     channelId,
   );
-  String title = dm?.name?.trim() ?? '';
-  if (title.isEmpty && dm != null && dm.recipientId.isNotEmpty) {
-    final drift_db.User? user = await db.userDao.getUserById(dm.recipientId);
-    title = user?.username ?? _kFallbackDmTitle;
-  }
-  if (title.isEmpty) {
-    title = _kFallbackDmTitle;
-  }
+  final bool isGroup = dm != null && isDmGroupType(dm.type);
   return UnreadInboxCardMeta(
-    channelTitle: title,
+    channelTitle: title.isEmpty ? _kFallbackDmTitle : title,
     subtitleLine: '',
     guildChannelVisualType: domain.ChannelType.guildText,
     guildIconDisplayUrl: null,
     guildUnavailableForIcon: false,
     guildIconName: '',
+    dmUser: dm == null || isGroup || dm.recipientId.isEmpty
+        ? null
+        : await db.userDao.getUserById(dm.recipientId),
+    groupDm: dm != null && isGroup
+        ? await buildDmConversationFromChannelRow(db, dm)
+        : null,
   );
 }
 

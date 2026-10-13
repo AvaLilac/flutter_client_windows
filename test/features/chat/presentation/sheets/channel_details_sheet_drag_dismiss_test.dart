@@ -64,7 +64,6 @@ Widget _host(ProviderContainer container, {required Widget child}) {
   );
 }
 
-/// Mounts a host with an `Open` button that shows [show] as a real modal sheet.
 Future<void> _openSheet(
   WidgetTester tester,
   ProviderContainer container,
@@ -103,9 +102,7 @@ void main() {
     );
     expect(_handle, findsOneWidget);
 
-    // Full-height scrollable sheets snap between half and full. Closing the
-    // handle requires releasing below the half mark.
-    await tester.drag(_handle, const Offset(0, 300));
+    await tester.drag(_handle, const Offset(0, 440));
     await tester.pumpAndSettle();
 
     expect(_handle, findsNothing);
@@ -125,7 +122,7 @@ void main() {
     );
 
     final RenderBox sheetBox = tester.renderObject(
-      find.byType(DraggableScrollableSheet),
+      find.byType(FluxerDraggableScrollableSheet),
     );
     await tester.drag(
       _handle,
@@ -134,7 +131,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(_handle, findsOneWidget);
 
-    // At the half snap, a short flick above 300px/s dismisses.
     final TestGesture gesture = await tester.startGesture(
       tester.getCenter(_handle),
     );
@@ -201,11 +197,19 @@ void main() {
     expect(title, findsOneWidget);
     final double restTop = tester.getTopLeft(_handle).dy;
 
-    await tester.drag(title, const Offset(0, 80));
+    final TestGesture gesture = await tester.startGesture(
+      tester.getCenter(title),
+    );
+    await gesture.moveBy(const Offset(0, 40));
+    await gesture.moveBy(const Offset(0, 40));
+    await tester.pump();
+    expect(tester.getTopLeft(_handle).dy, greaterThan(restTop));
+
+    await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(tester.getTopLeft(_handle).dy, greaterThan(restTop));
     expect(_handle, findsOneWidget);
+    expect(tester.getTopLeft(_handle).dy, closeTo(restTop, 0.5));
     expect(tester.takeException(), isNull);
   });
 }

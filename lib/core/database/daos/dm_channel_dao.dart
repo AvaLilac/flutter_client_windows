@@ -19,6 +19,12 @@ class DmChannelDao extends DatabaseAccessor<FluxerDatabase>
           .watch()
           .suppressDriftCancellation;
 
+  Stream<String?> watchNicksJson(String channelId) =>
+      (select(dmChannels)..where((d) => d.id.equals(channelId)))
+          .map((DmChannel row) => row.nicksJson)
+          .watchSingleOrNull()
+          .suppressDriftCancellation;
+
   Future<List<DmChannel>> getDmChannels() => (select(
     dmChannels,
   )..orderBy([(d) => OrderingTerm.desc(d.lastMessageTime)])).get();
@@ -87,6 +93,17 @@ class DmChannelDao extends DatabaseAccessor<FluxerDatabase>
   Future<void> deleteDmChannel(String channelId) =>
       (delete(dmChannels)..where((d) => d.id.equals(channelId))).go();
 
+  Future<List<String>> deleteDmChannelsNotIn(Set<String> keepIds) async {
+    final List<String> staleIds = <String>[
+      for (final DmChannel row in await select(dmChannels).get())
+        if (!keepIds.contains(row.id)) row.id,
+    ];
+    if (staleIds.isNotEmpty) {
+      await (delete(dmChannels)..where((d) => d.id.isIn(staleIds))).go();
+    }
+    return staleIds;
+  }
+
   Future<void> clearAll() => delete(dmChannels).go();
 
   Future<DmChannel?> getDmChannelById(String id) =>
@@ -106,6 +123,9 @@ class DmChannelDao extends DatabaseAccessor<FluxerDatabase>
       DmChannelsCompanion(
         recipientIds: Value(jsonEncode(updated)),
         recipientCount: Value(updated.length + 1),
+        recipientId: recipientIds.isEmpty
+            ? Value(userId)
+            : const Value.absent(),
       ),
     );
   }
