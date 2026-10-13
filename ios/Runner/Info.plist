@@ -16,47 +16,11 @@
 	<dict>
 		<key>CFBundleAlternateIcons</key>
 		<dict>
-			<key>AppIconStarfield</key>
+			<key>AppIconCanaryBrutalist</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIconStarfield</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>AppIconSweden</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIconSweden</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>AppIconGreyscale</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIconGreyscale</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>AppIconRainbow</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIconRainbow</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>AppIconWaves</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIconWaves</string>
+					<string>AppIconCanaryBrutalist</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
@@ -79,6 +43,15 @@
 				<key>UIPrerenderedIcon</key>
 				<false/>
 			</dict>
+			<key>AppIconGreyscale</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconGreyscale</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
 			<key>AppIconGreyscaleBrutalist</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
@@ -88,11 +61,38 @@
 				<key>UIPrerenderedIcon</key>
 				<false/>
 			</dict>
-			<key>AppIconCanaryBrutalist</key>
+			<key>AppIconRainbow</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIconCanaryBrutalist</string>
+					<string>AppIconRainbow</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIconStarfield</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconStarfield</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIconSweden</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconSweden</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIconWaves</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconWaves</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
@@ -103,47 +103,11 @@
 	<dict>
 		<key>CFBundleAlternateIcons</key>
 		<dict>
-			<key>AppIconStarfield</key>
+			<key>AppIconCanaryBrutalist</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIconStarfield</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>AppIconSweden</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIconSweden</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>AppIconGreyscale</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIconGreyscale</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>AppIconRainbow</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIconRainbow</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>AppIconWaves</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIconWaves</string>
+					<string>AppIconCanaryBrutalist</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
@@ -166,6 +130,15 @@
 				<key>UIPrerenderedIcon</key>
 				<false/>
 			</dict>
+			<key>AppIconGreyscale</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconGreyscale</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
 			<key>AppIconGreyscaleBrutalist</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
@@ -175,11 +148,38 @@
 				<key>UIPrerenderedIcon</key>
 				<false/>
 			</dict>
-			<key>AppIconCanaryBrutalist</key>
+			<key>AppIconRainbow</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIconCanaryBrutalist</string>
+					<string>AppIconRainbow</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIconStarfield</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconStarfield</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIconSweden</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconSweden</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIconWaves</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconWaves</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
