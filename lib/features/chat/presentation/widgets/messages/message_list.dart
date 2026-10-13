@@ -639,6 +639,9 @@ class _MessageListState extends ConsumerState<MessageList>
     final bool isLoading = ref.watch(
       chatViewModelProvider.select((ChatViewState s) => s.isLoading),
     );
+    final bool isSyncingMessages = ref.watch(
+      chatViewModelProvider.select((ChatViewState s) => s.isSyncingMessages),
+    );
     final bool messageLoadFailed = ref.watch(
       chatViewModelProvider.select((ChatViewState s) => s.messageLoadFailed),
     );
@@ -912,7 +915,11 @@ class _MessageListState extends ConsumerState<MessageList>
       }
     }
 
-    final Widget? startOfChannelHeader = !hasMoreMessages
+    final bool showChannelWelcome = shouldShowChannelWelcome(
+      hasMoreOlderMessages: hasMoreMessages,
+      messageLoadFailed: messageLoadFailed,
+    );
+    final Widget? startOfChannelHeader = showChannelWelcome
         ? switch ((channelRow, groupDmConversation)) {
             (final channel?, null) => ChannelWelcomeSection(
               key: const ValueKey<String>('channel-welcome-section'),
@@ -1130,6 +1137,10 @@ class _MessageListState extends ConsumerState<MessageList>
             final double scaleRatio = chatFontSize / 16.0;
             final bool showUnreadBar =
                 !isLoading && messages.isNotEmpty && showUnreadBarEligible;
+            final bool showLoadErrorBar =
+                messageLoadFailed && messages.isNotEmpty;
+            final bool loadErrorRetryInFlight =
+                isLoadingMore || isLoadingNewer || isSyncingMessages;
             return MessageMarkdownSettingsScope(
               settings: messageRenderSettings.markdown,
               child: MessageListOverlay(
@@ -1140,6 +1151,13 @@ class _MessageListState extends ConsumerState<MessageList>
                 unreadSince: unreadSince,
                 onJumpToUnread: _onUnreadBarJump,
                 onMarkRead: _onUnreadBarMarkRead,
+                showLoadErrorBar: showLoadErrorBar,
+                loadErrorRetryInFlight: loadErrorRetryInFlight,
+                onRetryLoadMessages: () => unawaited(
+                  ref
+                      .read(chatViewModelProvider.notifier)
+                      .retryFailedMessages(),
+                ),
                 scaleRatio: scaleRatio,
               ),
             );

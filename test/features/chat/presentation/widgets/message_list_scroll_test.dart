@@ -3429,6 +3429,7 @@ void main() {
             distanceFromBottom: viewport.distanceFromBottom,
             viewportHeight: viewport.viewportHeight,
             hasMoreNewerMessages: chatViewModel.testState.hasMoreNewerMessages,
+            messageLoadFailed: chatViewModel.testState.messageLoadFailed,
           ),
           isTrue,
           reason: 'the escape hatch must stay reachable after a neighbour land',

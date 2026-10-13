@@ -6853,6 +6853,9 @@ class FluxerLocalizationsJa extends FluxerLocalizations {
   String get chatMessagesLoadError => 'メッセージを読み込めませんでした。';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'メンション設定を上書きしますか？';
 
   @override

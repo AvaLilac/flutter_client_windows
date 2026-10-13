@@ -7199,6 +7199,9 @@ class FluxerLocalizationsLt extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Nepavyko įkelti žinučių.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'Pakeisti paminėjimo nuostatą?';
 
   @override

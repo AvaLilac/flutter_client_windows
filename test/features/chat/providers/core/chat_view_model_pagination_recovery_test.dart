@@ -496,6 +496,7 @@ void main() {
 
       final ChatViewState afterFailure = container.read(chatViewModelProvider);
       expect(afterFailure.isLoadingMore, isFalse);
+      expect(afterFailure.messageLoadFailed, isTrue);
       expect(afterFailure.messages.first.id, oldestBeforeLoad);
 
       await notifier.loadMore();
@@ -503,6 +504,7 @@ void main() {
 
       final ChatViewState afterRetry = container.read(chatViewModelProvider);
       expect(afterRetry.isLoadingMore, isFalse);
+      expect(afterRetry.messageLoadFailed, isFalse);
       expect(afterRetry.messages.first.id, olderId);
       expect(afterRetry.messages.first.id, isNot(oldestBeforeLoad));
     },

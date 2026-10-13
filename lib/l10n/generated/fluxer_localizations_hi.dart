@@ -7125,6 +7125,9 @@ class FluxerLocalizationsHi extends FluxerLocalizations {
   String get chatMessagesLoadError => 'संदेश लोड नहीं हो सके।';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'मेंशन प्राथमिकता ओवरराइड करें?';
 
   @override

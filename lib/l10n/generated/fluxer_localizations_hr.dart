@@ -7146,6 +7146,9 @@ class FluxerLocalizationsHr extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Nije moguće učitati poruke.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'Želite li nadjačati postavke spominjanja?';
 

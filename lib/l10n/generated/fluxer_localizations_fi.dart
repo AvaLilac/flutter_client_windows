@@ -7139,6 +7139,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Viestien lataaminen epäonnistui.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'Ohitetaanko mainintojen asetukset?';
 

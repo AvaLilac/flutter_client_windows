@@ -52,6 +52,14 @@ bool shouldShowUnreadBar({
   return true;
 }
 
+/// Channel welcome header at the top of the list (true channel start only).
+bool shouldShowChannelWelcome({
+  required bool hasMoreOlderMessages,
+  required bool messageLoadFailed,
+}) {
+  return !hasMoreOlderMessages && !messageLoadFailed;
+}
+
 /// Visibility of the jump-to-bottom overlay button.
 bool shouldShowJumpToBottomButton({
   required bool hasMessages,
@@ -60,8 +68,9 @@ bool shouldShowJumpToBottomButton({
   required double distanceFromBottom,
   required double viewportHeight,
   required bool hasMoreNewerMessages,
+  required bool messageLoadFailed,
 }) {
-  if (!hasMessages || isLoading || !isActiveReadChannel) {
+  if (!hasMessages || isLoading || !isActiveReadChannel || messageLoadFailed) {
     return false;
   }
   if (hasMoreNewerMessages) {

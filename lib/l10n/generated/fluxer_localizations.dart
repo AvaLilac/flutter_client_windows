@@ -11647,6 +11647,12 @@ abstract class FluxerLocalizations {
   /// **'Couldn\'t load messages.'**
   String get chatMessagesLoadError;
 
+  /// Shown in a bottom bar when message history fails to load while scrolling in a channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages failed to load'**
+  String get chatMessagesFailedToLoad;
+
   /// Title of the confirmation alert shown when toggling reply mention against the recipient preference.
   ///
   /// In en, this message translates to:

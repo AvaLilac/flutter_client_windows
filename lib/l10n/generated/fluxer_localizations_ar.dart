@@ -7079,6 +7079,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get chatMessagesLoadError => 'تعذر تحميل الرسائل.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'تجاهل تفضيل الإشارة؟';
 
   @override

@@ -7123,6 +7123,9 @@ class FluxerLocalizationsDa extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Kunne ikke indlæse beskeder.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'Tilsidesæt indstillingen for omtaler?';
 

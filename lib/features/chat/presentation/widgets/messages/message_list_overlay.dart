@@ -3,6 +3,8 @@ import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/accessibility/domain/text_scale.dart';
 import 'package:fluxer_app/features/chat/data/chat_unread_summary.dart';
 import 'package:fluxer_app/features/settings/providers/use_12_hour_time_format_provider.dart';
+import 'package:fluxer_app/features/ui/ui.dart';
+import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/utils/user_date_formatting.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -16,6 +18,9 @@ class MessageListOverlay extends StatelessWidget {
     required this.unreadSince,
     required this.onJumpToUnread,
     required this.onMarkRead,
+    required this.showLoadErrorBar,
+    required this.loadErrorRetryInFlight,
+    required this.onRetryLoadMessages,
     required this.scaleRatio,
     super.key,
   });
@@ -27,6 +32,9 @@ class MessageListOverlay extends StatelessWidget {
   final DateTime? unreadSince;
   final VoidCallback onJumpToUnread;
   final VoidCallback onMarkRead;
+  final bool showLoadErrorBar;
+  final bool loadErrorRetryInFlight;
+  final VoidCallback onRetryLoadMessages;
   final double scaleRatio;
 
   @override
@@ -48,9 +56,84 @@ class MessageListOverlay extends StatelessWidget {
               onMarkRead: onMarkRead,
             ),
           ),
+        if (showLoadErrorBar)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 8,
+            child: MessageListLoadErrorBar(
+              retryInFlight: loadErrorRetryInFlight,
+              onRetry: onRetryLoadMessages,
+            ),
+          ),
       ],
     );
     return _ChatTextScale(scaleRatio: scaleRatio, child: scaledBody);
+  }
+}
+
+class MessageListLoadErrorBar extends StatelessWidget {
+  const MessageListLoadErrorBar({
+    required this.retryInFlight,
+    required this.onRetry,
+    super.key,
+  });
+
+  final bool retryInFlight;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final Color danger = context.colors.statusDanger;
+    return Semantics(
+      label: l10n.chatMessagesFailedToLoad,
+      container: true,
+      child: Material(
+        color: Color.alphaBlend(
+          danger.withValues(alpha: 0.12),
+          context.colors.backgroundTextarea,
+        ),
+        elevation: 3,
+        shadowColor: Colors.black.withValues(alpha: 0.18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: BorderSide(
+            color: Color.alphaBlend(
+              danger.withValues(alpha: 0.48),
+              context.colors.backgroundModifierAccent,
+            ),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  l10n.chatMessagesFailedToLoad,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.smallText.copyWith(
+                    color: danger,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FluxerButton.primary(
+                label: l10n.retry,
+                size: FluxerButtonSize.small,
+                fitContent: true,
+                isLoading: retryInFlight,
+                onPressed: retryInFlight ? null : onRetry,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

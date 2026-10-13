@@ -7121,6 +7121,9 @@ class FluxerLocalizationsId extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Tidak dapat memuat pesan.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'Timpa preferensi sebutan?';
 
   @override

@@ -7124,6 +7124,9 @@ class FluxerLocalizationsTr extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Mesajlar yüklenemedi.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'Bahsetme tercihi geçersiz kılınsın mı?';
 

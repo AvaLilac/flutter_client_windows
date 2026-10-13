@@ -7079,6 +7079,9 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get chatMessagesLoadError => 'ไม่สามารถโหลดข้อความได้';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'ข้ามการตั้งค่าการกล่าวถึงหรือไม่';
 

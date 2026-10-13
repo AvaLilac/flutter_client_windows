@@ -7036,6 +7036,9 @@ class FluxerLocalizationsHe extends FluxerLocalizations {
   String get chatMessagesLoadError => 'לא ניתן היה לטעון הודעות.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'לעקוף את העדפת האזכור?';
 
   @override

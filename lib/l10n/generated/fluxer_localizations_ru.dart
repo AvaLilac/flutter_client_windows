@@ -7180,6 +7180,9 @@ class FluxerLocalizationsRu extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Не удалось загрузить сообщения.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'Изменить настройки упоминаний?';
 
   @override

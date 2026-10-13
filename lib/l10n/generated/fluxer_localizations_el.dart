@@ -7198,6 +7198,9 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Δεν ήταν δυνατή η φόρτωση μηνυμάτων.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'Παράκαμψη προτίμησης αναφοράς;';
 
   @override

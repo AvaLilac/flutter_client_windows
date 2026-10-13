@@ -6849,6 +6849,9 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get chatMessagesLoadError => '메시지를 불러올 수 없습니다.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => '멘션 환경설정을 무시할까요?';
 
   @override

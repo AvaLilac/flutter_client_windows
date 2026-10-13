@@ -7126,6 +7126,9 @@ class FluxerLocalizationsNb extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Kunne ikke laste meldinger.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'Overstyre innstillingen for omtaler?';
 

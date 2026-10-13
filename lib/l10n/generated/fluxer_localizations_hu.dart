@@ -7185,6 +7185,9 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Nem sikerült betölteni az üzeneteket.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'Felülbírálod az említési beállítást?';
 

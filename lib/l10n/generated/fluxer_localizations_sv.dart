@@ -7135,6 +7135,9 @@ class FluxerLocalizationsSv extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Kunde inte ladda meddelanden.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'Åsidosätta inställningen för omnämnanden?';
 

@@ -7125,6 +7125,9 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Không thể tải tin nhắn.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'Ghi đè tùy chọn nhắc đến?';
 
   @override

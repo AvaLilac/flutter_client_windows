@@ -3325,7 +3325,7 @@ class ChatViewModel extends _$ChatViewModel {
     // the replaced window. The epoch names the window itself.
     bool isStale() =>
         state.channelId != channelId || state.windowEpoch != entryEpoch;
-    state = state.copyWith(isLoadingMore: true);
+    state = state.copyWith(isLoadingMore: true, messageLoadFailed: false);
     // Pagination is a page-producing fetch like any other, so it joins the
     // protocol. Registering at ENTRY covers the cache read as well as the
     // network one: a cached window can predate an optimistic delete too, and
@@ -3399,6 +3399,7 @@ class ChatViewModel extends _$ChatViewModel {
                 ),
                 hasMoreMessages: window.hasMoreOlder,
                 hasMoreNewerMessages: window.hasMoreNewer,
+                messageLoadFailed: false,
               );
               _releaseLoadingMore(fetchOrdinal);
               unawaited(
@@ -3470,6 +3471,7 @@ class ChatViewModel extends _$ChatViewModel {
             ),
             hasMoreMessages: window.hasMoreOlder,
             hasMoreNewerMessages: window.hasMoreNewer,
+            messageLoadFailed: false,
           );
           _releaseLoadingMore(fetchOrdinal);
           talker.debug(
@@ -3497,6 +3499,9 @@ class ChatViewModel extends _$ChatViewModel {
     } on Exception catch (e) {
       talker.warning('[ChatPagination] older load failed', e);
       _releaseLoadingMore(fetchOrdinal);
+      if (!isStale()) {
+        state = state.copyWith(messageLoadFailed: true);
+      }
       return older(
         status: PageLoadStatus.failed,
         requestCursor: requestedBeforeId,
@@ -3550,7 +3555,7 @@ class ChatViewModel extends _$ChatViewModel {
     // Load-bearing supersession key - see loadMore.
     bool isStale() =>
         state.channelId != channelId || state.windowEpoch != entryEpoch;
-    state = state.copyWith(isLoadingNewer: true);
+    state = state.copyWith(isLoadingNewer: true, messageLoadFailed: false);
     // Same protocol membership as loadMore, for the same two reasons.
     final int fetchOrdinal = _beginPageFetch();
     _loadingNewerOwner = fetchOrdinal;
@@ -3640,6 +3645,7 @@ class ChatViewModel extends _$ChatViewModel {
                 ),
                 hasMoreMessages: window.hasMoreOlder,
                 hasMoreNewerMessages: window.hasMoreNewer,
+                messageLoadFailed: false,
               );
               _releaseLoadingNewer(fetchOrdinal);
               unawaited(
@@ -3744,6 +3750,7 @@ class ChatViewModel extends _$ChatViewModel {
             ),
             hasMoreMessages: window.hasMoreOlder,
             hasMoreNewerMessages: window.hasMoreNewer,
+            messageLoadFailed: false,
           );
           _releaseLoadingNewer(fetchOrdinal);
           // Fired AFTER the install, so the confirmation captures THIS page's
@@ -3776,6 +3783,9 @@ class ChatViewModel extends _$ChatViewModel {
     } on Exception catch (e) {
       talker.warning('[ChatPagination] newer load failed', e);
       _releaseLoadingNewer(fetchOrdinal);
+      if (!isStale()) {
+        state = state.copyWith(messageLoadFailed: true);
+      }
       return newer(
         status: PageLoadStatus.failed,
         requestCursor: requestedAfterId,
@@ -6213,6 +6223,7 @@ class ChatViewModel extends _$ChatViewModel {
     if (channelId.isEmpty) {
       return;
     }
+    state = state.copyWith(messageLoadFailed: false);
     // Deliberately unguarded against an in-flight refresh: this is the escape
     // hatch out of a failed load, and refusing while a stale request runs is
     // the wedge it exists to break. Overlap is safe by ownership — the newest
@@ -6222,6 +6233,26 @@ class ChatViewModel extends _$ChatViewModel {
       showLoadingSpinner: true,
       isDirectLatestLoad: true,
     );
+  }
+
+  /// Retries after a failed message load, keeping the current window when possible.
+  Future<void> retryFailedMessages() async {
+    if (state.channelId.isEmpty) {
+      return;
+    }
+    if (state.messages.isEmpty) {
+      await retryLoadMessages();
+      return;
+    }
+    if (state.hasMoreMessages) {
+      await loadMore();
+      return;
+    }
+    if (state.hasMoreNewerMessages) {
+      await loadNewer();
+      return;
+    }
+    await retryLoadMessages();
   }
 
   Future<void> reloadCurrentChannel() async {

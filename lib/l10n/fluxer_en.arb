@@ -9006,6 +9006,10 @@
     "@chatMessagesLoadError": {
         "description": "Shown in the chat message list when the initial message history request fails. The user can retry from the same screen."
     },
+    "chatMessagesFailedToLoad": "Messages failed to load",
+    "@chatMessagesFailedToLoad": {
+        "description": "Shown in a bottom bar when message history fails to load while scrolling in a channel."
+    },
     "chatReplyMentionOverrideTitle": "Override mention preference?",
     "@chatReplyMentionOverrideTitle": {
         "description": "Title of the confirmation alert shown when toggling reply mention against the recipient preference."

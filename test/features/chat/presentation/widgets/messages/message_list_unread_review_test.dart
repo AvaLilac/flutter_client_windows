@@ -98,6 +98,32 @@ void main() {
     });
   });
 
+  group('shouldShowChannelWelcome', () {
+    test('returns true only at channel start with no load failure', () {
+      expect(
+        shouldShowChannelWelcome(
+          hasMoreOlderMessages: false,
+          messageLoadFailed: false,
+        ),
+        isTrue,
+      );
+      expect(
+        shouldShowChannelWelcome(
+          hasMoreOlderMessages: true,
+          messageLoadFailed: false,
+        ),
+        isFalse,
+      );
+      expect(
+        shouldShowChannelWelcome(
+          hasMoreOlderMessages: false,
+          messageLoadFailed: true,
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('shouldShowJumpToBottomButton', () {
     test('returns false when there are no messages', () {
       expect(
@@ -108,6 +134,7 @@ void main() {
           distanceFromBottom: 500,
           viewportHeight: 400,
           hasMoreNewerMessages: false,
+          messageLoadFailed: false,
         ),
         isFalse,
       );
@@ -122,6 +149,7 @@ void main() {
           distanceFromBottom: 500,
           viewportHeight: 400,
           hasMoreNewerMessages: false,
+          messageLoadFailed: false,
         ),
         isFalse,
       );
@@ -136,6 +164,22 @@ void main() {
           distanceFromBottom: 500,
           viewportHeight: 400,
           hasMoreNewerMessages: false,
+          messageLoadFailed: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns false when message history failed to load', () {
+      expect(
+        shouldShowJumpToBottomButton(
+          hasMessages: true,
+          isLoading: false,
+          isActiveReadChannel: true,
+          distanceFromBottom: 500,
+          viewportHeight: 400,
+          hasMoreNewerMessages: true,
+          messageLoadFailed: true,
         ),
         isFalse,
       );
@@ -150,6 +194,7 @@ void main() {
           distanceFromBottom: 199,
           viewportHeight: 400,
           hasMoreNewerMessages: false,
+          messageLoadFailed: false,
         ),
         isFalse,
       );
@@ -164,6 +209,7 @@ void main() {
           distanceFromBottom: 200,
           viewportHeight: 400,
           hasMoreNewerMessages: false,
+          messageLoadFailed: false,
         ),
         isTrue,
       );
@@ -178,6 +224,7 @@ void main() {
           distanceFromBottom: 0,
           viewportHeight: 400,
           hasMoreNewerMessages: true,
+          messageLoadFailed: false,
         ),
         isTrue,
       );

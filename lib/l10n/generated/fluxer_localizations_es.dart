@@ -7202,6 +7202,9 @@ class FluxerLocalizationsEs extends FluxerLocalizations {
   String get chatMessagesLoadError => 'No se pudieron cargar los mensajes.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       '¿Usar una preferencia de mención específica?';
 

@@ -356,6 +356,9 @@ class _ChannelChatScrollOverlay extends ConsumerWidget {
     final bool hasMoreNewerMessages = ref.watch(
       chatViewModelProvider.select((ChatViewState s) => s.hasMoreNewerMessages),
     );
+    final bool messageLoadFailed = ref.watch(
+      chatViewModelProvider.select((ChatViewState s) => s.messageLoadFailed),
+    );
     final bool isSyncingMessages = ref.watch(
       chatViewModelProvider.select((ChatViewState s) => s.isSyncingMessages),
     );
@@ -380,6 +383,7 @@ class _ChannelChatScrollOverlay extends ConsumerWidget {
           distanceFromBottom: viewport.distanceFromBottom,
           viewportHeight: viewport.viewportHeight,
           hasMoreNewerMessages: hasMoreNewerMessages,
+          messageLoadFailed: messageLoadFailed,
         );
     final bool isMobile = isMobileLayout(context);
     return Positioned(

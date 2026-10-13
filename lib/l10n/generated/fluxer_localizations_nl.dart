@@ -7149,6 +7149,9 @@ class FluxerLocalizationsNl extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Berichten konden niet worden geladen.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => 'Vermeldingsvoorkeur aanpassen?';
 
   @override

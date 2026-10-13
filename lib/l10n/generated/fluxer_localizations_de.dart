@@ -7197,6 +7197,9 @@ class FluxerLocalizationsDe extends FluxerLocalizations {
       'Nachrichten konnten nicht geladen werden.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'Erwähnungspräferenz überschreiben?';
 

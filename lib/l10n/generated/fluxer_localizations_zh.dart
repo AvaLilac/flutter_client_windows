@@ -6708,6 +6708,9 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get chatMessagesLoadError => '无法加载消息。';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle => '要覆盖提及偏好吗？';
 
   @override
