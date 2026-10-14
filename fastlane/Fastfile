@@ -74,6 +74,13 @@ def flutter_marketing_version
   version.to_s.split("+", 2).first
 end
 
+def canary_number_dart_define_args
+  canary_number = ENV["CANARY_NUMBER"].to_s.strip
+  return [] if canary_number.empty?
+
+  ["--dart-define=CANARY_NUMBER=#{canary_number}"]
+end
+
 def next_testflight_build_number(api_key:, app_identifier:, platform: "ios")
   latest_testflight_build_number(
     api_key: api_key,
@@ -242,6 +249,7 @@ platform :ios do
 
   desc "Build beta archive and upload to TestFlight"
   lane :testflight_beta do
+    ENV["MEASURE_RELEASE_CHANNEL"] = "beta"
     profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision")
     extension_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/broadcast_extension.mobileprovision")
     notification_service_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/notification_service.mobileprovision")
@@ -374,6 +382,7 @@ platform :ios do
 
   desc "Build canary archive and upload to TestFlight (com.fluxer.canary)"
   lane :testflight_canary do
+    ENV["MEASURE_RELEASE_CHANNEL"] = "canary"
     profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision")
     extension_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/broadcast_extension.mobileprovision")
     notification_service_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/notification_service.mobileprovision")
@@ -450,7 +459,8 @@ platform :ios do
       flutter_build_number.to_s,
       "--dart-define-from-file=#{File.join(project_root_path, "tool/dart_defines/canary.json")}",
       "--dart-define=PUSH_PROVIDER=apns",
-      "--dart-define=BUILD_TIMESTAMP=#{Time.now.utc.iso8601}"
+      "--dart-define=BUILD_TIMESTAMP=#{Time.now.utc.iso8601}",
+      *canary_number_dart_define_args
     )
     build_app(
       workspace: "ios/Runner.xcworkspace",
@@ -501,6 +511,7 @@ platform :ios do
 
   desc "Build stable IPA and upload to App Store Connect as a processing build only (no App Review submission, no automatic release)"
   lane :stable_release do
+    ENV["MEASURE_RELEASE_CHANNEL"] = "stable"
     profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision")
     extension_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/broadcast_extension.mobileprovision")
     notification_service_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/notification_service.mobileprovision")

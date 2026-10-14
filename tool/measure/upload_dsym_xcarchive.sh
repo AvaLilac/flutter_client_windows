@@ -71,6 +71,38 @@ else
   fi
 fi
 
+resolve_measure_version_metadata() {
+  local app_id="$1"
+  local version_name="$2"
+  local version_code="$3"
+
+  if [[ "$app_id" == *".canary"* ]]; then
+    version_name="${version_name%-canary}"
+    local canary_number="${MEASURE_CANARY_NUMBER:-${CANARY_NUMBER:-}}"
+    if [[ -n "$canary_number" ]]; then
+      printf '%s|%s' "$version_name" "$canary_number"
+    else
+      printf '%s|%s' "$version_name" "$version_code"
+    fi
+    return
+  fi
+
+  if [[ "$version_name" =~ ^(.+)-beta\.([0-9]+)$ ]]; then
+    printf '%s|%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    return
+  fi
+
+  local beta_number="${MEASURE_BETA_NUMBER:-${BETA_NUMBER:-}}"
+  if [[ -n "$beta_number" && "${MEASURE_RELEASE_CHANNEL:-}" == "beta" ]]; then
+    printf '%s|%s' "$version_name" "$beta_number"
+    return
+  fi
+
+  printf '%s|%s' "$version_name" "$version_name"
+}
+
+IFS='|' read -r VERSION_NAME VERSION_CODE <<< "$(resolve_measure_version_metadata "$APP_UNIQUE_ID" "$VERSION_NAME" "$VERSION_CODE")"
+
 echo "Extracted Info:"
 echo "  Version Name : $VERSION_NAME"
 echo "  Version Code : $VERSION_CODE"

@@ -6,8 +6,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:fluxer_app/core/api/fluxer_client_properties.dart';
 import 'package:fluxer_app/core/build/app_build_config.dart';
+import 'package:fluxer_app/core/build/app_build_environment.dart';
 import 'package:fluxer_app/core/observability/error_log_rate_limiter.dart';
 import 'package:fluxer_app/core/observability/measure_log_redaction.dart';
+import 'package:fluxer_app/core/observability/measure_version_metadata.dart';
 import 'package:fluxer_app/core/providers/app_runtime_info.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/voice/utils/voice_lifecycle_breadcrumb.dart';
@@ -265,27 +267,30 @@ class FluxerObservability {
     if (!isEnabled) {
       return;
     }
+    final AppBuildEnvironment environment =
+        runtimeInfo?.environment ?? AppBuildConfig.environment;
     final String releaseChannel = mapAppBuildEnvironmentToReleaseChannel(
-      runtimeInfo?.environment ?? AppBuildConfig.environment,
+      environment,
     );
     final AttributeBuilder attributes = AttributeBuilder().add(
       'deployment.environment',
       releaseChannel,
     );
-    final String? releaseVersion = normalizeOptionalString(
-      runtimeInfo?.releaseVersion,
-    );
-    final String? buildNumber = normalizeOptionalString(
-      runtimeInfo?.buildNumber,
-    );
+    final MeasureVersionMetadata? versionMetadata =
+        resolveMeasureVersionMetadata(
+          environment: environment,
+          releaseVersion: runtimeInfo?.releaseVersion,
+          platformBuildNumber: runtimeInfo?.buildNumber,
+        );
     final String? packageName = normalizeOptionalString(
       runtimeInfo?.packageName,
     );
-    if (releaseVersion != null) {
-      attributes.add('service.version', releaseVersion);
-    }
-    if (buildNumber != null) {
-      attributes.add('app.build_number', buildNumber);
+    if (versionMetadata != null) {
+      attributes.add('service.version', versionMetadata.serviceVersion);
+      final String? buildNumber = versionMetadata.buildNumber;
+      if (buildNumber != null) {
+        attributes.add('app.build_number', buildNumber);
+      }
     }
     if (packageName != null) {
       attributes.add('app.package_name', packageName);

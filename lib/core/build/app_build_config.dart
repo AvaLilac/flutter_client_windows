@@ -25,6 +25,10 @@ class AppBuildConfig {
   );
   // ignore: do_not_use_environment -- compile-time build flavor config
   static const String _betaNumberValue = String.fromEnvironment('BETA_NUMBER');
+  // ignore: do_not_use_environment -- compile-time build flavor config
+  static const String _canaryNumberValue = String.fromEnvironment(
+    'CANARY_NUMBER',
+  );
   static AppBuildEnvironment get environment {
     switch (_environmentValue) {
       case 'canary':
@@ -78,6 +82,14 @@ class AppBuildConfig {
 
   static int? get betaNumber {
     final String trimmed = _betaNumberValue.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    return int.tryParse(trimmed);
+  }
+
+  static int? get canaryNumber {
+    final String trimmed = _canaryNumberValue.trim();
     if (trimmed.isEmpty) {
       return null;
     }
