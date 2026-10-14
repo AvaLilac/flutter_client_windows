@@ -2,11 +2,21 @@ import 'dart:async';
 
 import 'package:fluxer_app/core/providers/gateway_connection_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_sync_provider.dart';
 import 'package:fluxer_dart/gateway.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'thread_member_list_provider.g.dart';
+
+LazyRequestSubscription _threadMemberListGatewaySubscription(
+  List<String> threadIds,
+) => LazyRequestSubscription(
+  active: true,
+  sync: true,
+  threads: true,
+  threadMemberLists: threadIds,
+);
 
 @Riverpod(keepAlive: true)
 class ThreadMemberLists extends _$ThreadMemberLists {
@@ -69,7 +79,7 @@ void threadMemberListSubscription(Ref ref, String guildId, String threadId) {
   void send(GatewayConnection connection, List<String> threadIds) {
     connection.sendLazyRequest(
       subscriptions: <String, LazyRequestSubscription>{
-        guildId: LazyRequestSubscription(threadMemberLists: threadIds),
+        guildId: _threadMemberListGatewaySubscription(threadIds),
       },
     );
   }
@@ -80,10 +90,10 @@ void threadMemberListSubscription(Ref ref, String guildId, String threadId) {
     }
     final GatewayConnection connection = ref.read(gatewayConnectionProvider);
     if (connection.state != GatewayState.connected) {
-      lists.unsubscribe(guildId, threadId);
       subscribedConnection = null;
       return;
     }
+    ref.read(guildSyncProvider.notifier).syncIfNeeded(guildId);
     send(connection, lists.subscribe(guildId, threadId));
     subscribedConnection = connection;
   }

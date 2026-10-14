@@ -2,11 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/providers/gateway_connection_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_sync_provider.dart';
 import 'package:fluxer_app/features/threads/providers/thread_member_list_provider.dart';
 import 'package:fluxer_dart/gateway.dart';
 
+class _NoGuildSync extends GuildSync {
+  @override
+  void syncIfNeeded(String guildId, {bool force = false}) {}
+}
+
 class _FakeConnection extends Fake implements GatewayConnection {
-  final List<List<String>?> sent = <List<String>?>[];
+  final List<LazyRequestSubscription?> sent = <LazyRequestSubscription?>[];
 
   @override
   GatewayState get state => GatewayState.connected;
@@ -15,7 +21,7 @@ class _FakeConnection extends Fake implements GatewayConnection {
   void sendLazyRequest({
     required Map<String, LazyRequestSubscription> subscriptions,
   }) {
-    sent.add(subscriptions['g1']?.threadMemberLists);
+    sent.add(subscriptions['g1']);
   }
 }
 
@@ -25,7 +31,10 @@ void main() {
     () async {
       final _FakeConnection connection = _FakeConnection();
       final ProviderContainer container = ProviderContainer(
-        overrides: [gatewayConnectionProvider.overrideWithValue(connection)],
+        overrides: [
+          gatewayConnectionProvider.overrideWithValue(connection),
+          guildSyncProvider.overrideWith(_NoGuildSync.new),
+        ],
       );
       addTearDown(container.dispose);
       final ProviderSubscription<void> sub = container.listen<void>(
@@ -35,17 +44,17 @@ void main() {
       );
       addTearDown(sub.close);
       await Future<void>.delayed(Duration.zero);
-      expect(connection.sent, <List<String>?>[
-        <String>['t1'],
-      ]);
+      final LazyRequestSubscription? first = connection.sent.single;
+      expect(first?.threadMemberLists, <String>['t1']);
+      expect(first?.threads, isTrue);
+      expect(first?.active, isTrue);
+      expect(first?.sync, isTrue);
 
       container.read(threadMemberListsProvider.notifier).clearAll();
       container.read(gatewayFullRecoveryProvider.notifier).bump();
       await Future<void>.delayed(Duration.zero);
-      expect(connection.sent, <List<String>?>[
-        <String>['t1'],
-        <String>['t1'],
-      ]);
+      expect(connection.sent, hasLength(2));
+      expect(connection.sent.last?.threadMemberLists, <String>['t1']);
     },
   );
 
