@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui' show lerpDouble;
+
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_motion_theme.dart';
@@ -8,7 +11,6 @@ import 'package:fluxer_app/features/guilds/presentation/widgets/guild_icon_peek_
 import 'package:fluxer_app/features/guilds/providers/guild_drag_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/organized_guild_list_provider.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_folder_icon.dart';
-import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_guild_acronym.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
@@ -22,14 +24,22 @@ class GuildDragData {
   final bool isFolder;
 }
 
-const Duration _kMobileDropAnimationDuration = FluxerMotionTheme.normalDuration;
+const Duration _kTouchReorderSpringDuration = Duration(milliseconds: 320);
+const Curve _kTouchReorderSpringCurve = FluxerSpringCurve(
+  stiffness: 420,
+  damping: 32,
+  duration: _kTouchReorderSpringDuration,
+);
 const double _kGuildIconSize = 48;
 const double _kGuildIconInnerSize = 44;
 
 int _guildDragIconMemCache(BuildContext context, double logicalSize) =>
     (logicalSize * MediaQuery.devicePixelRatioOf(context)).round();
 const double _kGuildIconBorderRadius = 15;
-const double _kMobileDragFeedbackScale = 0.92;
+const double _kGuildNavbarItemSpacing = 8;
+const double _kTouchInsertionSlotHeight =
+    _kGuildIconSize + _kGuildNavbarItemSpacing;
+const double _kTouchDragFeedbackScale = 1.06;
 
 class GuildDragFeedback extends StatelessWidget {
   const GuildDragFeedback({
@@ -51,7 +61,10 @@ class GuildDragFeedback extends StatelessWidget {
         ? colors.statusDanger
         : hasImage
         ? Colors.transparent
-        : colors.brandPrimary;
+        : colors.serverIconBackground;
+    final Color acronymColor = isUnavailable
+        ? colors.textOnBrandPrimary
+        : colors.textPrimary;
     return _FloatingDragIcon(
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -83,15 +96,10 @@ class GuildDragFeedback extends StatelessWidget {
                       context,
                       _kGuildIconInnerSize,
                     ),
-                    errorBuilder: (context, url, error) => FluxerGuildAcronym(
-                      name: label,
-                      color: colors.textOnBrandPrimary,
-                    ),
+                    errorBuilder: (context, url, error) =>
+                        FluxerGuildAcronym(name: label, color: acronymColor),
                   )
-                : FluxerGuildAcronym(
-                    name: label,
-                    color: colors.textOnBrandPrimary,
-                  ),
+                : FluxerGuildAcronym(name: label, color: acronymColor),
           ),
         ),
       ),
@@ -202,16 +210,18 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    final DragState dragState = ref.watch(guildDragProvider);
-    final bool isMobileUi = isMobileLayout(context);
-    final bool useLongPressDrag = isTouchPrimaryInput(ref);
+    final bool useTouchDrag = isTouchPrimaryInput(ref);
     final Color brandPrimary = context.colors.brandPrimary;
-    final bool showDropIndicators =
-        !useLongPressDrag || dragState.hasMovedFromHoldPoint;
-    final DropPosition? dropPosition =
-        showDropIndicators && dragState.hoverTargetId == widget.itemId
-        ? dragState.dropPosition
-        : null;
+    final GuildDragItemVisualState dragVisual = ref.watch(
+      guildDragProvider.select(
+        (DragState state) => guildDragVisualStateForItem(
+          state: state,
+          itemId: widget.itemId,
+          useTouchDrag: useTouchDrag,
+        ),
+      ),
+    );
+    final DropPosition? dropPosition = dragVisual.dropPosition;
 
     final Widget dragTarget = KeyedSubtree(
       key: _dragTargetKey,
@@ -221,16 +231,16 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
         onMove: (details) => _handleDragMove(
           context: context,
           details: details,
-          useLongPressDrag: useLongPressDrag,
+          useTouchDrag: useTouchDrag,
         ),
         onLeave: (_) {
-          if (useLongPressDrag && ref.read(guildDragProvider).isDragging) {
+          if (useTouchDrag && ref.read(guildDragProvider).isDragging) {
             return;
           }
           ref.read(guildDragProvider.notifier).clearHover();
         },
         onAcceptWithDetails: (details) {
-          if (useLongPressDrag) {
+          if (useTouchDrag) {
             return;
           }
           _handleDrop(sourceId: details.data.itemId);
@@ -239,30 +249,25 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
           return _DragTargetContent(
             dropPosition: dropPosition,
             color: brandPrimary,
-            useOutlineIndicators: isMobileUi,
+            useTouchInsertionGaps: useTouchDrag,
             child: widget.child,
           );
         },
       ),
     );
 
-    final bool collapseSource =
-        useLongPressDrag &&
-        dragState.shouldCollapseDragSource(
-          itemId: widget.itemId,
-          useLongPressDrag: useLongPressDrag,
-        );
+    final bool collapseSource = dragVisual.collapseSource;
 
     final Widget peekHostChild = !widget.enabled
         ? dragTarget
         : _GuildDraggable(
-            useLongPressDrag: useLongPressDrag,
+            useTouchDrag: useTouchDrag,
             data: GuildDragData(
               itemId: widget.itemId,
               isFolder: widget.isFolder,
             ),
             dragFeedback: widget.dragFeedback,
-            childWhenDragging: useLongPressDrag
+            childWhenDragging: useTouchDrag
                 ? collapseSource
                       ? const SizedBox.shrink()
                       : IgnorePointer(child: dragTarget)
@@ -278,7 +283,7 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
             onDragStarted: (double? anchorGlobalCenterX) {
               final bool hasLongPressOverlayHost =
                   widget.peekMenu != null || widget.folderPeekMenu != null;
-              if (useLongPressDrag && !hasLongPressOverlayHost) {
+              if (useTouchDrag && !hasLongPressOverlayHost) {
                 FluxerHaptics.medium();
               }
               ref
@@ -289,7 +294,7 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
                     anchorGlobalCenterX: anchorGlobalCenterX,
                   );
             },
-            onDragUpdate: useLongPressDrag
+            onDragUpdate: useTouchDrag
                 ? (Offset globalPosition) {
                     final bool didChangeDropPreview = ref
                         .read(guildDragProvider.notifier)
@@ -300,7 +305,7 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
                   }
                 : null,
             onDragEnded: () {
-              if (useLongPressDrag) {
+              if (useTouchDrag) {
                 _commitPendingDropIfNeeded();
               }
               ref.read(guildDragProvider.notifier).endDrag();
@@ -310,7 +315,7 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
 
     final SidebarPeekContent? peekContent =
         widget.folderPeekMenu ?? widget.peekMenu;
-    if (peekContent != null && isMobileUi) {
+    if (peekContent != null && useTouchDrag) {
       return GuildIconPeekGestureHost(
         itemId: widget.itemId,
         content: peekContent,
@@ -324,9 +329,9 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
   void _handleDragMove({
     required BuildContext context,
     required DragTargetDetails<GuildDragData> details,
-    required bool useLongPressDrag,
+    required bool useTouchDrag,
   }) {
-    if (useLongPressDrag) {
+    if (useTouchDrag) {
       return;
     }
     final RenderBox renderBox = context.findRenderObject()! as RenderBox;
@@ -400,7 +405,7 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
 
 class _GuildDraggable extends ConsumerStatefulWidget {
   const _GuildDraggable({
-    required this.useLongPressDrag,
+    required this.useTouchDrag,
     required this.data,
     required this.dragFeedback,
     required this.childWhenDragging,
@@ -410,7 +415,7 @@ class _GuildDraggable extends ConsumerStatefulWidget {
     this.onDragUpdate,
   });
 
-  final bool useLongPressDrag;
+  final bool useTouchDrag;
   final GuildDragData data;
   final Widget dragFeedback;
   final Widget childWhenDragging;
@@ -423,12 +428,35 @@ class _GuildDraggable extends ConsumerStatefulWidget {
   ConsumerState<_GuildDraggable> createState() => _GuildDraggableState();
 }
 
-class _GuildDraggableState extends ConsumerState<_GuildDraggable> {
+class _GuildDraggableState extends ConsumerState<_GuildDraggable>
+    with TickerProviderStateMixin {
   OverlayEntry? _feedbackOverlay;
   bool _isFeedbackOverlayInserted = false;
+  bool _isReleasing = false;
+  double? _overlayCenterX;
+  double? _overlayGlobalY;
+  Offset? _releaseStart;
+  Offset? _releaseEnd;
+  late final AnimationController _liftController;
+  late final AnimationController _releaseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _liftController = AnimationController(
+      vsync: this,
+      duration: _kTouchReorderSpringDuration,
+    );
+    _releaseController = AnimationController(
+      vsync: this,
+      duration: _kTouchReorderSpringDuration,
+    );
+  }
 
   @override
   void dispose() {
+    _liftController.dispose();
+    _releaseController.dispose();
     _removeFeedbackOverlay();
     super.dispose();
   }
@@ -437,16 +465,20 @@ class _GuildDraggableState extends ConsumerState<_GuildDraggable> {
     _feedbackOverlay?.remove();
     _feedbackOverlay = null;
     _isFeedbackOverlayInserted = false;
+    _overlayCenterX = null;
+    _overlayGlobalY = null;
+    _liftController.reset();
+    _releaseController.reset();
   }
 
   void _syncFeedbackOverlay() {
-    if (!widget.useLongPressDrag) {
+    if (!widget.useTouchDrag) {
       return;
     }
     final DragState dragState = ref.read(guildDragProvider);
     final bool isActiveDrag =
         dragState.dragItemId == widget.data.itemId &&
-        dragState.showMobileDragFeedback;
+        dragState.showTouchDragFeedback;
     if (!isActiveDrag) {
       _removeFeedbackOverlay();
       return;
@@ -457,35 +489,60 @@ class _GuildDraggableState extends ConsumerState<_GuildDraggable> {
       _removeFeedbackOverlay();
       return;
     }
-    _feedbackOverlay ??= OverlayEntry(
-      builder: (context) {
-        final DragState state = ref.watch(guildDragProvider);
-        if (!state.showMobileDragFeedback ||
-            state.dragItemId != widget.data.itemId) {
-          return const SizedBox.shrink();
-        }
-        final double? overlayCenterX = state.dragAnchorGlobalCenterX;
-        final double? overlayGlobalY = state.dragFeedbackGlobalY;
-        if (overlayCenterX == null || overlayGlobalY == null) {
-          return const SizedBox.shrink();
+    _overlayCenterX = centerX;
+    _overlayGlobalY = globalY;
+    _feedbackOverlay ??= OverlayEntry(builder: (_) => _buildFeedbackOverlay());
+    if (!_isFeedbackOverlayInserted) {
+      Overlay.of(context, rootOverlay: true).insert(_feedbackOverlay!);
+      _isFeedbackOverlayInserted = true;
+      _liftController.forward(from: 0);
+    }
+    _feedbackOverlay!.markNeedsBuild();
+  }
+
+  Widget _buildFeedbackOverlay() {
+    final Offset? releaseStart = _releaseStart;
+    final Offset? releaseEnd = _releaseEnd;
+    final bool isReleasing =
+        _isReleasing && releaseStart != null && releaseEnd != null;
+
+    if (!isReleasing && (_overlayCenterX == null || _overlayGlobalY == null)) {
+      return const SizedBox.shrink();
+    }
+
+    return AnimatedBuilder(
+      animation: Listenable.merge(<Listenable>[
+        _liftController,
+        _releaseController,
+      ]),
+      builder: (context, child) {
+        final double liftT = _kTouchReorderSpringCurve.transform(
+          _liftController.value,
+        );
+        final double releaseT = _kTouchReorderSpringCurve.transform(
+          _releaseController.value,
+        );
+        final double centerX;
+        final double centerY;
+        final double scale;
+        if (isReleasing) {
+          centerX = lerpDouble(releaseStart.dx, releaseEnd.dx, releaseT)!;
+          centerY = lerpDouble(releaseStart.dy, releaseEnd.dy, releaseT)!;
+          scale = lerpDouble(_kTouchDragFeedbackScale, 1, releaseT)!;
+        } else {
+          centerX = _overlayCenterX!;
+          centerY = _overlayGlobalY!;
+          scale = lerpDouble(1, _kTouchDragFeedbackScale, liftT)!;
         }
         return Positioned(
-          left: overlayCenterX - _kGuildIconSize / 2,
-          top: overlayGlobalY - _kGuildIconSize / 2,
+          left: centerX - _kGuildIconSize / 2,
+          top: centerY - _kGuildIconSize / 2,
           child: IgnorePointer(
-            child: Transform.scale(
-              scale: _kMobileDragFeedbackScale,
-              child: widget.dragFeedback,
-            ),
+            child: Transform.scale(scale: scale, child: widget.dragFeedback),
           ),
         );
       },
     );
-    if (!_isFeedbackOverlayInserted) {
-      Overlay.of(context, rootOverlay: true).insert(_feedbackOverlay!);
-      _isFeedbackOverlayInserted = true;
-    }
-    _feedbackOverlay!.markNeedsBuild();
   }
 
   double? _anchorGlobalCenterX(BuildContext context) {
@@ -509,15 +566,65 @@ class _GuildDraggableState extends ConsumerState<_GuildDraggable> {
   }
 
   void _handleDragEnded() {
+    if (!widget.useTouchDrag) {
+      _removeFeedbackOverlay();
+      widget.onDragEnded();
+      return;
+    }
+    unawaited(_runReleaseAnimation());
+  }
+
+  Future<void> _runReleaseAnimation() async {
+    if (!mounted) {
+      return;
+    }
+    final GuildDrag notifier = ref.read(guildDragProvider.notifier);
+    final DragState dragState = ref.read(guildDragProvider);
+    final double? centerX = dragState.dragAnchorGlobalCenterX;
+    final double? globalY = dragState.dragFeedbackGlobalY;
+    if (centerX == null || globalY == null) {
+      _removeFeedbackOverlay();
+      widget.onDragEnded();
+      return;
+    }
+
+    notifier.finalizeHoverForDrop(Offset(centerX, globalY));
+
+    _isReleasing = true;
+    _releaseStart = Offset(centerX, globalY);
+    _releaseEnd =
+        notifier.landingGlobalCenter() ?? notifier.dragSourceGlobalCenter();
+    _overlayCenterX = centerX;
+    _overlayGlobalY = globalY;
+    _feedbackOverlay ??= OverlayEntry(builder: (_) => _buildFeedbackOverlay());
+    if (!_isFeedbackOverlayInserted) {
+      Overlay.of(context, rootOverlay: true).insert(_feedbackOverlay!);
+      _isFeedbackOverlayInserted = true;
+    }
+    _feedbackOverlay!.markNeedsBuild();
+
+    if (_releaseEnd == null) {
+      _isReleasing = false;
+      _removeFeedbackOverlay();
+      widget.onDragEnded();
+      return;
+    }
+
+    _releaseController.reset();
+    await _releaseController.forward();
+    if (!mounted) {
+      return;
+    }
+    _isReleasing = false;
+    _releaseStart = null;
+    _releaseEnd = null;
     _removeFeedbackOverlay();
     widget.onDragEnded();
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<DragState>(guildDragProvider, (_, _) => _syncFeedbackOverlay());
-
-    if (widget.useLongPressDrag) {
+    if (widget.useTouchDrag) {
       return LongPressDraggable<GuildDragData>(
         data: widget.data,
         onDragStarted: () =>
@@ -552,18 +659,18 @@ class _DragTargetContent extends StatelessWidget {
   const _DragTargetContent({
     required this.dropPosition,
     required this.color,
-    required this.useOutlineIndicators,
+    required this.useTouchInsertionGaps,
     required this.child,
   });
 
   final DropPosition? dropPosition;
   final Color color;
-  final bool useOutlineIndicators;
+  final bool useTouchInsertionGaps;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    if (!useOutlineIndicators) {
+    if (!useTouchInsertionGaps) {
       return _DesktopDragTargetContent(
         dropPosition: dropPosition,
         color: color,
@@ -571,54 +678,64 @@ class _DragTargetContent extends StatelessWidget {
       );
     }
 
+    return _TouchInsertionDragTargetContent(
+      dropPosition: dropPosition,
+      child: child,
+    );
+  }
+}
+
+class _TouchInsertionDragTargetContent extends StatelessWidget {
+  const _TouchInsertionDragTargetContent({
+    required this.dropPosition,
+    required this.child,
+  });
+
+  final DropPosition? dropPosition;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool openBefore = dropPosition == DropPosition.before;
+    final bool openAfter = dropPosition == DropPosition.after;
     final bool isCombine = dropPosition == DropPosition.combine;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _AnimatedEdgeSlot(
-          isActive: dropPosition == DropPosition.before,
-          child: const _DropIndicatorOutlineSlot(),
-        ),
+        _TouchInsertionGap(isOpen: openBefore),
         AnimatedScale(
-          scale: isCombine ? 0.98 : 1,
-          duration: _kMobileDropAnimationDuration,
-          curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: _kMobileDropAnimationDuration,
-            curve: Curves.easeOut,
-            decoration: isCombine
-                ? _combineTargetDecoration(color, true)
-                : const BoxDecoration(),
-            child: child,
-          ),
+          scale: isCombine ? 0.9 : 1,
+          duration: _kTouchReorderSpringDuration,
+          curve: _kTouchReorderSpringCurve,
+          child: child,
         ),
-        _AnimatedEdgeSlot(
-          isActive: dropPosition == DropPosition.after,
-          child: const _DropIndicatorOutlineSlot(),
-        ),
+        _TouchInsertionGap(isOpen: openAfter),
       ],
     );
   }
 }
 
-class _AnimatedEdgeSlot extends StatelessWidget {
-  const _AnimatedEdgeSlot({required this.isActive, required this.child});
+class _TouchInsertionGap extends StatelessWidget {
+  const _TouchInsertionGap({required this.isOpen});
 
-  final bool isActive;
-  final Widget child;
+  final bool isOpen;
 
-  static const Widget _collapsedSlot = SizedBox(
-    width: double.infinity,
-    height: 0,
-  );
+  static const Widget _closedGap = SizedBox(width: double.infinity, height: 0);
 
   @override
   Widget build(BuildContext context) {
     return AnimatedSize(
-      duration: _kMobileDropAnimationDuration,
-      curve: Curves.easeOut,
+      duration: _kTouchReorderSpringDuration,
+      curve: _kTouchReorderSpringCurve,
       alignment: Alignment.topCenter,
-      child: isActive ? child : _collapsedSlot,
+      clipBehavior: Clip.none,
+      child: isOpen
+          ? const SizedBox(
+              width: double.infinity,
+              height: _kTouchInsertionSlotHeight,
+            )
+          : _closedGap,
     );
   }
 }
@@ -644,7 +761,7 @@ class _DesktopDragTargetContent extends StatelessWidget {
           _DropIndicatorLine(color: color),
         if (isCombine)
           DecoratedBox(
-            decoration: _combineTargetDecoration(color, false),
+            decoration: _combineTargetDecoration(color),
             child: child,
           )
         else
@@ -742,41 +859,6 @@ class _FolderMiniGrid extends StatelessWidget {
   }
 }
 
-class _DropIndicatorOutlineSlot extends StatelessWidget {
-  const _DropIndicatorOutlineSlot();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Center(
-        child: _DropIndicatorOutline(color: context.colors.brandPrimary),
-      ),
-    );
-  }
-}
-
-class _DropIndicatorOutline extends StatelessWidget {
-  const _DropIndicatorOutline({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: _kMobileDropAnimationDuration,
-      curve: Curves.easeOut,
-      width: _kGuildIconSize,
-      height: _kGuildIconSize,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_kGuildIconBorderRadius),
-        border: Border.all(color: color.withValues(alpha: 0.85), width: 2),
-        color: color.withValues(alpha: 0.08),
-      ),
-    );
-  }
-}
-
 class _DropIndicatorLine extends StatelessWidget {
   const _DropIndicatorLine({required this.color});
 
@@ -797,17 +879,14 @@ class _DropIndicatorLine extends StatelessWidget {
   }
 }
 
-BoxDecoration _combineTargetDecoration(Color color, bool isMobile) {
+BoxDecoration _combineTargetDecoration(Color color) {
   return BoxDecoration(
     borderRadius: BorderRadius.circular(16),
-    border: isMobile
-        ? Border.all(color: color.withValues(alpha: 0.9), width: 2)
-        : null,
     boxShadow: [
       BoxShadow(
-        color: color.withValues(alpha: isMobile ? 0.45 : 0.6),
-        blurRadius: isMobile ? 12 : 8,
-        spreadRadius: isMobile ? 2 : 1,
+        color: color.withValues(alpha: 0.6),
+        blurRadius: 8,
+        spreadRadius: 1,
       ),
     ],
   );

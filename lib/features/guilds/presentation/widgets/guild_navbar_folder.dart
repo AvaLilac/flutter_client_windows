@@ -28,10 +28,10 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
       folderExpandedStateProvider.select((s) => s.contains(folder.id)),
     );
     final DragState dragState = ref.watch(guildDragProvider);
-    final bool useLongPressDrag = isTouchPrimaryInput(ref);
+    final bool useTouchDrag = isTouchPrimaryInput(ref);
     final bool collapseWhileDragging = dragState.shouldCollapseDragSource(
       itemId: folder.id.toString(),
-      useLongPressDrag: useLongPressDrag,
+      useTouchDrag: useTouchDrag,
     );
     final bool visuallyExpanded = isExpanded && !collapseWhileDragging;
 

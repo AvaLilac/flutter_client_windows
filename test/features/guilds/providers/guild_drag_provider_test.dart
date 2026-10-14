@@ -7,7 +7,7 @@ void main() {
 
     test('returns false when item is not being dragged', () {
       expect(
-        idle.shouldCollapseDragSource(itemId: '1', useLongPressDrag: false),
+        idle.shouldCollapseDragSource(itemId: '1', useTouchDrag: false),
         isFalse,
       );
     });
@@ -17,7 +17,7 @@ void main() {
       expect(
         dragging.shouldCollapseDragSource(
           itemId: 'folder-1',
-          useLongPressDrag: false,
+          useTouchDrag: false,
         ),
         isTrue,
       );
@@ -33,15 +33,12 @@ void main() {
       expect(
         holding.shouldCollapseDragSource(
           itemId: 'folder-1',
-          useLongPressDrag: true,
+          useTouchDrag: true,
         ),
         isFalse,
       );
       expect(
-        moving.shouldCollapseDragSource(
-          itemId: 'folder-1',
-          useLongPressDrag: true,
-        ),
+        moving.shouldCollapseDragSource(itemId: 'folder-1', useTouchDrag: true),
         isTrue,
       );
     });
@@ -90,6 +87,109 @@ void main() {
           allowCombine: false,
         ),
         DropPosition.after,
+      );
+    });
+  });
+
+  group('shouldDeferGuildHoverUpdate', () {
+    test('defers when moving quickly with a pending change', () {
+      expect(
+        shouldDeferGuildHoverUpdate(
+          verticalSpeedPxPerMs: 3,
+          dwellInPendingTarget: Duration.zero,
+          hasPendingChange: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('applies when movement is slow', () {
+      expect(
+        shouldDeferGuildHoverUpdate(
+          verticalSpeedPxPerMs: 1,
+          dwellInPendingTarget: Duration.zero,
+          hasPendingChange: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('applies after dwell even when moving quickly', () {
+      expect(
+        shouldDeferGuildHoverUpdate(
+          verticalSpeedPxPerMs: 4,
+          dwellInPendingTarget: kGuildDragHoverDwell,
+          hasPendingChange: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('does not defer when hover already matches', () {
+      expect(
+        shouldDeferGuildHoverUpdate(
+          verticalSpeedPxPerMs: 4,
+          dwellInPendingTarget: Duration.zero,
+          hasPendingChange: false,
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('normalizeGuildDropSeam', () {
+    const List<GuildDragTargetBounds> targets = <GuildDragTargetBounds>[
+      GuildDragTargetBounds(itemId: 'a', isFolder: false, top: 0, bottom: 56),
+      GuildDragTargetBounds(itemId: 'b', isFolder: false, top: 56, bottom: 112),
+    ];
+
+    test('maps after on upper row to before on lower row', () {
+      expect(
+        normalizeGuildDropSeam(
+          intent: const GuildDropHoverIntent(
+            targetId: 'a',
+            isFolder: false,
+            position: DropPosition.after,
+          ),
+          targets: targets,
+        ),
+        const GuildDropHoverIntent(
+          targetId: 'b',
+          isFolder: false,
+          position: DropPosition.before,
+        ),
+      );
+    });
+
+    test('leaves before unchanged', () {
+      const GuildDropHoverIntent intent = GuildDropHoverIntent(
+        targetId: 'b',
+        isFolder: false,
+        position: DropPosition.before,
+      );
+      expect(normalizeGuildDropSeam(intent: intent, targets: targets), intent);
+    });
+
+    test('leaves after when next row is not adjacent', () {
+      const GuildDropHoverIntent intent = GuildDropHoverIntent(
+        targetId: 'a',
+        isFolder: false,
+        position: DropPosition.after,
+      );
+      expect(
+        normalizeGuildDropSeam(
+          intent: intent,
+          targets: <GuildDragTargetBounds>[
+            targets[0],
+            const GuildDragTargetBounds(
+              itemId: 'b',
+              isFolder: false,
+              top: 80,
+              bottom: 136,
+            ),
+          ],
+        ),
+        intent,
       );
     });
   });
