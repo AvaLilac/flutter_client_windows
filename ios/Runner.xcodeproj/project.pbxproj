@@ -3848,8 +3848,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/measure-sh/measure.git";
 			requirement = {
-				kind = revision;
-				revision = 6f6aba8c4ceac1e55dc5cf3a9a1058da41fac914;
+				kind = branch;
+				branch = ios-v0.14.2;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
