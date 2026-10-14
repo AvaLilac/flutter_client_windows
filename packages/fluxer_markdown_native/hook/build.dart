@@ -17,11 +17,13 @@ void main(List<String> args) async {
 
     final environment = <String, String>{
       'CARGO_TARGET_DIR': targetDir.toFilePath(),
-      'CARGO_PROFILE_RELEASE_OPT_LEVEL': 'z',
-      'CARGO_PROFILE_RELEASE_LTO': 'fat',
-      'CARGO_PROFILE_RELEASE_CODEGEN_UNITS': '1',
-      'CARGO_PROFILE_RELEASE_STRIP': 'symbols',
     };
+    if (code.targetOS != OS.iOS) {
+      environment['CARGO_PROFILE_RELEASE_OPT_LEVEL'] = 'z';
+      environment['CARGO_PROFILE_RELEASE_LTO'] = 'fat';
+      environment['CARGO_PROFILE_RELEASE_CODEGEN_UNITS'] = '1';
+      environment['CARGO_PROFILE_RELEASE_STRIP'] = 'symbols';
+    }
     final linker = _linkerFor(code);
     if (linker != null) {
       final envTriple = triple.toUpperCase().replaceAll('-', '_');
