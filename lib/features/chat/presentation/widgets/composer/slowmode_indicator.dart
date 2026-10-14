@@ -176,7 +176,6 @@ class _SlowmodePill extends StatelessWidget {
       color: compact ? foreground : colors.textPrimaryMuted,
       fontWeight: FontWeight.w600,
       fontSize: 12,
-      height: compact ? null : 1,
       fontFeatures: const [FontFeature.tabularFigures()],
       shadows: shadows,
     );
@@ -218,6 +217,7 @@ class _SlowmodePill extends StatelessWidget {
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textScaler: TextScaler.noScaling,
             ),
           ),
           SizedBox(width: compact ? 6 : 3),

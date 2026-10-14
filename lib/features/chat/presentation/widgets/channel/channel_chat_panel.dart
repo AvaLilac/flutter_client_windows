@@ -547,8 +547,11 @@ class ChannelChatComposerBoundary extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bool isMobile = isMobileLayout(context);
-    final double statusRailPadding =
+    final double statusRailPaddingStart =
         WideComposerLayout.statusRailPaddingInlineFor(isMobile: isMobile);
+    final double statusRailPaddingEnd = isMobile
+        ? MobileComposerLayout.statusTrailingInsetEnd
+        : statusRailPaddingStart;
     final bool statusVisible =
         ref
             .watch(presentableTypingUsersInChannelProvider(channelId))
@@ -582,8 +585,8 @@ class ChannelChatComposerBoundary extends ConsumerWidget {
                   ),
           ),
         Positioned(
-          left: statusRailPadding,
-          right: statusRailPadding,
+          left: statusRailPaddingStart,
+          right: statusRailPaddingEnd,
           bottom: 0,
           height: WideComposerLayout.statusLineHeight,
           child: Row(
@@ -603,7 +606,7 @@ class ChannelChatComposerBoundary extends ConsumerWidget {
           Positioned(
             right: isMobile
                 ? MobileComposerLayout.nekoInsetEnd
-                : statusRailPadding,
+                : statusRailPaddingStart,
             bottom: nekoBottom,
             child: neko!,
           ),

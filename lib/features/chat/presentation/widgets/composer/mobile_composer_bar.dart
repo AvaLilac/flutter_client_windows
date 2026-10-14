@@ -11,6 +11,7 @@ abstract final class MobileComposerLayout {
       sideInset +
       WideComposerLayout.mobileStatusRailPaddingInline -
       WideComposerLayout.boxInset;
+  static const double statusTrailingInsetEnd = sideInset + rowPaddingEnd;
   static const double topInset = WideComposerLayout.mobileComposerTopInset;
   static const double bottomGap = kMobileComposerBottomGap;
   static const double radius = 16;

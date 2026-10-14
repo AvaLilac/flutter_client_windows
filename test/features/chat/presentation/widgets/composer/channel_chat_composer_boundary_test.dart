@@ -143,7 +143,7 @@ void main() {
     );
 
     final Rect neko = tester.getRect(find.byKey(nekoKey));
-    final double barEnd = 390 - MobileComposerLayout.sideInset;
+    const double barEnd = 390 - MobileComposerLayout.sideInset;
     expect(neko.right, 390 - MobileComposerLayout.nekoInsetEnd);
     expect(neko.right, lessThan(barEnd));
     expect(barEnd - neko.right, lessThan(MobileComposerLayout.radius));
