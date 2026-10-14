@@ -102,6 +102,9 @@ Future<void> _bootstrapFluxer(List<String> args) async {
       bootstrapChatAttachmentAudio,
     ),
     () async {
+      if (AppBuildConfig.hasObservabilityConfig) {
+        await FluxerObservability.instance.prepare();
+      }
       await Future.wait<void>([
         container.read(observabilityReportingProvider.notifier).load(),
         container.read(pushRelayConsentProvider.notifier).load(),

@@ -31,11 +31,29 @@ class FluxerObservability {
 
   bool get isEnabled => _enabled;
 
+  bool get isSdkAvailable => _measureInitialized;
+
+  Future<void> prepare() async {
+    if (!AppBuildConfig.hasObservabilityConfig) {
+      return;
+    }
+    await _ensureMeasureInitialized();
+    if (!_measureInitialized) {
+      talker.warning(
+        '[Measure] Native API key/URL missing',
+      );
+    }
+  }
+
   Future<void> start({AppRuntimeInfo? runtimeInfo}) async {
     if (!AppBuildConfig.hasObservabilityConfig) {
       return;
     }
     await _ensureMeasureInitialized();
+    if (!_measureInitialized) {
+      talker.warning('[Measure] Cannot start without native SDK configuration');
+      return;
+    }
     await Measure.instance.start();
     _enabled = true;
     talker.info('[Measure] Started');
@@ -189,7 +207,11 @@ class FluxerObservability {
       config: const MeasureConfig(autoStart: false, enableLogging: kDebugMode),
     );
     await _measureInitFuture;
-    _measureInitialized = true;
+    final Span probe = Measure.instance.startSpan('fluxer.sdk_probe');
+    _measureInitialized = probe.traceId != 'invalid-trace-id';
+    if (_measureInitialized) {
+      probe.end();
+    }
   }
 
   void _recordExceptionOnSpan(Span span, Object error, StackTrace stackTrace) {
