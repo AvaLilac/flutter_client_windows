@@ -312,7 +312,7 @@ class _GuildSourceRow extends StatelessWidget {
                       child: Icon(
                         PhosphorIconsFill.sealCheck,
                         size: 16,
-                        color: context.colors.brandPrimary,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                   ],
