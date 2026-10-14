@@ -93,7 +93,8 @@ class _GuildSidebarChannelList extends ConsumerStatefulWidget {
 
 class _GuildSidebarChannelListState
     extends ConsumerState<_GuildSidebarChannelList> {
-  static const double _scrollRestoreStep = 480;
+  static const double _selectedRevealStep = 480;
+  static const int _maxSelectedRevealSteps = 20;
 
   late final ScrollController _scrollController;
   late final GuildScrollIndicatorController _scrollIndicator;
@@ -101,16 +102,18 @@ class _GuildSidebarChannelListState
   List<String> _indicatorOrder = const <String>[];
   bool _restoring = false;
   bool _needsScrollClamp = false;
-  bool _deferChannelList = false;
+  bool _needsSelectedReveal = false;
+  bool _selectedRevealScheduled = false;
+  int _selectedRevealSteps = 0;
   GuildSidebarScrollStore? _scrollStore;
   Widget? _inactiveList;
 
   double _savedScrollOffset() => _scrollStore?.offsetFor(widget.guildId) ?? 0;
 
   void _syncScrollRestoreState() {
-    final bool hasSavedOffset = _savedScrollOffset() > 0;
-    _needsScrollClamp = hasSavedOffset;
-    _deferChannelList = widget.isActive && hasSavedOffset;
+    _needsScrollClamp = _savedScrollOffset() > 0;
+    _needsSelectedReveal = _scrollStore?.offsetFor(widget.guildId) == null;
+    _selectedRevealSteps = 0;
   }
 
   void _refreshGuildPermissions() {
@@ -126,7 +129,9 @@ class _GuildSidebarChannelListState
     super.initState();
     _scrollStore = ref.read(guildSidebarScrollStoreProvider);
     _syncScrollRestoreState();
-    _scrollController = ScrollController()..addListener(_persistScroll);
+    _scrollController = ScrollController(
+      initialScrollOffset: _savedScrollOffset(),
+    )..addListener(_persistScroll);
     _scrollIndicator = GuildScrollIndicatorController(
       scrollController: _scrollController,
       itemKeys: _channelKeys,
@@ -152,30 +157,80 @@ class _GuildSidebarChannelListState
   }
 
   void _scheduleScrollRestore() {
-    if (_deferChannelList) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !widget.isActive) {
-          return;
-        }
-        setState(() {
-          _deferChannelList = false;
-        });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || !widget.isActive) {
-            return;
-          }
-          _clampScrollOffset();
-        });
-      });
-      return;
-    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !widget.isActive) {
         return;
       }
       _clampScrollOffset();
+      _revealSelectedChannel();
       _scrollIndicator.scheduleUpdate();
     });
+  }
+
+  void _scheduleSelectedReveal() {
+    if (_selectedRevealScheduled) {
+      return;
+    }
+    _selectedRevealScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _selectedRevealScheduled = false;
+      _revealSelectedChannel();
+    });
+  }
+
+  void _revealSelectedChannel() {
+    if (!_needsSelectedReveal ||
+        !mounted ||
+        !widget.isActive ||
+        !_scrollController.hasClients ||
+        _indicatorOrder.isEmpty) {
+      return;
+    }
+    final String? channelId = ref.read(activeChannelIdProvider);
+    if (channelId == null || !_indicatorOrder.contains(channelId)) {
+      _finishSelectedReveal();
+      return;
+    }
+    final ScrollPosition position = _scrollController.position;
+    final RenderObject? tile = _channelKeys[channelId]?.currentContext
+        ?.findRenderObject();
+    if (tile is RenderBox && tile.attached && tile.hasSize) {
+      final double centered = RenderAbstractViewport.of(
+        tile,
+      ).getOffsetToReveal(tile, 0.5).offset;
+      _jumpWithoutPersisting(
+        centered.clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
+      _finishSelectedReveal();
+      return;
+    }
+    if (position.pixels >= position.maxScrollExtent ||
+        _selectedRevealSteps >= _maxSelectedRevealSteps) {
+      _jumpWithoutPersisting(position.minScrollExtent);
+      _finishSelectedReveal();
+      return;
+    }
+    _selectedRevealSteps++;
+    _jumpWithoutPersisting(
+      (position.pixels + _selectedRevealStep).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      ),
+    );
+    _scheduleSelectedReveal();
+  }
+
+  void _jumpWithoutPersisting(double offset) {
+    _restoring = true;
+    _scrollController.jumpTo(offset);
+    _restoring = false;
+  }
+
+  void _finishSelectedReveal() {
+    setState(() {
+      _needsSelectedReveal = false;
+    });
+    _scrollIndicator.scheduleUpdate();
   }
 
   @override
@@ -226,27 +281,12 @@ class _GuildSidebarChannelListState
     if (maxExtent <= 0) {
       return;
     }
+    _needsScrollClamp = false;
     final double target = _savedScrollOffset().clamp(0.0, maxExtent);
-    final double current = _scrollController.offset;
-    if (current >= target - 0.5) {
-      _restoring = true;
-      _scrollController.jumpTo(target);
-      _restoring = false;
-      setState(() {
-        _needsScrollClamp = false;
-      });
-      _scrollIndicator.scheduleUpdate();
-      return;
+    if ((_scrollController.offset - target).abs() > 0.5) {
+      _jumpWithoutPersisting(target);
     }
-    _restoring = true;
-    _scrollController.jumpTo((current + _scrollRestoreStep).clamp(0.0, target));
-    _restoring = false;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !widget.isActive) {
-        return;
-      }
-      _clampScrollOffset();
-    });
+    _scrollIndicator.scheduleUpdate();
   }
 
   void _scheduleScrollClamp() {
@@ -265,9 +305,6 @@ class _GuildSidebarChannelListState
   Widget build(BuildContext context) {
     if (!widget.isActive) {
       return _inactiveList ?? const SizedBox.shrink();
-    }
-    if (_deferChannelList) {
-      return const SizedBox.shrink();
     }
     _scrollStore = ref.read(guildSidebarScrollStoreProvider);
     final List<GuildSidebarEntry> sidebarEntries = ref.watch(
@@ -304,6 +341,9 @@ class _GuildSidebarChannelListState
         _scrollIndicator.scheduleUpdate();
         if (_needsScrollClamp && next.isNotEmpty) {
           _scheduleScrollClamp();
+        }
+        if (_needsSelectedReveal && next.isNotEmpty) {
+          _scheduleSelectedReveal();
         }
       });
     final bool showMembersEntry =
@@ -423,7 +463,7 @@ class _GuildSidebarChannelListState
         animated: false,
         topInset: kGuildSidebarScrollIndicatorTopInset,
         child: Opacity(
-          opacity: _needsScrollClamp ? 0 : 1,
+          opacity: _needsSelectedReveal && _indicatorOrder.isNotEmpty ? 0 : 1,
           child: channelListView,
         ),
       ),

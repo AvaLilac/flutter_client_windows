@@ -102,14 +102,6 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             FluxerMenuGroup(
               children: <Widget>[
                 FluxerBottomSheetSubmenuItem(
-                  icon: PhosphorIconsBold.bookmarkSimple,
-                  label: l10n.notificationsBookmarksTooltip,
-                  onTap: () {
-                    close();
-                    _openBookmarks();
-                  },
-                ),
-                FluxerBottomSheetSubmenuItem(
                   icon: PhosphorIconsBold.gear,
                   label: l10n.notificationSettings,
                   onTap: () {
@@ -118,6 +110,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                       UserSettingsModal.show(
                         context,
                         initialSection: UserSettingsSection.notifications,
+                        sectionOnly: true,
                       ),
                     );
                   },
@@ -177,6 +170,15 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _openBookmarks,
+                              tooltip: l10n.notificationsBookmarksTooltip,
+                              icon: Icon(
+                                PhosphorIconsBold.bookmarkSimple,
+                                color: colors.textPrimary,
+                                size: 24,
                               ),
                             ),
                             IconButton(
