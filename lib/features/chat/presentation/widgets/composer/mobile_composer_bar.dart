@@ -37,7 +37,7 @@ abstract final class MobileComposerLayout {
   static const double trailingGap = 8;
   static const double textInsetX = 6;
   static const double textInsetY = 7;
-  static const int maxLines = 9;
+  static const int maxLines = 5;
   static const double headerHeight = 32;
   static const double headerMaxFraction = 0.35;
   static const double headerInsetStart = 13;
