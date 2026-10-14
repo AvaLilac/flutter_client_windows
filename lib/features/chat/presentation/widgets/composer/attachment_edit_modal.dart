@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/domain/pending_attachment.dart';
 import 'package:fluxer_app/features/chat/providers/upload/cloud_upload_controller.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/input/fluxer_input.dart';
+import 'package:fluxer_app/features/ui/toggle_switch/fluxer_toggle_switch.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 
@@ -96,7 +96,6 @@ class _AttachmentEditSheetBodyState
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     return SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       child: Padding(
@@ -128,23 +127,12 @@ class _AttachmentEditSheetBodyState
             ValueListenableBuilder<bool>(
               valueListenable: _spoilerNotifier,
               builder: (BuildContext ctx, bool isSpoiler, _) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        FluxerLocalizations.of(
-                          context,
-                        ).chatAttachmentSpoilerLabel,
-                        style: context.textStyles.bodyMedium.copyWith(
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    Switch(
-                      value: isSpoiler,
-                      onChanged: (bool v) => _spoilerNotifier.value = v,
-                    ),
-                  ],
+                return FluxerToggleSwitch(
+                  label: FluxerLocalizations.of(
+                    context,
+                  ).chatAttachmentSpoilerLabel,
+                  value: isSpoiler,
+                  onChanged: (bool v) => _spoilerNotifier.value = v,
                 );
               },
             ),
