@@ -154,6 +154,8 @@ Stream<UnreadState> channelUnread(Ref ref, String channelId) {
     ..watch(gatewayReadyProvider)
     ..watch(readStateOverlayVersionProvider);
   final bool? canView = ref.watch(channelUnreadCanViewProvider(channelId));
+  final ProviderContainer container = ref.container;
+  final readStateWriteBatcher = ref.read(readStateWriteBatcherProvider);
 
   final controller = StreamController<UnreadState>();
   var disposed = false;
@@ -175,20 +177,29 @@ Stream<UnreadState> channelUnread(Ref ref, String channelId) {
 
   late void Function() scheduleRecompute;
 
+  bool isActive() => !disposed && ref.mounted;
+
   Future<void> recompute() async {
-    if (disposed) {
+    if (!isActive()) {
       return;
     }
 
     final channel = await db.channelDao.getChannelById(channelId);
+    if (!isActive()) {
+      return;
+    }
     if (canView == false) {
       emit(const UnreadState());
       return;
     }
     final readState = await db.readStateDao.getReadState(channelId);
-    final effective = ref
-        .read(readStateWriteBatcherProvider)
-        .effectiveFields(channelId, readState);
+    if (!isActive()) {
+      return;
+    }
+    final effective = readStateWriteBatcher.effectiveFields(
+      channelId,
+      readState,
+    );
     final mentionCount = effective.mentionCount;
     final ackLastMessageId = effective.lastMessageId;
     final latestMessageId = await resolveLatestMessageIdForUnreadDisplay(
@@ -198,7 +209,7 @@ Stream<UnreadState> channelUnread(Ref ref, String channelId) {
       ackLastMessageId: ackLastMessageId,
       mentionCount: mentionCount,
     );
-    if (disposed) {
+    if (!isActive()) {
       return;
     }
     if (channel != null &&
@@ -206,7 +217,7 @@ Stream<UnreadState> channelUnread(Ref ref, String channelId) {
         watchedSettingsGuildId != channel.guildId) {
       settingsSub?.close();
       watchedSettingsGuildId = channel.guildId;
-      settingsSub = ref.container.listen<AsyncValue<String?>>(
+      settingsSub = container.listen<AsyncValue<String?>>(
         userGuildSettingsDataProvider.select(
           (AsyncValue<Map<String, String>> all) => all.whenData(
             (Map<String, String> byGuild) => byGuild[channel.guildId],
@@ -235,6 +246,9 @@ Stream<UnreadState> channelUnread(Ref ref, String channelId) {
           .watchMember(channelId)
           .skip(1)
           .listen((_) => scheduleRecompute());
+    }
+    if (!isActive()) {
+      return;
     }
     final bool unreadTracked =
         (!isThread || await db.threadDao.getMember(channelId) != null) &&
@@ -276,7 +290,7 @@ Stream<UnreadState> channelUnread(Ref ref, String channelId) {
       do {
         recomputeAgain = false;
         await recompute();
-      } while (recomputeAgain && !disposed);
+      } while (recomputeAgain && isActive());
     } on Object catch (error, stackTrace) {
       talker.error(
         '[Unread] recompute failed for $channelId',
