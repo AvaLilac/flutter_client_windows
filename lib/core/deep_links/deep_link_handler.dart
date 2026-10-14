@@ -290,6 +290,22 @@ class DeepLinkHandler extends _$DeepLinkHandler {
       router.go(RoutePaths.me);
       return;
     }
+    if (segments.length >= 2 && segments[1] == '@discover') {
+      router.go(RoutePaths.discover);
+      return;
+    }
+    if (segments.length >= 2 && segments[1] == '@favorites') {
+      if (segments.length >= 4) {
+        router.go(RoutePaths.favoritesChannelMessage(segments[2], segments[3]));
+        return;
+      }
+      if (segments.length >= 3) {
+        router.go(RoutePaths.favoritesChannel(segments[2]));
+        return;
+      }
+      router.go(RoutePaths.favoritesBase);
+      return;
+    }
     final ChannelJumpLink? link = channelJumpLinkFromPathSegments(segments);
     if (link != null) {
       unawaited(navigateToChannelJumpLinkVia(ref: ref, link: link));

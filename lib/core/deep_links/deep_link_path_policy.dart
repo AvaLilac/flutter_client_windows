@@ -26,6 +26,21 @@ String normalizeDeepLinkPath(String path) {
   return trimmed.isEmpty ? '/' : trimmed;
 }
 
+Uri? parseFluxerAppLinkUri(String href) {
+  if (!href.startsWith('fluxer:')) {
+    return null;
+  }
+  if (href.startsWith('fluxer://') || href.startsWith('fluxer:/')) {
+    final String normalized =
+        href.startsWith('fluxer:/') && !href.startsWith('fluxer://')
+        ? 'fluxer://${href.substring('fluxer:/'.length)}'
+        : href;
+    return normalizeAppProtocolDeepLinkUri(Uri.parse(normalized));
+  }
+  final String path = href.substring('fluxer:'.length);
+  return Uri(path: path.startsWith('/') ? path : '/$path');
+}
+
 Uri normalizeAppProtocolDeepLinkUri(Uri uri) {
   if (uri.scheme != appProtocolScheme) {
     return uri;

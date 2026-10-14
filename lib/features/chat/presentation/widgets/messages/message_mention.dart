@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
+import 'package:fluxer_app/core/deep_links/app_page_links.dart';
 import 'package:fluxer_app/core/deep_links/user_settings_deep_link.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
@@ -417,6 +418,42 @@ final FutureProviderFamily<String?, String> _dmNameByChannelIdProvider =
         username: user.username,
       );
     });
+
+class AppPageJumpLinkMention extends StatelessWidget {
+  const AppPageJumpLinkMention({required this.page, this.baseStyle, super.key});
+
+  final AppPageId page;
+  final TextStyle? baseStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = FluxerLocalizations.of(context);
+    final colors = context.colors;
+    final style = _mentionTextStyle(
+      baseStyle ?? context.textStyles.messageText,
+      colors.markupMentionText,
+    );
+    final iconSize = _mentionIconSize(style);
+
+    return _MentionPill(
+      fillColor: colors.markupJumpLinkFill,
+      pressedFillColor: colors.markupJumpLinkHoverFill,
+      onTap: () => navigateToAppPage(context, page),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PhosphorIcon(
+            appPageIcon(page),
+            size: iconSize,
+            color: colors.markupMentionText,
+          ),
+          SizedBox(width: _mentionInlineGap(style)),
+          _MentionLabel(appPageLabel(l10n, page), style: style),
+        ],
+      ),
+    );
+  }
+}
 
 class SettingsJumpLinkMention extends ConsumerWidget {
   const SettingsJumpLinkMention({

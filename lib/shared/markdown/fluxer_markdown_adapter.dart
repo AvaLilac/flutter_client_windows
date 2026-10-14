@@ -1,8 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluxer_app/core/deep_links/app_page_links.dart';
 import 'package:fluxer_app/core/deep_links/deep_link_path_policy.dart';
 import 'package:fluxer_app/core/deep_links/user_settings_deep_link.dart';
+import 'package:fluxer_app/core/instance/instance_endpoints.dart';
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
+import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/core/utils/channel_jump_link.dart';
 import 'package:fluxer_app/features/channels/utils/channel_mention_utils.dart';
@@ -36,21 +39,6 @@ String _fluxerAppLinkToHttps(String href) {
     return 'https://fluxer.app/${href.substring('fluxer:'.length)}';
   }
   return href;
-}
-
-Uri? _parseFluxerAppLinkPath(String href) {
-  if (!href.startsWith('fluxer:')) {
-    return null;
-  }
-  if (href.startsWith('fluxer://') || href.startsWith('fluxer:/')) {
-    final String normalized =
-        href.startsWith('fluxer:/') && !href.startsWith('fluxer://')
-        ? 'fluxer://${href.substring('fluxer:/'.length)}'
-        : href;
-    return normalizeAppProtocolDeepLinkUri(Uri.parse(normalized));
-  }
-  final String path = href.substring('fluxer:'.length);
-  return Uri(path: path.startsWith('/') ? path : '/$path');
 }
 
 Widget _fluxerUserMentionBuilder(
@@ -125,6 +113,20 @@ Widget _fluxerGuildNavigationMentionBuilder(
   );
 }
 
+AppPageLinkAvailability _appPageLinkAvailability(BuildContext context) {
+  final ProviderContainer container = ProviderScope.containerOf(
+    context,
+    listen: false,
+  );
+  final config = container.read(instanceRuntimeConfigProvider);
+  return AppPageLinkAvailability(
+    singleCommunity: config.singleCommunity,
+    directMessagesDisabled: config.directMessagesDisabled,
+  );
+}
+
+String _instanceWebAppBase() => InstanceEndpoints.webApp;
+
 Widget? _fluxerLinkWidgetBuilder(
   BuildContext context,
   String href,
@@ -135,6 +137,14 @@ Widget? _fluxerLinkWidgetBuilder(
   );
   if (settingsTarget != null) {
     return SettingsJumpLinkMention(target: settingsTarget, baseStyle: style);
+  }
+  final AppPageId? appPage = parseAppPageLink(
+    href,
+    instanceWebAppBase: _instanceWebAppBase(),
+    availability: _appPageLinkAvailability(context),
+  );
+  if (appPage != null) {
+    return AppPageJumpLinkMention(page: appPage, baseStyle: style);
   }
   final String resolvedHref = href.startsWith('fluxer:')
       ? _fluxerAppLinkToHttps(href)
@@ -147,7 +157,7 @@ Widget? _fluxerLinkWidgetBuilder(
 }
 
 Future<void> _fluxerOnTapLink(BuildContext context, String href) async {
-  final Uri? fluxerPath = _parseFluxerAppLinkPath(href);
+  final Uri? fluxerPath = parseFluxerAppLinkUri(href);
   if (fluxerPath != null) {
     if (!context.mounted) {
       return;
@@ -166,11 +176,35 @@ Future<void> _fluxerOnTapLink(BuildContext context, String href) async {
       );
       return;
     }
+    final AppPageId? appPage = appPageIdForPath(
+      fluxerPath.path,
+      availability: _appPageLinkAvailability(context),
+    );
+    if (appPage != null) {
+      if (!context.mounted) {
+        return;
+      }
+      navigateToAppPage(context, appPage);
+      return;
+    }
   }
 
   final String resolvedHref = href.startsWith('fluxer:')
       ? _fluxerAppLinkToHttps(href)
       : href;
+  final AppPageId? appPage = parseAppPageLink(
+    resolvedHref,
+    instanceWebAppBase: _instanceWebAppBase(),
+    availability: _appPageLinkAvailability(context),
+  );
+  if (appPage != null) {
+    if (!context.mounted) {
+      return;
+    }
+    navigateToAppPage(context, appPage);
+    return;
+  }
+
   final ChannelJumpLink? jump = parseChannelJumpLink(resolvedHref);
   if (jump != null) {
     if (!context.mounted) {
@@ -275,7 +309,7 @@ FluxerMarkdownConfig createFluxerMarkdownConfig({
 }
 
 UserSettingsDeepLinkTarget? _parseSettingsDeepLinkHref(String href) {
-  final Uri? fluxerPath = _parseFluxerAppLinkPath(href);
+  final Uri? fluxerPath = parseFluxerAppLinkUri(href);
   if (fluxerPath == null || !isUserSettingsDeepLinkPath(fluxerPath)) {
     return null;
   }
