@@ -9,6 +9,7 @@ import 'package:fluxer_app/core/audio/app_media_audio_session.dart';
 import 'package:fluxer_app/core/audio/chat_attachment/chat_attachment_audio_entrypoint.dart';
 import 'package:fluxer_app/core/bootstrap/flutter_error_ui.dart';
 import 'package:fluxer_app/core/bootstrap/image_cache_config.dart';
+import 'package:fluxer_app/core/build/app_build_config.dart';
 import 'package:fluxer_app/core/build/push_provider_assert.dart';
 import 'package:fluxer_app/core/build/push_provider_guard.dart';
 import 'package:fluxer_app/core/database/drift_stream_utils.dart';
@@ -29,6 +30,7 @@ import 'package:fluxer_app/features/ui/input/text_editing_shortcuts.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import 'package:measure_flutter/measure_flutter.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -48,9 +50,11 @@ void _configureImagePicker() {
 }
 
 void _runFluxerApp(ProviderContainer container) {
-  runApp(
-    UncontrolledProviderScope(container: container, child: const FluxerApp()),
-  );
+  Widget app = const FluxerApp();
+  if (AppBuildConfig.hasObservabilityConfig) {
+    app = MeasureWidget(child: app);
+  }
+  runApp(UncontrolledProviderScope(container: container, child: app));
 }
 
 void _configureFluxerErrorReporting() {

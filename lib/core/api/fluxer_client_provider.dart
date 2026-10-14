@@ -11,7 +11,8 @@ import 'package:fluxer_app/core/api/session_auth_interceptor.dart';
 import 'package:fluxer_app/core/api/skip_auth_interceptor.dart';
 import 'package:fluxer_app/core/api/sudo_dialog.dart';
 import 'package:fluxer_app/core/api/sudo_interceptor.dart';
-import 'package:fluxer_app/core/observability/fluxer_otel_dio_interceptor.dart';
+import 'package:fluxer_app/core/build/app_build_config.dart';
+import 'package:fluxer_app/core/observability/fluxer_measure_dio_interceptor.dart';
 import 'package:fluxer_app/core/providers/active_instance_provider.dart';
 import 'package:fluxer_app/core/providers/app_runtime_info_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
@@ -83,7 +84,9 @@ Dio _buildFluxerDio({required Ref ref, required String baseUrl}) {
   );
   dio.interceptors.add(RateLimitInterceptor(pacer: rateLimitPacer));
   dio.interceptors.add(PremiumStateResponseInterceptor());
-  dio.interceptors.add(const FluxerOtelDioInterceptor());
+  if (AppBuildConfig.hasObservabilityConfig) {
+    dio.interceptors.add(FluxerMeasureDioInterceptor());
+  }
   dio.interceptors.add(
     CaptchaInterceptor(
       dio: dio,

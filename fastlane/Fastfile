@@ -42,6 +42,32 @@ def project_root_path
   File.expand_path("..", __dir__)
 end
 
+def upload_measure_ios_dsyms
+  api_key = ENV["MEASURE_IOS_API_KEY"].to_s.strip
+  api_url = ENV["MEASURE_API_URL"].to_s.strip
+  if api_key.empty? || api_url.empty?
+    UI.important("MEASURE_IOS_API_KEY or MEASURE_API_URL not set; skipping Measure dSYM upload")
+    return
+  end
+
+  archive_path = lane_context[SharedValues::XCODEBUILD_ARCHIVE].to_s
+  unless File.directory?(archive_path)
+    UI.user_error!("Measure dSYM upload requires an Xcode archive but none was found at #{archive_path.inspect}")
+  end
+
+  upload_script = File.join(project_root_path, "tool/measure/upload_measure_ios_symbols.sh")
+  unless File.exist?(upload_script)
+    UI.user_error!("Missing Measure upload script at #{upload_script}")
+  end
+
+  ipa_path = lane_context[SharedValues::IPA_OUTPUT_PATH].to_s
+  if File.exist?(ipa_path)
+    sh(upload_script, archive_path, ipa_path)
+  else
+    sh(upload_script, archive_path)
+  end
+end
+
 def flutter_marketing_version
   pubspec_path = File.join(project_root_path, "pubspec.yaml")
   version = YAML.safe_load_file(pubspec_path).fetch("version")
@@ -321,6 +347,7 @@ platform :ios do
         "CODE_SIGN_STYLE=Manual",
       ].join(" ")
     )
+    upload_measure_ios_dsyms
     maximum_attempts = 3
     attempt_index = 1
     begin
@@ -451,6 +478,7 @@ platform :ios do
         "CODE_SIGN_STYLE=Manual",
       ].join(" ")
     )
+    upload_measure_ios_dsyms
     changelog = "Build from GitHub Actions run: #{ENV['GITHUB_SERVER_URL']}/#{ENV['GITHUB_REPOSITORY']}/actions/runs/#{ENV['GITHUB_RUN_ID']}"
 
     upload_to_testflight(
@@ -577,6 +605,7 @@ platform :ios do
         "CODE_SIGN_STYLE=Manual",
       ].join(" ")
     )
+    upload_measure_ios_dsyms
     maximum_attempts = 3
     attempt_index = 1
     begin

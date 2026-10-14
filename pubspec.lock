@@ -1546,6 +1546,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.0"
+  measure_flutter:
+    dependency: "direct main"
+    description:
+      name: measure_flutter
+      sha256: "63cc81b3e4a615c23358057949dfecdffdf47c46187f446175245d295ca06a5d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.1"
   media_kit:
     dependency: "direct main"
     description:
@@ -1698,14 +1706,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.2"
-  opentelemetry:
-    dependency: "direct main"
-    description:
-      name: opentelemetry
-      sha256: "92d63a2e0731d34a7548add82420b8f3819ccda569f9bdfdcc4b25e00fe88da4"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.18.11"
   package_config:
     dependency: transitive
     description:
@@ -2075,14 +2075,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
-  quiver:
-    dependency: transitive
-    description:
-      name: quiver
-      sha256: ea0b925899e64ecdfbf9c7becb60d5b50e706ade44a85b2363be2a22d88117d2
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.2.2"
   recase:
     dependency: transitive
     description:

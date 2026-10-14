@@ -1,6 +1,6 @@
 import 'dart:async' show unawaited;
 
-import 'package:fluxer_app/core/observability/fluxer_route_trace_observer.dart';
+import 'package:fluxer_app/core/build/app_build_config.dart';
 import 'package:fluxer_app/core/providers/app_startup_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_connection_provider.dart';
@@ -68,6 +68,7 @@ import 'package:fluxer_app/features/voice/presentation/dm_voice_call_fullscreen_
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_dart/gateway.dart';
 import 'package:go_router/go_router.dart';
+import 'package:measure_flutter/measure_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 export 'package:fluxer_app/core/router/shell_navigator_keys.dart';
@@ -188,7 +189,13 @@ GoRouter fluxerRouter(Ref ref) {
   final homeShellPopupRouteObserver = createShellPopupRouteObserver();
   final notificationsShellPopupRouteObserver = createShellPopupRouteObserver();
   final youShellPopupRouteObserver = createShellPopupRouteObserver();
-  final routeTraceObserver = FluxerRouteTraceObserver();
+  final List<NavigatorObserver> navigationObservers = <NavigatorObserver>[
+    ChannelPersistenceObserver(db),
+    rootShellPopupRouteObserver,
+  ];
+  if (AppBuildConfig.hasObservabilityConfig) {
+    navigationObservers.add(MsrNavigatorObserver());
+  }
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -197,11 +204,7 @@ GoRouter fluxerRouter(Ref ref) {
       return const InvalidDeepLinkScreen();
     },
     refreshListenable: refreshNotifier,
-    observers: [
-      ChannelPersistenceObserver(db),
-      rootShellPopupRouteObserver,
-      routeTraceObserver,
-    ],
+    observers: navigationObservers,
     redirect: (context, state) {
       final location = state.matchedLocation;
       final isOnLoading = location == '/loading';

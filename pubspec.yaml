@@ -70,6 +70,7 @@ dependencies:
   markdown: ^7.3.1
   material_ui: ^1.5.0
   # Temp: fluxerapp/media-kit fork (revert to pub.dev versions in the future).
+  measure_flutter: ^0.9.1
   media_kit:
     git:
       url: https://github.com/fluxerapp/media-kit
@@ -82,7 +83,6 @@ dependencies:
     git:
       url: https://github.com/fluxerapp/media-kit
       path: media_kit_video
-  opentelemetry: ^0.18.11
   package_info_plus: ^10.2.1
   passkeys: ^2.23.1
   path: ^1.9.1

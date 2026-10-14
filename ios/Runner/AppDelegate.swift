@@ -113,6 +113,13 @@ import flutter_callkit_incoming
     AttachmentMediaBridge.shared.register(
       messenger: engineBridge.applicationRegistrar.messenger()
     )
+    let measureInfo = Bundle.main.infoDictionary
+    let measureApiKey = measureInfo?["MeasureApiKey"] as? String ?? ""
+    let measureApiUrl = measureInfo?["MeasureApiUrl"] as? String ?? ""
+    if !measureApiKey.isEmpty, !measureApiUrl.isEmpty {
+      let clientInfo = ClientInfo(apiKey: measureApiKey, apiUrl: measureApiUrl)
+      Measure.initialize(with: clientInfo, config: BaseMeasureConfig())
+    }
   }
 
   func onAccept(_ call: Call, _ action: CXAnswerCallAction) {
