@@ -1118,9 +1118,6 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
               builder: (BuildContext context, Widget? _) {
                 return WideComposerFloatingBox(
                   focused: _composerFocused && !isFluxerMobileOs,
-                  clipBehavior: _voiceRecording.isActive
-                      ? Clip.none
-                      : Clip.antiAlias,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
@@ -1135,8 +1132,10 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
                           chatNotifier: chatNotifier,
                         ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: WideComposerLayout.densePaddingY,
+                        padding: EdgeInsets.symmetric(
+                          vertical: _voiceRecording.isActive
+                              ? 0
+                              : WideComposerLayout.densePaddingY,
                         ),
                         child: composerInput,
                       ),
@@ -1278,11 +1277,24 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
     final String channelId = ref.watch(
       chatViewModelProvider.select((s) => s.channelId),
     );
-    ref.watch(
-      cloudUploadControllerProvider(
-        channelId,
-      ).select((CloudComposerAttachments a) => a.items.length),
+    final bool hasAttachments = ref.watch(
+      cloudUploadControllerProvider(channelId).select(
+        (CloudComposerAttachments attachments) => attachments.items.isNotEmpty,
+      ),
     );
+    final Message? replyTo = ref.watch(
+      chatViewModelProvider.select((ChatViewState state) => state.replyingTo),
+    );
+    final Message? editingMessage = ref.watch(
+      chatViewModelProvider.select(
+        (ChatViewState state) => state.editingMessage,
+      ),
+    );
+    final bool hasWideActionStack =
+        replyTo != null ||
+        editingMessage != null ||
+        hasAttachments ||
+        _slashSession.focusedSlot != null;
     final int maxMessageLength = ref.watch(maxMessageLengthProvider);
     final int premiumMaxLength = ref.watch(premiumMaxMessageLengthProvider);
     final (
@@ -1366,6 +1378,13 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
           recordingChild: VoiceMessageRecordingBar(
             controller: _voiceRecording,
             actionSize: actionSize,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: touchActions ? 12 : 8,
+              vertical: WideComposerLayout.densePaddingY,
+            ),
+            backgroundShape: VoiceMessageRecordingBar.wideBackgroundShape(
+              hasActionStack: hasWideActionStack,
+            ),
             trailing: ComposerSendAndVoiceButton(
               perms: perms,
               hasSendable: false,
@@ -1703,30 +1722,27 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
               header: header,
               child: _voiceComposerMorph(
                 recording: recording,
-                recordingChild: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: VoiceMessageRecordingBar(
-                    controller: _voiceRecording,
-                    actionSize: FluxerButtonSize.small,
-                    trailing: ComposerSendAndVoiceButton(
-                      perms: perms,
-                      hasSendable: false,
-                      isOverCharacterLimit: false,
-                      size: FluxerButtonSize.small,
-                      useHoldToRecord: true,
-                      voiceRecording: _voiceRecording,
-                      onSend: () => unawaited(_onSendPressed()),
-                      onNoSendPermission: _showNoSendPermissionToast,
-                    ),
+                recordingChild: VoiceMessageRecordingBar(
+                  controller: _voiceRecording,
+                  actionSize: FluxerButtonSize.compact,
+                  rowExtent: MobileComposerLayout.sendExtent,
+                  contentPadding: MobileComposerLayout.rowPadding,
+                  backgroundShape:
+                      VoiceMessageRecordingBar.mobileBackgroundShape(
+                        hasHeader: header != null,
+                      ),
+                  trailing: ComposerSendAndVoiceButton(
+                    perms: perms,
+                    hasSendable: false,
+                    isOverCharacterLimit: false,
+                    useHoldToRecord: true,
+                    voiceRecording: _voiceRecording,
+                    onSend: () => unawaited(_onSendPressed()),
+                    onNoSendPermission: _showNoSendPermissionToast,
                   ),
                 ),
                 idleChild: Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(
-                    MobileComposerLayout.rowPaddingStart,
-                    MobileComposerLayout.rowPaddingVertical,
-                    MobileComposerLayout.rowPaddingEnd,
-                    MobileComposerLayout.rowPaddingVertical,
-                  ),
+                  padding: MobileComposerLayout.rowPadding,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: <Widget>[

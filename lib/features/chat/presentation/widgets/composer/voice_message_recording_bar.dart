@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/composer/mobile_composer_bar.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/voice_message_live_gradient.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/voice_message_recording_controller.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/composer/wide_composer_layout.dart';
 import 'package:fluxer_app/features/chat/services/voice_message_send.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/voice_message_constants.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
@@ -52,80 +54,164 @@ class VoiceMessageDiscardButton extends StatelessWidget {
   }
 }
 
+class _RecordingIndicator extends StatelessWidget {
+  const _RecordingIndicator({
+    required this.controller,
+    required this.rowExtent,
+  });
+
+  final VoiceMessageRecordingController controller;
+  final double? rowExtent;
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget indicator = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: context.colors.accentDanger,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 10),
+        ValueListenableBuilder<int>(
+          valueListenable: controller.durationMs,
+          builder: (BuildContext context, int durationMs, _) {
+            return Text(
+              formatVoiceDurationMs(durationMs),
+              style: context.textStyles.label.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+    if (rowExtent == null) {
+      return indicator;
+    }
+    return SizedBox(
+      height: rowExtent,
+      child: Center(child: indicator),
+    );
+  }
+}
+
+class _VoiceMessageRecordingBackgroundClipper extends CustomClipper<Path> {
+  const _VoiceMessageRecordingBackgroundClipper(this.shape);
+
+  final ShapeBorder shape;
+
+  @override
+  Path getClip(Size size) => shape.getOuterPath(Offset.zero & size);
+
+  @override
+  bool shouldReclip(covariant _VoiceMessageRecordingBackgroundClipper old) =>
+      old.shape != shape;
+}
+
 class VoiceMessageRecordingBar extends StatelessWidget {
   const VoiceMessageRecordingBar({
     required this.controller,
     required this.trailing,
     required this.actionSize,
+    required this.contentPadding,
+    this.backgroundShape,
+    this.rowExtent,
     super.key,
   });
 
   final VoiceMessageRecordingController controller;
   final Widget trailing;
   final FluxerButtonSize actionSize;
+  final EdgeInsetsGeometry contentPadding;
+  final ShapeBorder? backgroundShape;
+  final double? rowExtent;
 
-  static double heightFor(FluxerButtonSize actionSize) {
-    return actionSize.height +
-        kVoiceMessageRecordingBarInsetTop +
-        kVoiceMessageRecordingBarInsetBottom;
+  static double heightFor(
+    FluxerButtonSize actionSize, {
+    double verticalPadding = WideComposerLayout.densePaddingY,
+  }) {
+    return actionSize.height + verticalPadding * 2;
+  }
+
+  static ShapeBorder wideBackgroundShape({required bool hasActionStack}) {
+    return RoundedRectangleBorder(
+      borderRadius: hasActionStack
+          ? const BorderRadius.vertical(
+              bottom: Radius.circular(WideComposerLayout.boxRadius),
+            )
+          : BorderRadius.circular(WideComposerLayout.boxRadius),
+    );
+  }
+
+  static ShapeBorder? mobileBackgroundShape({required bool hasHeader}) {
+    if (!hasHeader) {
+      return null;
+    }
+    return const RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.vertical(
+        bottom: Radius.circular(MobileComposerLayout.radius),
+      ),
+    );
+  }
+
+  Widget _actionCell(Widget child, {double? width}) {
+    final double extent = rowExtent!;
+    return SizedBox(
+      width: width ?? MobileComposerLayout.buttonExtent,
+      height: extent,
+      child: Center(child: child),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: heightFor(actionSize),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(kVoiceMessageRecordingBarRadiusPx),
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            VoiceMessageLiveGradient(rmsLevel: controller.rmsLevel),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                kVoiceMessageRecordingBarInsetH,
-                kVoiceMessageRecordingBarInsetTop,
-                kVoiceMessageRecordingBarInsetH,
-                kVoiceMessageRecordingBarInsetBottom,
-              ),
-              child: Row(
-                children: <Widget>[
-                  VoiceMessageDiscardButton(
-                    controller: controller,
-                    size: actionSize,
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: context.colors.accentDanger,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  ValueListenableBuilder<int>(
-                    valueListenable: controller.durationMs,
-                    builder: (BuildContext context, int durationMs, _) {
-                      return Text(
-                        formatVoiceDurationMs(durationMs),
-                        style: context.textStyles.label.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontFeatures: const <FontFeature>[
-                            FontFeature.tabularFigures(),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  const Spacer(),
-                  trailing,
-                ],
-              ),
-            ),
-          ],
+    final bool mobileRow = rowExtent != null;
+    final Widget discard = VoiceMessageDiscardButton(
+      controller: controller,
+      size: actionSize,
+    );
+    final Widget stack = Stack(
+      fit: StackFit.passthrough,
+      children: <Widget>[
+        Positioned.fill(
+          child: VoiceMessageLiveGradient(
+            rmsLevel: controller.rmsLevel,
+            clipShape: backgroundShape,
+          ),
         ),
-      ),
+        Padding(
+          padding: contentPadding,
+          child: Row(
+            crossAxisAlignment: mobileRow
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.end,
+            children: <Widget>[
+              if (mobileRow) _actionCell(discard) else discard,
+              const SizedBox(width: 8),
+              _RecordingIndicator(controller: controller, rowExtent: rowExtent),
+              const Spacer(),
+              if (mobileRow)
+                _actionCell(trailing, width: MobileComposerLayout.sendExtent)
+              else
+                trailing,
+            ],
+          ),
+        ),
+      ],
+    );
+    if (backgroundShape == null) {
+      return stack;
+    }
+    return ClipPath(
+      clipper: _VoiceMessageRecordingBackgroundClipper(backgroundShape!),
+      child: stack,
     );
   }
 }

@@ -23,6 +23,13 @@ abstract final class MobileComposerLayout {
   static const double rowPaddingStart = 12;
   static const double rowPaddingEnd = 10;
   static const double rowPaddingVertical = 10;
+  static const EdgeInsetsDirectional rowPadding =
+      EdgeInsetsDirectional.fromSTEB(
+        rowPaddingStart,
+        rowPaddingVertical,
+        rowPaddingEnd,
+        rowPaddingVertical,
+      );
   static const double attachGap = 2;
   static const double trailingGap = 8;
   static const double textInsetX = 6;

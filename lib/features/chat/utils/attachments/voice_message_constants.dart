@@ -8,10 +8,6 @@ const int kVoiceMessageLockDragMinVerticalDeltaPx = 52;
 const int kVoiceMessageLockDragMaxHorizontalDeltaPx = 96;
 const double kVoiceMessageDiscardHitPadPx = 16;
 const double kVoiceMessageGradientIdleLevel = 0.15;
-const double kVoiceMessageRecordingBarRadiusPx = 22;
-const double kVoiceMessageRecordingBarInsetH = 8;
-const double kVoiceMessageRecordingBarInsetTop = 3;
-const double kVoiceMessageRecordingBarInsetBottom = 4;
 
 const int kVoiceMessageLiveAnalyserIntervalMs = 60;
 const int kVoiceMessageWaveformMaxPoints = 256;
