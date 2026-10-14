@@ -33,6 +33,26 @@ class _GuildSidebarChannelListHostState
     }
   }
 
+  Widget _offstageGuildSidebarScope({
+    required String guildId,
+    required Guild guild,
+    required bool isActive,
+  }) {
+    final Widget scope = FluxerEntranceSettleScope(
+      key: ValueKey<String>(guildId),
+      child: _GuildSidebarChannelList(
+        guildId: guildId,
+        guild: guild,
+        isActive: isActive,
+        onHeaderTap: widget.onHeaderTap,
+      ),
+    );
+    if (isActive) {
+      return scope;
+    }
+    return ExcludeSemantics(child: scope);
+  }
+
   @override
   Widget build(BuildContext context) {
     _rememberActiveGuild();
@@ -42,14 +62,10 @@ class _GuildSidebarChannelListHostState
         for (final MapEntry<String, Guild> entry in _guildsById.entries)
           Offstage(
             offstage: entry.key != widget.activeGuildId,
-            child: FluxerEntranceSettleScope(
-              key: ValueKey<String>(entry.key),
-              child: _GuildSidebarChannelList(
-                guildId: entry.key,
-                guild: entry.value,
-                isActive: entry.key == widget.activeGuildId,
-                onHeaderTap: widget.onHeaderTap,
-              ),
+            child: _offstageGuildSidebarScope(
+              guildId: entry.key,
+              guild: entry.value,
+              isActive: entry.key == widget.activeGuildId,
             ),
           ),
       ],

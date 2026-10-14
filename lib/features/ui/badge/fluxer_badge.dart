@@ -90,21 +90,24 @@ class FluxerBadge extends StatelessWidget {
         ),
       ),
     );
+    final Widget pillWidget;
     final Color? cutout = cutoutColor;
     if (cutout == null) {
-      return pill;
-    }
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          color: cutout,
-          width: cutoutWidth,
-          strokeAlign: BorderSide.strokeAlignOutside,
+      pillWidget = pill;
+    } else {
+      pillWidget = DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(
+            color: cutout,
+            width: cutoutWidth,
+            strokeAlign: BorderSide.strokeAlignOutside,
+          ),
         ),
-      ),
-      child: pill,
-    );
+        child: pill,
+      );
+    }
+    return ExcludeSemantics(child: pillWidget);
   }
 }
 
@@ -207,21 +210,23 @@ class _FluxerBadgeEntranceState extends State<FluxerBadgeEntrance>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      child: widget.child,
-      builder: (BuildContext context, Widget? child) {
-        final double t = _controller.value;
-        return Opacity(
-          opacity: t.clamp(0.0, 1.0),
-          child: Transform.scale(
-            scale:
-                FluxerBadgeEntrance.initialScale +
-                (1 - FluxerBadgeEntrance.initialScale) * t,
-            child: child,
-          ),
-        );
-      },
+    return ExcludeSemantics(
+      child: AnimatedBuilder(
+        animation: _controller,
+        child: widget.child,
+        builder: (BuildContext context, Widget? child) {
+          final double t = _controller.value;
+          return Opacity(
+            opacity: t.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale:
+                  FluxerBadgeEntrance.initialScale +
+                  (1 - FluxerBadgeEntrance.initialScale) * t,
+              child: child,
+            ),
+          );
+        },
+      ),
     );
   }
 }
