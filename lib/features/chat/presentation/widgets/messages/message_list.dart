@@ -2024,6 +2024,25 @@ class _MessageListState extends ConsumerState<MessageList> {
   double _loadedTailExtent(ScrollPosition position) =>
       position.maxScrollExtent - _trailingFillerExtent;
 
+  void _reconcileScrollPastLoadedTail() {
+    if (!mounted || !_anchorResolved || !_scrollController.hasClients) {
+      return;
+    }
+    if (_isJumpOwningViewport() || _isUserDrivenScroll) {
+      return;
+    }
+    if (ref.read(chatViewModelProvider).hasMoreNewerMessages) {
+      return;
+    }
+    final ScrollPosition position = _scrollController.position;
+    final double tail = _loadedTailExtent(position);
+    if (position.pixels <= tail + kMessageListMetricsEpsilon) {
+      return;
+    }
+    position.jumpTo(tail);
+    _publishDemandGeometry();
+  }
+
   void _reconcilePinnedLiveTailScroll() {
     if (!mounted || !_anchorResolved || !_scrollController.hasClients) {
       return;
@@ -2331,6 +2350,7 @@ class _MessageListState extends ConsumerState<MessageList> {
     if (_anchorId != null && _anchorFraction < 1.0 && !_unreadOpenLayout) {
       _scheduleUnderfillBottomReanchor();
     }
+    _reconcileScrollPastLoadedTail();
     _chatViewModel.setUserScrollActive(
       channelId: _viewportChannelId,
       active: false,
@@ -2731,12 +2751,16 @@ class _MessageListState extends ConsumerState<MessageList> {
     _lastViewportDimension = viewport;
     _lastMinScrollExtent = minExtent;
     _lastMaxScrollExtent = extent;
-    if (previousExtent != null && (_pin.pinned || _tailFollowOwnsScroll())) {
+    if (previousExtent != null) {
       final bool extentGrew =
           extent > previousExtent + kMessageListMetricsEpsilon;
       final bool extentShrank =
           extent < previousExtent - kMessageListMetricsEpsilon;
-      if (extentGrew || extentShrank) {
+      if (extentShrank) {
+        _reconcileScrollPastLoadedTail();
+      }
+      if ((_pin.pinned || _tailFollowOwnsScroll()) &&
+          (extentGrew || extentShrank)) {
         if (_suppressPinnedTailReconcileExtentChanges > 0) {
           _suppressPinnedTailReconcileExtentChanges -= 1;
         } else {

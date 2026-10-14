@@ -210,6 +210,34 @@ void main() {
       await disposeMessageList(tester);
     });
 
+    testWidgets(
+      'dropping the newer filler reclamps scroll past the loaded tail',
+      (WidgetTester tester) async {
+        final InstrumentedChatViewModel chatViewModel = await pumpBottomList(
+          tester,
+          hasMoreNewer: true,
+        );
+        final ScrollPosition position = messageListScrollPosition(tester);
+        position.jumpTo(position.maxScrollExtent);
+        await pumpFluxerFrames(tester);
+
+        final double loadedTail = messageListNewestRowOffset(tester);
+        expect(position.pixels, greaterThan(loadedTail + 8));
+
+        chatViewModel.testState = chatViewModel.testState.copyWith(
+          hasMoreNewerMessages: false,
+        );
+        await tester.pump();
+        await pumpFluxerFrames(tester);
+
+        expect(
+          position.pixels,
+          lessThanOrEqualTo(messageListNewestRowOffset(tester) + 1),
+        );
+        await disposeMessageList(tester);
+      },
+    );
+
     testWidgets('viewport shrink still republishes after a real size change', (
       WidgetTester tester,
     ) async {
