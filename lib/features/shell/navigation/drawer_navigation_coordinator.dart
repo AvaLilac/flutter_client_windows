@@ -5,6 +5,7 @@ import 'package:fluxer_app/core/router/route_kind.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/core/talker.dart';
+import 'package:fluxer_app/features/channels/providers/channel_list_view_model.dart';
 import 'package:fluxer_app/features/channels/providers/unread_provider.dart';
 import 'package:fluxer_app/features/shell/providers/drawer_reveal_sync_trigger_provider.dart';
 import 'package:fluxer_app/features/shell/providers/reveal_side_provider.dart';
@@ -66,6 +67,9 @@ class DrawerNavigationCoordinator {
     if (generation != _selectGuildGeneration) {
       return;
     }
+    container
+        .read(channelListViewModelProvider.notifier)
+        .loadActiveGuild(guildId);
     revealDrawer(container);
     container.read(fluxerRouterProvider).go(RoutePaths.guild(guildId));
   }
@@ -75,6 +79,9 @@ class DrawerNavigationCoordinator {
     String guildId,
   ) {
     talker.debug('[DrawerNavigation] openGuildChannelList guildId=$guildId');
+    container
+        .read(channelListViewModelProvider.notifier)
+        .loadActiveGuild(guildId);
     revealDrawer(container);
     container
         .read(fluxerRouterProvider)

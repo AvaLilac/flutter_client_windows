@@ -60,6 +60,7 @@ import 'package:fluxer_app/features/guilds/presentation/widgets/guild_scroll_ind
 import 'package:fluxer_app/features/guilds/providers/guild_availability_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_permissions_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_read_state_provider.dart';
+import 'package:fluxer_app/features/guilds/providers/route_guild_provider.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_outage_availability.dart';
 import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
 import 'package:fluxer_app/features/mature_content/providers/sensitive_content_provider.dart';
@@ -142,9 +143,15 @@ class _GuildSidebarState extends ConsumerState<GuildSidebar> {
     final Set<String> trackedUnavailableGuildIds = ref.watch(
       guildAvailabilityProvider,
     );
-    final Guild? guild = ref.watch(
-      channelListViewModelProvider.select((s) => s.guild),
+    final ChannelListState channelListState = ref.watch(
+      channelListViewModelProvider,
     );
+    final Guild? routeGuild = guildId == null
+        ? null
+        : ref.watch(routeGuildProvider(guildId)).value;
+    final Guild? guild = channelListState.guild?.id == guildId
+        ? channelListState.guild
+        : routeGuild;
     final bool guildOutageUnavailable =
         guildId != null &&
         isGuildOutageUnavailable(
@@ -152,11 +159,9 @@ class _GuildSidebarState extends ConsumerState<GuildSidebar> {
           trackedUnavailableGuildIds: trackedUnavailableGuildIds,
           guild: guild,
         );
-    final bool hasReceivedInitialChannelList = ref.watch(
-      channelListViewModelProvider.select(
-        (s) => s.hasReceivedInitialChannelList,
-      ),
-    );
+    final bool hasReceivedInitialChannelList =
+        channelListState.guild?.id == guildId &&
+        channelListState.hasReceivedInitialChannelList;
     final bool guildReady =
         guild != null && guildId != null && guild.id == guildId;
 

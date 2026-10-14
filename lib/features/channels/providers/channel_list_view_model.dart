@@ -8,7 +8,10 @@ import 'package:fluxer_app/core/synced_preferences/engine/synced_preferences_sto
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_availability_provider.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_list_view_model.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_providers.dart';
+import 'package:fluxer_app/features/guilds/utils/guild_outage_availability.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'channel_list_view_model.g.dart';
@@ -106,6 +109,20 @@ class ChannelListViewModel extends _$ChannelListViewModel {
       categories: [],
       selectedChannelId: null,
     );
+  }
+
+  bool loadActiveGuild(String guildId) {
+    final List<Guild> guilds = ref.read(guildListViewModelProvider).guilds;
+    final Guild? guild = guilds.where((Guild g) => g.id == guildId).firstOrNull;
+    if (isGuildOutageUnavailable(
+      guildId: guildId,
+      trackedUnavailableGuildIds: ref.read(guildAvailabilityProvider),
+      guild: guild,
+    )) {
+      return false;
+    }
+    loadChannels(guildId, guild: guild);
+    return true;
   }
 
   void loadChannels(String guildId, {Guild? guild}) {
