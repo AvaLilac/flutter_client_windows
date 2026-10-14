@@ -55,6 +55,11 @@ class ReadStateWriteBatcher {
     ..._heldUntilReconciled.keys,
   };
 
+  bool hasOverlay(String channelId) =>
+      _pending.containsKey(channelId) ||
+      _pendingAcks.containsKey(channelId) ||
+      _heldUntilReconciled.containsKey(channelId);
+
   ReadStateEffectiveFields effectiveFields(
     String channelId,
     ReadState? persisted,

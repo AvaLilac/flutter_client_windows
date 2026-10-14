@@ -135,16 +135,11 @@ String? resolveLatestMessageIdForUnread({
     if (channelLastMessageId != null &&
         channelLastMessageId.isNotEmpty &&
         compareSnowflakeIds(strictLatestMessageId, channelLastMessageId) < 0) {
-      final ackCaughtUpWithCache =
-          ackLastMessageId == null ||
-          ackLastMessageId.isEmpty ||
-          compareSnowflakeIds(ackLastMessageId, strictLatestMessageId) >= 0;
-      final ackBehindPointer =
+      final bool ackBehindPointer =
           ackLastMessageId == null ||
           ackLastMessageId.isEmpty ||
           compareSnowflakeIds(ackLastMessageId, channelLastMessageId) < 0;
-      if ((channelLastMessageExistsInCache || ackCaughtUpWithCache) &&
-          ackBehindPointer) {
+      if (ackBehindPointer && channelLastMessageExistsInCache) {
         return channelLastMessageId;
       }
     }

@@ -127,6 +127,14 @@ class GuildReadState extends _$GuildReadState {
     final readStateSub = db.readStateDao.watchReadStates().listen((rows) {
       final next = <String, ReadState>{for (final r in rows) r.channelId: r};
       final touched = _diffReadStates(_readStateSnapshot, next);
+      for (final String channelId in touched) {
+        if (_readStateAckOrMentionsChanged(
+          _readStateSnapshot[channelId],
+          next[channelId],
+        )) {
+          _pendingLatestRefresh.add(channelId);
+        }
+      }
       _readStateSnapshot = next;
       final ReadStateWriteBatcher batcher = ref.read(
         readStateWriteBatcherProvider,
@@ -538,6 +546,11 @@ class GuildReadState extends _$GuildReadState {
       );
     }
     if (generation != _recomputeGeneration) {
+      _pendingChannelIds.addAll(pending);
+      _pendingRecompute ??= Future.microtask(() async {
+        _pendingRecompute = null;
+        await _runRecompute(db: db, currentUserId: currentUserId);
+      });
       return;
     }
     _publishChannelUnreadPatch(unreadPatch);
@@ -920,6 +933,13 @@ bool _readStateEquals(ReadState a, ReadState b) =>
     a.lastPinTimestamp == b.lastPinTimestamp &&
     a.manual == b.manual &&
     a.stickyUnreadMessageId == b.stickyUnreadMessageId;
+
+bool _readStateAckOrMentionsChanged(ReadState? previous, ReadState? next) {
+  if (previous?.lastMessageId != next?.lastMessageId) {
+    return true;
+  }
+  return (previous?.mentionCount ?? 0) != (next?.mentionCount ?? 0);
+}
 
 Set<String> _diffLastMessageIds(
   Map<String, Channel> previous,

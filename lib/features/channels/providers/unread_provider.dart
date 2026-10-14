@@ -11,6 +11,7 @@ import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
+import 'package:fluxer_app/features/channels/data/read_state_write_batcher.dart';
 import 'package:fluxer_app/features/channels/data/unread_settings_resolver.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
     show isThreadChannelType, isThreadOnlyChannelType;
@@ -68,6 +69,15 @@ Map<String, UnreadState> channelUnreadLastKnown(Ref ref) {
 @riverpod
 UnreadState? channelUnreadOrLastKnown(Ref ref, String channelId) {
   ref.watch(readStateOverlayVersionProvider);
+  final ReadStateWriteBatcher batcher = ref.read(readStateWriteBatcherProvider);
+  if (batcher.hasOverlay(channelId)) {
+    final UnreadState? fromStream = ref
+        .watch(channelUnreadProvider(channelId))
+        .value;
+    if (fromStream != null) {
+      return fromStream;
+    }
+  }
   final UnreadState? fromFold = ref.watch(
     guildChannelUnreadFoldProvider,
   )[channelId];
