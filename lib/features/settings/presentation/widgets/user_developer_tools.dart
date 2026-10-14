@@ -166,6 +166,16 @@ class _UserDeveloperToolsState extends ConsumerState<UserDeveloperTools> {
     FluxerHaptics.stop();
   }
 
+  void _sendTestCrashToMeasure() {
+    _showToast(
+      'Test crash will throw in 2 seconds.',
+      variant: FluxerToastVariant.info,
+    );
+    Future.delayed(const Duration(seconds: 2), () {
+      throw Exception('Test crash from Measure onboarding');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = context.layout;
@@ -220,6 +230,20 @@ class _UserDeveloperToolsState extends ConsumerState<UserDeveloperTools> {
                     fitContent: true,
                   ),
                 ],
+              ),
+            ],
+          ),
+          FluxerSettingsSection(
+            sectionId: 'developer-tools-measure-crash',
+            title: 'Measure crash logger',
+            description:
+                'Throws an uncaught exception after a short delay so Measure '
+                'and Talker record it like a real crash.',
+            children: [
+              FluxerButton.primary(
+                onPressed: _sendTestCrashToMeasure,
+                label: 'Send test error to crash logger',
+                fitContent: true,
               ),
             ],
           ),

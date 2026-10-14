@@ -38,6 +38,7 @@ class FluxerObservability {
     await _ensureMeasureInitialized();
     await Measure.instance.start();
     _enabled = true;
+    talker.info('[Measure] Started');
     _startRuntimeObservers();
     await _markSessionStarted(runtimeInfo: runtimeInfo);
   }
