@@ -12147,11 +12147,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Introdu adresa URL a instanței (ex. fluxer.app)",
+    "instanceUrlPlaceholder": "Introdu adresa URL a instanței (ex. fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Folosește fluxer.app pentru instanța oficială sau URL-ul exact al unei instanțe auto-găzduite.",
+    "instanceUrlHelper": "Folosește fluxer.com pentru instanța oficială sau URL-ul exact al unei instanțe auto-găzduite.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

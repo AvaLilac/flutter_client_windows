@@ -12147,11 +12147,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "इंस्टेंस यूआरएल दर्ज करें (जैसे fluxer.app)",
+    "instanceUrlPlaceholder": "इंस्टेंस यूआरएल दर्ज करें (जैसे fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "आधिकारिक इंस्टेंस के लिए fluxer.app का उपयोग करें, या स्वयं-होस्ट किए गए इंस्टेंस का सटीक URL उपयोग करें।",
+    "instanceUrlHelper": "आधिकारिक इंस्टेंस के लिए fluxer.com का उपयोग करें, या स्वयं-होस्ट किए गए इंस्टेंस का सटीक URL उपयोग करें।",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

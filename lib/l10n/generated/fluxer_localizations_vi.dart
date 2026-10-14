@@ -11023,11 +11023,11 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Nhập URL của máy chủ (ví dụ: fluxer.app)';
+      'Nhập URL của máy chủ (ví dụ: fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Sử dụng fluxer.app cho máy chủ chính thức hoặc URL chính xác của máy chủ tự lưu trữ.';
+      'Sử dụng fluxer.com cho máy chủ chính thức hoặc URL chính xác của máy chủ tự lưu trữ.';
 
   @override
   String get resetToDefaultInstance => 'Đặt lại về Fluxer';

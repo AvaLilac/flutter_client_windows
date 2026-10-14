@@ -10961,11 +10961,11 @@ class FluxerLocalizationsEn extends FluxerLocalizations {
   String get instanceUrlLabel => 'Instance URL';
 
   @override
-  String get instanceUrlPlaceholder => 'fluxer.app';
+  String get instanceUrlPlaceholder => 'fluxer.com';
 
   @override
   String get instanceUrlHelper =>
-      'Use fluxer.app for the official instance, or the exact URL of a self-hosted instance.';
+      'Use fluxer.com for the official instance, or the exact URL of a self-hosted instance.';
 
   @override
   String get resetToDefaultInstance => 'Reset to Fluxer';
@@ -25888,11 +25888,11 @@ class FluxerLocalizationsEnGb extends FluxerLocalizationsEn {
   String get instanceUrlLabel => 'Instance URL';
 
   @override
-  String get instanceUrlPlaceholder => 'Enter instance URL (e.g. fluxer.app)';
+  String get instanceUrlPlaceholder => 'Enter instance URL (e.g. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Use fluxer.app for the official instance, or the exact URL of a self-hosted instance.';
+      'Use fluxer.com for the official instance, or the exact URL of a self-hosted instance.';
 
   @override
   String get resetToDefaultInstance => 'Reset to Fluxer';
@@ -39412,11 +39412,11 @@ class FluxerLocalizationsEnUs extends FluxerLocalizationsEn {
   String get instanceUrlLabel => 'Instance URL';
 
   @override
-  String get instanceUrlPlaceholder => 'fluxer.app';
+  String get instanceUrlPlaceholder => 'fluxer.com';
 
   @override
   String get instanceUrlHelper =>
-      'Use fluxer.app for the official instance, or the exact URL of a self-hosted instance.';
+      'Use fluxer.com for the official instance, or the exact URL of a self-hosted instance.';
 
   @override
   String get resetToDefaultInstance => 'Reset to Fluxer';

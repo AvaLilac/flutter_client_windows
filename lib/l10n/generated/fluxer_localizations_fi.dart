@@ -11035,11 +11035,11 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Syötä instanssin URL (esim. fluxer.app)';
+      'Syötä instanssin URL (esim. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Käytä virallisen instanssin osoitetta fluxer.app tai itse ylläpidetyn instanssin tarkkaa URL-osoitetta.';
+      'Käytä virallisen instanssin osoitetta fluxer.com tai itse ylläpidetyn instanssin tarkkaa URL-osoitetta.';
 
   @override
   String get resetToDefaultInstance => 'Nollaa Fluxeriin';

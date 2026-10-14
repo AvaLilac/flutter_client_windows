@@ -11118,11 +11118,11 @@ class FluxerLocalizationsRu extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Введите URL экземпляра (например, fluxer.app)';
+      'Введите URL экземпляра (например, fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Используйте fluxer.app для официального экземпляра или точный URL самостоятельно размещённого экземпляра.';
+      'Используйте fluxer.com для официального экземпляра или точный URL самостоятельно размещённого экземпляра.';
 
   @override
   String get resetToDefaultInstance => 'Сбросить до Fluxer';

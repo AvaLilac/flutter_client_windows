@@ -11149,11 +11149,11 @@ class FluxerLocalizationsEs extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Introduce la URL de la instancia (p. ej., fluxer.app)';
+      'Introduce la URL de la instancia (p. ej., fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Usa fluxer.app para la instancia oficial o la URL exacta de una instancia autohospedada.';
+      'Usa fluxer.com para la instancia oficial o la URL exacta de una instancia autohospedada.';
 
   @override
   String get resetToDefaultInstance => 'Restablecer a Fluxer';
@@ -26327,11 +26327,11 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
   String get instanceUrlLabel => 'URL de la instancia';
 
   @override
-  String get instanceUrlPlaceholder => 'fluxer.app';
+  String get instanceUrlPlaceholder => 'fluxer.com';
 
   @override
   String get instanceUrlHelper =>
-      'Usa fluxer.app para la instancia oficial o la URL exacta de una instancia propia.';
+      'Usa fluxer.com para la instancia oficial o la URL exacta de una instancia propia.';
 
   @override
   String get resetToDefaultInstance => 'Restablecer a Fluxer';

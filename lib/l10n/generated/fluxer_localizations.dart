@@ -18212,13 +18212,13 @@ abstract class FluxerLocalizations {
   /// Placeholder for the instance URL input.
   ///
   /// In en, this message translates to:
-  /// **'fluxer.app'**
+  /// **'fluxer.com'**
   String get instanceUrlPlaceholder;
 
   /// Helper text explaining official vs self-hosted instance URLs.
   ///
   /// In en, this message translates to:
-  /// **'Use fluxer.app for the official instance, or the exact URL of a self-hosted instance.'**
+  /// **'Use fluxer.com for the official instance, or the exact URL of a self-hosted instance.'**
   String get instanceUrlHelper;
 
   /// Tooltip for the button that resets the instance URL to the official Fluxer instance.

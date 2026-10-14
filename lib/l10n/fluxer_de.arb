@@ -6462,11 +6462,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Instanz-URL eingeben (z. B. fluxer.app)",
+    "instanceUrlPlaceholder": "Instanz-URL eingeben (z. B. fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Nutze fluxer.app für die offizielle Instanz oder die genaue URL einer selbst gehosteten Instanz.",
+    "instanceUrlHelper": "Nutze fluxer.com für die offizielle Instanz oder die genaue URL einer selbst gehosteten Instanz.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

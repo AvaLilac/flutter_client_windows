@@ -11137,11 +11137,11 @@ class FluxerLocalizationsBg extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Въведете URL на инстанцията (напр. fluxer.app)';
+      'Въведете URL на инстанцията (напр. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Използвайте fluxer.app за официалния инстанс или точния URL адрес на самохостван инстанс.';
+      'Използвайте fluxer.com за официалния инстанс или точния URL адрес на самохостван инстанс.';
 
   @override
   String get resetToDefaultInstance => 'Възстановяване до Fluxer';

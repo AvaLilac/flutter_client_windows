@@ -11120,11 +11120,11 @@ class FluxerLocalizationsLt extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Įveskite instance URL (pvz., fluxer.app)';
+      'Įveskite instance URL (pvz., fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Naudokite fluxer.app oficialiam egzemplioriui arba tikslų savarankiškai priglobto egzemplioriaus URL.';
+      'Naudokite fluxer.com oficialiam egzemplioriui arba tikslų savarankiškai priglobto egzemplioriaus URL.';
 
   @override
   String get resetToDefaultInstance => 'Atstatyti į Fluxer';

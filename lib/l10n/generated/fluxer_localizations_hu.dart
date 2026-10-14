@@ -11122,11 +11122,11 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Add meg a példány URL-jét (pl. fluxer.app)';
+      'Add meg a példány URL-jét (pl. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Használd a fluxer.app címet a hivatalos példányhoz, vagy egy saját üzemeltetésű példány pontos URL-jét.';
+      'Használd a fluxer.com címet a hivatalos példányhoz, vagy egy saját üzemeltetésű példány pontos URL-jét.';
 
   @override
   String get resetToDefaultInstance => 'Visszaállítás Fluxer-re';

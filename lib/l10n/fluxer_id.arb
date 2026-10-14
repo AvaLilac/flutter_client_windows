@@ -12147,11 +12147,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Masukkan URL instance (contoh: fluxer.app)",
+    "instanceUrlPlaceholder": "Masukkan URL instance (contoh: fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Gunakan fluxer.app untuk instance resmi, atau URL persis dari instance yang di-host sendiri.",
+    "instanceUrlHelper": "Gunakan fluxer.com untuk instance resmi, atau URL persis dari instance yang di-host sendiri.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

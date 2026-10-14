@@ -6462,11 +6462,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "인스턴스 URL 입력 (예: fluxer.app)",
+    "instanceUrlPlaceholder": "인스턴스 URL 입력 (예: fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "공식 인스턴스에는 fluxer.app을 사용하거나 자체 호스팅 인스턴스의 정확한 URL을 사용하세요.",
+    "instanceUrlHelper": "공식 인스턴스에는 fluxer.com을 사용하거나 자체 호스팅 인스턴스의 정확한 URL을 사용하세요.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

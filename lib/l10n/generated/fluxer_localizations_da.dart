@@ -11018,11 +11018,11 @@ class FluxerLocalizationsDa extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Indtast instans-URL (f.eks. fluxer.app)';
+      'Indtast instans-URL (f.eks. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Brug fluxer.app til den officielle instans, eller den nøjagtige URL for en selvhostet instans.';
+      'Brug fluxer.com til den officielle instans, eller den nøjagtige URL for en selvhostet instans.';
 
   @override
   String get resetToDefaultInstance => 'Nulstil til Fluxer';

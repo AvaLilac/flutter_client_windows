@@ -11139,11 +11139,11 @@ class FluxerLocalizationsDe extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Instanz-URL eingeben (z. B. fluxer.app)';
+      'Instanz-URL eingeben (z. B. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Nutze fluxer.app für die offizielle Instanz oder die genaue URL einer selbst gehosteten Instanz.';
+      'Nutze fluxer.com für die offizielle Instanz oder die genaue URL einer selbst gehosteten Instanz.';
 
   @override
   String get resetToDefaultInstance => 'Auf Fluxer zurücksetzen';

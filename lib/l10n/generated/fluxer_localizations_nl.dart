@@ -11070,11 +11070,11 @@ class FluxerLocalizationsNl extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Voer instantie-URL in (bijv. fluxer.app)';
+      'Voer instantie-URL in (bijv. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Gebruik fluxer.app voor de officiële instantie, of de exacte URL van een zelf-gehoste instantie.';
+      'Gebruik fluxer.com voor de officiële instantie, of de exacte URL van een zelf-gehoste instantie.';
 
   @override
   String get resetToDefaultInstance => 'Terugzetten naar Fluxer';

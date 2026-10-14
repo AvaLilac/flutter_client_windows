@@ -12147,11 +12147,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "הזן כתובת URL של מופע (לדוגמה, fluxer.app)",
+    "instanceUrlPlaceholder": "הזן כתובת URL של מופע (לדוגמה, fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "השתמש ב-fluxer.app עבור המופע הרשמי, או בכתובת ה-URL המדויקת של מופע באירוח עצמי.",
+    "instanceUrlHelper": "השתמש ב-fluxer.com עבור המופע הרשמי, או בכתובת ה-URL המדויקת של מופע באירוח עצמי.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

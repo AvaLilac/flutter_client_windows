@@ -11157,11 +11157,11 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Εισαγάγετε διεύθυνση URL παρουσίας (π.χ. fluxer.app)';
+      'Εισαγάγετε διεύθυνση URL παρουσίας (π.χ. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Χρησιμοποιήστε το fluxer.app για την επίσημη παρουσία ή την ακριβή διεύθυνση URL μιας αυτο-φιλοξενούμενης παρουσίας.';
+      'Χρησιμοποιήστε το fluxer.com για την επίσημη παρουσία ή την ακριβή διεύθυνση URL μιας αυτο-φιλοξενούμενης παρουσίας.';
 
   @override
   String get resetToDefaultInstance => 'Επαναφορά στο Fluxer';

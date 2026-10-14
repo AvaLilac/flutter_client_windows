@@ -11018,11 +11018,11 @@ class FluxerLocalizationsId extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Masukkan URL instance (contoh: fluxer.app)';
+      'Masukkan URL instance (contoh: fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Gunakan fluxer.app untuk instance resmi, atau URL persis dari instance yang di-host sendiri.';
+      'Gunakan fluxer.com untuk instance resmi, atau URL persis dari instance yang di-host sendiri.';
 
   @override
   String get resetToDefaultInstance => 'Atur ulang ke Fluxer';

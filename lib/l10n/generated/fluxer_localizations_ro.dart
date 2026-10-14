@@ -11103,11 +11103,11 @@ class FluxerLocalizationsRo extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Introdu adresa URL a instanței (ex. fluxer.app)';
+      'Introdu adresa URL a instanței (ex. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Folosește fluxer.app pentru instanța oficială sau URL-ul exact al unei instanțe auto-găzduite.';
+      'Folosește fluxer.com pentru instanța oficială sau URL-ul exact al unei instanțe auto-găzduite.';
 
   @override
   String get resetToDefaultInstance => 'Resetează la Fluxer';

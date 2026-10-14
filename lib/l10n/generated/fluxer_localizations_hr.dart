@@ -11058,11 +11058,11 @@ class FluxerLocalizationsHr extends FluxerLocalizations {
   String get instanceUrlLabel => 'URL instancea';
 
   @override
-  String get instanceUrlPlaceholder => 'Unesite URL instance (npr. fluxer.app)';
+  String get instanceUrlPlaceholder => 'Unesite URL instance (npr. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Koristite fluxer.app za službenu instancu ili točan URL samostalno hostirane instance.';
+      'Koristite fluxer.com za službenu instancu ili točan URL samostalno hostirane instance.';
 
   @override
   String get resetToDefaultInstance => 'Vrati na Fluxer';

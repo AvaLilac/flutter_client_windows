@@ -10938,11 +10938,11 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get instanceUrlLabel => 'عنوان URL للمثيل';
 
   @override
-  String get instanceUrlPlaceholder => 'أدخل عنوان URL للمثيل (مثل fluxer.app)';
+  String get instanceUrlPlaceholder => 'أدخل عنوان URL للمثيل (مثل fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'استخدم fluxer.app للمثيل الرسمي، أو عنوان URL الدقيق لمثيل مستضاف ذاتيًا.';
+      'استخدم fluxer.com للمثيل الرسمي، أو عنوان URL الدقيق لمثيل مستضاف ذاتيًا.';
 
   @override
   String get resetToDefaultInstance => 'إعادة الضبط إلى Fluxer';

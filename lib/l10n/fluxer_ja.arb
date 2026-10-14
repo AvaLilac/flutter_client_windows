@@ -6462,11 +6462,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "インスタンスURLを入力 (例: fluxer.app)",
+    "instanceUrlPlaceholder": "インスタンスURLを入力 (例: fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "公式インスタンスにはfluxer.appを、セルフホスト型インスタンスには正確なURLを使用してください。",
+    "instanceUrlHelper": "公式インスタンスにはfluxer.comを、セルフホスト型インスタンスには正確なURLを使用してください。",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

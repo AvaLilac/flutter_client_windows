@@ -11189,11 +11189,11 @@ class FluxerLocalizationsFr extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Entrez l\'URL de l\'instance (par ex. fluxer.app)';
+      'Entrez l\'URL de l\'instance (par ex. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Utilisez fluxer.app pour l\'instance officielle, ou l\'URL exacte d\'une instance auto-hébergée.';
+      'Utilisez fluxer.com pour l\'instance officielle, ou l\'URL exacte d\'une instance auto-hébergée.';
 
   @override
   String get resetToDefaultInstance => 'Réinitialiser à Fluxer';

@@ -11022,11 +11022,11 @@ class FluxerLocalizationsTr extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Kurulum URL\'sini girin (ör. fluxer.app)';
+      'Kurulum URL\'sini girin (ör. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Resmi kurulum için fluxer.app\'i veya kendi barındırdığınız bir kurulumun tam URL\'sini kullanın.';
+      'Resmi kurulum için fluxer.com\'i veya kendi barındırdığınız bir kurulumun tam URL\'sini kullanın.';
 
   @override
   String get resetToDefaultInstance => 'Fluxer\'a sıfırla';

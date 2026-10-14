@@ -11062,11 +11062,11 @@ class FluxerLocalizationsCs extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Zadejte URL instance (např. fluxer.app)';
+      'Zadejte URL instance (např. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Použijte fluxer.app pro oficiální instanci nebo přesnou URL instance hostované na vlastním serveru.';
+      'Použijte fluxer.com pro oficiální instanci nebo přesnou URL instance hostované na vlastním serveru.';
 
   @override
   String get resetToDefaultInstance => 'Obnovit na Fluxer';

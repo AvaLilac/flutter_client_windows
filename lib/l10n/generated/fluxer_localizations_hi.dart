@@ -11000,11 +11000,11 @@ class FluxerLocalizationsHi extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'इंस्टेंस यूआरएल दर्ज करें (जैसे fluxer.app)';
+      'इंस्टेंस यूआरएल दर्ज करें (जैसे fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'आधिकारिक इंस्टेंस के लिए fluxer.app का उपयोग करें, या स्वयं-होस्ट किए गए इंस्टेंस का सटीक URL उपयोग करें।';
+      'आधिकारिक इंस्टेंस के लिए fluxer.com का उपयोग करें, या स्वयं-होस्ट किए गए इंस्टेंस का सटीक URL उपयोग करें।';
 
   @override
   String get resetToDefaultInstance => 'Fluxer पर रीसेट करें';

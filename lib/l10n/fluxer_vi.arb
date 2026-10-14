@@ -12147,11 +12147,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Nhập URL của máy chủ (ví dụ: fluxer.app)",
+    "instanceUrlPlaceholder": "Nhập URL của máy chủ (ví dụ: fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Sử dụng fluxer.app cho máy chủ chính thức hoặc URL chính xác của máy chủ tự lưu trữ.",
+    "instanceUrlHelper": "Sử dụng fluxer.com cho máy chủ chính thức hoặc URL chính xác của máy chủ tự lưu trữ.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

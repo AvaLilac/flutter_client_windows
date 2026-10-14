@@ -6462,11 +6462,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Add meg a példány URL-jét (pl. fluxer.app)",
+    "instanceUrlPlaceholder": "Add meg a példány URL-jét (pl. fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Használd a fluxer.app címet a hivatalos példányhoz, vagy egy saját üzemeltetésű példány pontos URL-jét.",
+    "instanceUrlHelper": "Használd a fluxer.com címet a hivatalos példányhoz, vagy egy saját üzemeltetésű példány pontos URL-jét.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

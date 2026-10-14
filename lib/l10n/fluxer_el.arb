@@ -6462,11 +6462,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Εισαγάγετε διεύθυνση URL παρουσίας (π.χ. fluxer.app)",
+    "instanceUrlPlaceholder": "Εισαγάγετε διεύθυνση URL παρουσίας (π.χ. fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Χρησιμοποιήστε το fluxer.app για την επίσημη παρουσία ή την ακριβή διεύθυνση URL μιας αυτο-φιλοξενούμενης παρουσίας.",
+    "instanceUrlHelper": "Χρησιμοποιήστε το fluxer.com για την επίσημη παρουσία ή την ακριβή διεύθυνση URL μιας αυτο-φιλοξενούμενης παρουσίας.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },

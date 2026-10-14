@@ -6500,7 +6500,7 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Digite a URL da instância (ex: fluxer.app)",
+    "instanceUrlPlaceholder": "Digite a URL da instância (ex: fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },

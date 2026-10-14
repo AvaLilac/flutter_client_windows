@@ -10328,10 +10328,10 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get instanceUrlLabel => '实例 URL';
 
   @override
-  String get instanceUrlPlaceholder => '输入实例 URL（例如 fluxer.app）';
+  String get instanceUrlPlaceholder => '输入实例 URL（例如 fluxer.com）';
 
   @override
-  String get instanceUrlHelper => '官方实例请使用 fluxer.app，自托管实例请使用确切的 URL。';
+  String get instanceUrlHelper => '官方实例请使用 fluxer.com，自托管实例请使用确切的 URL。';
 
   @override
   String get resetToDefaultInstance => '重置为 Fluxer';
@@ -24455,10 +24455,10 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
   String get instanceUrlLabel => '伺服器網址';
 
   @override
-  String get instanceUrlPlaceholder => '輸入伺服器網址 (例如 fluxer.app)';
+  String get instanceUrlPlaceholder => '輸入伺服器網址 (例如 fluxer.com)';
 
   @override
-  String get instanceUrlHelper => '官方伺服器請使用 fluxer.app，自架伺服器請使用確切的網址。';
+  String get instanceUrlHelper => '官方伺服器請使用 fluxer.com，自架伺服器請使用確切的網址。';
 
   @override
   String get resetToDefaultInstance => '重設為 Fluxer';

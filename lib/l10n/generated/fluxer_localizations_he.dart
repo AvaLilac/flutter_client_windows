@@ -10864,11 +10864,11 @@ class FluxerLocalizationsHe extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'הזן כתובת URL של מופע (לדוגמה, fluxer.app)';
+      'הזן כתובת URL של מופע (לדוגמה, fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'השתמש ב-fluxer.app עבור המופע הרשמי, או בכתובת ה-URL המדויקת של מופע באירוח עצמי.';
+      'השתמש ב-fluxer.com עבור המופע הרשמי, או בכתובת ה-URL המדויקת של מופע באירוח עצמי.';
 
   @override
   String get resetToDefaultInstance => 'אפס ל-Fluxer';

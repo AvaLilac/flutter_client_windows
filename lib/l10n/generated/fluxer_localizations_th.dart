@@ -10935,11 +10935,11 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get instanceUrlLabel => 'URL อินสแตนซ์';
 
   @override
-  String get instanceUrlPlaceholder => 'ป้อน URL อินสแตนซ์ (เช่น fluxer.app)';
+  String get instanceUrlPlaceholder => 'ป้อน URL อินสแตนซ์ (เช่น fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'ใช้ fluxer.app สำหรับอินสแตนซ์อย่างเป็นทางการ หรือ URL ที่ถูกต้องของอินสแตนซ์ที่โฮสต์เอง';
+      'ใช้ fluxer.com สำหรับอินสแตนซ์อย่างเป็นทางการ หรือ URL ที่ถูกต้องของอินสแตนซ์ที่โฮสต์เอง';
 
   @override
   String get resetToDefaultInstance => 'รีเซ็ตเป็น Fluxer';
