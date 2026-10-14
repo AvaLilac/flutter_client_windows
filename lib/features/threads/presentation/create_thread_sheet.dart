@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/api/dio_error_message.dart';
+import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/permissions/permission.dart';
 import 'package:fluxer_app/core/permissions/thread_permissions.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
@@ -14,7 +15,9 @@ import 'package:fluxer_app/features/channels/providers/read_state_repository_pro
 import 'package:fluxer_app/features/channels/utils/navigate_to_channel_content.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_providers.dart';
+import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_references_provider.dart';
+import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
 import 'package:fluxer_app/features/threads/data/threads_repository.dart';
 import 'package:fluxer_app/features/threads/domain/thread_channel.dart';
 import 'package:fluxer_app/features/threads/providers/thread_ui_providers.dart';
@@ -71,10 +74,12 @@ Future<void> showCreateThreadSheetForMessage(
   WidgetRef ref, {
   required Message message,
 }) async {
-  final row = await ref
+  final Future<db.Channel?> parentRow = ref
       .read(fluxerDatabaseProvider)
       .channelDao
       .getChannelById(message.channelId);
+  await handOffFluxerSheet(context);
+  final db.Channel? row = await parentRow;
   if (row == null || !context.mounted) {
     return;
   }
@@ -85,6 +90,27 @@ Future<void> showCreateThreadSheetForMessage(
     sourceMessage: message,
   );
 }
+
+Message localThreadStarter({
+  required String threadId,
+  required Channel parent,
+  required Message source,
+}) => Message(
+  id: threadId,
+  channelId: threadId,
+  authorId: source.authorId,
+  authorName: source.authorName,
+  authorAvatar: source.authorAvatar,
+  content: '',
+  timestamp: source.timestamp,
+  type: messageTypeThreadStarterMessage,
+  messageReference: MessageReference(
+    channelId: parent.id,
+    messageId: source.id,
+    guildId: parent.guildId,
+    type: MessageReferenceType.valueDefault,
+  ),
+);
 
 bool bypassesThreadCreateCooldown(ThreadActor actor) =>
     actor.isOwner || bypassesSlowmode(actor.permissions);
@@ -232,19 +258,7 @@ class _CreateThreadBodyState extends ConsumerState<_CreateThreadBody> {
           error is DioException &&
           apiErrorCodeFromDioException(error) ==
               'THREAD_ALREADY_CREATED_FOR_MESSAGE') {
-        final BuildContext hostContext = widget.hostContext;
-        final WidgetRef hostRef = widget.hostRef;
-        widget.close();
-        if (hostContext.mounted) {
-          unawaited(
-            navigateToChannelContent(
-              context: hostContext,
-              ref: hostRef,
-              guildId: parent.guildId,
-              channelId: source.id,
-            ),
-          );
-        }
+        await _openThreadThenClose(threadId: source.id);
         return;
       }
       showThreadToast(
@@ -255,18 +269,31 @@ class _CreateThreadBodyState extends ConsumerState<_CreateThreadBody> {
       return;
     }
     final ChannelResponse created = ChannelResponse.fromJson(json);
-    await ref
-        .read(fluxerDatabaseProvider)
-        .channelDao
-        .upsertChannel(channelFromSdk(created, parent.guildId));
     final Message? source = widget.sourceMessage;
+    final db.FluxerDatabase database = ref.read(fluxerDatabaseProvider);
+    await database.transaction(() async {
+      await database.messageDao.deleteMessagesForChannel(created.id);
+      await database.channelDao.upsertChannel(
+        channelFromSdk(created, parent.guildId),
+      );
+      if (source != null) {
+        await database.messageDao.upsertMessage(
+          localThreadStarter(
+            threadId: created.id,
+            parent: parent,
+            source: source,
+          ).toCompanion(),
+        );
+        await database.channelDao.setLastMessageId(created.id, created.id);
+      }
+    });
+    ref.read(chatViewModelProvider.notifier).forgetChannel(created.id);
     if (source != null) {
       ref.read(messageReferencesProvider.notifier).seed(source);
       await ref
           .read(readStateRepositoryProvider)
           .applyLocalAckUpTo(created.id, created.id);
     }
-    final Channel? thread = await loadGuildChannelById(ref, created.id);
     ref
         .read(threadCreateCooldownsProvider.notifier)
         .start(parent.id, parent.rateLimitPerUser);
@@ -287,22 +314,37 @@ class _CreateThreadBodyState extends ConsumerState<_CreateThreadBody> {
             ),
       );
     }
-    if (!mounted) {
-      return;
+    await _openThreadThenClose(threadId: created.id);
+  }
+
+  Future<void> _openThreadThenClose({required String threadId}) async {
+    final Channel parent = widget.parent;
+    ref
+      ..listenManual(channelByIdProvider(threadId), (_, _) {})
+      ..listenManual(shouldShowMatureContentGateProvider(threadId), (_, _) {});
+    Channel? thread;
+    try {
+      (thread, _) = await (
+        ref.read(channelByIdProvider(threadId).future),
+        ref.read(shouldShowMatureContentGateProvider(threadId).future),
+      ).wait;
+    } on Object {
+      thread = null;
     }
     final BuildContext hostContext = widget.hostContext;
-    final WidgetRef hostRef = widget.hostRef;
-    widget.close();
-    if (!hostContext.mounted) {
+    if (!mounted || !hostContext.mounted) {
       return;
     }
     await navigateToChannelContent(
       context: hostContext,
-      ref: hostRef,
+      ref: widget.hostRef,
       guildId: parent.guildId,
-      channelId: created.id,
+      channelId: threadId,
       channel: thread,
     );
+    if (mounted) {
+      widget.close();
+    }
   }
 
   @override
