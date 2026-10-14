@@ -11,7 +11,6 @@ import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/channels/data/read_state_effective.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
-import 'package:fluxer_app/features/channels/data/read_state_write_batcher.dart';
 import 'package:fluxer_app/features/channels/data/unread_permission_utils.dart';
 import 'package:fluxer_app/features/channels/data/unread_settings_resolver.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
@@ -100,6 +99,8 @@ class GuildReadState extends _$GuildReadState {
   final Set<String> _pendingSeedChannelIds = <String>{};
   final Set<String> _pendingChannelIds = <String>{};
   final Set<String> _pendingLatestRefresh = <String>{};
+  final Set<String> _pendingReadStateRefresh = <String>{};
+  Set<String> _overlayChannelIds = <String>{};
   final Map<String, _Contribution> _channelContributions =
       <String, _Contribution>{};
   final Map<String, String> _contributionGuild = <String, String>{};
@@ -139,12 +140,6 @@ class GuildReadState extends _$GuildReadState {
         }
       }
       _readStateSnapshot = next;
-      final ReadStateWriteBatcher batcher = ref.read(
-        readStateWriteBatcherProvider,
-      );
-      for (final String channelId in touched) {
-        batcher.reconcilePersisted(channelId, next[channelId]);
-      }
       if (touched.isNotEmpty) {
         _enqueueChannels(touched, db, currentUserId, refreshLatest: false);
       }
@@ -296,23 +291,24 @@ class GuildReadState extends _$GuildReadState {
     }
 
     ref.listen<int>(readStateOverlayVersionProvider, (int? prev, int next) {
-      if (!_isInitialSeedComplete) {
-        return;
+      final Set<String> overlayIds = ref
+          .read(readStateWriteBatcherProvider)
+          .overlayChannelIds();
+      final Set<String> released = _overlayChannelIds.difference(overlayIds);
+      _overlayChannelIds = overlayIds;
+      if (released.isNotEmpty) {
+        _pendingReadStateRefresh.addAll(released);
+        _enqueueChannels(released, db, currentUserId, refreshLatest: true);
       }
-      final ReadStateWriteBatcher batcher = ref.read(
-        readStateWriteBatcherProvider,
-      );
-      final Set<String> overlayIds = batcher.overlayChannelIds();
-      if (overlayIds.isEmpty) {
-        return;
+      if (overlayIds.isNotEmpty) {
+        _enqueueChannels(
+          overlayIds,
+          db,
+          currentUserId,
+          refreshLatest: false,
+          trustIndex: true,
+        );
       }
-      _enqueueChannels(
-        overlayIds,
-        db,
-        currentUserId,
-        refreshLatest: false,
-        trustIndex: true,
-      );
     });
 
     ref.onDispose(() {
@@ -476,9 +472,14 @@ class GuildReadState extends _$GuildReadState {
     if (!added) {
       return;
     }
-    _pendingRecompute ??= Future.microtask(() async {
-      _pendingRecompute = null;
-      await _runRecompute(db: db, currentUserId: currentUserId);
+    _pendingRecompute ??= Future<void>.microtask(() async {
+      try {
+        while (_pendingChannelIds.isNotEmpty) {
+          await _runRecompute(db: db, currentUserId: currentUserId);
+        }
+      } finally {
+        _pendingRecompute = null;
+      }
     });
   }
 
@@ -486,10 +487,22 @@ class GuildReadState extends _$GuildReadState {
     required FluxerDatabase db,
     required String? currentUserId,
   }) async {
-    final generation = ++_recomputeGeneration;
+    final int generation = _recomputeGeneration;
     final ChannelLastMessageIndex lastMessageIndex = ref.read(
       channelLastMessageIndexProvider,
     );
+    if (_pendingReadStateRefresh.isNotEmpty) {
+      final List<String> refreshIds = _pendingReadStateRefresh.toList();
+      _pendingReadStateRefresh.clear();
+      for (final String id in refreshIds) {
+        final ReadState? row = await db.readStateDao.getReadState(id);
+        if (row == null) {
+          _readStateSnapshot.remove(id);
+        } else {
+          _readStateSnapshot[id] = row;
+        }
+      }
+    }
     if (_pendingLatestRefresh.isNotEmpty) {
       final latestIds = _pendingLatestRefresh.toList();
       _pendingLatestRefresh.clear();
@@ -588,11 +601,11 @@ class GuildReadState extends _$GuildReadState {
       );
     }
     if (generation != _recomputeGeneration) {
-      _pendingChannelIds.addAll(pending);
-      _pendingRecompute ??= Future.microtask(() async {
-        _pendingRecompute = null;
-        await _runRecompute(db: db, currentUserId: currentUserId);
-      });
+      if (_isInitialSeedComplete) {
+        _pendingChannelIds.addAll(pending);
+      } else {
+        _pendingSeedChannelIds.addAll(pending);
+      }
       return;
     }
     _publishChannelUnreadPatch(unreadPatch);
