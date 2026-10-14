@@ -8504,6 +8504,11 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get userSettingsCopyLinkToPage => 'Copy link to page';
 
   @override
+  String userSettingsJumpLinkPremiumPage(String productName) {
+    return '$productName page';
+  }
+
+  @override
   String get userSettingsNavProfile => '个人资料';
 
   @override

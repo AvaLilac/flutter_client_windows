@@ -14460,6 +14460,15 @@
     "@userSettingsCopyLinkToPage": {
         "description": "Tooltip and accessibility label for copying a deep link to a settings page."
     },
+    "userSettingsJumpLinkPremiumPage": "{productName} page",
+    "@userSettingsJumpLinkPremiumPage": {
+        "description": "In-chat jump link label for the instance premium subscription settings page.",
+        "placeholders": {
+            "productName": {
+                "type": "String"
+            }
+        }
+    },
     "giftSettingsClaimAccountTitle": "Claim your account",
     "giftSettingsClaimAccountDescription": "Claim your account to redeem or manage Plutonium gift codes.",
     "giftSettingsRedeemTitle": "Redeem a gift",

@@ -9060,6 +9060,11 @@ class FluxerLocalizationsNb extends FluxerLocalizations {
   String get userSettingsCopyLinkToPage => 'Copy link to page';
 
   @override
+  String userSettingsJumpLinkPremiumPage(String productName) {
+    return '$productName page';
+  }
+
+  @override
   String get userSettingsNavProfile => 'Profil';
 
   @override

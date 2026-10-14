@@ -31,9 +31,11 @@ class InstanceRuntimeConfig {
     this.themeColorHex,
     this.gifDisplayName,
     this.singleCommunityGuildId,
+    this.premiumProductName = InstanceConstants.defaultPremiumProductName,
   });
 
   final String productName;
+  final String premiumProductName;
   final String? iconUrl;
   final String? symbolUrl;
   final String? logoUrl;
@@ -84,6 +86,7 @@ class InstanceRuntimeConfig {
     }
     final InstanceBrandingSchema branding = response.appPublic.branding;
     final String productName = branding.productName.trim();
+    final String premiumProductName = branding.premiumProductName.trim();
     final String gifName = response.gif.displayName.trim();
     final String? singleCommunityGuildId = response
         .community
@@ -98,6 +101,9 @@ class InstanceRuntimeConfig {
       productName: productName.isEmpty
           ? InstanceConstants.defaultProductName
           : productName,
+      premiumProductName: premiumProductName.isEmpty
+          ? InstanceConstants.defaultPremiumProductName
+          : premiumProductName,
       iconUrl: _nonEmpty(branding.iconUrl),
       symbolUrl: _nonEmpty(branding.symbolUrl),
       logoUrl: _nonEmpty(branding.logoUrl),
@@ -156,6 +162,7 @@ class InstanceRuntimeConfig {
   bool operator ==(Object other) {
     return other is InstanceRuntimeConfig &&
         other.productName == productName &&
+        other.premiumProductName == premiumProductName &&
         other.iconUrl == iconUrl &&
         other.symbolUrl == symbolUrl &&
         other.logoUrl == logoUrl &&
@@ -185,6 +192,7 @@ class InstanceRuntimeConfig {
   @override
   int get hashCode => Object.hashAll(<Object?>[
     productName,
+    premiumProductName,
     iconUrl,
     symbolUrl,
     logoUrl,

@@ -11478,6 +11478,15 @@
     "@userSettingsCopyLinkToPage": {
         "description": "Tooltip and accessibility label for copying a deep link to a settings page."
     },
+    "userSettingsJumpLinkPremiumPage": "{productName} page",
+    "@userSettingsJumpLinkPremiumPage": {
+        "description": "In-chat jump link label for the instance premium subscription settings page.",
+        "placeholders": {
+            "productName": {
+                "type": "String"
+            }
+        }
+    },
     "userSettingsNavProfile": "Profile",
     "@userSettingsNavProfile": {
         "description": "User settings navigation item for profile settings."

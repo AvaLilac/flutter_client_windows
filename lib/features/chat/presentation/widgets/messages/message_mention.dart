@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:fluxer_app/core/deep_links/user_settings_deep_link.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
+import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/core/utils/channel_jump_link.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
@@ -437,12 +438,18 @@ class SettingsJumpLinkMention extends ConsumerWidget {
     );
     final iconSize = _mentionIconSize(style);
 
+    final String premiumProductName = ref.watch(
+      instanceRuntimeConfigProvider.select(
+        (config) => config.premiumProductName,
+      ),
+    );
     final UserSettingsDeepLinkPresentation presentation =
         buildUserSettingsDeepLinkPresentation(
           isTouchPrimary: isTouchPrimaryInput(ref),
           l10n: l10n,
           target: target,
           showBilling: userSettingsShowBillingNav(ref),
+          premiumProductName: premiumProductName,
         );
 
     void onTap() {

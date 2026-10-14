@@ -14841,6 +14841,12 @@ abstract class FluxerLocalizations {
   /// **'Copy link to page'**
   String get userSettingsCopyLinkToPage;
 
+  /// In-chat jump link label for the instance premium subscription settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'{productName} page'**
+  String userSettingsJumpLinkPremiumPage(String productName);
+
   /// User settings navigation item for profile settings.
   ///
   /// In en, this message translates to:

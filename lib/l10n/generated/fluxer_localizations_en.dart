@@ -9009,6 +9009,11 @@ class FluxerLocalizationsEn extends FluxerLocalizations {
   String get userSettingsCopyLinkToPage => 'Copy link to page';
 
   @override
+  String userSettingsJumpLinkPremiumPage(String productName) {
+    return '$productName page';
+  }
+
+  @override
   String get userSettingsNavProfile => 'Profile';
 
   @override
@@ -37701,6 +37706,11 @@ class FluxerLocalizationsEnUs extends FluxerLocalizationsEn {
 
   @override
   String get userSettingsCopyLinkToPage => 'Copy link to page';
+
+  @override
+  String userSettingsJumpLinkPremiumPage(String productName) {
+    return '$productName page';
+  }
 
   @override
   String get userSettingsNavProfile => 'Profile';
