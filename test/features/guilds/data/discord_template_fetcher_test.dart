@@ -192,7 +192,7 @@ void main() {
     expect(template.stats.categoryCount, 2);
     expect(template.stats.roleCount, 1);
     expect(
-      template.sourceGuild.channels[1].permissionOverwrites!.single.type,
+      template.sourceGuild.channels[1].permissionOverwrites.value!.single.type,
       '0',
     );
   });
