@@ -1023,11 +1023,12 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
       ),
     );
     final double safeAreaBottom = MediaQuery.paddingOf(context).bottom;
-    final bool showComposerSafeBar =
-        safeAreaBottom > 0 &&
-        bottomSlotHeight <= 0 &&
-        !isPanelOpen &&
-        resolvedKeyboardInsetBottom(context) <= 0;
+    final bool showComposerSafeBar = shouldShowComposerSafeAreaBar(
+      safeAreaBottom: safeAreaBottom,
+      bottomSlotHeight: bottomSlotHeight,
+      isPanelOpen: isPanelOpen,
+      keyboardInsetBottom: resolvedKeyboardInsetBottom(context),
+    );
     final bool hasAttachments = ref.watch(
       cloudUploadControllerProvider(channelId).select(
         (CloudComposerAttachments attachments) => attachments.items.isNotEmpty,

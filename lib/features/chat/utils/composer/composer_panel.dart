@@ -5,6 +5,18 @@ bool isComposerPanelOpen({
   return expressionPanelOpen || attachmentPanelOpen;
 }
 
+bool shouldShowComposerSafeAreaBar({
+  required double safeAreaBottom,
+  required double bottomSlotHeight,
+  required bool isPanelOpen,
+  required double keyboardInsetBottom,
+}) {
+  return safeAreaBottom > 0 &&
+      bottomSlotHeight <= 0 &&
+      !isPanelOpen &&
+      keyboardInsetBottom <= 0;
+}
+
 bool usesInlineAttachmentPanel({
   required bool isNativeMobileOs,
   required bool isMobileLayout,
