@@ -39,20 +39,22 @@ void main() {
       expect(playing, 6);
     });
 
-    test('chat list plays at most 3 animated images at once', () {
+    test('chat list plays at most 5 animated images at once', () {
       final AnimatedImagePlaybackController controller =
           AnimatedImagePlaybackController(
             maxActiveVideos: kMaxActiveChatAnimatedImages,
           );
 
-      for (int index = 0; index < 4; index += 1) {
+      controller.register('gif-0', 0.5);
+      for (int index = 1; index < 6; index += 1) {
         controller.register('gif-$index', 1);
       }
 
+      final int playing = <int>[
+        for (int index = 0; index < 6; index += 1) index,
+      ].where((int index) => controller.isPlaying('gif-$index')).length;
+      expect(playing, 5);
       controller
-        ..expectPlaying('gif-1', isTrue)
-        ..expectPlaying('gif-2', isTrue)
-        ..expectPlaying('gif-3', isTrue)
         ..expectPlaying('gif-0', isFalse)
         ..unregister('gif-3')
         ..expectPlaying('gif-0', isTrue);

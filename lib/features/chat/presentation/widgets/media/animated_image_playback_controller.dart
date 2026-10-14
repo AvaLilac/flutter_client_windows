@@ -6,7 +6,7 @@ class _AnimatedImageCandidate {
   bool active = false;
 }
 
-const int kMaxActiveChatAnimatedImages = 3;
+const int kMaxActiveChatAnimatedImages = 5;
 
 class AnimatedImagePlaybackController extends ChangeNotifier {
   AnimatedImagePlaybackController({this.maxActiveVideos});
