@@ -86,11 +86,13 @@ CustomTransitionPage<void> shellSlideTransitionPage({
   required LocalKey key,
   required Widget child,
   String? name,
+  Object? arguments,
 }) {
   final FluxerMotionTheme motion = context.motion;
   return CustomTransitionPage<void>(
     key: key,
     name: name,
+    arguments: arguments,
     child: FluxerSheetBackdrop(child: child),
     transitionDuration: motion.push,
     reverseTransitionDuration: motion.pop,

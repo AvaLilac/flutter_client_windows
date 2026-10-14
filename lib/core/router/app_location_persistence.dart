@@ -4,6 +4,7 @@ import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/router/guild_root_redirect.dart';
 import 'package:fluxer_app/core/router/route_kind.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
+import 'package:fluxer_app/core/router/route_path_patterns.dart';
 
 const String kAppLastLocationKey = '@app_location';
 
@@ -19,40 +20,6 @@ const Set<String> _shellNonChannelPaths = {
   RoutePaths.bookmarksPath,
   RoutePaths.mentionsPath,
 };
-
-const Set<String> _guildSettingsSegments = {
-  'overview',
-  'moderation',
-  'audit-log',
-  'bans',
-  'members',
-  'invites',
-  'webhooks',
-  'discovery',
-  'channels',
-  'roles',
-  'emoji',
-  'stickers',
-};
-
-const Set<String> _channelSettingsSegments = {
-  'overview',
-  'permissions',
-  'invites',
-  'webhooks',
-};
-
-final RegExp _dmCallPath = RegExp(r'^/channels/@me/[^/]+/call$');
-final RegExp _dmChannelPath = RegExp(r'^/channels/@me/[^/]+$');
-final RegExp _dmMessagePath = RegExp(r'^/channels/@me/[^/]+/[^/]+$');
-final RegExp _favoritesChannelPath = RegExp(r'^/channels/@favorites/[^/]+$');
-final RegExp _favoritesMessagePath = RegExp(
-  r'^/channels/@favorites/[^/]+/[^/]+$',
-);
-final RegExp _guildMembersPath = RegExp(r'^/channels/[^@/][^/]*/members$');
-final RegExp _guildRootPath = RegExp(r'^/channels/[^@/][^/]*$');
-final RegExp _guildChannelPath = RegExp(r'^/channels/[^@/][^/]*/[^/]+$');
-final RegExp _guildMessagePath = RegExp(r'^/channels/[^@/][^/]*/[^/]+/[^/]+$');
 
 String _appLocationPath(String location) => location.split('?').first;
 
@@ -83,7 +50,8 @@ bool _isNavigableSettingsPath(String path) {
     if (segments.length == 3) {
       return true;
     }
-    if (segments.length == 4 && _guildSettingsSegments.contains(segments[3])) {
+    if (segments.length == 4 &&
+        kGuildSettingsPathSegments.contains(segments[3])) {
       return true;
     }
     return false;
@@ -94,7 +62,7 @@ bool _isNavigableSettingsPath(String path) {
       return true;
     }
     if (segments.length == 4 &&
-        _channelSettingsSegments.contains(segments[3])) {
+        kChannelSettingsPathSegments.contains(segments[3])) {
       return true;
     }
     return false;
@@ -108,29 +76,29 @@ bool _isNavigableChannelsPath(String path) {
       path == RoutePaths.favoritesBase) {
     return true;
   }
-  if (_dmCallPath.hasMatch(path) || _dmMessagePath.hasMatch(path)) {
+  if (kDmCallAppPath.hasMatch(path) || kDmMessageAppPath.hasMatch(path)) {
     return true;
   }
-  if (_dmChannelPath.hasMatch(path)) {
+  if (kDmChannelAppPath.hasMatch(path)) {
     return _pathSegments(path).last != 'members';
   }
-  if (_favoritesChannelPath.hasMatch(path) ||
-      _favoritesMessagePath.hasMatch(path)) {
+  if (kFavoritesChannelAppPath.hasMatch(path) ||
+      kFavoritesMessageAppPath.hasMatch(path)) {
     return true;
   }
   if (path.startsWith('/channels/@')) {
     return false;
   }
-  if (_guildMembersPath.hasMatch(path)) {
+  if (kGuildMembersAppPath.hasMatch(path)) {
     return true;
   }
-  if (_guildRootPath.hasMatch(path)) {
+  if (kGuildRootAppPath.hasMatch(path)) {
     return true;
   }
-  if (_guildChannelPath.hasMatch(path) && !path.endsWith('/members')) {
+  if (kGuildChannelAppPath.hasMatch(path) && !path.endsWith('/members')) {
     return true;
   }
-  if (_guildMessagePath.hasMatch(path)) {
+  if (kGuildMessageAppPath.hasMatch(path)) {
     return true;
   }
   return false;

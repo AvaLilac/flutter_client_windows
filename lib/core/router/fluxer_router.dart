@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 
 import 'package:fluxer_app/core/build/app_build_config.dart';
+import 'package:fluxer_app/core/observability/fluxer_measure_navigator_observer.dart';
 import 'package:fluxer_app/core/providers/app_startup_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_connection_provider.dart';
@@ -68,7 +69,6 @@ import 'package:fluxer_app/features/voice/presentation/dm_voice_call_fullscreen_
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_dart/gateway.dart';
 import 'package:go_router/go_router.dart';
-import 'package:measure_flutter/measure_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 export 'package:fluxer_app/core/router/shell_navigator_keys.dart';
@@ -146,6 +146,8 @@ CustomTransitionPage<void> _dmShellTransitionPage(
       routeName: routeName,
       routePageKey: state.pageKey,
     ),
+    name: routeName,
+    arguments: state.uri.path,
     child: DMLayout(channelId: channelId, targetMessageId: messageId),
   );
 }
@@ -194,7 +196,7 @@ GoRouter fluxerRouter(Ref ref) {
     rootShellPopupRouteObserver,
   ];
   if (AppBuildConfig.hasObservabilityConfig) {
-    navigationObservers.add(MsrNavigatorObserver());
+    navigationObservers.add(FluxerMeasureNavigatorObserver());
   }
 
   return GoRouter(
@@ -753,6 +755,8 @@ GoRouter fluxerRouter(Ref ref) {
                     pageBuilder: (context, state) => shellSlideTransitionPage(
                       context: context,
                       key: kFavoritesChatPageKey,
+                      name: RouteNames.favoritesChannel,
+                      arguments: state.uri.path,
                       child: FavoritesLayout(
                         channelId: state.pathParameters['channelId'],
                         messageId: state.pathParameters['messageId'],
@@ -766,6 +770,8 @@ GoRouter fluxerRouter(Ref ref) {
                             shellSlideTransitionPage(
                               context: context,
                               key: state.pageKey,
+                              name: RouteNames.favoritesMessage,
+                              arguments: state.uri.path,
                               child: FavoritesLayout(
                                 channelId: state.pathParameters['channelId'],
                                 messageId: state.pathParameters['messageId'],
@@ -823,7 +829,8 @@ GoRouter fluxerRouter(Ref ref) {
                       return shellSlideTransitionPage(
                         context: context,
                         key: guildChatPageKey(guildId),
-                        name: state.uri.path,
+                        name: RouteNames.channel,
+                        arguments: state.uri.path,
                         child: ThreadRouteGate(
                           guildId: guildId,
                           channelId: channelId,
@@ -846,6 +853,8 @@ GoRouter fluxerRouter(Ref ref) {
                           return shellSlideTransitionPage(
                             context: context,
                             key: state.pageKey,
+                            name: RouteNames.message,
+                            arguments: state.uri.path,
                             child: ThreadRouteGate(
                               guildId: guildId,
                               channelId: channelId,
