@@ -2,6 +2,7 @@ import AVFAudio
 import AppIntents
 import CallKit
 import Flutter
+import Measure
 import UIKit
 import UserNotifications
 import flutter_callkit_incoming
@@ -17,7 +18,18 @@ import flutter_callkit_incoming
     UNUserNotificationCenter.current().delegate = self
     ApplePushBridge.shared.registerReplyCategory()
     AssistantAppShortcuts.updateAppShortcutParameters()
+    configureMeasureIfNeeded()
     return result
+  }
+
+  private func configureMeasureIfNeeded() {
+    let measureInfo = Bundle.main.infoDictionary
+    let measureApiKey = measureInfo?["MeasureApiKey"] as? String ?? ""
+    let measureApiUrl = measureInfo?["MeasureApiUrl"] as? String ?? ""
+    if !measureApiKey.isEmpty, !measureApiUrl.isEmpty {
+      let clientInfo = ClientInfo(apiKey: measureApiKey, apiUrl: measureApiUrl)
+      Measure.initialize(with: clientInfo, config: BaseMeasureConfig())
+    }
   }
 
   override func application(
@@ -113,13 +125,6 @@ import flutter_callkit_incoming
     AttachmentMediaBridge.shared.register(
       messenger: engineBridge.applicationRegistrar.messenger()
     )
-    let measureInfo = Bundle.main.infoDictionary
-    let measureApiKey = measureInfo?["MeasureApiKey"] as? String ?? ""
-    let measureApiUrl = measureInfo?["MeasureApiUrl"] as? String ?? ""
-    if !measureApiKey.isEmpty, !measureApiUrl.isEmpty {
-      let clientInfo = ClientInfo(apiKey: measureApiKey, apiUrl: measureApiUrl)
-      Measure.initialize(with: clientInfo, config: BaseMeasureConfig())
-    }
   }
 
   func onAccept(_ call: Call, _ action: CXAnswerCallAction) {

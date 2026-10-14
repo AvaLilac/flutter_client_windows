@@ -15,6 +15,7 @@
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
+		MEA5E0A12F90ABCD00E5F601 /* Measure in Frameworks */ = {isa = PBXBuildFile; productRef = MEA5E0A12F90ABCD00E5F600 /* Measure */; };
 		81DF0AE8A8831D55E1700713 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78F37051FBD306F47D361D6 /* Pods_Runner.framework */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
@@ -372,6 +373,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
+				MEA5E0A12F90ABCD00E5F601 /* Measure in Frameworks */,
 				81DF0AE8A8831D55E1700713 /* Pods_Runner.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -633,6 +635,7 @@
 			name = Runner;
 			packageProductDependencies = (
 				78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */,
+				MEA5E0A12F90ABCD00E5F600 /* Measure */,
 			);
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
@@ -767,6 +770,7 @@
 			packageReferences = (
 				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */,
 				F1A2B3C4D5E6F708192A3B4E /* XCLocalSwiftPackageReference "receive_sharing_intent-1.9.0" */,
+				MEA5E0A12F90ABCD00E5F602 /* XCRemoteSwiftPackageReference "measure" */,
 			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
@@ -3839,6 +3843,17 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		MEA5E0A12F90ABCD00E5F602 /* XCRemoteSwiftPackageReference "measure" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/measure-sh/measure.git";
+			requirement = {
+				kind = revision;
+				revision = 6f6aba8c4ceac1e55dc5cf3a9a1058da41fac914;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCLocalSwiftPackageReference section */
 		781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */ = {
 			isa = XCLocalSwiftPackageReference;
@@ -3854,6 +3869,11 @@
 		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlutterGeneratedPluginSwiftPackage;
+		};
+		MEA5E0A12F90ABCD00E5F600 /* Measure */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = MEA5E0A12F90ABCD00E5F602 /* XCRemoteSwiftPackageReference "measure" */;
+			productName = Measure;
 		};
 		FBBBF6E83010D5F7005E613C /* receive-sharing-intent */ = {
 			isa = XCSwiftPackageProductDependency;
