@@ -990,9 +990,7 @@ class _MessageItemState extends ConsumerState<MessageItem> {
           focused: isKeyboardFocused,
           child: SwipeToOpenChannelDetails(
             enabled:
-                !channelDetailsDrawerBlocksSwipe &&
-                widget.canSendMessages &&
-                widget.swipeToReplyEnabled,
+                !channelDetailsDrawerBlocksSwipe && widget.swipeToReplyEnabled,
             channel: ref.read(channelByIdProvider(msg.channelId)).value,
             dm: findDmById(
               ref.read(dmViewModelProvider.select((s) => s.conversations)),
