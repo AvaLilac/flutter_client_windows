@@ -81,4 +81,43 @@ class VoiceSpeakerRouteTest {
         )
         assertNull(communicationDeviceForRoute(VoiceOutputRoute.Headset, emptyList()))
     }
+
+    @Test
+    fun headsetRoutePrefersScoOverA2dp() {
+        assertEquals(
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+            communicationDeviceTypeForRoute(
+                VoiceOutputRoute.Headset,
+                listOf(
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun headsetRouteDoesNotSelectA2dpOnly() {
+        assertNull(
+            communicationDeviceTypeForRoute(
+                VoiceOutputRoute.Headset,
+                listOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP),
+            ),
+        )
+    }
+
+    @Test
+    fun omitsHeadsetWhenOnlyA2dpOutputExists() {
+        assertEquals(
+            listOf("speaker", "earpiece"),
+            availableVoiceOutputRouteNames(
+                outputTypes = setOf(
+                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
+                    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                ),
+                hasEarpiece = false,
+            ),
+        )
+    }
 }

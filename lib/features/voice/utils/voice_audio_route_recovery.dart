@@ -17,7 +17,7 @@ bool shouldRefreshMicrophoneOnAudioRouteChange({
   return isForeground;
 }
 
-bool didAudioInputDeviceIdsChange({
+bool didAudioDeviceIdsChange({
   required Set<String>? previous,
   required Set<String> current,
 }) {
@@ -29,3 +29,13 @@ bool didAudioInputDeviceIdsChange({
   }
   return previous.any((String deviceId) => !current.contains(deviceId));
 }
+
+bool didAudioInputDeviceIdsChange({
+  required Set<String>? previous,
+  required Set<String> current,
+}) => didAudioDeviceIdsChange(previous: previous, current: current);
+
+bool didAudioOutputDeviceIdsChange({
+  required Set<String>? previous,
+  required Set<String> current,
+}) => didAudioDeviceIdsChange(previous: previous, current: current);

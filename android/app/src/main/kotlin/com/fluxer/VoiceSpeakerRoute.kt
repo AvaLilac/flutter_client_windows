@@ -23,8 +23,6 @@ internal enum class VoiceOutputRoute {
 internal val headsetCommunicationDeviceTypes: List<Int> = listOf(
     AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
     AudioDeviceInfo.TYPE_BLE_HEADSET,
-    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-    AudioDeviceInfo.TYPE_BLE_SPEAKER,
     AudioDeviceInfo.TYPE_WIRED_HEADSET,
     AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
     AudioDeviceInfo.TYPE_USB_HEADSET,
@@ -38,22 +36,30 @@ internal fun voiceOutputRouteFromName(name: String?): VoiceOutputRoute {
     }
 }
 
-internal fun communicationDeviceForRoute(
+internal fun communicationDeviceTypeForRoute(
     route: VoiceOutputRoute,
-    devices: List<AudioDeviceInfo>,
-): AudioDeviceInfo? {
-    val types = when (route) {
+    deviceTypes: Iterable<Int>,
+): Int? {
+    val available = deviceTypes.toSet()
+    val preferredTypes = when (route) {
         VoiceOutputRoute.Speaker -> listOf(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)
         VoiceOutputRoute.Earpiece -> listOf(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)
         VoiceOutputRoute.Headset -> headsetCommunicationDeviceTypes
     }
-    for (type in types) {
-        val match = devices.firstOrNull { it.type == type }
-        if (match != null) {
-            return match
+    for (type in preferredTypes) {
+        if (type in available) {
+            return type
         }
     }
     return null
+}
+
+internal fun communicationDeviceForRoute(
+    route: VoiceOutputRoute,
+    devices: List<AudioDeviceInfo>,
+): AudioDeviceInfo? {
+    val type = communicationDeviceTypeForRoute(route, devices.map { it.type }) ?: return null
+    return devices.firstOrNull { it.type == type }
 }
 
 internal fun needsSpeakerphoneFallback(

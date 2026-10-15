@@ -97,4 +97,36 @@ void main() {
       );
     });
   });
+
+  group('didAudioOutputDeviceIdsChange', () {
+    test('returns false when previous snapshot is missing', () {
+      expect(
+        didAudioOutputDeviceIdsChange(
+          previous: null,
+          current: <String>{'out-1'},
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns false when output devices are unchanged', () {
+      expect(
+        didAudioOutputDeviceIdsChange(
+          previous: <String>{'out-1'},
+          current: <String>{'out-1'},
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns true when output devices changed', () {
+      expect(
+        didAudioOutputDeviceIdsChange(
+          previous: <String>{'out-1'},
+          current: <String>{'out-2'},
+        ),
+        isTrue,
+      );
+    });
+  });
 }
