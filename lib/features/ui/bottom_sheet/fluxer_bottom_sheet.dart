@@ -101,7 +101,6 @@ Future<T?> _pushFluxerSheetRoute<T>(
   final Duration lead = animationStyle.duration! - context.motion.sheet;
   final FluxerSheetRoute<T> route = FluxerSheetRoute<T>(
     builder: builder,
-    navigator: navigator,
     origin: origin,
     inputLockout: animationStyle.duration! > Duration.zero
         ? lead + kFluxerSheetInputLockout
@@ -129,6 +128,23 @@ Future<T?> _pushFluxerSheetRoute<T>(
 
 final Expando<FluxerSheetRoute<dynamic>> _lastSheetByNavigator =
     Expando<FluxerSheetRoute<dynamic>>();
+
+void closeFluxerSheetOpenedFrom(
+  BuildContext context, {
+  bool useRootNavigator = false,
+}) {
+  final NavigatorState? navigator = Navigator.maybeOf(
+    context,
+    rootNavigator: useRootNavigator,
+  );
+  final FluxerSheetRoute<dynamic>? last = navigator == null
+      ? null
+      : _lastSheetByNavigator[navigator];
+  if (last == null || !identical(last.origin, ModalRoute.of(context))) {
+    return;
+  }
+  last.closeSelf();
+}
 
 Future<void> handOffFluxerSheet(BuildContext context) {
   final NavigatorState? navigator = Navigator.maybeOf(context);
@@ -697,7 +713,10 @@ class _FluxerSheetPresentationState extends State<_FluxerSheetPresentation>
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_fluxerSheetDrivesBackdrop(context)) {
-      _backdrop ??= FluxerSheetBackdropLink(widget.navigator);
+      _backdrop ??= FluxerSheetBackdropLink(
+        widget.navigator,
+        route: ModalRoute.of(context),
+      );
     } else {
       _backdrop?.dispose();
       _backdrop = null;
@@ -949,7 +968,10 @@ class _FluxerDraggableScrollableSheetState
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (widget.parallax && _fluxerSheetDrivesBackdrop(context)) {
-      _backdrop ??= FluxerSheetBackdropLink(widget.navigator);
+      _backdrop ??= FluxerSheetBackdropLink(
+        widget.navigator,
+        route: ModalRoute.of(context),
+      );
     } else {
       _backdrop?.dispose();
       _backdrop = null;
