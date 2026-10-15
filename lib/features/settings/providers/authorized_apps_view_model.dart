@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/core/talker.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -31,10 +32,6 @@ class AuthorizedAppsViewState {
   }
 }
 
-/// Auto-disposed (no `keepAlive: true`) so the provider is rebuilt every time
-/// the user reopens the Authorized Apps screen. Authorizations change
-/// out-of-band via the OAuth consent flow in an external browser, so we must
-/// refetch on each open to reflect newly granted or externally revoked apps.
 @riverpod
 class AuthorizedAppsViewModel extends _$AuthorizedAppsViewModel {
   @override
@@ -68,6 +65,7 @@ class AuthorizedAppsViewModel extends _$AuthorizedAppsViewModel {
       );
     } on Object catch (e, st) {
       talker.error('Failed to deauthorize application', e, st);
+      await showApiErrorFromRoot(ApiErrorAction.generic, e);
     }
   }
 }

@@ -169,6 +169,119 @@ void main() {
       expect(ctx.evictedGuildIds, contains('g1'));
     });
 
+    test('GUILD_DELETE ends voice for a guild that is gone', () async {
+      final database = openTestDatabase();
+      final endedGuildIds = <String>[];
+      final handler = GatewayEventHandler(
+        database: database,
+        currentUserId: '100',
+        onGuildVoiceEnded: endedGuildIds.add,
+      );
+
+      await handler.handle(const GuildDeleteEvent(guildId: 'g1'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(endedGuildIds, <String>['g1']);
+    });
+
+    test('GUILD_DELETE ends voice for a guild that went unavailable', () async {
+      final database = openTestDatabase();
+      final endedGuildIds = <String>[];
+      final handler = GatewayEventHandler(
+        database: database,
+        currentUserId: '100',
+        onGuildVoiceEnded: endedGuildIds.add,
+      );
+
+      await handler.handle(
+        const GuildDeleteEvent(guildId: 'g1', unavailable: true),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(endedGuildIds, <String>['g1']);
+    });
+
+    test(
+      'GUILD_CREATE reports the guild available once members are stored',
+      () async {
+        final database = openTestDatabase();
+        final memberReads = <Future<Member?>>[];
+        final handler = GatewayEventHandler(
+          database: database,
+          currentUserId: '100',
+          onGuildAvailable: (String guildId) => memberReads.add(
+            database.memberDao.getMemberByUserId('100', guildId),
+          ),
+        );
+        await handler.handle(
+          const GuildDeleteEvent(guildId: 'g1', unavailable: true),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        await handler.handle(
+          GuildCreateEvent(
+            guild: GuildCreateData.fromJson({
+              ..._guildRaw(id: 'g1'),
+              'members': <Map<String, Object?>>[
+                {
+                  'user': {
+                    'id': '100',
+                    'username': 'phonetest',
+                    'discriminator': '0001',
+                    'global_name': null,
+                    'avatar': null,
+                    'avatar_color': null,
+                    'flags': 0,
+                  },
+                  'nick': 'PT Nick',
+                  'roles': <String>[],
+                  'joined_at': '2026-01-01T00:00:00.000Z',
+                  'mute': false,
+                  'deaf': false,
+                },
+              ],
+            }),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(memberReads, hasLength(1));
+        expect((await memberReads.single)?.nick, 'PT Nick');
+      },
+    );
+
+    test(
+      'GUILD_DELETE during a GUILD_CREATE write keeps the guild unavailable',
+      () async {
+        final database = openTestDatabase();
+        final availability = <String>[];
+        final handler = GatewayEventHandler(
+          database: database,
+          currentUserId: '100',
+          onGuildAvailable: (String guildId) => availability.add('available'),
+          onGuildAvailabilityChanged:
+              (
+                String guildId, {
+                required bool unavailable,
+                bool unavailableHidden = false,
+              }) => availability.add(unavailable ? 'unavailable' : 'removed'),
+        );
+
+        final created = handler.handle(
+          GuildCreateEvent(
+            guild: GuildCreateData.fromJson(_guildRaw(id: 'g1')),
+          ),
+        );
+        final deleted = handler.handle(
+          const GuildDeleteEvent(guildId: 'g1', unavailable: true),
+        );
+        await Future.wait(<Future<void>>[created, deleted]);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(availability, <String>['unavailable']);
+      },
+    );
+
     test('incomplete GUILD_CREATE marks guild unavailable', () async {
       final ctx = await buildHandler();
       await ctx.database.guildDao.upsertServer(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,7 @@ import 'package:fluxer_app/features/chat/services/composer_mention_controller.da
 import 'package:fluxer_app/features/chat/services/composer_slash_session.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/file_upload_validator.dart';
 import 'package:fluxer_app/features/chat/utils/composer/composer_clipboard_paste.dart';
+import 'package:fluxer_app/features/ui/input/emoji_inline_token.dart';
 import 'package:fluxer_app/features/ui/input/fluxer_clipboard_scope.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_markdown/fluxer_markdown.dart';
@@ -42,6 +44,8 @@ class ComposerInputField extends ConsumerWidget {
     required this.onValidationResult,
     required this.onUpgradePressed,
     this.textAlignVertical,
+    this.cursorColor,
+    this.fitLinesToHeight = false,
     super.key,
   });
 
@@ -68,6 +72,31 @@ class ComposerInputField extends ConsumerWidget {
   final void Function(FileUploadValidationResult result) onValidationResult;
   final VoidCallback onUpgradePressed;
   final TextAlignVertical? textAlignVertical;
+  final Color? cursorColor;
+  final bool fitLinesToHeight;
+
+  TextMagnifierConfiguration get _magnifierConfiguration =>
+      TextMagnifierConfiguration(
+        shouldDisplayHandlesInMagnifier: TextMagnifier
+            .adaptiveMagnifierConfiguration
+            .shouldDisplayHandlesInMagnifier,
+        magnifierBuilder:
+            (
+              BuildContext context,
+              MagnifierController magnifierController,
+              ValueNotifier<MagnifierInfo> magnifierInfo,
+            ) {
+              if (controller.text.isEmpty) {
+                return null;
+              }
+              return TextMagnifier.adaptiveMagnifierConfiguration
+                  .magnifierBuilder(
+                    context,
+                    magnifierController,
+                    magnifierInfo,
+                  );
+            },
+      );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -118,74 +147,91 @@ class ComposerInputField extends ConsumerWidget {
                           )
                         : ValueListenableBuilder<bool>(
                             valueListenable: showComposerCounter,
-                            builder:
-                                (
-                                  BuildContext context,
-                                  bool showCounter,
-                                  Widget? _,
-                                ) {
-                                  return TextField(
-                                    key: const ValueKey<String>(
-                                      'channel-composer-field',
+                            builder: (BuildContext context, bool showCounter, Widget? _) {
+                              final EdgeInsets padding = showCounter
+                                  ? basePadding +
+                                        const EdgeInsets.only(
+                                          right: 28,
+                                          bottom: 18,
+                                        )
+                                  : basePadding;
+                              Widget field(int lines) {
+                                return TextField(
+                                  key: const ValueKey<String>(
+                                    'channel-composer-field',
+                                  ),
+                                  controller: controller,
+                                  focusNode: fieldFocusNode,
+                                  scrollController: composerScrollController,
+                                  enabled: perms.isComposerEnabled,
+                                  style: context.textStyles.inputText,
+                                  strutStyle: boundedStrutFor(
+                                    context.textStyles.inputText.copyWith(
+                                      height: kInlineEmojiLineHeight,
                                     ),
-                                    controller: controller,
-                                    focusNode: fieldFocusNode,
-                                    scrollController: composerScrollController,
-                                    enabled: perms.isComposerEnabled,
-                                    style: context.textStyles.inputText,
-                                    strutStyle: boundedStrutFor(
-                                      context.textStyles.inputText,
-                                      forceHeight: false,
-                                    ),
-                                    minLines: minLines,
-                                    maxLines: maxLines,
-                                    selectionWidthStyle: BoxWidthStyle.tight,
-                                    decoration: decoration.copyWith(
-                                      contentPadding: showCounter
-                                          ? basePadding +
-                                                const EdgeInsets.only(
-                                                  right: 28,
-                                                  bottom: 18,
-                                                )
-                                          : basePadding,
-                                    ),
-                                    textAlignVertical: textAlignVertical,
-                                    textCapitalization:
-                                        TextCapitalization.sentences,
-                                    autocorrect: true,
-                                    enableInlinePrediction: true,
-                                    contextMenuBuilder:
-                                        clipboardScope.buildContextMenu,
-                                    contentInsertionConfiguration:
-                                        perms.isAttachEnabled
-                                        ? ContentInsertionConfiguration(
-                                            onContentInserted:
-                                                (
-                                                  KeyboardInsertedContent
-                                                  content,
-                                                ) {
-                                                  unawaited(() async {
-                                                    final FileUploadValidationResult?
-                                                    result =
-                                                        await handleComposerContentInserted(
-                                                          ref: ref,
-                                                          channelId: channelId,
-                                                          content: content,
-                                                          isAttachEnabled: perms
-                                                              .isAttachEnabled,
-                                                        );
-                                                    if (result != null) {
-                                                      onValidationResult(
-                                                        result,
+                                  ),
+                                  minLines: math.min(minLines, lines),
+                                  maxLines: lines,
+                                  selectionWidthStyle: BoxWidthStyle.tight,
+                                  magnifierConfiguration:
+                                      _magnifierConfiguration,
+                                  decoration: decoration.copyWith(
+                                    contentPadding: padding,
+                                  ),
+                                  textAlignVertical: textAlignVertical,
+                                  cursorColor: cursorColor,
+                                  textCapitalization:
+                                      TextCapitalization.sentences,
+                                  autocorrect: true,
+                                  enableInlinePrediction: true,
+                                  contextMenuBuilder:
+                                      clipboardScope.buildContextMenu,
+                                  contentInsertionConfiguration:
+                                      perms.isAttachEnabled
+                                      ? ContentInsertionConfiguration(
+                                          onContentInserted:
+                                              (
+                                                KeyboardInsertedContent content,
+                                              ) {
+                                                unawaited(() async {
+                                                  final FileUploadValidationResult?
+                                                  result =
+                                                      await handleComposerContentInserted(
+                                                        ref: ref,
+                                                        channelId: channelId,
+                                                        content: content,
+                                                        isAttachEnabled: perms
+                                                            .isAttachEnabled,
                                                       );
-                                                    }
-                                                  }());
-                                                },
-                                          )
-                                        : null,
-                                    onTap: onComposerFieldTap,
-                                  );
-                                },
+                                                  if (result != null) {
+                                                    onValidationResult(result);
+                                                  }
+                                                }());
+                                              },
+                                        )
+                                      : null,
+                                  onTap: onComposerFieldTap,
+                                );
+                              }
+
+                              if (!fitLinesToHeight) {
+                                return field(maxLines);
+                              }
+                              return LayoutBuilder(
+                                builder:
+                                    (
+                                      BuildContext context,
+                                      BoxConstraints constraints,
+                                    ) => field(
+                                      composerLinesThatFit(
+                                        maxHeight: constraints.maxHeight,
+                                        verticalPadding: padding.vertical,
+                                        lineHeight: composerLineHeight(context),
+                                        maxLines: maxLines,
+                                      ),
+                                    ),
+                              );
+                            },
                           ),
                   ),
                 ),
@@ -210,4 +256,23 @@ class ComposerInputField extends ConsumerWidget {
           },
     );
   }
+}
+
+double composerLineHeight(BuildContext context) {
+  final double fontSize = context.textStyles.inputText.fontSize ?? 16;
+  return MediaQuery.textScalerOf(context).scale(fontSize) *
+      kInlineEmojiLineHeight;
+}
+
+int composerLinesThatFit({
+  required double maxHeight,
+  required double verticalPadding,
+  required double lineHeight,
+  required int maxLines,
+}) {
+  if (!maxHeight.isFinite || lineHeight <= 0) {
+    return maxLines;
+  }
+  final int fit = ((maxHeight - verticalPadding + 0.01) / lineHeight).floor();
+  return fit.clamp(1, maxLines);
 }

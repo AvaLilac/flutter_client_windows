@@ -3,20 +3,25 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
+import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/channel_details_sheet.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_details_drawer_drag_bridge.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_details_drawer_provider.dart';
 import 'package:fluxer_app/features/dm/domain/dm_conversation.dart';
+import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
 import 'package:fluxer_app/features/shell/presentation/sidebar_drawer.dart';
 import 'package:fluxer_app/features/shell/presentation/swipe_constants.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/gestures/horizontal_reveal_physics.dart';
 import 'package:fluxer_app/shared/gestures/nested_horizontal_scrollable.dart';
+import 'package:fluxer_app/shared/utils/chat_context_utils.dart';
 
 const Key kChannelDetailsDrawerPanelKey = Key('channel-details-drawer-panel');
 
 class ChannelDetailsDrawerOverlay extends ConsumerStatefulWidget {
-  const ChannelDetailsDrawerOverlay({super.key});
+  const ChannelDetailsDrawerOverlay({required this.channelId, super.key});
+
+  final String channelId;
 
   @override
   ConsumerState<ChannelDetailsDrawerOverlay> createState() =>
@@ -53,6 +58,18 @@ class _ChannelDetailsDrawerOverlayState
     _translateController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(ChannelDetailsDrawerOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.channelId == widget.channelId) {
+      return;
+    }
+    final ChannelDetailsDrawer drawer = ref.read(
+      channelDetailsDrawerProvider.notifier,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => drawer.close());
   }
 
   @override
@@ -274,6 +291,24 @@ class _ChannelDetailsDrawerOverlayState
     );
   }
 
+  Channel? _liveChannel(Channel? opened) {
+    if (opened == null) {
+      return null;
+    }
+    return ref.watch(channelByIdProvider(opened.id)).value ?? opened;
+  }
+
+  DmConversation? _liveDm(DmConversation? opened) {
+    if (opened == null) {
+      return null;
+    }
+    return findDmById(
+          ref.watch(dmViewModelProvider.select((s) => s.conversations)),
+          opened.id,
+        ) ??
+        opened;
+  }
+
   @override
   Widget build(BuildContext context) {
     final ChannelDetailsDrawerState? open = ref.watch(
@@ -284,6 +319,7 @@ class _ChannelDetailsDrawerOverlayState
       ChannelDetailsDrawerState? next,
     ) {
       if (next != null && previous == null) {
+        FocusManager.instance.primaryFocus?.unfocus();
         _content = next;
         if (!_interactiveDragActive && _translateController.value == 0) {
           unawaited(_moveToOpen());
@@ -305,8 +341,8 @@ class _ChannelDetailsDrawerOverlayState
     final Widget panelChild = panel == null
         ? const SizedBox.shrink()
         : ChannelDetailsSheet(
-            channel: panel.channel,
-            dm: panel.dm,
+            channel: _liveChannel(panel.channel),
+            dm: _liveDm(panel.dm),
             initialTab: panel.initialTab,
             openSearchImmediately: panel.openSearchImmediately,
             scrollController: _scrollController,

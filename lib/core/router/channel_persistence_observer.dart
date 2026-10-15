@@ -1,6 +1,7 @@
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/router/app_location_persistence.dart';
 import 'package:fluxer_app/core/router/guild_root_redirect.dart';
+import 'package:fluxer_app/core/router/navigator_route_location.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 class ChannelPersistenceObserver extends NavigatorObserver {
@@ -21,7 +22,10 @@ class ChannelPersistenceObserver extends NavigatorObserver {
   }
 
   void _saveLocation(Route<dynamic> route) {
-    final String? uri = route.settings.name;
+    final String? uri = persistedNavigatorRouteLocation(
+      name: route.settings.name,
+      arguments: route.settings.arguments,
+    );
     if (uri == null) {
       return;
     }

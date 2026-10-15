@@ -10,8 +10,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'voice_channel_participants_provider.g.dart';
 
-/// Prefix for [voiceChannelParticipants] keys when listing DM / private voice
-/// (`VoiceState.guildId` is null).
 const String kVoiceDmParticipantsKeyPrefix = 'private|';
 
 String voiceDmChannelParticipantsFamilyKey(String channelId) =>
@@ -46,6 +44,10 @@ final Map<String, database.User> _voiceParticipantUsersCache =
 
 final Map<String, database.Member> _voiceGuildMembersCache =
     <String, database.Member>{};
+
+String _voiceGuildMemberCacheKey(String guildId, String userId) {
+  return '$guildId|$userId';
+}
 
 Map<String, String?>? _friendNicknamesCache;
 
@@ -286,11 +288,11 @@ Future<void> voiceGuildMembersLoader(Ref ref, String guildMembersKey) async {
   final List<database.Member> memberRows = await db.memberDao
       .getMembersByUserIds(guildId, userIds);
   for (final database.Member member in memberRows) {
-    _voiceGuildMembersCache[member.userId] = member;
+    _voiceGuildMembersCache[_voiceGuildMemberCacheKey(guildId, member.userId)] =
+        member;
   }
 }
 
-/// Emits when grid tile membership or video/stream visibility changes.
 @riverpod
 String voiceChannelGridStructure(Ref ref, String guildChannelKey) {
   final List<VoiceState> inChannel = _voiceStatesForGuildChannelKey(
@@ -306,7 +308,6 @@ String voiceChannelGridStructure(Ref ref, String guildChannelKey) {
   return parts.join(';');
 }
 
-/// Emits when the set of users in a guild voice channel changes.
 @riverpod
 String voiceChannelSidebarStructure(Ref ref, String guildChannelKey) {
   final List<VoiceState> inChannel = _voiceStatesForGuildChannelKey(
@@ -457,7 +458,11 @@ List<VoiceSidebarParticipant> voiceChannelSidebarParticipants(
   final Map<String, database.Member> membersByUserId =
       <String, database.Member>{
         for (final String userId in userIds)
-          if (_voiceGuildMembersCache[userId] case final database.Member member)
+          if (_voiceGuildMembersCache[_voiceGuildMemberCacheKey(
+                guildId,
+                userId,
+              )]
+              case final database.Member member)
             userId: member,
       };
   final Map<String, String?> nicknameByUserId =

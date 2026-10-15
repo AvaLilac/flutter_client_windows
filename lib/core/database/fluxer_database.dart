@@ -1,16 +1,18 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:fluxer_app/core/database/daos/auth_session_dao.dart';
 import 'package:fluxer_app/core/database/daos/channel_dao.dart';
 import 'package:fluxer_app/core/database/daos/composer_draft_dao.dart';
 import 'package:fluxer_app/core/database/daos/dm_channel_dao.dart';
 import 'package:fluxer_app/core/database/daos/dm_folder_settings_dao.dart';
-import 'package:fluxer_app/core/database/daos/emoji_usage_dao.dart';
 import 'package:fluxer_app/core/database/daos/favorite_channels_dao.dart';
 import 'package:fluxer_app/core/database/daos/favorite_memes_dao.dart';
 import 'package:fluxer_app/core/database/daos/guild_dao.dart';
 import 'package:fluxer_app/core/database/daos/guild_emoji_dao.dart';
 import 'package:fluxer_app/core/database/daos/guild_last_channel_dao.dart';
 import 'package:fluxer_app/core/database/daos/guild_sticker_dao.dart';
+import 'package:fluxer_app/core/database/daos/local_message_sends_dao.dart';
 import 'package:fluxer_app/core/database/daos/local_spam_overrides_dao.dart';
 import 'package:fluxer_app/core/database/daos/member_dao.dart';
 import 'package:fluxer_app/core/database/daos/message_dao.dart';
@@ -35,7 +37,6 @@ import 'package:fluxer_app/core/database/tables/channels.dart';
 import 'package:fluxer_app/core/database/tables/composer_drafts.dart';
 import 'package:fluxer_app/core/database/tables/dm_channels.dart';
 import 'package:fluxer_app/core/database/tables/dm_folder_settings.dart';
-import 'package:fluxer_app/core/database/tables/emoji_usage.dart';
 import 'package:fluxer_app/core/database/tables/favorite_categories.dart';
 import 'package:fluxer_app/core/database/tables/favorite_channels.dart';
 import 'package:fluxer_app/core/database/tables/favorite_memes.dart';
@@ -43,13 +44,13 @@ import 'package:fluxer_app/core/database/tables/favorite_settings.dart';
 import 'package:fluxer_app/core/database/tables/guild_emojis.dart';
 import 'package:fluxer_app/core/database/tables/guild_last_channels.dart';
 import 'package:fluxer_app/core/database/tables/guild_stickers.dart';
+import 'package:fluxer_app/core/database/tables/local_message_sends.dart';
 import 'package:fluxer_app/core/database/tables/local_spam_overrides.dart';
 import 'package:fluxer_app/core/database/tables/member_cache_access.dart';
 import 'package:fluxer_app/core/database/tables/members.dart';
 import 'package:fluxer_app/core/database/tables/messages.dart';
 import 'package:fluxer_app/core/database/tables/mobile_push_registrations.dart';
 import 'package:fluxer_app/core/database/tables/notification_mention_feed.dart';
-import 'package:fluxer_app/core/database/tables/notification_mention_prefs.dart';
 import 'package:fluxer_app/core/database/tables/notification_unread_collapsed.dart';
 import 'package:fluxer_app/core/database/tables/pinned_dms.dart';
 import 'package:fluxer_app/core/database/tables/read_states.dart';
@@ -65,6 +66,8 @@ import 'package:fluxer_app/core/database/tables/user_notes.dart';
 import 'package:fluxer_app/core/database/tables/user_preferences.dart';
 import 'package:fluxer_app/core/database/tables/user_settings.dart';
 import 'package:fluxer_app/core/database/tables/users.dart';
+import 'package:fluxer_app/core/synced_preferences/engine/synced_preference_field.dart';
+import 'package:fluxer_app/core/synced_preferences/usage_frecency.dart';
 
 part 'fluxer_database.g.dart';
 
@@ -82,7 +85,6 @@ part 'fluxer_database.g.dart';
     DmChannels,
     ReadStates,
     UserPreferencesTable,
-    EmojiUsage,
     GuildLastChannels,
     UserSettingsTable,
     UserGuildSettingsTable,
@@ -96,7 +98,6 @@ part 'fluxer_database.g.dart';
     DmFolderSettingsTable,
     NotificationUnreadCollapsed,
     NotificationMentionFeed,
-    NotificationMentionPrefs,
     FavoriteChannels,
     FavoriteCategories,
     FavoriteSettings,
@@ -105,6 +106,7 @@ part 'fluxer_database.g.dart';
     ComposerDrafts,
     RecentInstances,
     ThreadMembers,
+    LocalMessageSends,
   ],
   daos: [
     AuthSessionDao,
@@ -119,7 +121,6 @@ part 'fluxer_database.g.dart';
     DmChannelDao,
     ReadStateDao,
     UserPreferencesDao,
-    EmojiUsageDao,
     GuildLastChannelDao,
     ComposerDraftDao,
     UserSettingsDao,
@@ -137,6 +138,7 @@ part 'fluxer_database.g.dart';
     LocalSpamOverridesDao,
     RecentInstancesDao,
     ThreadDao,
+    LocalMessageSendsDao,
   ],
 )
 class FluxerDatabase extends _$FluxerDatabase {
@@ -145,14 +147,13 @@ class FluxerDatabase extends _$FluxerDatabase {
   FluxerDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 93;
+  int get schemaVersion => 98;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
       if (from < 2) {
-        // v2: Add author metadata columns to messages, add indexes.
         await m.addColumn(messages, messages.authorName);
         await m.addColumn(messages, messages.authorAvatar);
         await m.addColumn(messages, messages.authorAvatarColor);
@@ -193,9 +194,6 @@ class FluxerDatabase extends _$FluxerDatabase {
       }
       if (from < 4) {
         await m.addColumn(messages, messages.type);
-      }
-      if (from < 5) {
-        await m.createTable(emojiUsage);
       }
       if (from < 6) {
         await m.addColumn(dmChannels, dmChannels.type);
@@ -246,21 +244,14 @@ class FluxerDatabase extends _$FluxerDatabase {
         await m.createTable(dmFolderSettingsTable);
       }
       if (from < 17) {
-        // v17: Rename columns to match SDK naming conventions.
-        // serverId → guildId on channels, members, roles.
         await m.renameColumn(channels, 'server_id', channels.guildId);
         await m.renameColumn(members, 'server_id', members.guildId);
         await m.renameColumn(roles, 'server_id', roles.guildId);
-        // nickname → nick on members.
         await m.renameColumn(members, 'nickname', members.nick);
-        // isHoisted → hoist on roles.
         await m.renameColumn(roles, 'is_hoisted', roles.hoist);
-        // isBot → bot on users.
         await m.renameColumn(users, 'is_bot', users.bot);
-        // isPinned → pinned on messages.
         await m.renameColumn(messages, 'is_pinned', messages.pinned);
 
-        // Recreate indexes with updated names.
         await customStatement('DROP INDEX IF EXISTS idx_channels_server');
         await customStatement('DROP INDEX IF EXISTS idx_members_server');
         await customStatement('DROP INDEX IF EXISTS idx_roles_server');
@@ -284,35 +275,29 @@ class FluxerDatabase extends _$FluxerDatabase {
         );
       }
       if (from < 18) {
-        // v18: Add system column to users.
         await m.addColumn(users, users.system);
       }
       if (from < 19) {
-        // v19: Add icon and recipientIds columns to dmChannels.
         await m.addColumn(dmChannels, dmChannels.icon);
         await m.addColumn(dmChannels, dmChannels.recipientIds);
       }
       if (from < 20) {
-        // v20: Add plutoniumUpsellDismissed
         await m.addColumn(
           userPreferencesTable,
           userPreferencesTable.plutoniumUpsellDismissed,
         );
       }
       if (from < 21) {
-        // v21: Add emojiSkinTone
         await m.addColumn(
           userPreferencesTable,
           userPreferencesTable.emojiSkinTone,
         );
       }
       if (from < 22) {
-        // v22: Add message reference and snapshot JSON columns
         await m.addColumn(messages, messages.messageReferenceJson);
         await m.addColumn(messages, messages.messageSnapshotsJson);
       }
       if (from < 23) {
-        // v23: Add profile columns to users
         await m.addColumn(users, users.bio);
         await m.addColumn(users, users.pronouns);
         await m.addColumn(users, users.accentColor);
@@ -414,10 +399,6 @@ class FluxerDatabase extends _$FluxerDatabase {
         await m.addColumn(messages, messages.stickersJson);
         await m.createTable(notificationUnreadCollapsed);
         await m.createTable(notificationMentionFeed);
-        await m.createTable(notificationMentionPrefs);
-        await into(
-          notificationMentionPrefs,
-        ).insert(NotificationMentionPrefsCompanion.insert(id: const Value(1)));
       }
       if (from < 33) {
         final List<QueryRow> messageColumns = await customSelect(
@@ -514,8 +495,6 @@ class FluxerDatabase extends _$FluxerDatabase {
         );
       }
       if (from < 48) {
-        // Drop the dead forward-from-message draft column (clean cutover).
-        // Composer drafts are disposable local cache, so recreate the table.
         await m.deleteTable('composer_drafts');
         await m.createTable(composerDrafts);
       }
@@ -537,9 +516,6 @@ class FluxerDatabase extends _$FluxerDatabase {
             SELECT 1 FROM users WHERE users.id = messages.author_id
           )
           ''');
-      }
-      if (from < 51) {
-        // v51: legacy tokens remain in SQLite until app startup migration.
       }
       if (from < 52 && from >= 51) {
         final List<QueryRow> columns = await customSelect(
@@ -1498,13 +1474,6 @@ class FluxerDatabase extends _$FluxerDatabase {
         }
         if (!await _tableHasColumn(
           m.database,
-          tableName: 'servers',
-          columnName: 'thread_channels_active',
-        )) {
-          await m.addColumn(servers, servers.threadChannelsActive);
-        }
-        if (!await _tableHasColumn(
-          m.database,
           tableName: 'messages',
           columnName: 'thread_json',
         )) {
@@ -1565,11 +1534,58 @@ class FluxerDatabase extends _$FluxerDatabase {
           await m.addColumn(channels, channels.rtcP2p);
         }
       }
+      if (from < 94) {
+        await customStatement(
+          'DROP TABLE IF EXISTS notification_mention_prefs',
+        );
+      }
+      if (from < 95) {
+        for (final GeneratedColumn<String> column in <GeneratedColumn<String>>[
+          userPreferencesTable.emojiUsageJson,
+          userPreferencesTable.stickerUsageJson,
+          userPreferencesTable.memeUsageJson,
+          userPreferencesTable.favoriteMemeIdsJson,
+          userPreferencesTable.collapsedMemePickerCategoriesJson,
+          userPreferencesTable.syncedPreferencesDirtyFieldsJson,
+        ]) {
+          if (!await _tableHasColumn(
+            m.database,
+            tableName: 'user_preferences',
+            columnName: column.name,
+          )) {
+            await m.addColumn(userPreferencesTable, column);
+          }
+        }
+        await _moveLocalExpressionUsageToActiveAccount(m.database);
+        await customStatement('DROP TABLE IF EXISTS emoji_usage');
+      }
+      if (from < 96) {
+        await _createTableIfNotExists(m, localMessageSends);
+      }
+      if (from < 97 &&
+          await _tableHasColumn(
+            m.database,
+            tableName: 'servers',
+            columnName: 'thread_channels_active',
+          )) {
+        await customStatement(
+          'ALTER TABLE servers DROP COLUMN thread_channels_active',
+        );
+      }
+      if (from < 98) {
+        await m.alterTable(TableMigration(messages));
+      }
     },
   );
 
-  /// Clears all tables except auth sessions.
   Future<void> clearUserData() async {
+    await transaction(() async {
+      await clearAccountData();
+      await userPreferencesDao.clearAll();
+    });
+  }
+
+  Future<void> clearAccountData() async {
     await transaction(() async {
       await userDao.clearAll();
       await guildDao.clearAll();
@@ -1579,9 +1595,7 @@ class FluxerDatabase extends _$FluxerDatabase {
       await memberDao.clearAll();
       await relationshipDao.clearAll();
       await dmChannelDao.clearAll();
-      await userPreferencesDao.clearAll();
       await readStateDao.clearAll();
-      await emojiUsageDao.clearAll();
       await guildLastChannelDao.clearAll();
       await composerDraftDao.clearAll();
       await userSettingsDao.clearAll();
@@ -1597,8 +1611,74 @@ class FluxerDatabase extends _$FluxerDatabase {
       await favoriteChannelsDao.clearAll();
       await localSpamOverridesDao.clearAll();
       await threadDao.clearAll();
+      await localMessageSendsDao.clearAll();
+      await dmFolderSettingsDao.clearAll();
     });
   }
+}
+
+Future<void> _moveLocalExpressionUsageToActiveAccount(
+  GeneratedDatabase database,
+) async {
+  if (!await _tableExists(database, tableName: 'emoji_usage')) {
+    return;
+  }
+  final QueryRow? session = await database
+      .customSelect(
+        'SELECT user_id FROM auth_sessions WHERE is_valid = 1 '
+        'ORDER BY last_active DESC LIMIT 1',
+      )
+      .getSingleOrNull();
+  if (session == null) {
+    return;
+  }
+  final List<QueryRow> rows = await database
+      .customSelect('SELECT key, use_count, last_used FROM emoji_usage')
+      .get();
+  final Map<String, UsageEntry> emoji = <String, UsageEntry>{};
+  final Map<String, UsageEntry> sticker = <String, UsageEntry>{};
+  final Map<String, UsageEntry> meme = <String, UsageEntry>{};
+  for (final QueryRow row in rows) {
+    final String key = row.read<String>('key');
+    final UsageEntry entry = UsageEntry(
+      count: row.read<int>('use_count'),
+      lastUsedMs: row.read<int>('last_used') * 1000,
+    );
+    if (key.startsWith('sticker:')) {
+      sticker[key.substring('sticker:'.length)] = entry;
+    } else if (key.startsWith('meme:')) {
+      meme[key.substring('meme:'.length)] = entry;
+    } else {
+      emoji[key] = entry;
+    }
+  }
+  final int nowMs = DateTime.now().millisecondsSinceEpoch;
+  final Map<String, UsageEntry> emojiUsage = sanitizeUsageMap(emoji, nowMs);
+  final Map<String, UsageEntry> stickerUsage = sanitizeUsageMap(sticker, nowMs);
+  final Map<String, UsageEntry> memeUsage = sanitizeUsageMap(meme, nowMs);
+  final List<String> dirtyFields = <String>[
+    if (emojiUsage.isNotEmpty) SyncedPreferenceField.emojiPicker.name,
+    if (memeUsage.isNotEmpty) SyncedPreferenceField.memesPicker.name,
+    if (stickerUsage.isNotEmpty) SyncedPreferenceField.stickerPicker.name,
+  ];
+  await database.customStatement(
+    'INSERT INTO user_preferences (user_id, emoji_usage_json, '
+    'sticker_usage_json, meme_usage_json, '
+    'synced_preferences_dirty_fields_json) VALUES (?, ?, ?, ?, ?) '
+    'ON CONFLICT(user_id) DO UPDATE SET '
+    'emoji_usage_json = excluded.emoji_usage_json, '
+    'sticker_usage_json = excluded.sticker_usage_json, '
+    'meme_usage_json = excluded.meme_usage_json, '
+    'synced_preferences_dirty_fields_json = '
+    'excluded.synced_preferences_dirty_fields_json',
+    <Object>[
+      session.read<String>('user_id'),
+      encodeUsageMapJson(emojiUsage),
+      encodeUsageMapJson(stickerUsage),
+      encodeUsageMapJson(memeUsage),
+      jsonEncode(dirtyFields),
+    ],
+  );
 }
 
 Future<bool> _tableHasColumn(

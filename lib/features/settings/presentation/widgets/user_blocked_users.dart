@@ -12,6 +12,7 @@ import 'package:fluxer_app/features/settings/providers/blocked_users_view_model.
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/clipboard_utils.dart';
 import 'package:fluxer_app/shared/utils/user_tag.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -32,7 +33,7 @@ class UserBlockedUsers extends ConsumerWidget {
       loading: () => const Center(child: FluxerLoadingSpinner()),
       error: (_, _) => Center(
         child: Padding(
-          padding: EdgeInsets.all(layout.s4),
+          padding: EdgeInsets.symmetric(vertical: layout.s4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -62,7 +63,7 @@ class UserBlockedUsers extends ConsumerWidget {
         if (blocked.isEmpty) {
           return Center(
             child: Padding(
-              padding: EdgeInsets.all(layout.s4),
+              padding: EdgeInsets.symmetric(vertical: layout.s4),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -94,7 +95,7 @@ class UserBlockedUsers extends ConsumerWidget {
         }
 
         return Padding(
-          padding: EdgeInsets.all(layout.s4),
+          padding: EdgeInsets.symmetric(vertical: layout.s4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -167,7 +168,21 @@ class UserBlockedUsers extends ConsumerWidget {
               FluxerButton.primary(
                 label: l10n.blockedUsersUnblock,
                 onPressedAsync: () async {
-                  await notifier.unblock(friend.id);
+                  try {
+                    await notifier.unblock(friend.id);
+                  } on Object catch (e) {
+                    if (sheetContext.mounted) {
+                      close();
+                    }
+                    if (context.mounted) {
+                      await showApiError(
+                        context,
+                        ApiErrorAction.unblockUser,
+                        e,
+                      );
+                    }
+                    return;
+                  }
                   if (sheetContext.mounted) {
                     close();
                   }
@@ -221,10 +236,6 @@ class UserBlockedUsers extends ConsumerWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
 
 class _BlockedUserCard extends ConsumerWidget {
   _BlockedUserCard({

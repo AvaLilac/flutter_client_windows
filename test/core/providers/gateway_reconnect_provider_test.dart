@@ -77,13 +77,17 @@ class _SuspendTrackingGatewayConnection extends _TestGatewayConnection {
 }
 
 class _NudgeGatewayConnection extends GatewayConnection {
-  _NudgeGatewayConnection({this.suspended = false, this.likelyStale = false})
-    : super(token: 'test', dio: Dio());
+  _NudgeGatewayConnection({
+    this.suspended = false,
+    this.alive = true,
+    this.likelyStale = false,
+  }) : super(token: 'test', dio: Dio());
 
   final bool suspended;
+  final bool alive;
   final bool likelyStale;
-  int nudgeCalls = 0;
   int reconnectNowCalls = 0;
+  int livenessChecks = 0;
   GatewayState current = GatewayState.disconnected;
 
   @override
@@ -93,12 +97,15 @@ class _NudgeGatewayConnection extends GatewayConnection {
   bool get isLikelyStale => likelyStale;
 
   @override
-  GatewayState get state => current;
+  Future<bool> verifyLiveness({
+    Duration timeout = kGatewayLivenessTimeout,
+  }) async {
+    livenessChecks++;
+    return alive;
+  }
 
   @override
-  Future<void> nudgeReconnect() async {
-    nudgeCalls++;
-  }
+  GatewayState get state => current;
 
   @override
   Future<void> reconnectNow() async {
@@ -466,7 +473,7 @@ void main() {
           ),
         );
         async.flushMicrotasks();
-        expect(connection.nudgeCalls, 1);
+        expect(connection.reconnectNowCalls, 1);
         expect(inFlightLog, [true]);
       });
     });
@@ -482,9 +489,9 @@ void main() {
           ),
         );
         async.flushMicrotasks();
-        expect(connection.nudgeCalls, 0);
+        expect(connection.reconnectNowCalls, 0);
         async.elapse(kResumeReconnectDelay);
-        expect(connection.nudgeCalls, 1);
+        expect(connection.reconnectNowCalls, 1);
         expect(probes, 2);
       });
     });
@@ -502,7 +509,7 @@ void main() {
           ),
         );
         async.elapse(kResumeReconnectDelay);
-        expect(connection.nudgeCalls, 0);
+        expect(connection.reconnectNowCalls, 0);
         expect(inFlightLog, [true, false]);
       });
     });
@@ -518,30 +525,92 @@ void main() {
         );
         async.flushMicrotasks();
         expect(connection.reconnectNowCalls, 1);
-        expect(connection.nudgeCalls, 0);
       });
     });
 
-    test('reconnects a stale socket still marked connected', () {
+    test('keeps a connected socket that answers the liveness probe', () {
       fakeAsync((FakeAsync async) {
-        final connection = _NudgeGatewayConnection(likelyStale: true)
+        final connection = _NudgeGatewayConnection()
           ..current = GatewayState.connected;
+        final List<bool> inFlightLog = <bool>[];
         unawaited(
           nudgeGatewayReconnectAfterResume(
             connection,
+            onResumeReconnectInFlight: ({required bool inFlight}) =>
+                inFlightLog.add(inFlight),
+            hasConnectivity: () async => true,
+          ),
+        );
+        async.flushMicrotasks();
+        expect(connection.livenessChecks, 1);
+        expect(connection.reconnectNowCalls, 0);
+        expect(inFlightLog, [true, false]);
+      });
+    });
+
+    test('holds the resume flag while a silent socket resumes', () {
+      fakeAsync((FakeAsync async) {
+        final connection = _NudgeGatewayConnection(alive: false)
+          ..current = GatewayState.connected;
+        final List<bool> inFlightLog = <bool>[];
+        unawaited(
+          nudgeGatewayReconnectAfterResume(
+            connection,
+            onResumeReconnectInFlight: ({required bool inFlight}) =>
+                inFlightLog.add(inFlight),
+            hasConnectivity: () async => true,
+          ),
+        );
+        async.flushMicrotasks();
+        expect(connection.livenessChecks, 1);
+        expect(connection.reconnectNowCalls, 0);
+        expect(inFlightLog, [true]);
+      });
+    });
+
+    test('resumes a socket whose heartbeat is overdue without probing it', () {
+      fakeAsync((FakeAsync async) {
+        final connection = _NudgeGatewayConnection(likelyStale: true)
+          ..current = GatewayState.connected;
+        final List<bool> inFlightLog = <bool>[];
+        unawaited(
+          nudgeGatewayReconnectAfterResume(
+            connection,
+            onResumeReconnectInFlight: ({required bool inFlight}) =>
+                inFlightLog.add(inFlight),
+            hasConnectivity: () async => true,
+          ),
+        );
+        async.flushMicrotasks();
+        expect(connection.livenessChecks, 0);
+        expect(connection.reconnectNowCalls, 1);
+        expect(inFlightLog, [true]);
+      });
+    });
+
+    test('skips the pending backoff while reconnecting', () {
+      fakeAsync((FakeAsync async) {
+        final connection = _NudgeGatewayConnection()
+          ..current = GatewayState.reconnecting;
+        final List<bool> inFlightLog = <bool>[];
+        unawaited(
+          nudgeGatewayReconnectAfterResume(
+            connection,
+            onResumeReconnectInFlight: ({required bool inFlight}) =>
+                inFlightLog.add(inFlight),
             hasConnectivity: () async => true,
           ),
         );
         async.flushMicrotasks();
         expect(connection.reconnectNowCalls, 1);
-        expect(connection.nudgeCalls, 0);
+        expect(inFlightLog, [true, false]);
       });
     });
 
-    test('leaves a healthy connected socket alone', () {
+    test('leaves an in-progress connect alone', () {
       fakeAsync((FakeAsync async) {
         final connection = _NudgeGatewayConnection()
-          ..current = GatewayState.connected;
+          ..current = GatewayState.connecting;
         unawaited(
           nudgeGatewayReconnectAfterResume(
             connection,
@@ -550,28 +619,24 @@ void main() {
         );
         async.flushMicrotasks();
         expect(connection.reconnectNowCalls, 0);
-        expect(connection.nudgeCalls, 0);
       });
     });
 
-    test(
-      'force reconnect breaks through an in-progress reconnecting state',
-      () {
-        fakeAsync((FakeAsync async) {
-          final connection = _NudgeGatewayConnection()
-            ..current = GatewayState.reconnecting;
-          unawaited(
-            nudgeGatewayConnectionReconnect(
-              connection,
-              hasConnectivity: () async => true,
-              forceReconnect: true,
-            ),
-          );
-          async.flushMicrotasks();
-          expect(connection.reconnectNowCalls, 1);
-        });
-      },
-    );
+    test('force reconnect breaks through an in-progress connect', () {
+      fakeAsync((FakeAsync async) {
+        final connection = _NudgeGatewayConnection()
+          ..current = GatewayState.connecting;
+        unawaited(
+          nudgeGatewayConnectionReconnect(
+            connection,
+            hasConnectivity: () async => true,
+            forceReconnect: true,
+          ),
+        );
+        async.flushMicrotasks();
+        expect(connection.reconnectNowCalls, 1);
+      });
+    });
   });
 
   group('gatewayForegroundListener', () {

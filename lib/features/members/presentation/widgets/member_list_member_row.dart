@@ -2,12 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
-import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/providers/channel_typing_provider.dart';
 import 'package:fluxer_app/features/friends/providers/friend_providers.dart';
-import 'package:fluxer_app/features/members/domain/group_dm_member_groups.dart';
 import 'package:fluxer_app/features/members/domain/member_list_group_names.dart';
 import 'package:fluxer_app/features/members/presentation/menus/guild_member_context_menu.dart';
 import 'package:fluxer_app/features/members/presentation/widgets/member_list_shared_widgets.dart';
@@ -74,9 +72,10 @@ class _MemberListSidebarMemberRowState
       guildId: widget.guildId,
       member: member,
     );
-    final db.User? presenceUser = ref
-        .watch(userPresenceProvider(widget.userId))
-        .value;
+    final db.User? presenceUser = watchLastKnownUserPresence(
+      ref,
+      widget.userId,
+    );
     final String status =
         presenceUser?.status ?? listMember.status ?? 'offline';
     final String? customStatus =
@@ -88,9 +87,6 @@ class _MemberListSidebarMemberRowState
     );
     final bool showUserTag =
         (member.user.bot ?? false) || (member.user.system ?? false);
-    final String? currentUserId = ref.watch(currentUserIdProvider);
-    final bool isCurrentUser =
-        currentUserId != null && currentUserId == widget.userId;
     final bool isTyping = ref.watch(
       memberListUserIsTypingProvider(widget.channelId, widget.userId),
     );
@@ -142,15 +138,13 @@ class _MemberListSidebarMemberRowState
               ),
               child: Row(
                 children: <Widget>[
-                  FluxerAvatar.userPresence(
+                  FluxerAvatar.user(
                     fallbackText: displayName,
                     userId: widget.userId,
                     imageUrl: avatarUrl,
                     avatarColor: member.user.avatarColor,
-                    showStatus:
-                        isCurrentUser ||
-                        isTyping ||
-                        isMemberPresenceOnline(status),
+                    status: status,
+                    isMobileStatus: presenceUser?.mobile ?? false,
                     isTyping: isTyping,
                     size: 32,
                   ),
@@ -239,7 +233,7 @@ class MemberListDetailsMemberRow extends ConsumerWidget {
       guildId: guildId,
       member: member,
     );
-    final db.User? presenceUser = ref.watch(userPresenceProvider(userId)).value;
+    final db.User? presenceUser = watchLastKnownUserPresence(ref, userId);
     final String? customStatus =
         presenceUser?.customStatus ?? listMember.customStatus;
     final int? roleColor = resolveMemberHighestRoleColor(
@@ -283,11 +277,13 @@ class MemberListDetailsMemberRow extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: <Widget>[
-              FluxerAvatar.userPresence(
+              FluxerAvatar.user(
                 fallbackText: displayName,
                 userId: userId,
                 imageUrl: avatarUrl,
                 avatarColor: member.user.avatarColor,
+                status: presenceUser?.status ?? listMember.status ?? 'offline',
+                isMobileStatus: presenceUser?.mobile ?? false,
                 size: 32,
               ),
               const SizedBox(width: 12),

@@ -42,10 +42,53 @@ def project_root_path
   File.expand_path("..", __dir__)
 end
 
+def measure_ios_api_key
+  channel = ENV["MEASURE_RELEASE_CHANNEL"].to_s.strip
+  channel = "stable" if channel.empty?
+  channel = "stable" if channel == "beta"
+  channel_key = ENV["MEASURE_IOS_API_KEY_#{channel.upcase}"].to_s.strip
+  return channel_key unless channel_key.empty?
+
+  ENV["MEASURE_IOS_API_KEY"].to_s.strip
+end
+
+def upload_measure_ios_dsyms
+  api_key = measure_ios_api_key
+  api_url = ENV["MEASURE_API_URL"].to_s.strip
+  if api_key.empty? || api_url.empty?
+    UI.important("Measure iOS API key or MEASURE_API_URL not set; skipping Measure dSYM upload")
+    return
+  end
+
+  archive_path = lane_context[SharedValues::XCODEBUILD_ARCHIVE].to_s
+  unless File.directory?(archive_path)
+    UI.user_error!("Measure dSYM upload requires an Xcode archive but none was found at #{archive_path.inspect}")
+  end
+
+  upload_script = File.join(project_root_path, "tool/measure/upload_measure_ios_symbols.sh")
+  unless File.exist?(upload_script)
+    UI.user_error!("Missing Measure upload script at #{upload_script}")
+  end
+
+  ipa_path = lane_context[SharedValues::IPA_OUTPUT_PATH].to_s
+  if File.exist?(ipa_path)
+    sh(upload_script, archive_path, ipa_path)
+  else
+    sh(upload_script, archive_path)
+  end
+end
+
 def flutter_marketing_version
   pubspec_path = File.join(project_root_path, "pubspec.yaml")
   version = YAML.safe_load_file(pubspec_path).fetch("version")
   version.to_s.split("+", 2).first
+end
+
+def canary_number_dart_define_args
+  canary_number = ENV["CANARY_NUMBER"].to_s.strip
+  return [] if canary_number.empty?
+
+  ["--dart-define=CANARY_NUMBER=#{canary_number}"]
 end
 
 def next_testflight_build_number(api_key:, app_identifier:, platform: "ios")
@@ -216,6 +259,7 @@ platform :ios do
 
   desc "Build beta archive and upload to TestFlight"
   lane :testflight_beta do
+    ENV["MEASURE_RELEASE_CHANNEL"] = "beta"
     profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision")
     extension_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/broadcast_extension.mobileprovision")
     notification_service_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/notification_service.mobileprovision")
@@ -321,6 +365,7 @@ platform :ios do
         "CODE_SIGN_STYLE=Manual",
       ].join(" ")
     )
+    upload_measure_ios_dsyms
     maximum_attempts = 3
     attempt_index = 1
     begin
@@ -347,6 +392,7 @@ platform :ios do
 
   desc "Build canary archive and upload to TestFlight (com.fluxer.canary)"
   lane :testflight_canary do
+    ENV["MEASURE_RELEASE_CHANNEL"] = "canary"
     profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision")
     extension_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/broadcast_extension.mobileprovision")
     notification_service_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/notification_service.mobileprovision")
@@ -423,7 +469,8 @@ platform :ios do
       flutter_build_number.to_s,
       "--dart-define-from-file=#{File.join(project_root_path, "tool/dart_defines/canary.json")}",
       "--dart-define=PUSH_PROVIDER=apns",
-      "--dart-define=BUILD_TIMESTAMP=#{Time.now.utc.iso8601}"
+      "--dart-define=BUILD_TIMESTAMP=#{Time.now.utc.iso8601}",
+      *canary_number_dart_define_args
     )
     build_app(
       workspace: "ios/Runner.xcworkspace",
@@ -451,6 +498,7 @@ platform :ios do
         "CODE_SIGN_STYLE=Manual",
       ].join(" ")
     )
+    upload_measure_ios_dsyms
     changelog = "Build from GitHub Actions run: #{ENV['GITHUB_SERVER_URL']}/#{ENV['GITHUB_REPOSITORY']}/actions/runs/#{ENV['GITHUB_RUN_ID']}"
 
     upload_to_testflight(
@@ -473,6 +521,7 @@ platform :ios do
 
   desc "Build stable IPA and upload to App Store Connect as a processing build only (no App Review submission, no automatic release)"
   lane :stable_release do
+    ENV["MEASURE_RELEASE_CHANNEL"] = "stable"
     profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision")
     extension_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/broadcast_extension.mobileprovision")
     notification_service_profile_path = File.expand_path("~/Library/MobileDevice/Provisioning Profiles/notification_service.mobileprovision")
@@ -577,6 +626,7 @@ platform :ios do
         "CODE_SIGN_STYLE=Manual",
       ].join(" ")
     )
+    upload_measure_ios_dsyms
     maximum_attempts = 3
     attempt_index = 1
     begin

@@ -56,7 +56,6 @@ bool isPersonalNotesChannelRoute({
   required String? currentUserId,
 }) => currentUserId != null && channelId == currentUserId;
 
-/// Whether [channelId] is a DM or Personal Notes composer context.
 bool isComposerDirectChat({
   required String channelId,
   required List<DmConversation> dmConversations,
@@ -116,13 +115,19 @@ db.DmChannelsCompanion? dmChannelCompanionFromChannelResponse(
       !isDmGroupType(channel.type.json ?? 0)) {
     return null;
   }
-  final recipients = channel.recipients;
-  if (recipients == null || recipients.isEmpty) {
+  final List<UserPartialResponse> recipients =
+      channel.recipients ?? const <UserPartialResponse>[];
+  final String? recipientId = recipients.isNotEmpty
+      ? recipients.first.id
+      : isDmGroupType(channel.type.json ?? 0)
+      ? channel.ownerId
+      : null;
+  if (recipientId == null) {
     return null;
   }
   return db.DmChannelsCompanion.insert(
     id: channel.id,
-    recipientId: recipients.first.id,
+    recipientId: recipientId,
     type: Value(channel.type.json ?? 0),
     name: Value(channel.name),
     icon: Value(channel.icon),

@@ -1,8 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/router/guild_root_redirect.dart';
+import 'package:fluxer_app/core/router/route_kind.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
+import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/core/talker.dart';
+import 'package:fluxer_app/features/channels/providers/channel_list_view_model.dart';
+import 'package:fluxer_app/features/channels/providers/unread_provider.dart';
 import 'package:fluxer_app/features/shell/providers/drawer_reveal_sync_trigger_provider.dart';
 import 'package:fluxer_app/features/shell/providers/reveal_side_provider.dart';
 
@@ -47,8 +51,25 @@ class DrawerNavigationCoordinator {
     container.read(fluxerRouterProvider).go(path);
   }
 
-  static void selectGuild(ProviderContainer container, String guildId) {
+  static int _selectGuildGeneration = 0;
+
+  static Future<void> selectGuild(
+    ProviderContainer container,
+    String guildId,
+  ) async {
     talker.debug('[DrawerNavigation] selectGuild guildId=$guildId');
+    final int generation = ++_selectGuildGeneration;
+    try {
+      await primeGuildChannelUnreads(container, guildId);
+    } on Object catch (error, stackTrace) {
+      talker.error('[DrawerNavigation] unread prime failed', error, stackTrace);
+    }
+    if (generation != _selectGuildGeneration) {
+      return;
+    }
+    container
+        .read(channelListViewModelProvider.notifier)
+        .loadActiveGuild(guildId);
     revealDrawer(container);
     container.read(fluxerRouterProvider).go(RoutePaths.guild(guildId));
   }
@@ -58,6 +79,9 @@ class DrawerNavigationCoordinator {
     String guildId,
   ) {
     talker.debug('[DrawerNavigation] openGuildChannelList guildId=$guildId');
+    container
+        .read(channelListViewModelProvider.notifier)
+        .loadActiveGuild(guildId);
     revealDrawer(container);
     container
         .read(fluxerRouterProvider)
@@ -65,6 +89,24 @@ class DrawerNavigationCoordinator {
           RoutePaths.guildChannelList(guildId),
           extra: kGuildRootStayOnListExtra,
         );
+  }
+
+  static void leaveDeletedChannel(
+    ProviderContainer container,
+    String channelId,
+  ) {
+    final String? path = deletedChannelExitPath(
+      location: container.read(routeStateProvider).effectiveShellLocation,
+      channelId: channelId,
+    );
+    if (path == null) {
+      return;
+    }
+    talker.debug(
+      '[DrawerNavigation] leaveDeletedChannel channelId=$channelId path=$path',
+    );
+    revealDrawer(container);
+    container.read(fluxerRouterProvider).go(path);
   }
 
   static void selectFavorites(ProviderContainer container) {

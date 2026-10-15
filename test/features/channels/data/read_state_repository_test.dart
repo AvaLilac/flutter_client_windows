@@ -6,9 +6,11 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
+import 'package:fluxer_app/core/gateway/gateway_event_handler.dart';
 import 'package:fluxer_app/features/channels/data/read_state_repository.dart';
 import 'package:fluxer_app/shared/utils/snowflake_time.dart';
 import 'package:fluxer_dart/export.dart';
+import 'package:fluxer_dart/gateway.dart';
 
 import '../../../helpers/open_test_database.dart';
 
@@ -156,6 +158,121 @@ void main() {
       expect(readState?.lastMessageId, newestId);
     },
   );
+
+  test(
+    'ackLatest acks the channel pointer past an older cached tail',
+    () async {
+      final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 10));
+      final cachedId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+      final pointerId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+      final dio = Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))
+        ..httpClientAdapter = _AckAdapter(
+          expectedPath: '/v1/channels/channel-1/messages/$pointerId/ack',
+        );
+      final db = openTestDatabase();
+      await db.channelDao.upsertChannel(
+        ChannelsCompanion.insert(
+          id: 'channel-1',
+          guildId: 'guild-1',
+          name: 'general',
+          lastMessageId: Value(pointerId),
+        ),
+      );
+      await db.messageDao.upsertMessage(
+        _message(id: cachedId, channelId: 'channel-1', authorId: 'other'),
+      );
+      await db.readStateDao.upsertReadState(
+        ReadStatesCompanion(
+          channelId: const Value('channel-1'),
+          lastMessageId: Value(ackId),
+          mentionCount: const Value(0),
+        ),
+      );
+
+      await ReadStateRepository(FluxerClient(dio), db).ackLatest('channel-1');
+
+      final readState = await db.readStateDao.getReadState('channel-1');
+      expect(readState?.lastMessageId, pointerId);
+    },
+  );
+
+  test(
+    'ackLatestBulk acks the channel pointer past an older cached tail',
+    () async {
+      final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 10));
+      final cachedId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+      final pointerId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+      final dio = Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))
+        ..httpClientAdapter = _AckAdapter(
+          expectedPath: '/v1/read-states/ack-bulk',
+          expectedBody: <String, Object?>{
+            'read_states': [
+              <String, Object?>{
+                'channel_id': 'channel-1',
+                'message_id': pointerId,
+              },
+            ],
+          },
+        );
+      final db = openTestDatabase();
+      await db.channelDao.upsertChannel(
+        ChannelsCompanion.insert(
+          id: 'channel-1',
+          guildId: 'guild-1',
+          name: 'general',
+          lastMessageId: Value(pointerId),
+        ),
+      );
+      await db.messageDao.upsertMessage(
+        _message(id: cachedId, channelId: 'channel-1', authorId: 'other'),
+      );
+      await db.readStateDao.upsertReadState(
+        ReadStatesCompanion(
+          channelId: const Value('channel-1'),
+          lastMessageId: Value(ackId),
+          mentionCount: const Value(0),
+        ),
+      );
+
+      await ReadStateRepository(
+        FluxerClient(dio),
+        db,
+      ).ackLatestBulk(['channel-1']);
+
+      final readState = await db.readStateDao.getReadState('channel-1');
+      expect(readState?.lastMessageId, pointerId);
+    },
+  );
+
+  test('ackLatest never regresses an ack newer than the pointer', () async {
+    final pointerId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+    final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+    final adapter = _RecordingAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))
+      ..httpClientAdapter = adapter;
+    final db = openTestDatabase();
+    await db.channelDao.upsertChannel(
+      ChannelsCompanion.insert(
+        id: 'channel-1',
+        guildId: 'guild-1',
+        name: 'general',
+        lastMessageId: Value(pointerId),
+      ),
+    );
+    await db.readStateDao.upsertReadState(
+      ReadStatesCompanion(
+        channelId: const Value('channel-1'),
+        lastMessageId: Value(ackId),
+        mentionCount: const Value(0),
+      ),
+    );
+
+    await ReadStateRepository(FluxerClient(dio), db).ackLatest('channel-1');
+
+    final readState = await db.readStateDao.getReadState('channel-1');
+    expect(readState?.lastMessageId, ackId);
+    expect(adapter.requests, isEmpty);
+  });
 
   test(
     'ackLatestBulk acknowledges unread channels and clears manual state',
@@ -596,7 +713,82 @@ void main() {
     expect(readState?.manual, isFalse);
   });
 
-  test('recomputeMentionsForUnreadOrMentionedChannels drops blocked author '
+  test(
+    'applyAckResponse keeps a newer local ack when the server version is 0',
+    () async {
+      final String olderId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+      final String newerId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+      final db = openTestDatabase();
+      await db.readStateDao.upsertReadState(
+        ReadStatesCompanion(
+          channelId: const Value('channel-1'),
+          lastMessageId: Value(newerId),
+          mentionCount: const Value(0),
+          version: const Value('0'),
+        ),
+      );
+      final repository = ReadStateRepository(
+        FluxerClient(Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))),
+        db,
+      );
+
+      await repository.applyAckResponse(
+        ReadStateAckResponse.fromJson({
+          'read_states': [
+            {
+              'id': 'channel-1',
+              'mention_count': 2,
+              'last_message_id': olderId,
+              'last_pin_timestamp': null,
+              'version': '0',
+            },
+          ],
+        }),
+      );
+
+      final readState = await db.readStateDao.getReadState('channel-1');
+      expect(readState?.lastMessageId, newerId);
+      expect(readState?.mentionCount, 0);
+    },
+  );
+
+  test('applyAckResponse advances an older local ack', () async {
+    final String olderId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+    final String newerId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+    final db = openTestDatabase();
+    await db.readStateDao.upsertReadState(
+      ReadStatesCompanion(
+        channelId: const Value('channel-1'),
+        lastMessageId: Value(olderId),
+        mentionCount: const Value(3),
+        version: const Value('0'),
+      ),
+    );
+    final repository = ReadStateRepository(
+      FluxerClient(Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))),
+      db,
+    );
+
+    await repository.applyAckResponse(
+      ReadStateAckResponse.fromJson({
+        'read_states': [
+          {
+            'id': 'channel-1',
+            'mention_count': 0,
+            'last_message_id': newerId,
+            'last_pin_timestamp': null,
+            'version': '0',
+          },
+        ],
+      }),
+    );
+
+    final readState = await db.readStateDao.getReadState('channel-1');
+    expect(readState?.lastMessageId, newerId);
+    expect(readState?.mentionCount, 0);
+  });
+
+  test('an authoritative mention recompute drops blocked author '
       'mentions', () async {
     final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
     final mentionId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
@@ -632,7 +824,11 @@ void main() {
     await ReadStateRepository(
       FluxerClient(dio),
       db,
-    ).recomputeMentionsForUnreadOrMentionedChannels(currentUserId: 'me');
+    ).recomputeMentionsAfterBackfill(
+      channelId: 'channel-1',
+      currentUserId: 'me',
+      allowDecrease: true,
+    );
 
     final readState = await db.readStateDao.getReadState('channel-1');
     expect(readState?.mentionCount, 0);
@@ -679,57 +875,54 @@ void main() {
     expect(readState?.mentionCount, 5);
   });
 
-  test(
-    'reconcileAfterMessageDelete walks tail back and drops mentions',
-    () async {
-      final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
-      final mentionId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
-      final dio = Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'));
-      final db = openTestDatabase();
-      await db.channelDao.upsertChannel(
-        ChannelsCompanion.insert(
-          id: 'channel-1',
-          guildId: 'guild-1',
-          name: 'general',
-          lastMessageId: Value(mentionId),
-        ),
-      );
-      await db.messageDao.upsertMessages([
-        _message(id: ackId, channelId: 'channel-1', authorId: 'other'),
-        _message(
-          id: mentionId,
-          channelId: 'channel-1',
-          authorId: 'other',
-          isMentioned: true,
-        ),
-      ]);
-      await db.readStateDao.upsertReadState(
-        ReadStatesCompanion(
-          channelId: const Value('channel-1'),
-          lastMessageId: Value(ackId),
-          mentionCount: const Value(1),
-        ),
-      );
-      await db.messageDao.deleteMessages([mentionId]);
-
-      await ReadStateRepository(
-        FluxerClient(dio),
-        db,
-      ).reconcileAfterMessageDelete(
+  test('reconcileAfterMessageDelete keeps the stored mention count', () async {
+    final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
+    final mentionId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+    final dio = Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'));
+    final db = openTestDatabase();
+    await db.channelDao.upsertChannel(
+      ChannelsCompanion.insert(
+        id: 'channel-1',
+        guildId: 'guild-1',
+        name: 'general',
+        lastMessageId: Value(mentionId),
+      ),
+    );
+    await db.messageDao.upsertMessages([
+      _message(id: ackId, channelId: 'channel-1', authorId: 'other'),
+      _message(
+        id: mentionId,
         channelId: 'channel-1',
-        deletedMessageIds: [mentionId],
-        currentUserId: 'me',
-      );
+        authorId: 'other',
+        isMentioned: true,
+      ),
+    ]);
+    await db.readStateDao.upsertReadState(
+      ReadStatesCompanion(
+        channelId: const Value('channel-1'),
+        lastMessageId: Value(ackId),
+        mentionCount: const Value(1),
+      ),
+    );
+    await db.messageDao.deleteMessages('channel-1', [mentionId]);
 
-      final channel = await db.channelDao.getChannelById('channel-1');
-      final readState = await db.readStateDao.getReadState('channel-1');
-      expect(channel?.lastMessageId, ackId);
-      expect(readState?.mentionCount, 0);
-    },
-  );
+    await ReadStateRepository(
+      FluxerClient(dio),
+      db,
+    ).reconcileAfterMessageDelete(
+      channelId: 'channel-1',
+      deletedMessageIds: [mentionId],
+    );
+
+    final channel = await db.channelDao.getChannelById('channel-1');
+    final readState = await db.readStateDao.getReadState('channel-1');
+    expect(channel?.lastMessageId, mentionId);
+    expect(readState?.lastMessageId, ackId);
+    expect(readState?.mentionCount, 1);
+  });
 
   test(
-    'unblock restores mentions in an unread channel with no current count',
+    'an authoritative mention recompute restores an unblocked author mention',
     () async {
       final ackId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 11));
       final mentionId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
@@ -760,16 +953,87 @@ void main() {
         ),
       );
 
-      // Author just unblocked: the channel is unread with a zero mention count.
       await ReadStateRepository(
         FluxerClient(dio),
         db,
-      ).recomputeMentionsForUnreadOrMentionedChannels(currentUserId: 'me');
+      ).recomputeMentionsAfterBackfill(
+        channelId: 'channel-1',
+        currentUserId: 'me',
+        allowDecrease: true,
+      );
 
       final readState = await db.readStateDao.getReadState('channel-1');
       expect(readState?.mentionCount, 1);
     },
   );
+
+  test('ackLatest clears a DM whose every message was deleted', () async {
+    final dmId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 10));
+    final messageId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12));
+    final adapter = _RecordingAdapter();
+    final db = openTestDatabase();
+    await db.dmChannelDao.upsertDmChannels([
+      DmChannelsCompanion.insert(
+        id: dmId,
+        recipientId: 'other',
+        recipientIds: const Value('["other"]'),
+        lastMessageTime: Value(DateTime.utc(2026, 5, 6, 10)),
+      ),
+    ]);
+    final repository = ReadStateRepository(
+      FluxerClient(
+        Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))
+          ..httpClientAdapter = adapter,
+      ),
+      db,
+    );
+    final handler = GatewayEventHandler(
+      database: db,
+      currentUserId: 'me',
+      readStateRepository: repository,
+    );
+    await handler.handle(
+      MessageCreateEvent(
+        message: MessageResponseSchema(
+          id: messageId,
+          channelId: dmId,
+          author: const UserPartialResponse(
+            id: 'other',
+            username: 'other',
+            discriminator: '0001',
+            globalName: null,
+            avatar: null,
+            avatarColor: null,
+            flags: 0,
+          ),
+          type: MessageType.valueDefault,
+          flags: 0,
+          content: 'hello',
+          timestamp: dateTimeFromUserSnowflakeOrNull(messageId)!,
+          pinned: false,
+          mentionEveryone: false,
+          tts: false,
+          mentions: const [],
+          mentionRoles: const [],
+        ),
+      ),
+    );
+    await handler.handle(
+      MessageDeleteEvent(channelId: dmId, messageId: messageId),
+    );
+    await pumpEventQueue();
+
+    await repository.ackLatest(dmId);
+
+    final dm = await db.dmChannelDao.getDmChannelById(dmId);
+    final readState = await db.readStateDao.getReadState(dmId);
+    expect(adapter.requests, [
+      ('POST', '/v1/channels/$dmId/messages/$dmId/ack'),
+    ]);
+    expect(readState?.lastMessageId, dmId);
+    expect(readState?.mentionCount, 0);
+    expect(dm?.unreadCount, 0);
+  });
 }
 
 class _RecordingAdapter implements HttpClientAdapter {

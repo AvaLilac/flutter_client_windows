@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
+import 'package:fluxer_app/core/api/api_exception.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/instance/instance_constants.dart';
 import 'package:fluxer_app/features/channels/data/read_state_repository.dart';
@@ -159,6 +160,7 @@ class DmRepository {
       final remoteRecipientIds = buildDmRemoteRecipientIds(
         recipientIds,
         row.recipientId,
+        isGroup: isGroup,
       );
       return DmConversation.fromRow(
         row,
@@ -168,9 +170,6 @@ class DmRepository {
         lastMessageMentionedUser: lastMsg == null
             ? null
             : userMap[DmConversation.mentionedUserIdFromMessage(lastMsg)],
-        groupStatus: isGroup
-            ? _computeGroupStatus(recipientIds, userMap)
-            : null,
         groupMembers: isGroup
             ? buildDmGroupMembers(recipientIds, userMap)
             : const [],
@@ -188,18 +187,6 @@ class DmRepository {
         productName: _productName,
       );
     }).toList();
-  }
-
-  static String? _computeGroupStatus(
-    List<String> recipientIds,
-    Map<String, db.User> userMap,
-  ) {
-    for (final id in recipientIds) {
-      if (userMap[id]?.status == 'online') {
-        return 'online';
-      }
-    }
-    return null;
   }
 
   Future<db.DmChannelsCompanion?> _buildDmChannelCompanion(
@@ -242,9 +229,7 @@ class DmRepository {
       final rows = await _db.dmChannelDao.getDmChannels();
       return await _buildConversations(rows);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.statusMessage ?? 'Failed to fetch DM channels',
-      );
+      throw ApiException.fromDio(e);
     }
   }
 
@@ -392,19 +377,17 @@ class DmRepository {
 
   Future<ChannelResponse> updateGroupDm({
     required String channelId,
-    String? name,
+    required String? name,
     String? icon,
     bool removeIcon = false,
   }) async {
     try {
       final ChannelResponse response = await _client.channels.updateChannel(
         channelId: channelId,
-        body: ChannelUpdateRequestBody(
-          ChannelUpdateRequestBodyVariant5(
-            name: name,
-            icon: removeIcon ? null : icon,
-          ).toJson(),
-        ),
+        body: ChannelUpdateRequestBody(<String, dynamic>{
+          'name': name,
+          if (removeIcon) 'icon': null else 'icon': ?icon,
+        }),
       );
       final db.DmChannelsCompanion? companion = await _buildDmChannelCompanion(
         response,
@@ -414,7 +397,7 @@ class DmRepository {
       }
       return response;
     } on DioException catch (e) {
-      throw Exception(e.response?.statusMessage ?? 'Failed to update group');
+      throw ApiException.fromDio(e);
     }
   }
 
@@ -422,16 +405,20 @@ class DmRepository {
     required String channelId,
     required String userId,
   }) async {
-    try {
-      await _client.channels.addGroupDmRecipient(
-        channelId: channelId,
-        userId: userId,
-      );
-    } on DioException catch (e) {
-      throw Exception(
-        e.response?.statusMessage ?? 'Failed to add group member',
-      );
-    }
+    await _client.channels.addGroupDmRecipient(
+      channelId: channelId,
+      userId: userId,
+    );
+  }
+
+  Future<void> removeGroupDmMember({
+    required String channelId,
+    required String userId,
+  }) {
+    return _client.channels.removeGroupDmRecipient(
+      channelId: channelId,
+      userId: userId,
+    );
   }
 
   Future<String> createGroupDmInvite({required String channelId}) async {
@@ -443,7 +430,7 @@ class DmRepository {
           );
       return inviteCodeOf(invite);
     } on DioException catch (e) {
-      throw Exception(e.response?.statusMessage ?? 'Failed to create invite');
+      throw ApiException.fromDio(e);
     }
   }
 
@@ -453,7 +440,7 @@ class DmRepository {
     try {
       return await _client.invites.listChannelInvites(channelId: channelId);
     } on DioException catch (e) {
-      throw Exception(e.response?.statusMessage ?? 'Failed to load invites');
+      throw ApiException.fromDio(e);
     }
   }
 
@@ -461,7 +448,7 @@ class DmRepository {
     try {
       await _client.invites.deleteInvite(inviteCode: inviteCode);
     } on DioException catch (e) {
-      throw Exception(e.response?.statusMessage ?? 'Failed to revoke invite');
+      throw ApiException.fromDio(e);
     }
   }
 }

@@ -43,12 +43,12 @@ double voiceMessageGradientWaveUnit({
 class VoiceMessageLiveGradient extends StatefulWidget {
   const VoiceMessageLiveGradient({
     required this.rmsLevel,
-    this.borderRadius = kVoiceMessageRecordingBarRadiusPx,
+    this.clipShape,
     super.key,
   });
 
   final ValueListenable<double> rmsLevel;
-  final double borderRadius;
+  final ShapeBorder? clipShape;
 
   @override
   State<VoiceMessageLiveGradient> createState() =>
@@ -118,7 +118,7 @@ class _VoiceMessageLiveGradientState extends State<VoiceMessageLiveGradient>
             colors.brandPrimaryLight,
           ],
           reduceMotion: reduceMotion,
-          borderRadius: widget.borderRadius,
+          clipShape: widget.clipShape,
         ),
         child: const SizedBox.expand(),
       ),
@@ -133,7 +133,7 @@ class _VoiceMessageLiveGradientPainter extends CustomPainter {
     required this.shownLevel,
     required this.colors,
     required this.reduceMotion,
-    required this.borderRadius,
+    required this.clipShape,
   }) : super(
          repaint: reduceMotion
              ? rmsLevel
@@ -145,7 +145,7 @@ class _VoiceMessageLiveGradientPainter extends CustomPainter {
   final double Function() shownLevel;
   final List<Color> colors;
   final bool reduceMotion;
-  final double borderRadius;
+  final ShapeBorder? clipShape;
 
   static const int _waveSteps = 48;
   static const double _blurSigmaX = 20;
@@ -160,16 +160,13 @@ class _VoiceMessageLiveGradientPainter extends CustomPainter {
     if (size.isEmpty) {
       return;
     }
-    final RRect clip = RRect.fromRectAndRadius(
+    if (clipShape != null) {
+      canvas.clipPath(clipShape!.getOuterPath(Offset.zero & size));
+    }
+    canvas.drawRect(
       Offset.zero & size,
-      Radius.circular(borderRadius),
+      Paint()..color = kVoiceMessageGradientBase,
     );
-    canvas
-      ..clipRRect(clip)
-      ..drawRect(
-        Offset.zero & size,
-        Paint()..color = kVoiceMessageGradientBase,
-      );
 
     final double level = shownLevel();
     if (level <= 0) {
@@ -266,7 +263,7 @@ class _VoiceMessageLiveGradientPainter extends CustomPainter {
         oldDelegate.rmsLevel != rmsLevel ||
         oldDelegate.shownLevel != shownLevel ||
         oldDelegate.reduceMotion != reduceMotion ||
-        oldDelegate.borderRadius != borderRadius ||
+        oldDelegate.clipShape != clipShape ||
         oldDelegate.colors != colors;
   }
 }

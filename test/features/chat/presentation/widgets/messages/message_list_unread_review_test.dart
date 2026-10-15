@@ -2,98 +2,48 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_unread_review.dart';
 
 void main() {
-  group('shouldShowUnreadBar', () {
-    test('returns false when there is no unread', () {
+  group('isBeyondJumpToBottomThreshold', () {
+    test('is false just below the jump distance', () {
       expect(
-        shouldShowUnreadBar(
-          hasUnread: false,
-          liveNearBottom: false,
-          hasMoreNewerMessages: false,
-          isManualReadState: false,
+        isBeyondJumpToBottomThreshold(
+          distanceFromBottom: kJumpToBottomDistance - 1,
         ),
         isFalse,
       );
     });
 
-    test('suppresses at bottom on latest page with unread', () {
+    test('is true at the jump distance', () {
       expect(
-        shouldShowUnreadBar(
-          hasUnread: true,
-          liveNearBottom: true,
-          hasMoreNewerMessages: false,
-          isManualReadState: false,
-        ),
-        isFalse,
-      );
-    });
-
-    test('shows when scrolled up with unread', () {
-      expect(
-        shouldShowUnreadBar(
-          hasUnread: true,
-          liveNearBottom: false,
-          hasMoreNewerMessages: false,
-          isManualReadState: false,
-        ),
-        isTrue,
-      );
-    });
-
-    test('shows at bottom when read state is manual', () {
-      expect(
-        shouldShowUnreadBar(
-          hasUnread: true,
-          liveNearBottom: true,
-          hasMoreNewerMessages: false,
-          isManualReadState: true,
-        ),
-        isTrue,
-      );
-    });
-
-    test('suppresses at bottom without a manual read state', () {
-      expect(
-        shouldShowUnreadBar(
-          hasUnread: true,
-          liveNearBottom: true,
-          hasMoreNewerMessages: false,
-          isManualReadState: false,
-        ),
-        isFalse,
-      );
-    });
-
-    test('shows at bottom when newer pages remain', () {
-      expect(
-        shouldShowUnreadBar(
-          hasUnread: true,
-          liveNearBottom: true,
-          hasMoreNewerMessages: true,
-          isManualReadState: false,
+        isBeyondJumpToBottomThreshold(
+          distanceFromBottom: kJumpToBottomDistance,
         ),
         isTrue,
       );
     });
   });
 
-  group('isBeyondJumpToBottomThreshold', () {
-    test('is false just below half a viewport', () {
+  group('shouldShowChannelWelcome', () {
+    test('returns true only at channel start with no load failure', () {
       expect(
-        isBeyondJumpToBottomThreshold(
-          distanceFromBottom: 199,
-          viewportHeight: 400,
+        shouldShowChannelWelcome(
+          hasMoreOlderMessages: false,
+          messageLoadFailed: false,
+        ),
+        isTrue,
+      );
+      expect(
+        shouldShowChannelWelcome(
+          hasMoreOlderMessages: true,
+          messageLoadFailed: false,
         ),
         isFalse,
       );
-    });
-
-    test('is true at half a viewport', () {
       expect(
-        isBeyondJumpToBottomThreshold(
-          distanceFromBottom: 200,
-          viewportHeight: 400,
+        shouldShowChannelWelcome(
+          hasMoreOlderMessages: false,
+          messageLoadFailed: true,
         ),
-        isTrue,
+        isFalse,
       );
     });
   });
@@ -105,9 +55,9 @@ void main() {
           hasMessages: false,
           isLoading: false,
           isActiveReadChannel: true,
-          distanceFromBottom: 500,
-          viewportHeight: 400,
+          distanceFromBottom: kJumpToBottomDistance,
           hasMoreNewerMessages: false,
+          messageLoadFailed: false,
         ),
         isFalse,
       );
@@ -119,9 +69,9 @@ void main() {
           hasMessages: true,
           isLoading: true,
           isActiveReadChannel: true,
-          distanceFromBottom: 500,
-          viewportHeight: 400,
+          distanceFromBottom: kJumpToBottomDistance,
           hasMoreNewerMessages: false,
+          messageLoadFailed: false,
         ),
         isFalse,
       );
@@ -133,37 +83,51 @@ void main() {
           hasMessages: true,
           isLoading: false,
           isActiveReadChannel: false,
+          distanceFromBottom: kJumpToBottomDistance,
+          hasMoreNewerMessages: false,
+          messageLoadFailed: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns false when message history failed to load', () {
+      expect(
+        shouldShowJumpToBottomButton(
+          hasMessages: true,
+          isLoading: false,
+          isActiveReadChannel: true,
           distanceFromBottom: 500,
-          viewportHeight: 400,
-          hasMoreNewerMessages: false,
+          hasMoreNewerMessages: true,
+          messageLoadFailed: true,
         ),
         isFalse,
       );
     });
 
-    test('returns false within half a viewport of bottom on latest page', () {
+    test('returns false within the jump distance on the latest page', () {
       expect(
         shouldShowJumpToBottomButton(
           hasMessages: true,
           isLoading: false,
           isActiveReadChannel: true,
-          distanceFromBottom: 199,
-          viewportHeight: 400,
+          distanceFromBottom: kJumpToBottomDistance - 1,
           hasMoreNewerMessages: false,
+          messageLoadFailed: false,
         ),
         isFalse,
       );
     });
 
-    test('returns true when scrolled up at least half a viewport', () {
+    test('returns true when scrolled up past the jump distance', () {
       expect(
         shouldShowJumpToBottomButton(
           hasMessages: true,
           isLoading: false,
           isActiveReadChannel: true,
-          distanceFromBottom: 200,
-          viewportHeight: 400,
+          distanceFromBottom: kJumpToBottomDistance,
           hasMoreNewerMessages: false,
+          messageLoadFailed: false,
         ),
         isTrue,
       );
@@ -176,8 +140,8 @@ void main() {
           isLoading: false,
           isActiveReadChannel: true,
           distanceFromBottom: 0,
-          viewportHeight: 400,
           hasMoreNewerMessages: true,
+          messageLoadFailed: false,
         ),
         isTrue,
       );

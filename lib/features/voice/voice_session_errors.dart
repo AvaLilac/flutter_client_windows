@@ -1,22 +1,16 @@
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 
-/// VoiceSessionState.errorMessage when camera access was denied
 const String kVoiceSessionErrorCameraPermission = 'VOICE_ERR_CAMERA_PERM';
 
-/// A generic screen-share toggle failure (unclassified).
 const String kVoiceSessionErrorScreenShareToggle =
     'VOICE_ERR_SCREEN_SHARE_TOGGLE';
 
-/// Screen-share permission being denied by the OS.
 const String kVoiceSessionErrorScreenSharePermissionDenied =
     'VOICE_ERR_SCREEN_SHARE_PERM';
 
-/// Screen share toggle being invoked on a platform or device
-/// that doesn't support it.
 const String kVoiceSessionErrorScreenShareUnsupported =
     'VOICE_ERR_SCREEN_SHARE_UNSUPPORTED';
 
-/// Join rejected because the channel requires an E2EE capable client.
 const String kVoiceSessionErrorE2eeRequired = 'VOICE_ERR_E2EE_REQUIRED';
 
 const String kVoiceSessionErrorP2pConsentRequired =
@@ -29,42 +23,49 @@ const String kVoiceSessionErrorChannelFull = 'VOICE_ERR_CHANNEL_FULL';
 const String kVoiceSessionErrorP2pScreenShareUnavailable =
     'VOICE_ERR_P2P_SCREEN_SHARE_UNAVAILABLE';
 
+const String kVoiceSessionErrorTimedOut = 'VOICE_ERR_TIMED_OUT';
+
+const String kVoiceSessionErrorUnclaimed = 'VOICE_ERR_UNCLAIMED';
+
+const String kVoiceSessionErrorUnclaimedDirectCall =
+    'VOICE_ERR_UNCLAIMED_DIRECT_CALL';
+
+const String kVoiceSessionErrorUserLimit = 'VOICE_ERR_USER_LIMIT';
+
+const String kVoiceSessionErrorConnectionLimit = 'VOICE_ERR_CONNECTION_LIMIT';
+
+const String kVoiceSessionErrorChannelUnavailable =
+    'VOICE_ERR_CHANNEL_UNAVAILABLE';
+
 const Map<String, String> kVoiceGatewayJoinErrors = <String, String>{
   'VOICE_E2EE_REQUIRED': kVoiceSessionErrorE2eeRequired,
   'VOICE_P2P_CONSENT_REQUIRED': kVoiceSessionErrorP2pConsentRequired,
   'VOICE_P2P_UNAVAILABLE': kVoiceSessionErrorP2pUnavailable,
   'VOICE_CHANNEL_FULL': kVoiceSessionErrorChannelFull,
+  'VOICE_MEMBER_TIMED_OUT': kVoiceSessionErrorTimedOut,
+  'VOICE_CONNECTION_LIMIT_REACHED': kVoiceSessionErrorConnectionLimit,
+  'VOICE_UNCLAIMED_ACCOUNT': kVoiceSessionErrorUnclaimed,
+  'VOICE_PERMISSION_DENIED': kVoiceSessionErrorNoConnectPermission,
+  'VOICE_CHANNEL_NOT_FOUND': kVoiceSessionErrorChannelUnavailable,
+  'VOICE_INVALID_CHANNEL_TYPE': kVoiceSessionErrorChannelUnavailable,
+  'VOICE_GUILD_NOT_FOUND': kVoiceSessionErrorChannelUnavailable,
 };
 
-/// Mic track publish failed, user may still be connected listen only.
 const String kVoiceSessionErrorMicPublish = 'VOICE_ERR_MIC_PUBLISH';
 
-/// Join rejected because the user lacks Connect permission in the channel.
 const String kVoiceSessionErrorNoConnectPermission =
     'VOICE_ERR_NO_CONNECT_PERM';
 
-/// Join rejected for a DM or group DM preflight failure
 const String kVoiceSessionErrorDirectCallNotEligible =
     'VOICE_ERR_DIRECT_CALL_NOT_ELIGIBLE';
 
-/// Microphone permission was denied before a voice join could start.
 const String kVoiceSessionErrorMicPermission = 'VOICE_ERR_MIC_PERM';
 
-/// LiveKit/WebRTC transport failed (ICE, network, or media connect timeout).
 const String kVoiceSessionErrorTransportFailed = 'VOICE_ERR_TRANSPORT';
 
-/// Other devices did not disconnect before a switch-to-this-device join.
 const String kVoiceSessionErrorMultiDeviceDisconnectFailed =
     'VOICE_ERR_MULTI_DEVICE_DISCONNECT';
 
-const String kVoiceCameraUserLimitErrorCode = 'VOICE_CAMERA_USER_LIMIT';
-
-bool shouldNotifyCameraUserLimitRejection({String? status, String? errorCode}) {
-  return status == 'rejected' && errorCode == kVoiceCameraUserLimitErrorCode;
-}
-
-/// Maps a stored `VoiceSessionState.errorMessage` to a localized
-/// human-readable string.
 String resolveVoiceSessionErrorMessage(
   String message,
   FluxerLocalizations l10n,
@@ -100,6 +101,18 @@ String resolveVoiceSessionErrorMessage(
       return l10n.voiceJoinCallFailed;
     case kVoiceSessionErrorMultiDeviceDisconnectFailed:
       return l10n.voiceMultiDeviceDisconnectFailed;
+    case kVoiceSessionErrorTimedOut:
+      return l10n.voiceJoinTimedOut;
+    case kVoiceSessionErrorUnclaimed:
+      return l10n.voiceJoinClaimAccount;
+    case kVoiceSessionErrorUnclaimedDirectCall:
+      return l10n.voiceJoinClaimAccountDirectCall;
+    case kVoiceSessionErrorUserLimit:
+      return l10n.voiceJoinUserLimit;
+    case kVoiceSessionErrorConnectionLimit:
+      return l10n.voiceJoinConnectionLimit;
+    case kVoiceSessionErrorChannelUnavailable:
+      return l10n.voiceJoinChannelUnavailable;
     default:
       return message;
   }

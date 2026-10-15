@@ -14,23 +14,19 @@ class ChatReadViewportState {
     this.viewportActive = false,
     this.nearLoadedTail = false,
     this.distanceFromBottom = 0,
-    this.viewportHeight = 0,
     this.foreground = false,
     this.sampledTailId,
+    this.followsLiveTail = false,
   });
 
   final String channelId;
   final bool viewportActive;
   final bool nearLoadedTail;
   final double distanceFromBottom;
-  final double viewportHeight;
   final bool foreground;
 
-  /// The newest server-backed message id the published geometry was measured
-  /// against. When the tail advances before the next publication, this token
-  /// mismatches and auto-ack eligibility drops until post-layout geometry
-  /// republishes. Exact equality; null matches only an empty live window.
   final String? sampledTailId;
+  final bool followsLiveTail;
 
   bool get canAutoAck => viewportActive && foreground;
 
@@ -41,9 +37,9 @@ class ChatReadViewportState {
       other.viewportActive == viewportActive &&
       other.nearLoadedTail == nearLoadedTail &&
       other.distanceFromBottom == distanceFromBottom &&
-      other.viewportHeight == viewportHeight &&
       other.foreground == foreground &&
-      other.sampledTailId == sampledTailId;
+      other.sampledTailId == sampledTailId &&
+      other.followsLiveTail == followsLiveTail;
 
   @override
   int get hashCode => Object.hash(
@@ -51,9 +47,9 @@ class ChatReadViewportState {
     viewportActive,
     nearLoadedTail,
     distanceFromBottom,
-    viewportHeight,
     foreground,
     sampledTailId,
+    followsLiveTail,
   );
 }
 
@@ -63,8 +59,8 @@ class ChatReadViewport extends _$ChatReadViewport {
   String? _visibleChannelId;
   bool _nearLoadedTail = false;
   double _distanceFromBottom = 0;
-  double _viewportHeight = 0;
   String? _sampledTailId;
+  bool _followsLiveTail = false;
 
   @override
   ChatReadViewportState build() =>
@@ -79,8 +75,8 @@ class ChatReadViewport extends _$ChatReadViewport {
         _channelId = channelId;
         _nearLoadedTail = false;
         _distanceFromBottom = 0;
-        _viewportHeight = 0;
         _sampledTailId = null;
+        _followsLiveTail = false;
         _emit();
       }),
     );
@@ -95,7 +91,6 @@ class ChatReadViewport extends _$ChatReadViewport {
           }
           _visibleChannelId = channelId;
         } else {
-          // Ignore teardown from a list that no longer owns the viewport.
           if (_visibleChannelId != channelId) {
             return;
           }
@@ -110,12 +105,9 @@ class ChatReadViewport extends _$ChatReadViewport {
     required String channelId,
     required bool nearLoadedTail,
     required double distanceFromBottom,
-    required double viewportHeight,
     required String? sampledTailId,
+    bool followsLiveTail = false,
   }) {
-    // Deferred like the mutators above: the widget publishes from
-    // ScrollMetricsNotification handlers that run during layout, and the
-    // state write in _emit must never land mid-build.
     unawaited(
       Future<void>.microtask(() {
         if (_channelId != channelId) {
@@ -126,17 +118,32 @@ class ChatReadViewport extends _$ChatReadViewport {
         );
         if (_nearLoadedTail == nearLoadedTail &&
             _distanceFromBottom == quantizedDistance &&
-            _viewportHeight == viewportHeight &&
-            _sampledTailId == sampledTailId) {
+            _sampledTailId == sampledTailId &&
+            _followsLiveTail == followsLiveTail) {
           return;
         }
         _nearLoadedTail = nearLoadedTail;
         _distanceFromBottom = quantizedDistance;
-        _viewportHeight = viewportHeight;
         _sampledTailId = sampledTailId;
+        _followsLiveTail = followsLiveTail;
         _emit();
       }),
     );
+  }
+
+  void followLiveTail({
+    required String channelId,
+    required String? previousTailId,
+    required String nextTailId,
+  }) {
+    if (_channelId != channelId ||
+        !_nearLoadedTail ||
+        !_followsLiveTail ||
+        _sampledTailId != previousTailId) {
+      return;
+    }
+    _sampledTailId = nextTailId;
+    _emit();
   }
 
   ChatReadViewportState _snapshot({required bool foreground}) =>
@@ -146,9 +153,9 @@ class ChatReadViewport extends _$ChatReadViewport {
             _channelId.isNotEmpty && _visibleChannelId == _channelId,
         nearLoadedTail: _nearLoadedTail,
         distanceFromBottom: _distanceFromBottom,
-        viewportHeight: _viewportHeight,
         foreground: foreground,
         sampledTailId: _sampledTailId,
+        followsLiveTail: _followsLiveTail,
       );
 
   void _emit() {
@@ -162,10 +169,6 @@ class ChatReadViewport extends _$ChatReadViewport {
   }
 }
 
-/// [currentTailId] is the live window's newest server-backed id. A near-tail
-/// claim authorizes an ack only for the tail it was measured against
-/// ([ChatReadViewportState.sampledTailId], exact equality; null matches only
-/// an empty window) - a stale claim must not ack rows the user never saw.
 bool isAutoAckEligible({
   required ChatReadViewportState viewport,
   required String channelId,

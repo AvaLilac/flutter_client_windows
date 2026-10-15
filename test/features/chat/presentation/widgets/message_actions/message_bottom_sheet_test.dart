@@ -20,6 +20,7 @@ import 'package:fluxer_app/features/chat/providers/pickers/favorite_media_provid
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
+import 'package:fluxer_app/features/voice/tts/fluxer_tts_provider.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:riverpod/src/framework.dart' show Override;
@@ -51,6 +52,28 @@ class _FakeSavedMessagesRepository extends SavedMessagesRepository {
   }
 }
 
+class _FakeTtsService extends FluxerTtsService {
+  _FakeTtsService({required this.supported});
+
+  final bool supported;
+  final List<String> spokenMessageIds = <String>[];
+
+  @override
+  FluxerTtsSpeakingState build() => const FluxerTtsSpeakingState();
+
+  @override
+  Future<bool> isSupported() async => supported;
+
+  @override
+  Future<void> speakMessage({
+    required Message message,
+    required double rate,
+    String? locale,
+  }) async {
+    spokenMessageIds.add(message.id);
+  }
+}
+
 void main() {
   final message = Message(
     id: 'msg-1',
@@ -78,9 +101,11 @@ void main() {
   List<Override> baseOverrides(
     String messageId, {
     bool translationAvailable = false,
+    FluxerDatabase? database,
     List<Override> extra = const [],
   }) {
     return <Override>[
+      fluxerDatabaseProvider.overrideWithValue(database ?? openTestDatabase()),
       isMessageSavedProvider(
         messageId,
       ).overrideWith((ref) => Stream<bool>.value(false)),
@@ -151,11 +176,12 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      final DraggableScrollableSheet sheet = tester.widget(
-        find.byType(DraggableScrollableSheet),
+      final FluxerDraggableScrollableSheet sheet = tester.widget(
+        find.byType(FluxerDraggableScrollableSheet),
       );
       expect(sheet.initialChildSize, FluxerBottomSheet.scrollableSheetHalfSize);
       expect(sheet.maxChildSize, FluxerBottomSheet.scrollableSheetSize);
+      await releaseTestWidgetTree(tester);
     });
 
     testWidgets('shows delete and edit alt text for own attachments', (
@@ -212,6 +238,7 @@ void main() {
 
       expect(deletedAttachment, isNotNull);
       expect(deletedAttachment!.id, 'att-1');
+      await releaseTestWidgetTree(tester);
     });
 
     testWidgets('hides delete attachment when preference is disabled', (
@@ -249,6 +276,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete attachment'), findsNothing);
+      await releaseTestWidgetTree(tester);
     });
   });
 
@@ -302,6 +330,7 @@ void main() {
       labels.indexOf(testL10n.chatMessageViewReactions),
       lessThan(labels.indexOf(testL10n.chatMessageTranslate)),
     );
+    await releaseTestWidgetTree(tester);
   });
 
   testWidgets('hides Translate when the message is in the app language', (
@@ -343,6 +372,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(testL10n.chatMessageTranslate), findsNothing);
+    await releaseTestWidgetTree(tester);
   });
 
   testWidgets('hides Translate for a custom-emoji-only message, fixes #698', (
@@ -387,6 +417,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(testL10n.chatMessageTranslate), findsNothing);
+    await releaseTestWidgetTree(tester);
   });
 
   testWidgets('hides Translate for a klipy gif url-only message', (
@@ -431,6 +462,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(testL10n.chatMessageTranslate), findsNothing);
+    await releaseTestWidgetTree(tester);
   });
 
   testWidgets('hides Translate when no source is available', (tester) async {
@@ -466,6 +498,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(testL10n.chatMessageTranslate), findsNothing);
+    await releaseTestWidgetTree(tester);
   });
 
   group('copy embed text', () {
@@ -508,6 +541,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(testL10n.chatMessageCopyEmbedText), findsOneWidget);
+      await releaseTestWidgetTree(tester);
     });
 
     testWidgets('hides the item for media-only embeds', (tester) async {
@@ -519,6 +553,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(testL10n.chatMessageCopyEmbedText), findsNothing);
+      await releaseTestWidgetTree(tester);
     });
   });
 
@@ -562,6 +597,7 @@ void main() {
       await tester.pump();
       expect(forwarded, isTrue);
       await dispatched;
+      await releaseTestWidgetTree(tester);
     });
 
     testWidgets('bookmarking a message shows a success toast', (tester) async {
@@ -573,8 +609,8 @@ void main() {
         ProviderScope(
           overrides: baseOverrides(
             message.id,
+            database: database,
             extra: <Override>[
-              fluxerDatabaseProvider.overrideWithValue(database),
               savedMessagesRepositoryProvider.overrideWithValue(
                 _FakeSavedMessagesRepository(database),
               ),
@@ -612,6 +648,68 @@ void main() {
         testL10n.savedMessagesAddedToast,
       );
       await tester.pump(const Duration(seconds: 5));
+      await releaseTestWidgetTree(tester);
     });
+
+    for (final bool supported in <bool>[false, true]) {
+      testWidgets('speak with speech synthesis '
+          '${supported ? 'available speaks' : 'unavailable says so'}', (
+        tester,
+      ) async {
+        final _FakeTtsService tts = _FakeTtsService(supported: supported);
+        late WidgetRef capturedRef;
+        late BuildContext capturedContext;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: baseOverrides(
+              message.id,
+              extra: <Override>[
+                fluxerTtsServiceProvider.overrideWith(() => tts),
+              ],
+            ),
+            child: MaterialApp(
+              locale: kTestLocale,
+              localizationsDelegates: fluxerLocalizationsDelegates,
+              supportedLocales: FluxerLocalizations.supportedLocales,
+              theme: buildFluxerTheme(
+                colorTheme: buildDarkColorTheme(),
+                textTheme: FluxerTextTheme.fromColors(buildDarkColorTheme()),
+                layoutTheme: FluxerLayoutTheme.scaled(),
+              ),
+              home: Consumer(
+                builder: (BuildContext context, WidgetRef ref, Widget? child) {
+                  capturedRef = ref;
+                  capturedContext = context;
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await dispatchMessageAction(
+          ref: capturedRef,
+          context: capturedContext,
+          message: message,
+          action: MessageAction.speak,
+          callbacks: const MessageActionCallbacks(),
+        );
+        await tester.pump();
+
+        if (supported) {
+          expect(tts.spokenMessageIds, <String>[message.id]);
+          expect(capturedRef.read(toastProvider), isEmpty);
+        } else {
+          expect(tts.spokenMessageIds, isEmpty);
+          expect(
+            capturedRef.read(toastProvider).single.toast.message,
+            testL10n.accessibilityTtsUnsupportedDescription,
+          );
+        }
+        await tester.pump(const Duration(seconds: 5));
+        await releaseTestWidgetTree(tester);
+      });
+    }
   });
 }

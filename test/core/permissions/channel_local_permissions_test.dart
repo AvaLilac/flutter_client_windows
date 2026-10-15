@@ -29,7 +29,6 @@ void main() {
       test(
         'category denies CONNECT: child voice channel without own overwrites is denied',
         () {
-          // Channel has no permissionOverwritesJson -> empty layer
           final int result = evaluateChannelEffectivePermissionBits(
             guildOwnerId: 'owner',
             guildId: guildId,
@@ -38,8 +37,8 @@ void main() {
             memberRoles: const [],
             memberRecordPresent: true,
             overwriteJsonLayersRootToLeaf: [
-              categoryDenyConnectOverwrites(), // category layer denies CONNECT
-              null, // channel has no overwrites
+              categoryDenyConnectOverwrites(),
+              null,
             ],
           );
 
@@ -59,10 +58,7 @@ void main() {
                 Permission.viewChannel.value | Permission.connect.value,
             memberRoles: const [],
             memberRecordPresent: true,
-            overwriteJsonLayersRootToLeaf: [
-              categoryNeutralOverwrites(), // category doesn't remove CONNECT
-              null,
-            ],
+            overwriteJsonLayersRootToLeaf: [categoryNeutralOverwrites(), null],
           );
 
           expect(hasPermission(result, Permission.connect), isTrue);
@@ -74,7 +70,6 @@ void main() {
       test(
         'category denies CONNECT: channel-local allows CONNECT when channel has no overwrites',
         () {
-          // Channel-local only applies the single channel layer
           final int result = evaluateChannelEffectivePermissionBits(
             guildOwnerId: 'owner',
             guildId: guildId,
@@ -83,7 +78,7 @@ void main() {
                 Permission.viewChannel.value | Permission.connect.value,
             memberRoles: const [],
             memberRecordPresent: true,
-            overwriteJsonLayersRootToLeaf: [null], // only channel layer (empty)
+            overwriteJsonLayersRootToLeaf: [null],
           );
 
           expect(hasPermission(result, Permission.viewChannel), isTrue);
@@ -101,7 +96,6 @@ void main() {
           },
         ]);
 
-        // Channel-local: single layer with deny
         final int localResult = evaluateChannelEffectivePermissionBits(
           guildOwnerId: 'owner',
           guildId: guildId,
@@ -113,7 +107,6 @@ void main() {
           overwriteJsonLayersRootToLeaf: [channelDenyConnect()],
         );
 
-        // Inherited: also has channel layer (last in chain)
         final int inheritedResult = evaluateChannelEffectivePermissionBits(
           guildOwnerId: 'owner',
           guildId: guildId,
@@ -176,7 +169,6 @@ void main() {
             ],
           );
 
-          // Role allow grants CONNECT even though @everyone denies it
           expect(
             hasPermission(result, Permission.connect),
             isTrue,
@@ -269,7 +261,7 @@ void main() {
       );
 
       test(
-        'administrator granted via channel overwrite gets all permissions',
+        'administrator granted via channel overwrite stays a single bit',
         () {
           final String adminOverwrite = jsonEncode([
             {
@@ -291,8 +283,14 @@ void main() {
             overwriteJsonLayersRootToLeaf: [adminOverwrite],
           );
 
-          expect(result, equals(allPermissions));
-          expect(bypassesSlowmode(result), isTrue);
+          expect(
+            result,
+            equals(
+              Permission.viewChannel.value | Permission.administrator.value,
+            ),
+          );
+          expect(hasPermission(result, Permission.sendMessages), isFalse);
+          expect(bypassesSlowmode(result), isFalse);
         },
       );
     });

@@ -140,6 +140,14 @@ jobs:
       - name: Run code generation
         run: dart run build_runner build
 
+      - name: Write Measure Android config
+        env:
+          MEASURE_RELEASE_CHANNEL: canary
+          MEASURE_ANDROID_API_KEY_CANARY: ${{ secrets.MEASURE_ANDROID_API_KEY_CANARY }}
+          MEASURE_ANDROID_API_KEY: ${{ secrets.MEASURE_ANDROID_API_KEY }}
+          MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
+        run: tool/measure/write_native_measure_config.sh
+
       - name: Build debug app APK
         env:
           TEST_LAB_EMAIL: ${{ secrets.TEST_LAB_EMAIL }}

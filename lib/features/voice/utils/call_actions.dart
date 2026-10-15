@@ -13,6 +13,7 @@ import 'package:fluxer_app/features/voice/utils/voice_connection_actions.dart';
 import 'package:fluxer_app/features/voice/utils/voice_p2p_mode.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/chat_context_utils.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,11 +25,6 @@ typedef StartDirectVoiceCallResult = ({
   bool joinAttemptFailed,
 });
 
-/// When `microphoneDenied` or `cameraDenied` is true, the voice session
-/// notifier already surfaced permission UI; avoid redundant snack bars.
-/// When neither flag is true: `notEligible` is server ringability failure;
-/// `joinAttemptFailed` is an unexpected exception from join; otherwise
-/// the user likely navigated away (no snack — `ok` stays false silently).
 Future<StartDirectVoiceCallResult> startDirectVoiceCall(
   WidgetRef ref,
   BuildContext context,
@@ -147,5 +143,28 @@ Future<StartDirectVoiceCallResult> startDirectVoiceCall(
     cameraDenied: false,
     notEligible: false,
     joinAttemptFailed: false,
+  );
+}
+
+Future<void> explainDirectCallFailure(
+  BuildContext context,
+  StartDirectVoiceCallResult result,
+) async {
+  if (result.ok || result.microphoneDenied || result.cameraDenied) {
+    return;
+  }
+  final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+  final String? message = result.notEligible
+      ? l10n.directVoiceCallNotEligible
+      : result.joinAttemptFailed
+      ? l10n.voiceJoinCallFailed
+      : null;
+  if (message == null) {
+    return;
+  }
+  await showErrorDialog(
+    context,
+    title: l10n.voiceJoinFailedTitle,
+    body: message,
   );
 }

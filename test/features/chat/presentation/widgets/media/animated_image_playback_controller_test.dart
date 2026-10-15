@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/animated_image_playback_controller.dart';
 
 extension _ControllerExpects on AnimatedImagePlaybackController {
-  void expectPlaying(String key, Matcher matcher) {
-    expect(isPlaying(key), matcher);
+  void expectPlaying(Object owner, Matcher matcher) {
+    expect(isPlaying(owner), matcher);
   }
 }
 
@@ -39,21 +39,22 @@ void main() {
       expect(playing, 6);
     });
 
-    test('chat list plays at most 3 animated images at once', () {
+    test('chat list plays at most 5 animated images at once', () {
       final AnimatedImagePlaybackController controller =
           AnimatedImagePlaybackController(
             maxActiveVideos: kMaxActiveChatAnimatedImages,
-            suppressWhileScrolling: true,
           );
 
-      for (int index = 0; index < 4; index += 1) {
+      controller.register('gif-0', 0.5);
+      for (int index = 1; index < 6; index += 1) {
         controller.register('gif-$index', 1);
       }
 
+      final int playing = <int>[
+        for (int index = 0; index < 6; index += 1) index,
+      ].where((int index) => controller.isPlaying('gif-$index')).length;
+      expect(playing, 5);
       controller
-        ..expectPlaying('gif-1', isTrue)
-        ..expectPlaying('gif-2', isTrue)
-        ..expectPlaying('gif-3', isTrue)
         ..expectPlaying('gif-0', isFalse)
         ..unregister('gif-3')
         ..expectPlaying('gif-0', isTrue);
@@ -128,36 +129,20 @@ void main() {
         ..expectPlaying('b', isTrue);
     });
 
-    test('keeps visible images playing while scrolling', () {
+    test('keeps two owners of one message apart', () {
       final AnimatedImagePlaybackController controller =
-          AnimatedImagePlaybackController();
+          AnimatedImagePlaybackController(
+            maxActiveVideos: kMaxActiveChatAnimatedImages,
+          );
+      final Object outgoingRow = Object();
+      final Object incomingRow = Object();
 
       controller
-        ..register('a', 1)
-        ..register('b', 1)
-        ..expectPlaying('a', isTrue)
-        ..setScrollActive(active: true)
-        ..expectPlaying('a', isTrue)
-        ..expectPlaying('b', isTrue)
-        ..updateVisibility('b', 0)
-        ..expectPlaying('b', isFalse)
-        ..expectPlaying('a', isTrue);
-    });
-
-    test('can suppress playback while scrolling when enabled', () {
-      final AnimatedImagePlaybackController controller =
-          AnimatedImagePlaybackController(suppressWhileScrolling: true);
-
-      controller
-        ..register('a', 1)
-        ..register('b', 1)
-        ..expectPlaying('a', isTrue)
-        ..setScrollActive(active: true)
-        ..expectPlaying('a', isFalse)
-        ..expectPlaying('b', isFalse)
-        ..setScrollActive(active: false)
-        ..expectPlaying('a', isTrue)
-        ..expectPlaying('b', isTrue);
+        ..register(outgoingRow, 1)
+        ..register(incomingRow, 0)
+        ..updateVisibility(incomingRow, 1)
+        ..unregister(outgoingRow)
+        ..expectPlaying(incomingRow, isTrue);
     });
 
     test('notifies listeners when active set changes', () {
@@ -180,19 +165,6 @@ void main() {
         ..updateVisibility('a', 1)
         ..expectPlaying('a', isTrue);
       expect(notificationCount, 3);
-    });
-
-    test('does not notify when scroll-active is set to the same value', () {
-      final AnimatedImagePlaybackController controller =
-          AnimatedImagePlaybackController();
-      int notificationCount = 0;
-      controller.addListener(() => notificationCount++);
-
-      controller
-        ..register('a', 1)
-        ..setScrollActive(active: true)
-        ..setScrollActive(active: true);
-      expect(notificationCount, 1);
     });
 
     test('does not recompute when register values are unchanged', () {

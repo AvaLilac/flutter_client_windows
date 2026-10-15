@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Yritä uudelleen",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Yhdistetty",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Hae KLIPYstä",
+    "gifPickerSearchKlipy": "Hae Klipystä",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Hae Tenorista",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Suosikit",
     "@gifPickerFavorites": {
@@ -2591,10 +2591,6 @@
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
     },
-    "dangerZoneDeleteCancelSubscription": "Peruuta aktiivinen Plutonium-tilauksesi Plutonium-asetuksista ennen tilin poistamista.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
-    },
     "dangerZoneDeleteCannotDeleteAccount": "Tiliä ei voi poistaa",
     "@dangerZoneDeleteCannotDeleteAccount": {
         "description": "Title for the guild ownership warning modal when trying to delete account."
@@ -2918,20 +2914,11 @@
             }
         }
     },
-    "userProfilePlutoniumBadgeTooltip": "{productName} Plutonium",
-    "@userProfilePlutoniumBadgeTooltip": {
-        "description": "Short badge title in the user profile badges popout. English locales use Title Case for official badge titles; other locales should use natural local capitalization.",
+    "userProfilePremiumSubscriberSinceTooltip": "{premiumProductFullName}-tilaaja {date} alkaen",
+    "@userProfilePremiumSubscriberSinceTooltip": {
+        "description": "Badge label with a date in the user profile badges popout. Preserve {premiumProductFullName} and {date}; they are inserted by code. premiumProductFullName is the instance product name followed by its premium product name, for example Fluxer Plutonium. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
         "placeholders": {
-            "productName": {
-                "type": "String"
-            }
-        }
-    },
-    "userProfilePlutoniumSubscriberSinceTooltip": "{productName} Plutonium -tilaaja vuodesta {date}",
-    "@userProfilePlutoniumSubscriberSinceTooltip": {
-        "description": "Badge label with a date in the user profile badges popout. Preserve {date}; it is inserted by code. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
-        "placeholders": {
-            "productName": {
+            "premiumProductFullName": {
                 "type": "String"
             },
             "date": {
@@ -3822,6 +3809,71 @@
     "channelComposerBarrierVerifyEmail": "Vahvista sähköposti",
     "@channelComposerBarrierVerifyEmail": {
         "description": "Action button on the composer barrier for unverified email."
+    },
+    "accountLimitedNotice": "Viestien lähettäminen on tililläsi tauolla. Löydät sähköpostistasi yhden nopean vaiheen, jolla pääset jatkamaan.",
+    "@accountLimitedNotice": {
+        "description": "Notice shown in place of the message composer and as a banner at the top of the app when messaging is paused on the current account until the user completes one quick step described in an email. Keep the tone calm and friendly."
+    },
+    "messagingPausedTextDidNotGoThrough": "Tekstiviestini ei mennyt perille",
+    "@messagingPausedTextDidNotGoThrough": {
+        "description": "Button shown while messaging is paused on the current account, and the title of the help sheet it opens. The email describing the quick step asks the user to send a text message from their phone. This is for users who could not send that text, and also for users who sent it and nothing happened. The translation should cover both. Also used as the subject of the support email."
+    },
+    "messagingPausedHelpBody": "Lähetä sähköpostia osoitteeseen {supportEmail}, niin ihminen tarkistaa tilisi. Voit myös vastata sähköpostiin, jonka lähetimme sinulle.",
+    "@messagingPausedHelpBody": {
+        "description": "Body of the help sheet opened from \"My text didn't go through\" while messaging is paused on the account. supportEmail is the support email address. Keep it short, calm and neutral.",
+        "placeholders": {
+            "supportEmail": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLabel": "Maa, jossa olet",
+    "@messagingPausedHelpCountryLabel": {
+        "description": "Field label in the help sheet opened from \"My text didn't go through\". The user types the country they are in so support can help."
+    },
+    "messagingPausedHelpCopyDetails": "Kopioi tiedot",
+    "@messagingPausedHelpCopyDetails": {
+        "description": "Button in the help sheet opened from \"My text didn't go through\". Copies the account details for a support email to the clipboard."
+    },
+    "messagingPausedHelpEmailSupport": "Lähetä sähköpostia tukeen",
+    "@messagingPausedHelpEmailSupport": {
+        "description": "Primary button in the help sheet opened from \"My text didn't go through\". Opens a new email to support with the account details filled in."
+    },
+    "messagingPausedHelpAccountIdLine": "Tilin tunnus: {accountId}",
+    "@messagingPausedHelpAccountIdLine": {
+        "description": "One line of the support email written for the user. accountId is the numeric account ID.",
+        "placeholders": {
+            "accountId": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpUsernameLine": "Käyttäjänimi: {username}",
+    "@messagingPausedHelpUsernameLine": {
+        "description": "One line of the support email written for the user. username is the account username with its tag.",
+        "placeholders": {
+            "username": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpAccountCreatedLine": "Tili luotu: {createdAt}",
+    "@messagingPausedHelpAccountCreatedLine": {
+        "description": "One line of the support email written for the user. createdAt is the account creation time as an ISO 8601 UTC timestamp.",
+        "placeholders": {
+            "createdAt": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLine": "Maa: {country}",
+    "@messagingPausedHelpCountryLine": {
+        "description": "One line of the support email written for the user. country is the country the user typed.",
+        "placeholders": {
+            "country": {
+                "type": "String"
+            }
+        }
     },
     "chatAttachmentTooMany": "Liian monta liitettä (max {max})",
     "@chatAttachmentTooMany": {
@@ -5138,7 +5190,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Näytä chat, jossa on {count, plural, one {# lukematon viesti} other {# lukematonta viestiä}}",
+    "voiceTextChatShowUnread": "Näytä chat, jossa on {count, plural, one {{count} lukematon viesti} other {{count} lukematonta viestiä}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5407,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "Viestin lähettäminen epäonnistui. Napauta valintojen näyttämiseksi.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "Viestiäsi ei voitu toimittaa. Tämä johtuu yleensä siitä, että et jaa yhteisöä vastaanottajan kanssa tai vastaanottaja hyväksyy suoria viestejä vain ystäviltä. Saatat myös joutua säätämään omia suorien viestien yksityisyysasetuksiasi kohdassa {settingsPath}.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5519,6 @@
     "forwardSuccessToast": "Viesti välitetty",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Viestin välittäminen epäonnistui",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Kommentit eivät ole käytettävissä, koska valitussa kanavassa on hidastila käytössä.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6126,19 +6178,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "TILISI",
+    "userSettingsGroupYourAccount": "Tilisi",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6466,11 +6518,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Syötä instanssin URL (esim. fluxer.app)",
+    "instanceUrlPlaceholder": "Syötä instanssin URL (esim. fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Käytä virallisen instanssin osoitetta fluxer.app tai itse ylläpidetyn instanssin tarkkaa URL-osoitetta.",
+    "instanceUrlHelper": "Käytä virallisen instanssin osoitetta fluxer.com tai itse ylläpidetyn instanssin tarkkaa URL-osoitetta.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },
@@ -6690,13 +6742,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "UUSI",
+    "scrollIndicatorNew": "Uusi",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "UUSI VIESTI",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Uudet viestit",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Tiivistä {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -6985,10 +7037,6 @@
     "guildMenuMarkAsRead": "Merkitse luetuksi",
     "@guildMenuMarkAsRead": {
         "description": "Guild menu action to mark all channels as read."
-    },
-    "guildPeekMoreOptions": "Lisää vaihtoehtoja",
-    "@guildPeekMoreOptions": {
-        "description": "Guild peek menu action to open the full guild options sheet."
     },
     "guildMenuInviteMembers": "Kutsu jäseniä",
     "@guildMenuInviteMembers": {
@@ -8119,7 +8167,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Poistettu # viesti.} other{Poistettu # viestiä.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Poistettu {count} viesti.} other{Poistettu {count} viestiä.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8176,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Poistettu # jäsen.} other{Poistettu # jäsentä.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Poistettu {count} jäsen.} other{Poistettu {count} jäsentä.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8333,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -13711,7 +13759,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Kaikki paitsi {count, plural, one {# yhteisö} other {# yhteisöä}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Kaikki paitsi {count, plural, one {{count} yhteisö} other {{count} yhteisöä}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13720,7 +13768,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Vain {count, plural, one {# yhteisö} other {# yhteisöä}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Vain {count, plural, one {{count} yhteisö} other {{count} yhteisöä}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13749,7 +13797,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# tunti} other {# tuntia}} ja {minutes, plural, one {# minuutti} other {# minuuttia}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} tunti} other {{hours} tuntia}} ja {minutes, plural, one {{minutes} minuutti} other {{minutes} minuuttia}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13761,7 +13809,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# tunti} other {# tuntia}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} tunti} other {{hours} tuntia}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13770,7 +13818,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# minuutti} other {# minuuttia}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} minuutti} other {{minutes} minuuttia}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13779,7 +13827,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# sekunti} other {# sekuntia}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} sekunti} other {{seconds} sekuntia}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14485,7 +14533,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -16513,5 +16561,96 @@
     },
     "channelUnsupportedTitle": "Kanavatyyppiä ei tueta",
     "channelUnsupportedBody": "Tämä sovellusversio ei tue tätä kanavatyyppiä.",
-    "channelDetailsUnsupportedChannel": "Kanavaa ei tueta"
+    "channelDetailsUnsupportedChannel": "Kanavaa ei tueta",
+    "forumPostNewBadge": "Uudet",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} uusi viesti} other {{count} uutta viestiä}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Uudet",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} uusi viesti} other {{unreadCount} uutta viestiä}} {shortTime} alkaen",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ uutta viestiä {shortTime} alkaen",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} uusi viesti} other {{unreadCount} uutta viestiä}} {compactTime} alkaen",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ uutta viestiä {compactTime} alkaen",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Merkitse luetuksi",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Merkitse luetuksi",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Siirry ensimmäiseen lukemattomaan viestiin",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Katselet vanhempia viestejä",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Siirry nykyhetkeen",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Nimeä kategoria uudelleen",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

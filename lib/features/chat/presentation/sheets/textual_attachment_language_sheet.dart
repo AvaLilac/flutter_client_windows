@@ -1,11 +1,11 @@
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/picker_search_input.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/preview_language_options.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
-import 'package:fluxer_app/features/ui/input/fluxer_input.dart';
+import 'package:fluxer_app/features/ui/selected_check/fluxer_selected_check.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 Future<String?> showTextualAttachmentLanguageSheet({
   required BuildContext context,
@@ -115,18 +115,10 @@ class _TextualAttachmentLanguageSheetBodyState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FluxerBottomSheetSection(
-          child: FluxerInput(
+          child: PickerSearchInput.inline(
             controller: _searchController,
-            hint: l10n.chatTextualPreviewSearchLanguage,
+            hintText: l10n.chatTextualPreviewSearchLanguage,
             autofocus: true,
-            prefixIcon: Padding(
-              padding: const EdgeInsets.all(12),
-              child: PhosphorIcon(
-                PhosphorIconsBold.magnifyingGlass,
-                size: 18,
-                color: colors.textSecondary,
-              ),
-            ),
             onChanged: (String value) => setState(() => _query = value),
           ),
         ),
@@ -148,7 +140,9 @@ class _TextualAttachmentLanguageSheetBodyState
                   controller: widget.scrollController,
                   padding: FluxerBottomSheet.scrollViewPadding(
                     context,
-                    padding: EdgeInsets.only(bottom: layout.s4),
+                    padding: EdgeInsets.only(
+                      bottom: FluxerBottomSheet.bottomGapOf(context),
+                    ),
                   ),
                   children: [
                     FluxerBottomSheetSection(
@@ -252,11 +246,7 @@ class _LanguageOptionItem extends StatelessWidget {
                   ),
                   if (isSelected) ...[
                     const SizedBox(width: 12),
-                    PhosphorIcon(
-                      PhosphorIconsBold.check,
-                      size: 18,
-                      color: colors.brandPrimary,
-                    ),
+                    const FluxerSelectedCheck(),
                   ],
                 ],
               ),

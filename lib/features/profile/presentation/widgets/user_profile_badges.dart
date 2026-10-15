@@ -112,8 +112,7 @@ class UserProfileBadges extends ConsumerWidget {
     bool hasPlutonium = false,
     bool selfHosted = false,
   }) {
-    final bool showPremium = hasPlutonium && !selfHosted;
-    return showPremium ||
+    return hasPlutonium ||
         _kFlagBadgeSpecs.any(
           (badge) => badge.isSet(flags) && (!selfHosted || !badge.officialOnly),
         );
@@ -155,16 +154,25 @@ class UserProfileBadges extends ConsumerWidget {
     );
   }
 
-  String _premiumTooltip(FluxerLocalizations l10n, String productName) {
+  String _premiumTooltip(
+    FluxerLocalizations l10n,
+    String productName,
+    String premiumProductName, {
+    required bool visionary,
+  }) {
     final String? since = _formatPremiumSince(premiumSince, l10n.localeName);
-    if (isLifetimePlutonium) {
+    if (visionary) {
       return since == null
           ? l10n.userProfileVisionaryBadgeTooltip(productName)
           : l10n.userProfileVisionaryBadgeSinceTooltip(productName, since);
     }
+    final String premiumProductFullName = '$productName $premiumProductName';
     return since == null
-        ? l10n.userProfilePlutoniumBadgeTooltip(productName)
-        : l10n.userProfilePlutoniumSubscriberSinceTooltip(productName, since);
+        ? premiumProductFullName
+        : l10n.userProfilePremiumSubscriberSinceTooltip(
+            premiumProductFullName,
+            since,
+          );
   }
 
   static String? _formatPremiumSince(String? premiumSince, String localeName) {
@@ -181,10 +189,20 @@ class UserProfileBadges extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
-    final ({bool selfHosted, String productName}) branding = ref.watch(
+    final ({
+      bool selfHosted,
+      bool showsPremium,
+      String productName,
+      String premiumProductName,
+    })
+    branding = ref.watch(
       instanceRuntimeConfigProvider.select(
-        (config) =>
-            (selfHosted: config.selfHosted, productName: config.productName),
+        (config) => (
+          selfHosted: config.selfHosted,
+          showsPremium: config.showsPremiumFeatures,
+          productName: config.productName,
+          premiumProductName: config.premiumProductName,
+        ),
       ),
     );
     final List<Widget> children = <Widget>[];
@@ -205,17 +223,24 @@ class UserProfileBadges extends ConsumerWidget {
       );
     }
 
-    final bool showPremium = hasPlutonium && !branding.selfHosted;
+    final bool showPremium = hasPlutonium && branding.showsPremium;
     if (showPremium) {
       children.add(
         _buildBadge(
           context,
           asset: _kPlutoniumBadgeAsset,
-          tooltip: _premiumTooltip(l10n, branding.productName),
+          tooltip: _premiumTooltip(
+            l10n,
+            branding.productName,
+            branding.premiumProductName,
+            visionary: isLifetimePlutonium && !branding.selfHosted,
+          ),
         ),
       );
     }
-    if (showPremium && premiumLifetimeSequence != null) {
+    if (showPremium &&
+        !branding.selfHosted &&
+        premiumLifetimeSequence != null) {
       final tooltip = l10n.userProfileVisionaryIdTooltip(
         premiumLifetimeSequence!,
       );

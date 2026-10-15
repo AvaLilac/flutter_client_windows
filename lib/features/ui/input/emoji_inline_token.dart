@@ -7,6 +7,9 @@ import 'package:fluxer_app/shared/utils/emoji_registry.dart';
 import 'package:fluxer_app/shared/utils/emoji_sprite_sheet.dart';
 import 'package:fluxer_app/shared/utils/emoji_utils.dart'
     show kSkinToneSurrogates;
+import 'package:fluxer_markdown/fluxer_markdown.dart';
+
+const double kInlineEmojiLineHeight = 1.375;
 
 final RegExp _customWirePattern = RegExp(r'<(a?):([a-zA-Z0-9_]+):(\d+)>');
 final RegExp _skinToneShortcodePattern = RegExp(
@@ -14,10 +17,6 @@ final RegExp _skinToneShortcodePattern = RegExp(
 );
 final RegExp _plainShortcodePattern = RegExp(r':([a-zA-Z0-9_+\-]+):');
 
-/// An inline emoji rendered as the actual emoji (sprite or custom-emoji image)
-/// with a monospace `:name:` fallback, while [wireText] preserves the outgoing
-/// shortcode (`:name:` / `:name::skin-tone-N:`), custom-emoji markdown
-/// (`<a?:name:id>`), or raw unicode surrogate.
 class EmojiInlineToken extends InlineToken {
   EmojiInlineToken({required this.displayName, required this.wireText});
 
@@ -31,12 +30,6 @@ class EmojiInlineToken extends InlineToken {
       _EmojiChip(name: displayName, wireText: wireText, baseStyle: baseStyle);
 }
 
-/// Builds the wire form for an emoji selection.
-///
-/// Custom emoji ([surrogates] beginning with `<`) pass through verbatim;
-/// unicode emoji become a `:name:` shortcode, or `:name::skin-tone-N:` when a
-/// single skin-tone modifier is present in [surrogates]. Mixed skin tones
-/// pass through as raw [surrogates].
 String buildEmojiWireToken(String name, String surrogates) {
   if (surrogates.startsWith('<')) {
     return surrogates;
@@ -54,14 +47,6 @@ String buildEmojiWireToken(String name, String surrogates) {
   return ':$name:';
 }
 
-/// Rewrites emoji wire forms in [raw] into freshly allocated sentinels,
-/// returning the rewritten string.
-///
-/// Custom emoji `<a?:name:id>` and registry-resolvable raw unicode emoji are
-/// always substituted. Shortcodes (`:name:` / `:name::skin-tone-N:`) are
-/// substituted when [includePlainShortcodes] is true; when false only
-/// registry-resolvable names are substituted, leaving ambiguous typed colons
-/// (e.g. `12:30:45`) untouched.
 String substituteEmojiTokens(
   String raw,
   String Function(EmojiInlineToken token) allocate, {
@@ -101,24 +86,18 @@ String substituteEmojiTokens(
   return substituteUnicodeEmojiTokens(result, allocate).text;
 }
 
-/// A range holding one registry-resolvable raw unicode emoji.
 typedef UnicodeEmojiRange = ({int start, int end});
 
-/// Text with raw unicode emoji swapped for sentinels, plus the ranges they
-/// occupied, in order, for remapping offsets.
 typedef UnicodeEmojiSubstitution = ({
   String text,
   List<UnicodeEmojiRange> replaced,
 });
 
-/// Rewrites registry-resolvable raw unicode emoji in [raw] into freshly
-/// allocated sentinels.
 UnicodeEmojiSubstitution substituteUnicodeEmojiTokens(
   String raw,
   String Function(EmojiInlineToken token) allocate,
 ) {
   final RegExp? unicodePattern = EmojiRegistry.unicodeEmojiRegexSync;
-  // No registry sequence is built from code units below U+00A9.
   if (unicodePattern == null ||
       raw.codeUnits.every((int unit) => unit < 0xA9)) {
     return (text: raw, replaced: const <UnicodeEmojiRange>[]);
@@ -160,7 +139,7 @@ class _EmojiChip extends StatelessWidget {
   final String wireText;
   final TextStyle? baseStyle;
 
-  double get _size => (baseStyle?.fontSize ?? 16) * 1.5;
+  double get _size => (baseStyle?.fontSize ?? 16) * kInlineEmojiLineHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -178,27 +157,25 @@ class _EmojiChip extends StatelessWidget {
     final String id = match.group(3)!;
     final double size = _size;
     final int px = (size * MediaQuery.devicePixelRatioOf(context)).round();
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CachedNetworkImage(
-        imageUrl: FluxerMediaUrl.customEmoji(
-          id: id,
-          animated: animated,
-          size: 96,
-        ),
-        // Shares the message renderers' cache entries (same key convention).
-        cacheKey: 'emoji_${id}_${animated ? 'a2' : 's'}_96',
-        // Cap one decode axis only; capping both stretches non-square emoji
-        // (issue #445). Skip resize on animated frames.
-        memCacheWidth: animated ? null : px,
-        fit: BoxFit.contain,
-        fadeInDuration: Duration.zero,
-        fadeOutDuration: Duration.zero,
-        placeholder: (_, _) => _FallbackChip(name: name),
-        errorBuilder: (_, _, _) => _FallbackChip(name: name),
+    final Widget image = CachedNetworkImage(
+      imageUrl: FluxerMediaUrl.customEmoji(
+        id: id,
+        animated: animated,
+        size: 96,
       ),
+      cacheKey: 'emoji_${id}_${animated ? 'a2' : 's'}_96',
+      // Capping both decode axes stretches non-square emoji: https://feedback.fluxer.com/p/1836
+      memCacheWidth: animated ? null : px,
+      fit: BoxFit.contain,
+      fadeInDuration: Duration.zero,
+      fadeOutDuration: Duration.zero,
+      placeholder: (_, _) => _FallbackChip(name: name),
+      errorBuilder: (_, _, _) => _FallbackChip(name: name),
     );
+    if (!animated) {
+      return SizedBox(width: size, height: size, child: image);
+    }
+    return FluxerEmojiFrameBoundary(size: size, child: image);
   }
 
   Widget? _buildUnicode() {
@@ -225,6 +202,9 @@ class _EmojiChip extends StatelessWidget {
       return null;
     }
     return SpriteEmoji(
+      emoji: skinTone == null
+          ? entry.surrogates
+          : EmojiRegistry.resolveSkinToneSurrogates(entry, skinTone),
       index: entry.spriteIndex,
       diversityIndex: entry.diversityIndex,
       skinTone: skinTone,

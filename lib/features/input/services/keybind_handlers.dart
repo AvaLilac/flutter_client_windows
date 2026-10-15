@@ -12,6 +12,7 @@ import 'package:fluxer_app/features/channels/providers/read_state_repository_pro
 import 'package:fluxer_app/features/channels/providers/unread_provider.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/presentation/modals/pin_message_confirm_modal.dart';
+import 'package:fluxer_app/features/chat/presentation/sheets/delete_message_confirm_sheet.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/forward_message_sheet.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/unpin_message_confirm_sheet.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/expression_picker.dart';
@@ -40,7 +41,6 @@ import 'package:fluxer_app/features/quick_switcher/providers/quick_switcher_prov
 import 'package:fluxer_app/features/quick_switcher/providers/quick_switcher_providers.dart';
 import 'package:fluxer_app/features/settings/presentation/user_settings_modal.dart';
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_app/features/voice/providers/local_voice_state_provider.dart';
 import 'package:fluxer_app/features/voice/providers/pending_incoming_voice_calls_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_priority_speaker_provider.dart';
@@ -297,7 +297,6 @@ void registerKeybindHandlers({
         guildId,
         ref.read(fluxerDatabaseProvider),
         ref.read(fluxerClientProvider),
-        threadsActive: ref.read(threadsGateProvider).isActive(guildId),
       );
       return true;
     })
@@ -410,9 +409,10 @@ void registerKeybindHandlers({
     })
     ..register(KeybindAction.messageDelete, () {
       return withFocusedMessage((Message message) async {
-        await ref
-            .read(chatViewModelProvider.notifier)
-            .deleteMessage(message.id);
+        if (!context.mounted) {
+          return false;
+        }
+        await showDeleteMessageConfirmSheet(context, ref, message: message);
         return true;
       });
     })

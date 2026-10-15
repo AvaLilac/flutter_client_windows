@@ -215,7 +215,7 @@ void main() {
   );
 
   test(
-    'resolveLatestMessageIdForUnread uses channel pointer when ack caught cache but pointer is ahead',
+    'resolveLatestMessageIdForUnread uses channel pointer when ack caught cache but pointer is newer',
     () {
       final cachedId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12, 1));
       final channelId = _snowflakeForUtc(DateTime.utc(2026, 5, 6, 12, 2));

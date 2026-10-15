@@ -10,6 +10,15 @@
       }
     },
     {
+      "identity" : "measure",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/measure-sh/measure.git",
+      "state" : {
+        "branch" : "ios-v0.14.2",
+        "revision" : "6f6aba8c4ceac1e55dc5cf3a9a1058da41fac914"
+      }
+    },
+    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",

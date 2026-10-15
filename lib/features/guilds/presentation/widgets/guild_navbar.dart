@@ -16,7 +16,6 @@ import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/core/theme/fluxer_motion_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
-import 'package:fluxer_app/features/accessibility/domain/text_scale.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/presentation/sheets/create_category_sheet.dart';
 import 'package:fluxer_app/features/channels/presentation/sheets/create_channel_sheet.dart';
@@ -30,6 +29,7 @@ import 'package:fluxer_app/features/dm/providers/dm_folder_view_model.dart';
 import 'package:fluxer_app/features/dm/providers/dm_mute_provider.dart';
 import 'package:fluxer_app/features/dm/providers/dm_pinned_provider.dart';
 import 'package:fluxer_app/features/dm/providers/dm_providers.dart';
+import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
 import 'package:fluxer_app/features/dm/providers/unread_dm_provider.dart';
 import 'package:fluxer_app/features/favorites/providers/favorites_unread_provider.dart';
 import 'package:fluxer_app/features/friends/providers/friend_providers.dart';
@@ -55,6 +55,10 @@ import 'package:fluxer_app/features/guilds/presentation/'
 import 'package:fluxer_app/features/guilds/presentation/'
     'widgets/guild_menu_data.dart';
 import 'package:fluxer_app/features/guilds/presentation/'
+    'widgets/guild_navbar_dm_transition.dart';
+import 'package:fluxer_app/features/guilds/presentation/'
+    'widgets/guild_navbar_scroll_targets.dart';
+import 'package:fluxer_app/features/guilds/presentation/'
     'widgets/guild_scroll_indicator.dart';
 import 'package:fluxer_app/features/guilds/providers/add_guild_enabled_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_availability_provider.dart';
@@ -71,7 +75,6 @@ import 'package:fluxer_app/features/guilds/providers/organized_guild_list_provid
 import 'package:fluxer_app/features/guilds/providers/visible_unavailable_guild_count_provider.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_folder_icon.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_folder_menu_actions.dart';
-import 'package:fluxer_app/features/guilds/utils/guild_outage_availability.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_settings_actions.dart';
 import 'package:fluxer_app/features/guilds/utils/invite_people_actions.dart';
 import 'package:fluxer_app/features/guilds/utils/invite_people_recipients.dart';
@@ -83,16 +86,16 @@ import 'package:fluxer_app/features/settings/providers/user_settings_view_model.
 import 'package:fluxer_app/features/shell/navigation/drawer_navigation_coordinator.dart';
 import 'package:fluxer_app/features/shell/navigation/root_overlay_navigation.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
+import 'package:fluxer_app/features/ui/avatar/fluxer_guild_acronym.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/features/ui/warning_alert/fluxer_warning_alert.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/external_links/external_link_handler.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/clipboard_utils.dart';
 import 'package:fluxer_app/shared/utils/display_name.dart';
-import 'package:fluxer_app/shared/utils/guild_name_abbreviation.dart';
 import 'package:fluxer_app/shared/widgets/debug_bottom_sheet.dart';
 import 'package:fluxer_dart/export.dart' hide ChannelType;
 import 'package:go_router/go_router.dart';
@@ -145,10 +148,18 @@ class GuildNavbar extends ConsumerStatefulWidget {
 class _GuildNavbarState extends ConsumerState<GuildNavbar> {
   late final ScrollController _scrollController;
   final Map<String, GlobalKey> _itemKeys = <String, GlobalKey>{};
+  List<_NavbarListEntry> _indicatorEntries = const <_NavbarListEntry>[];
+  Map<String, List<Guild>> _indicatorFolderGuilds =
+      const <String, List<Guild>>{};
   late final GuildScrollIndicatorController _scrollIndicator;
   bool _restoring = false;
   bool _needsScrollClamp = false;
   GuildNavbarScrollStore? _scrollStore;
+  List<DmChannel> _railDms = const <DmChannel>[];
+  final Set<String> _enteringDmIds = <String>{};
+  final Set<String> _exitingDmIds = <String>{};
+  bool _railDmsSeeded = false;
+  final GlobalKey _verticalDragBoundsKey = GlobalKey();
 
   @override
   void initState() {
@@ -164,15 +175,37 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       resolveSeverity: _resolveGuildScrollSeverity,
       isMounted: () => mounted,
       hideTopWhen: (double scrollOffset) => scrollOffset < 80,
+      orderedIds: _indicatorOrder,
     )..attach();
+    final GuildPermissions permissions = ref.read(
+      guildPermissionsProvider.notifier,
+    );
+    final List<GuildNavbarItem> initialItems = ref.read(
+      organizedGuildListProvider,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
       }
-      _prefetchGuildPermissions(ref.read(organizedGuildListProvider));
+      _prefetchGuildPermissions(permissions, initialItems);
       _clampScrollOffset();
       _scrollIndicator.scheduleUpdate();
     });
+  }
+
+  List<String> _indicatorOrder() {
+    return guildNavbarScrollIndicatorOrder(
+      items: _indicatorItems(),
+      expandedFolderIds: ref.read(folderExpandedStateProvider),
+    );
+  }
+
+  Iterable<GuildNavbarItem> _indicatorItems() sync* {
+    for (final _NavbarListEntry entry in _indicatorEntries) {
+      if (entry.organizedItem case final GuildNavbarItem item) {
+        yield item;
+      }
+    }
   }
 
   void _persistScroll() {
@@ -215,10 +248,10 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     });
   }
 
-  void _prefetchGuildPermissions(List<GuildNavbarItem> items) {
-    final GuildPermissions permissionsNotifier = ref.read(
-      guildPermissionsProvider.notifier,
-    );
+  void _prefetchGuildPermissions(
+    GuildPermissions permissionsNotifier,
+    List<GuildNavbarItem> items,
+  ) {
     for (final GuildNavbarItem item in items) {
       switch (item) {
         case GuildNavbarGuild(:final Guild guild):
@@ -291,11 +324,9 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
           );
       }
     }
-    entries
-      ..add(const _NavbarListEntry(kind: _NavbarListEntryKind.divider))
-      ..add(
-        const _NavbarListEntry(kind: _NavbarListEntryKind.exploreCommunities),
-      );
+    entries.add(
+      const _NavbarListEntry(kind: _NavbarListEntryKind.exploreCommunities),
+    );
     if (showAddCommunity) {
       entries.add(
         const _NavbarListEntry(kind: _NavbarListEntryKind.addCommunity),
@@ -305,8 +336,63 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     return entries;
   }
 
+  List<DmChannel> _reconcileRailDms(
+    List<DmChannel> next, {
+    required bool animate,
+  }) {
+    final Set<String> nextIds = <String>{
+      for (final DmChannel dm in next) dm.id,
+    };
+    final Set<String> previousIds = <String>{
+      for (final DmChannel dm in _railDms) dm.id,
+    };
+    if (_railDmsSeeded && animate) {
+      _enteringDmIds.addAll(nextIds.difference(previousIds));
+    }
+    _railDmsSeeded = true;
+    _exitingDmIds.removeAll(nextIds);
+    final List<DmChannel> result = <DmChannel>[...next];
+    if (animate) {
+      for (var i = 0; i < _railDms.length; i++) {
+        final DmChannel dm = _railDms[i];
+        if (nextIds.contains(dm.id)) {
+          continue;
+        }
+        _exitingDmIds.add(dm.id);
+        result.insert(min(i, result.length), dm);
+      }
+    } else {
+      _exitingDmIds.clear();
+    }
+    _railDms = result;
+    return result;
+  }
+
+  Key? _entryKey(_NavbarListEntry entry) {
+    if (entry.dm case final DmChannel dm) {
+      return ValueKey<String>('dm-${dm.id}');
+    }
+    if (entry.organizedItem case final GuildNavbarFolder folder) {
+      return _itemKeys.putIfAbsent(
+        guildFolderScrollIndicatorId(folder.id),
+        GlobalKey.new,
+      );
+    }
+    return null;
+  }
+
+  void _handleRailDmExited(String channelId) {
+    if (!mounted || !_exitingDmIds.remove(channelId)) {
+      return;
+    }
+    setState(() {
+      _railDms = _railDms.where((DmChannel dm) => dm.id != channelId).toList();
+    });
+  }
+
   @override
   void dispose() {
+    ref.read(guildDragProvider.notifier).clearVerticalBounds();
     _persistScroll();
     _scrollController
       ..removeListener(_persistScroll)
@@ -315,33 +401,35 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     super.dispose();
   }
 
-  GuildScrollIndicatorSeverity? _resolveGuildScrollSeverity(String guildId) {
-    final GuildReadStateEntry? unread = ref.read(
-      guildReadStateProvider,
-    )[guildId];
-    if (unread == null) {
-      return null;
+  void _syncVerticalDragBounds() {
+    final RenderBox? renderBox =
+        _verticalDragBoundsKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) {
+      return;
     }
-    if (unread.mentionCount > 0) {
-      return GuildScrollIndicatorSeverity.mention;
-    }
-    if (unread.hasUnread) {
-      return GuildScrollIndicatorSeverity.unread;
-    }
-    return null;
+    final Offset topLeft = renderBox.localToGlobal(Offset.zero);
+    ref
+        .read(guildDragProvider.notifier)
+        .updateVerticalBounds(
+          top: topLeft.dy,
+          bottom: topLeft.dy + renderBox.size.height,
+        );
+  }
+
+  GuildScrollIndicatorSeverity? _resolveGuildScrollSeverity(String id) {
+    return guildNavbarScrollIndicatorSeverity(
+      id: id,
+      folderGuilds: _indicatorFolderGuilds,
+      readStates: ref.read(guildReadStateProvider),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     _scrollStore = ref.read(guildNavbarScrollStoreProvider);
     final organizedItems = ref.watch(organizedGuildListProvider);
-    final guilds = ref.watch(
-      guildListViewModelProvider.select((s) => s.guilds),
-    );
-    final activeGuildId = ref.watch(activeGuildIdProvider);
-    final unavailableCount = unavailableGuildCount(
-      trackedUnavailableGuildIds: ref.watch(guildAvailabilityProvider),
-      guilds: guilds,
+    final unavailableCount = ref.watch(
+      guildAvailabilityProvider.select((Set<String> ids) => ids.length),
     );
     final pendingUnavailableCount = ref.watch(
       visibleUnavailableGuildCountProvider,
@@ -349,7 +437,10 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
 
     final dmFolderState = ref.watch(dmFolderProvider);
     ref.watch(unreadDmChannelsProvider.select(dmNavbarMembershipToken));
-    final unreadDms = ref.read(unreadDmChannelsProvider).channels;
+    final List<DmChannel> unreadDms = _reconcileRailDms(
+      ref.read(unreadDmChannelsProvider).channels,
+      animate: context.motion.panel != Duration.zero,
+    );
     final showFavorites = ref.watch(
       appearancePreferencesProvider.select((s) => s.showFavorites),
     );
@@ -377,11 +468,14 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
         List<GuildNavbarItem> next,
       ) {
         if (previous != next) {
+          final GuildPermissions permissions = ref.read(
+            guildPermissionsProvider.notifier,
+          );
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) {
               return;
             }
-            _prefetchGuildPermissions(next);
+            _prefetchGuildPermissions(permissions, next);
           });
         }
         if (_needsScrollClamp && next.isNotEmpty) {
@@ -412,27 +506,43 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       showAddCommunity: showAddCommunity,
       hideDirectMessages: hideDirectMessages,
     );
+    _indicatorEntries = navbarEntries;
+    _indicatorFolderGuilds = guildNavbarScrollIndicatorFolderGuilds(
+      _indicatorItems(),
+    );
+    final Map<Key, int> keyedEntryIndex = <Key, int>{
+      for (var i = 0; i < navbarEntries.length; i++)
+        if (_entryKey(navbarEntries[i]) case final Key key) key: i,
+    };
     final guildListView = ListView.builder(
       scrollCacheExtent: const ScrollCacheExtent.pixels(600),
       controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.only(top: topPadding, bottom: 8),
       itemCount: navbarEntries.length,
+      findChildIndexCallback: (Key key) => keyedEntryIndex[key],
       itemBuilder: (BuildContext context, int index) {
         return _buildNavbarListItem(
           context,
           entry: navbarEntries[index],
           dmFolderState: dmFolderState,
-          activeGuildId: activeGuildId,
           unavailableCount: unavailableCount,
         );
       },
     );
 
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _syncVerticalDragBounds();
+    });
     return Container(
-      width: 72,
+      key: _verticalDragBoundsKey,
+      width: kGuildNavbarWidth,
       decoration: BoxDecoration(
-        color: context.colors.backgroundSecondary,
+        color: context.colors.serverSidebarBackground,
         border: Border(right: BorderSide(color: context.colors.borderColor)),
       ),
       child: ScrollConfiguration(
@@ -440,7 +550,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
         child: GuildScrollIndicatorLayer(
           controller: _scrollIndicator,
           label: l10n.scrollIndicatorNew,
-          topInset: 8 + topPadding,
+          topInset: kGuildScrollIndicatorEdgeInset + topPadding,
           child: guildListView,
         ),
       ),
@@ -451,7 +561,6 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     BuildContext context, {
     required _NavbarListEntry entry,
     required DmFolderViewState dmFolderState,
-    required String? activeGuildId,
     required int unavailableCount,
   }) {
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
@@ -462,34 +571,44 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
         return const _FavoritesButton();
       case _NavbarListEntryKind.allowlistedDm:
         final DmChannel dm = entry.dm!;
-        return DmNavbarItem(
-          key: ValueKey('dm-${dm.id}'),
-          channelId: dm.id,
-          recipientId: dm.recipientId,
-          displayName: dm.name ?? l10n.favoritesDirectMessageSubtitle,
-          type: dm.type,
-          onContextMenu: (Offset position) => _handleDmContextMenu(
-            context,
-            position: position,
-            dm: dm,
-            isCollapsed: dmFolderState.collapseDMs,
-            isAllowlisted: true,
+        return GuildNavbarDmTransition(
+          key: _entryKey(entry),
+          visible: !_exitingDmIds.contains(dm.id),
+          animateIn: _enteringDmIds.remove(dm.id),
+          onExited: () => _handleRailDmExited(dm.id),
+          child: DmNavbarItem(
+            channelId: dm.id,
+            recipientId: dm.recipientId,
+            displayName: dm.name ?? l10n.favoritesDirectMessageSubtitle,
+            type: dm.type,
+            onContextMenu: (Offset position) => _handleDmContextMenu(
+              context,
+              position: position,
+              dm: dm,
+              isCollapsed: dmFolderState.collapseDMs,
+              isAllowlisted: true,
+            ),
           ),
         );
       case _NavbarListEntryKind.regularDm:
         final DmChannel dm = entry.dm!;
-        return DmNavbarItem(
-          key: ValueKey('dm-${dm.id}'),
-          channelId: dm.id,
-          recipientId: dm.recipientId,
-          displayName: dm.name ?? l10n.favoritesDirectMessageSubtitle,
-          type: dm.type,
-          onContextMenu: (Offset position) => _handleDmContextMenu(
-            context,
-            position: position,
-            dm: dm,
-            isCollapsed: dmFolderState.collapseDMs,
-            isAllowlisted: false,
+        return GuildNavbarDmTransition(
+          key: _entryKey(entry),
+          visible: !_exitingDmIds.contains(dm.id),
+          animateIn: _enteringDmIds.remove(dm.id),
+          onExited: () => _handleRailDmExited(dm.id),
+          child: DmNavbarItem(
+            channelId: dm.id,
+            recipientId: dm.recipientId,
+            displayName: dm.name ?? l10n.favoritesDirectMessageSubtitle,
+            type: dm.type,
+            onContextMenu: (Offset position) => _handleDmContextMenu(
+              context,
+              position: position,
+              dm: dm,
+              isCollapsed: dmFolderState.collapseDMs,
+              isAllowlisted: false,
+            ),
           ),
         );
       case _NavbarListEntryKind.divider:
@@ -541,7 +660,6 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
               child: _buildGuildItem(
                 context,
                 guild: guild,
-                activeGuildId: activeGuildId,
                 unavailableCount: unavailableCount,
                 itemKey: itemKey,
               ),
@@ -551,14 +669,19 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       case _NavbarListEntryKind.organizedFolder:
         final GuildNavbarFolder folderItem =
             entry.organizedItem! as GuildNavbarFolder;
-        return _GuildFolderWidget(
-          key: ValueKey<String>('folder-${folderItem.id}'),
-          folder: folderItem,
-          activeGuildId: activeGuildId,
-          unavailableCount: unavailableCount,
-          resolveGuildItemKey: (String guildId) =>
-              _itemKeys.putIfAbsent(guildId, GlobalKey<_GuildListItemState>.new)
-                  as GlobalKey<_GuildListItemState>,
+        return KeyedSubtree(
+          key: _entryKey(entry),
+          child: _GuildFolderWidget(
+            key: ValueKey<String>('folder-${folderItem.id}'),
+            folder: folderItem,
+            unavailableCount: unavailableCount,
+            resolveGuildItemKey: (String guildId) =>
+                _itemKeys.putIfAbsent(
+                      guildId,
+                      GlobalKey<_GuildListItemState>.new,
+                    )
+                    as GlobalKey<_GuildListItemState>,
+          ),
         );
       case _NavbarListEntryKind.exploreCommunities:
         final bool isDiscover = ref.watch(
@@ -568,7 +691,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
         );
         return _DashedGuildIcon(
           label: l10n.guildNavbarExploreDiscoverableCommunities,
-          icon: PhosphorIconsBold.compass,
+          icon: PhosphorIconsFill.compass,
           isSelected: isDiscover,
           onTap: () {
             if (ref.read(currentLocationProvider) == RoutePaths.discover) {
@@ -586,7 +709,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       case _NavbarListEntryKind.help:
         return _DashedGuildIcon(
           label: l10n.guildNavbarHelp,
-          icon: PhosphorIconsBold.question,
+          icon: PhosphorIconsBold.questionMark,
           onTap: () =>
               handleExternalLinkTap(context, 'https://help.fluxer.app'),
         );
@@ -687,6 +810,14 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     }
   }
 
+  Future<void> _createChannelOrExplain(Future<Object?> request) async {
+    try {
+      await request;
+    } on Object catch (error) {
+      await showApiErrorFromRoot(ApiErrorAction.generic, error);
+    }
+  }
+
   Future<void> _confirmCloseDm(
     BuildContext context, {
     required DmChannel dm,
@@ -707,14 +838,21 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       return;
     }
 
+    final bool isGroup = isDmGroupType(dm.type);
     await FluxerConfirmModal.show(
       context,
-      title: l10n.dmCloseDmConfirmTitle,
-      description: l10n.dmCloseDmConfirmDescription(username),
-      confirmLabel: l10n.dmCloseDm,
+      title: isGroup ? l10n.dmLeaveGroup : l10n.dmCloseDmConfirmTitle,
+      description: isGroup
+          ? l10n.channelDetailsLeaveGroupDescription(username)
+          : l10n.dmCloseDmConfirmDescription(username),
+      confirmLabel: isGroup ? l10n.dmLeaveGroup : l10n.dmCloseDm,
       isDanger: true,
       onConfirm: () {
-        unawaited(ref.read(dmRepositoryProvider).closeDmChannel(dm.id));
+        unawaited(
+          ref
+              .read(dmViewModelProvider.notifier)
+              .closeDmChannel(dm.id, isGroup: isGroup),
+        );
       },
     );
   }
@@ -722,7 +860,6 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
   Widget _buildGuildItem(
     BuildContext context, {
     required Guild guild,
-    required String? activeGuildId,
     required int unavailableCount,
     required GlobalKey<_GuildListItemState> itemKey,
   }) {
@@ -745,11 +882,14 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
         final developerMode = ref.watch(
           userSettingsViewModelProvider.select((s) => s.developerMode),
         );
+        final bool isSelected = ref.watch(
+          activeGuildIdProvider.select((String? id) => id == guild.id),
+        );
         return _GuildListItem(
           key: itemKey,
           label: guild.name,
           guild: guild,
-          isSelected: guild.id == activeGuildId,
+          isSelected: isSelected,
           permissions: permissions,
           isOwner: guild.ownerId == currentUserId,
           iconUrl: guild.iconUrl,
@@ -766,7 +906,9 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
           developerMode: developerMode,
           enableLongPressMenu: !isMobileLayout(context),
           onTap: () {
-            DrawerNavigationCoordinator.selectGuild(ref.container, guild.id);
+            unawaited(
+              DrawerNavigationCoordinator.selectGuild(ref.container, guild.id),
+            );
           },
           onMenuOpened: () {
             ref.read(guildSyncProvider.notifier).syncIfNeeded(guild.id);
@@ -780,7 +922,6 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
                 guild.id,
                 ref.read(fluxerDatabaseProvider),
                 ref.read(fluxerClientProvider),
-                threadsActive: ref.read(threadsGateProvider).isActive(guild.id),
               ),
             );
           },
@@ -808,27 +949,31 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
           },
           onCreateCategory: (name) {
             unawaited(
-              ref
-                  .read(fluxerClientProvider)
-                  .guilds
-                  .createGuildChannel(
-                    guildId: guild.id,
-                    body: ChannelCreateRequest4(
-                      name: name,
-                      type: GuildCategoryChannelCreateRequestTypeType
-                          .guildCategory,
-                      permissionOverwrites: [],
-                      contentWarningLevel: ContentWarningLevelInput.inherit,
+              _createChannelOrExplain(
+                ref
+                    .read(fluxerClientProvider)
+                    .guilds
+                    .createGuildChannel(
+                      guildId: guild.id,
+                      body: ChannelCreateRequest4(
+                        name: name,
+                        type: GuildCategoryChannelCreateRequestTypeType
+                            .guildCategory,
+                        permissionOverwrites: [],
+                        contentWarningLevel: ContentWarningLevelInput.inherit,
+                      ),
                     ),
-                  ),
+              ),
             );
           },
           onCreateChannel: (request) {
             unawaited(
-              ref
-                  .read(fluxerClientProvider)
-                  .guilds
-                  .createGuildChannel(guildId: guild.id, body: request),
+              _createChannelOrExplain(
+                ref
+                    .read(fluxerClientProvider)
+                    .guilds
+                    .createGuildChannel(guildId: guild.id, body: request),
+              ),
             );
           },
           onCreateInvite:
@@ -915,7 +1060,6 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
           onGetGuildChannels: () => getGuildChannelsForSettings(
             db: ref.read(fluxerDatabaseProvider),
             guildId: guild.id,
-            threadsActive: ref.read(threadsGateProvider).isActive(guild.id),
           ),
           onUpdateChannelOverride:
               (channelId, messageNotifications, {required muted}) {

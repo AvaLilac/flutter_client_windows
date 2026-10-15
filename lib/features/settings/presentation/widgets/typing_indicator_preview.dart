@@ -1,7 +1,9 @@
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart'
+    show isMobileLayout;
 import 'package:fluxer_app/features/ui/avatar/fluxer_avatar_stack.dart';
-import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
+import 'package:fluxer_app/features/ui/spinner/fluxer_typing_dots.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -29,7 +31,9 @@ class TypingIndicatorPreview extends StatelessWidget {
     final textStyles = context.textStyles;
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 264),
+      constraints: isMobileLayout(context)
+          ? null
+          : const BoxConstraints(maxWidth: 264),
       padding: EdgeInsets.symmetric(horizontal: layout.s3, vertical: layout.s2),
       decoration: BoxDecoration(
         color: colors.backgroundModifierSelected,
@@ -57,7 +61,7 @@ class TypingIndicatorPreview extends StatelessWidget {
           if (mode != ChannelTypingIndicatorMode.hidden) ...[
             SizedBox(width: layout.s2),
             RepaintBoundary(
-              child: FluxerLoadingSpinner(color: colors.interactiveActive),
+              child: FluxerTypingDots(color: colors.interactiveActive),
             ),
             if (mode == ChannelTypingIndicatorMode.avatars) ...[
               SizedBox(width: layout.s1),

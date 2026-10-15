@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Banner shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Опитай отново",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Свързан",
     "@gatewayConnectedToast": {
         "description": "Banner shown when the gateway connection is restored."
@@ -2073,17 +2077,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Търсене в KLIPY",
+    "gifPickerSearchKlipy": "Търсене в Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Търсене в Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Любими",
     "@gifPickerFavorites": {
@@ -3139,10 +3139,6 @@
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
     },
-    "dangerZoneDeleteCancelSubscription": "Отменете активния си Plutonium абонамент в настройките на Plutonium, преди да изтриете акаунта си.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
-    },
     "dangerZoneDeleteCannotDeleteAccount": "Акаунтът не може да бъде изтрит",
     "@dangerZoneDeleteCannotDeleteAccount": {
         "description": "Title for the guild ownership warning modal when trying to delete account."
@@ -3537,20 +3533,11 @@
             }
         }
     },
-    "userProfilePlutoniumBadgeTooltip": "Plutonium на {productName}",
-    "@userProfilePlutoniumBadgeTooltip": {
-        "description": "Short badge title in the user profile badges popout. English locales use Title Case for official badge titles; other locales should use natural local capitalization.",
+    "userProfilePremiumSubscriberSinceTooltip": "Абонат на {premiumProductFullName} от {date}",
+    "@userProfilePremiumSubscriberSinceTooltip": {
+        "description": "Badge label with a date in the user profile badges popout. Preserve {premiumProductFullName} and {date}; they are inserted by code. premiumProductFullName is the instance product name followed by its premium product name, for example Fluxer Plutonium. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
         "placeholders": {
-            "productName": {
-                "type": "String"
-            }
-        }
-    },
-    "userProfilePlutoniumSubscriberSinceTooltip": "{productName} Plutonium абонат от {date}",
-    "@userProfilePlutoniumSubscriberSinceTooltip": {
-        "description": "Badge label with a date in the user profile badges popout. Preserve {date}; it is inserted by code. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
-        "placeholders": {
-            "productName": {
+            "premiumProductFullName": {
                 "type": "String"
             },
             "date": {
@@ -4670,6 +4657,71 @@
     "channelComposerBarrierVerifyEmail": "Потвърди имейла",
     "@channelComposerBarrierVerifyEmail": {
         "description": "Action button on the composer barrier for unverified email."
+    },
+    "accountLimitedNotice": "Изпращането на съобщения от акаунта ти е на пауза. Погледни имейла си: остава само една бърза стъпка, за да продължиш.",
+    "@accountLimitedNotice": {
+        "description": "Notice shown in place of the message composer and as a banner at the top of the app when messaging is paused on the current account until the user completes one quick step described in an email. Keep the tone calm and friendly."
+    },
+    "messagingPausedTextDidNotGoThrough": "SMS-ът ми не пристигна",
+    "@messagingPausedTextDidNotGoThrough": {
+        "description": "Button shown while messaging is paused on the current account, and the title of the help sheet it opens. The email describing the quick step asks the user to send a text message from their phone. This is for users who could not send that text, and also for users who sent it and nothing happened. The translation should cover both. Also used as the subject of the support email."
+    },
+    "messagingPausedHelpBody": "Пиши на {supportEmail} и човек от екипа ще провери акаунта ти. Можеш и да отговориш на имейла, който ти изпратихме.",
+    "@messagingPausedHelpBody": {
+        "description": "Body of the help sheet opened from \"My text didn't go through\" while messaging is paused on the account. supportEmail is the support email address. Keep it short, calm and neutral.",
+        "placeholders": {
+            "supportEmail": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLabel": "Държавата, в която се намираш",
+    "@messagingPausedHelpCountryLabel": {
+        "description": "Field label in the help sheet opened from \"My text didn't go through\". The user types the country they are in so support can help."
+    },
+    "messagingPausedHelpCopyDetails": "Копирай данните",
+    "@messagingPausedHelpCopyDetails": {
+        "description": "Button in the help sheet opened from \"My text didn't go through\". Copies the account details for a support email to the clipboard."
+    },
+    "messagingPausedHelpEmailSupport": "Пиши на поддръжката",
+    "@messagingPausedHelpEmailSupport": {
+        "description": "Primary button in the help sheet opened from \"My text didn't go through\". Opens a new email to support with the account details filled in."
+    },
+    "messagingPausedHelpAccountIdLine": "ID на акаунта: {accountId}",
+    "@messagingPausedHelpAccountIdLine": {
+        "description": "One line of the support email written for the user. accountId is the numeric account ID.",
+        "placeholders": {
+            "accountId": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpUsernameLine": "Потребителско име: {username}",
+    "@messagingPausedHelpUsernameLine": {
+        "description": "One line of the support email written for the user. username is the account username with its tag.",
+        "placeholders": {
+            "username": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpAccountCreatedLine": "Акаунтът е създаден: {createdAt}",
+    "@messagingPausedHelpAccountCreatedLine": {
+        "description": "One line of the support email written for the user. createdAt is the account creation time as an ISO 8601 UTC timestamp.",
+        "placeholders": {
+            "createdAt": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLine": "Държава: {country}",
+    "@messagingPausedHelpCountryLine": {
+        "description": "One line of the support email written for the user. country is the country the user typed.",
+        "placeholders": {
+            "country": {
+                "type": "String"
+            }
+        }
     },
     "chatAttachmentTooMany": "Твърде много прикачени файлове (макс. {max})",
     "@chatAttachmentTooMany": {
@@ -7040,7 +7092,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Покажи чата с {count, plural, one {# непрочетено съобщение} other {# непрочетени съобщения}}",
+    "voiceTextChatShowUnread": "Покажи чата с {count, plural, one {{count} непрочетено съобщение} other {{count} непрочетени съобщения}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -7256,6 +7308,10 @@
     "chatMessageFailedToSend": "Неуспешно изпращане на съобщение",
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
+    },
+    "chatMessageFailedToSendTapForOptions": "Неуспешно изпращане на съобщение. Докоснете за опции.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
     },
     "chatSendFailureDmRestricted": "Съобщението ви не може да бъде доставено. Обикновено това е така, защото не споделяте общност с получателя или получателя приема директни съобщения само от приятели. Може също да се наложи да коригирате собствените си настройки за поверителност на директните съобщения в {settingsPath}.",
     "@chatSendFailureDmRestricted": {
@@ -7765,7 +7821,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Всички без {count, plural, one {# общност} other {# общности}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Всички без {count, plural, one {{count} общност} other {{count} общности}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -7774,7 +7830,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Само {count, plural, one {# общност} other {# общности}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Само {count, plural, one {{count} общност} other {{count} общности}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -7803,7 +7859,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# час} other {# часа}} и {minutes, plural, one {# минута} other {# минути}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} час} other {{hours} часа}} и {minutes, plural, one {{minutes} минута} other {{minutes} минути}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -7815,7 +7871,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# час} other {# часа}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} час} other {{hours} часа}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -7824,7 +7880,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# минута} other {# минути}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} минута} other {{minutes} минути}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -7833,7 +7889,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# секунда} other {# секунди}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} секунда} other {{seconds} секунди}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -7925,10 +7981,6 @@
     "forwardSuccessToast": "Съобщението е препратено",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Неуспешно препращане на съобщението",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Коментарите са недостъпни, защото избраният канал има активиран режим на забавяне.",
     "@forwardCommentSlowmodeDisabled": {
@@ -10645,23 +10697,23 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "ВАШИЯТ ПРОФИЛ",
+    "userSettingsGroupYourAccount": "Вашият профил",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -12151,11 +12203,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Въведете URL на инстанцията (напр. fluxer.app)",
+    "instanceUrlPlaceholder": "Въведете URL на инстанцията (напр. fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Използвайте fluxer.app за официалния инстанс или точния URL адрес на самохостван инстанс.",
+    "instanceUrlHelper": "Използвайте fluxer.com за официалния инстанс или точния URL адрес на самохостван инстанс.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },
@@ -12375,13 +12427,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "НОВО",
+    "scrollIndicatorNew": "Ново",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "НОВО СЪОБЩЕНИЕ",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Нови съобщения",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Свиване на {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -12879,10 +12931,6 @@
     "guildMenuMarkAsRead": "Маркирай като прочетено",
     "@guildMenuMarkAsRead": {
         "description": "Guild menu action to mark all channels as read."
-    },
-    "guildPeekMoreOptions": "Още опции",
-    "@guildPeekMoreOptions": {
-        "description": "Guild peek menu action to open the full guild options sheet."
     },
     "guildMenuInviteMembers": "Покани членове",
     "@guildMenuInviteMembers": {
@@ -14510,7 +14558,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Изтрито # съобщение.} other{Изтрити # съобщения.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Изтрито {count} съобщение.} other{Изтрити {count} съобщения.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -14519,7 +14567,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Премахнат # член.} other{Премахнати # членове.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Премахнат {count} член.} other{Премахнати {count} членове.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -15199,19 +15247,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -16538,5 +16586,96 @@
     },
     "channelUnsupportedTitle": "Неподдържан тип канал",
     "channelUnsupportedBody": "Тази версия на приложението не поддържа този тип канал.",
-    "channelDetailsUnsupportedChannel": "Неподдържан канал"
+    "channelDetailsUnsupportedChannel": "Неподдържан канал",
+    "forumPostNewBadge": "Нови",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} ново съобщение} other {{count} нови съобщения}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Нови",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} ново} other {{unreadCount} нови}} от {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ нови от {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} ново съобщение} other {{unreadCount} нови съобщения}} от {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ нови съобщения от {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Маркирай като прочетено",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Маркирай като прочетено",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Към първото непрочетено съобщение",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Преглеждаш по-стари съобщения",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Към най-новите",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Преименуване на категория",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

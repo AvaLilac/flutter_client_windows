@@ -57,7 +57,8 @@ class ExpressionPicker extends ConsumerStatefulWidget {
     this.onSearchActivated,
     this.searchFocusNode,
     this.sheetDragHandlers,
-    this.trackEmojiUsageOnSelect = true,
+    this.onEmojiBackspace,
+    this.autofocusSearch = false,
     super.key,
   });
 
@@ -66,10 +67,8 @@ class ExpressionPicker extends ConsumerStatefulWidget {
   final List<ExpressionPickerTab> visibleTabs;
   final ExpressionPickerTab initialTab;
 
-  /// When null, tabs auto-show if there are multiple visible tabs.
   final bool? showTabs;
 
-  /// When provided, the search bar is rendered by the parent header /
   final TextEditingController? searchController;
   final String searchQuery;
   final String? skinTone;
@@ -87,11 +86,8 @@ class ExpressionPicker extends ConsumerStatefulWidget {
   final VoidCallback? onSearchActivated;
   final FocusNode? searchFocusNode;
   final ExpandableSheetDragHandlers? sheetDragHandlers;
-
-  /// Forwarded to [EmojiPickerContent.trackUsageOnSelect]. Set false when the
-  /// picker drives reactions, which are tracked centrally in
-  /// `ChatViewModel.toggleReaction`.
-  final bool trackEmojiUsageOnSelect;
+  final VoidCallback? onEmojiBackspace;
+  final bool autofocusSearch;
 
   @override
   ConsumerState<ExpressionPicker> createState() => _ExpressionPickerState();
@@ -200,6 +196,9 @@ class _ExpressionPickerState extends ConsumerState<ExpressionPicker> {
             skinTone: skinTone,
             onSkinToneChanged: (t) =>
                 unawaited(ref.read(emojiSkinToneProvider.notifier).set(t)),
+            autofocus: widget.autofocusSearch,
+            showSkinTone: !isMobileLayout(context),
+            topPadding: widget.contentSearchTopPadding ?? 8,
           ),
         Expanded(child: _buildContent(context, colors, skinTone)),
       ],
@@ -259,7 +258,7 @@ class _ExpressionPickerState extends ConsumerState<ExpressionPicker> {
         onHoveredEmojiChanged: _onHoveredChanged,
         onSelect: widget.onEmojiSelect,
         channelId: widget.channelId,
-        trackUsageOnSelect: widget.trackEmojiUsageOnSelect,
+        onBackspace: widget.onEmojiBackspace,
       );
     }
     if (_selectedTab == ExpressionPickerTab.gifs) {

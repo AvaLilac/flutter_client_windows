@@ -17,16 +17,16 @@ import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_providers.dart';
 import 'package:fluxer_app/features/guilds/services/join_community_service.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_invite_action_state.dart';
+import 'package:fluxer_app/features/ui/avatar/fluxer_guild_acronym.dart';
 import 'package:fluxer_app/features/ui/badge/fluxer_guild_badge.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:fluxer_app/shared/utils/guild_name_abbreviation.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-/// Guild invite embed card.
 class EmbedInvite extends ConsumerWidget {
   const EmbedInvite({required this.code, super.key});
 
@@ -148,20 +148,11 @@ class _GuildInviteCard extends StatelessWidget {
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     try {
       await joinCommunityViaInvite(ref: ref, rawInput: code, l10n: l10n);
-    } on JoinCommunityException catch (error) {
+    } on Object catch (error) {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-    } on Object {
-      if (!context.mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.addGuildJoinFailed)));
+      await showApiError(context, ApiErrorAction.acceptInvite, error);
     }
   }
 
@@ -309,18 +300,19 @@ class _GroupDmInviteCard extends StatelessWidget {
     );
   }
 
-  void _onJoin() {
-    unawaited(
-      ref
+  Future<void> _joinGroup(BuildContext context) async {
+    try {
+      await ref
           .read(fluxerClientProvider)
           .invites
-          .acceptInvite(inviteCode: code)
-          .then((_) {
-            ref
-                .read(fluxerRouterProvider)
-                .go(RoutePaths.dmChannel(invite.channel.id));
-          }),
-    );
+          .acceptInvite(inviteCode: code);
+    } on Object catch (error) {
+      if (context.mounted) {
+        await showApiError(context, ApiErrorAction.acceptInvite, error);
+      }
+      return;
+    }
+    ref.read(fluxerRouterProvider).go(RoutePaths.dmChannel(invite.channel.id));
   }
 
   @override
@@ -351,9 +343,7 @@ class _GroupDmInviteCard extends StatelessWidget {
       child: _InviteCard(
         icon: _CircleAvatar(
           url: _inviterAvatarUrl,
-          fallback: _inviterName.isNotEmpty
-              ? _inviterName[0].toUpperCase()
-              : '?',
+          fallback: _InviterInitial(name: _inviterName),
         ),
         title: Text(
           groupTitle,
@@ -378,7 +368,9 @@ class _GroupDmInviteCard extends StatelessWidget {
           ],
         ),
         footer: FluxerButton.primary(
-          onPressed: isAlreadyJoined ? null : _onJoin,
+          onPressed: isAlreadyJoined
+              ? null
+              : () => unawaited(_joinGroup(context)),
           label: isAlreadyJoined
               ? l10n.embedInviteAlreadyJoined
               : l10n.embedInviteJoinGroup,
@@ -522,27 +514,37 @@ class _GuildIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = abbreviateGuildName(name);
-    final initialsLength = guildNameInitialsLength(name);
-
     return _CircleAvatar(
       url: url,
-      fallback: initials,
-      fallbackFontSize: _guildInviteInitialsFontSize(initialsLength),
+      fallback: FluxerGuildAcronym(name: name),
+    );
+  }
+}
+
+class _InviterInitial extends StatelessWidget {
+  const _InviterInitial({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: context.textStyles.smallText.copyWith(
+          color: context.colors.textPrimary,
+          fontSize: 18,
+        ),
+      ),
     );
   }
 }
 
 class _CircleAvatar extends StatelessWidget {
-  const _CircleAvatar({
-    required this.url,
-    required this.fallback,
-    this.fallbackFontSize = 18,
-  });
+  const _CircleAvatar({required this.url, required this.fallback});
 
   final String? url;
-  final String fallback;
-  final double fallbackFontSize;
+  final Widget fallback;
 
   @override
   Widget build(BuildContext context) {
@@ -564,31 +566,11 @@ class _CircleAvatar extends StatelessWidget {
               fit: BoxFit.cover,
               fadeInDuration: Duration.zero,
               fadeOutDuration: Duration.zero,
-              errorBuilder: (_, _, _) => _buildFallback(context),
+              errorBuilder: (_, _, _) => fallback,
             )
-          : _buildFallback(context),
+          : fallback,
     );
   }
-
-  Widget _buildFallback(BuildContext context) => Center(
-    child: Text(
-      fallback,
-      style: context.textStyles.smallText.copyWith(
-        color: context.colors.textPrimary,
-        fontSize: fallbackFontSize,
-      ),
-    ),
-  );
-}
-
-double _guildInviteInitialsFontSize(int initialsLength) {
-  if (initialsLength <= 2) {
-    return 18;
-  }
-  if (initialsLength <= kGuildIconInitialsMaxLength) {
-    return 15;
-  }
-  return 12;
 }
 
 class _StatDot extends StatelessWidget {

@@ -10,6 +10,24 @@
       }
     },
     {
+      "identity" : "kscrash",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kstenerud/KSCrash.git",
+      "state" : {
+        "revision" : "3f77f379c2db001e0c261c2a51b7e2b115d31f91",
+        "version" : "2.6.0"
+      }
+    },
+    {
+      "identity" : "measure",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/measure-sh/measure.git",
+      "state" : {
+        "branch" : "ios-v0.14.2",
+        "revision" : "6f6aba8c4ceac1e55dc5cf3a9a1058da41fac914"
+      }
+    },
+    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",

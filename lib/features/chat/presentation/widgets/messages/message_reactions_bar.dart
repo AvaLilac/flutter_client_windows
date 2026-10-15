@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/core/theme/reaction_chip_colors.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/expression_picker.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/wallpaper/chat_wallpaper_text_theme.dart';
@@ -40,7 +41,6 @@ Future<void> openReactionPickerSheet(
     context,
     channelId: channelId,
     visibleTabs: const [ExpressionPickerTab.emojis],
-    trackEmojiUsageOnSelect: false,
     onEmojiSelected: onEmojiSelected,
   );
 }
@@ -169,7 +169,7 @@ class _ReactionChip extends StatelessWidget {
   Color _chipBackground(BuildContext context, {required bool hasReacted}) {
     final colors = context.colors;
     if (hasReacted) {
-      return Color.lerp(colors.backgroundSecondary, colors.brandPrimary, 0.36)!;
+      return selectedReactionChipColors(context).background;
     }
     final isLight = Theme.of(context).brightness == Brightness.light;
     if (isLight) {
@@ -188,7 +188,7 @@ class _ReactionChip extends StatelessWidget {
   Color _chipBorderColor(BuildContext context, {required bool hasReacted}) {
     final colors = context.colors;
     if (hasReacted) {
-      return colors.brandPrimary;
+      return selectedReactionChipColors(context).border;
     }
     if (Theme.of(context).brightness == Brightness.light) {
       return Color.lerp(
@@ -201,12 +201,10 @@ class _ReactionChip extends StatelessWidget {
   }
 
   Color _chipCountColor(BuildContext context, {required bool hasReacted}) {
-    final colors = context.colors;
     if (!hasReacted) {
-      return colors.textTertiary;
+      return context.colors.textTertiary;
     }
-    final isLight = Theme.of(context).brightness == Brightness.light;
-    return isLight ? colors.brandPrimary : colors.textOnBrandPrimary;
+    return selectedReactionChipColors(context).foreground;
   }
 }
 
@@ -252,7 +250,6 @@ class _InlineAddReactionButtonState extends State<_InlineAddReactionButton> {
       key: _pickerKey,
       closeOnEmojiSelect: true,
       visibleTabs: const [ExpressionPickerTab.emojis],
-      trackEmojiUsageOnSelect: false,
       channelId: widget.channelId,
       onClose: () => setState(() => _isPickerOpen = false),
       onEmojiSelected: _handleEmojiSelected,

@@ -2,11 +2,13 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
+import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/domain/message_window.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/wide_composer_layout.dart';
@@ -14,8 +16,8 @@ import 'package:fluxer_app/features/chat/presentation/widgets/messages/blocked_m
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_item.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_demand_source.dart';
-import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_live_entrance.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_overlay.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_scroll_position.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_unread_review.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_viewport.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/chat_bottom_input_slot.dart';
@@ -26,6 +28,7 @@ import 'package:fluxer_app/features/chat/providers/pickers/bottom_input_slot_pro
 import 'package:fluxer_app/features/chat/providers/pickers/expression_panel_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/mobile_keyboard_metrics_provider.dart';
 import 'package:fluxer_app/features/friends/providers/blocked_user_ids_provider.dart';
+import 'package:fluxer_app/features/shell/presentation/sidebar_drawer.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:riverpod/src/framework.dart' show Override;
 
@@ -81,9 +84,6 @@ void main() {
           lessThan(viewport.bottom - viewport.height * 0.25),
         );
 
-        // The read side above the divider must stay chronological
-        // top-to-bottom. This catches accidentally reversing the before-center
-        // sliver, where the ack boundary would appear above the older message.
         final double olderTop = tester.getRect(olderRead).top;
         final double ackTop = tester.getRect(ackBoundary).top;
         final double dividerTop = unreadDividerRect.top;
@@ -207,10 +207,6 @@ void main() {
       'open inside the newer margin issues one bounded prefetch - an empty '
       'page parks the pump instead of refetching per frame',
       (WidgetTester tester) async {
-        // The old level trigger gated on isUserDrivenScroll to avoid
-        // open-time fetch loops. Demand is now a pure level: an open inside
-        // the margin MAY prefetch, and the pump/park machinery - not a
-        // gesture gate - bounds it.
         tester.view.physicalSize = const Size(420, 640);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
@@ -239,8 +235,6 @@ void main() {
           ),
         );
 
-        // Drain the pump: the double answers every request with an empty
-        // page, which must park the edge after EXACTLY one request.
         for (int i = 0; i < 6; i += 1) {
           await tester.pump();
         }
@@ -249,7 +243,6 @@ void main() {
           1,
           reason: 'an open inside the margin activates demand exactly once',
         );
-        // And a static in-margin viewport never buys a second request.
         for (int i = 0; i < 3; i += 1) {
           await tester.pump();
         }
@@ -288,8 +281,6 @@ void main() {
         final ProviderContainer container = ProviderScope.containerOf(
           tester.element(find.byType(MessageList)),
         );
-        // Simulates a stale viewport left by an unread layout with no scroll
-        // callback; the production callback must republish geometry.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           container
               .read(chatReadViewportProvider.notifier)
@@ -297,7 +288,6 @@ void main() {
                 channelId: messageListChannelId,
                 nearLoadedTail: false,
                 distanceFromBottom: double.infinity,
-                viewportHeight: 0,
                 sampledTailId: null,
               );
         });
@@ -315,9 +305,6 @@ void main() {
         );
         expect(initialViewport.channelId, messageListChannelId);
         expect(initialViewport.nearLoadedTail, isTrue);
-        // NOTE: no loadNewerCallCount assertion here - under level-based
-        // demand an open inside the margin may issue a bounded prefetch;
-        // this test pins the read-viewport geometry publication only.
         await disposeMessageList(tester);
       },
     );
@@ -459,8 +446,6 @@ void main() {
         ),
       );
       await tester.pump();
-      // The open sits inside the newer margin, so level demand may issue one
-      // bounded prefetch; the empty page parks the pump. Drain it first.
       for (int i = 0; i < 4; i += 1) {
         await tester.pump();
       }
@@ -482,13 +467,6 @@ void main() {
     testWidgets(
       'a drag past the loaded newer edge onto the skeleton requests newer pages',
       (WidgetTester tester) async {
-        // The starvation case from the device log (21:19:01-21:19:24: seven
-        // fling gestures, zero requests, user bailed to jump-to-present). At
-        // the loaded newer edge a drag toward newer moves ZERO pixels, so no
-        // position listener ever runs; the trigger must hear the gesture
-        // itself (ScrollStart with drag details, and the overscroll at the
-        // clamped edge) or the edge goes dead while hasMoreNewerMessages is
-        // still true.
         tester.view.physicalSize = const Size(420, 640);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
@@ -585,7 +563,6 @@ void main() {
         harness.chatViewModel.scrollToMessage(loadedId);
         await pumpMessageJump(tester);
 
-        // Every jump re-anchors onto a FRESH ScrollPosition: re-fetch.
         expect(messageItemFor(loadedId), findsOneWidget);
         final ScrollPosition afterFirstJump = messageListScrollPosition(tester);
         expect(
@@ -599,8 +576,6 @@ void main() {
         final ScrollPosition afterFirstBottom = messageListScrollPosition(
           tester,
         );
-        // At the tail: either a plain jumpTo(max) or - for a deep trailing
-        // run - the pinned re-center re-anchor (fresh position at offset 0).
         expect(
           afterFirstBottom.maxScrollExtent - afterFirstBottom.pixels,
           lessThanOrEqualTo(kMessageListReadBottomThreshold),
@@ -784,7 +759,6 @@ void main() {
           blockedAuthorId,
         });
 
-        // One collapsed group tile for the blocked run at open.
         final Finder collapsedGroup = find.byType(
           BlockedMessageGroups,
           skipOffstage: false,
@@ -810,9 +784,6 @@ void main() {
         await tester.pump();
         await tester.pump();
 
-        // The append lands as a SECOND collapsed tile trailing-of-center -
-        // a group never absorbs content across the anchor boundary, so the
-        // leading stack (and the reader) stays pixel-stable.
         expect(collapsedGroup, findsNWidgets(2));
         expect(
           tester.getRect(anchor).top,
@@ -855,7 +826,6 @@ void main() {
         harness.chatViewModel.scrollToBottom();
         await tester.pump();
 
-        // The jump-to-latest landing re-anchored (fresh position): re-fetch.
         final ScrollPosition landed = messageListScrollPosition(tester);
         expect(
           landed.maxScrollExtent - landed.pixels,
@@ -907,7 +877,6 @@ void main() {
         await pumpScrollToBottom(tester);
 
         final ScrollPosition position = messageListScrollPosition(tester);
-        // Latest-window land re-anchors (newest, 1.0): the live tail.
         expect(
           position.maxScrollExtent - position.pixels,
           lessThanOrEqualTo(kMessageListReadBottomThreshold),
@@ -1031,13 +1000,8 @@ void main() {
         );
         expect(
           messageListNewestRowOffset(tester) - scrollable.position.pixels,
-          // The appended rows land beyond the viewport; at least a row of
-          // extent must now separate it from the trailing edge.
           greaterThan(80),
         );
-        // NOTE: no loadNewerCallCount rider - at the loaded tail with newer
-        // history open, level demand may issue one bounded prefetch; the
-        // position-preservation assertions above are this test's contract.
 
         await disposeMessageList(tester);
       },
@@ -1081,12 +1045,7 @@ void main() {
 
         final double leadingDistanceAfter =
             scrollable.position.pixels - scrollable.position.minScrollExtent;
-        expect(
-          leadingDistanceAfter,
-          // The prepended rows land between the viewport and the leading
-          // edge; at least a row of extent must now separate them.
-          greaterThan(80),
-        );
+        expect(leadingDistanceAfter, greaterThan(80));
 
         await disposeMessageList(tester);
       },
@@ -1212,6 +1171,61 @@ void main() {
             );
           }
           lastCenter = center;
+        }
+
+        await disposeMessageList(tester);
+      },
+    );
+
+    testWidgets(
+      'short unread open paints NEW and the unread bar only once packed',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(420, 640);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final AroundAckMessageListHarness harness =
+            await createAroundAckMessageListHarness(
+              ackIndex: 48,
+              hasMoreNewerMessages: false,
+            );
+
+        await tester.pumpWidget(
+          messageListApp(
+            database: harness.database,
+            chatViewModel: harness.chatViewModel,
+          ),
+        );
+
+        final List<double> paintedNewCenters = <double>[];
+        final List<bool> barPainted = <bool>[];
+        for (int i = 0; i < 6; i += 1) {
+          final Finder newDivider = find.text('NEW');
+          if (_isPainted(tester, newDivider)) {
+            paintedNewCenters.add(tester.getRect(newDivider).center.dy);
+          }
+          barPainted.add(
+            _isPainted(tester, find.byType(MessageListNewMessagesBar)),
+          );
+          await tester.pump();
+        }
+
+        expect(paintedNewCenters, isNotEmpty);
+        for (final double center in paintedNewCenters) {
+          expect(
+            center,
+            moreOrLessEquals(paintedNewCenters.last, epsilon: 2),
+            reason: 'NEW was painted before the pack; $paintedNewCenters',
+          );
+        }
+        final int firstShown = barPainted.indexOf(true);
+        if (firstShown != -1) {
+          expect(
+            barPainted.skip(firstShown),
+            everyElement(isTrue),
+            reason: 'the unread bar flashed during the open; $barPainted',
+          );
         }
 
         await disposeMessageList(tester);
@@ -1370,12 +1384,9 @@ void main() {
           ),
         );
         await tester.pump();
-        // Extra frames so the post-frame underfill fallback has run.
         await tester.pump();
         await tester.pump();
 
-        // Newer pagination will fill the trailing half, so the fallback must
-        // keep the NEW divider centered instead of demoting the anchor.
         final Finder unreadDivider = find.text('NEW');
         expect(unreadDivider, findsOneWidget);
         final Rect viewport = tester.getRect(messageListScrollable());
@@ -1385,8 +1396,6 @@ void main() {
           moreOrLessEquals(viewportCenterY, epsilon: 48),
         );
 
-        // The trailing half stays reserved for the newer pages: the newest
-        // loaded message is not pinned to the viewport bottom.
         final Finder newest = messageItemFor(harness.newestLoadedId);
         expect(newest, findsOneWidget);
         expect(tester.getRect(newest).bottom, lessThan(viewport.bottom - 64));
@@ -1682,6 +1691,60 @@ void main() {
       await disposeMessageList(tester);
     });
 
+    testWidgets('unacked append at bottom never flashes the unread bar', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(420, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final AroundAckMessageListHarness harness =
+          await createBottomMessageListHarness();
+      await tester.pumpWidget(
+        messageListApp(
+          database: harness.database,
+          chatViewModel: harness.chatViewModel,
+        ),
+      );
+      addTearDown(() async {
+        await disposeMessageList(tester);
+        await pumpFluxerFrames(tester);
+      });
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      final ScrollPosition position = messageListScrollPosition(tester);
+      position.jumpTo(position.pixels - kMessageListReadBottomThreshold - 100);
+      await tester.pump();
+      position.jumpTo(position.maxScrollExtent);
+      await tester.pump();
+      await tester.pump();
+      expect(
+        position.maxScrollExtent - position.pixels,
+        lessThanOrEqualTo(kMessageListReadBottomThreshold),
+      );
+      final ProviderContainer container = ProviderScope.containerOf(
+        tester.element(find.byType(MessageList)),
+      );
+      expect(container.read(chatReadViewportProvider).nearLoadedTail, isTrue);
+      container.read(appUiForegroundProvider.notifier).setResumed(true);
+      await tester.pump();
+      expect(container.read(chatReadViewportProvider).canAutoAck, isTrue);
+
+      harness.appendRealtimeMessage(acknowledgedByGateway: false);
+
+      for (var frame = 1; frame <= 5; frame += 1) {
+        await tester.pump();
+        expect(
+          find.byType(MessageListNewMessagesBar),
+          findsNothing,
+          reason: 'floating unread bar appeared on frame $frame',
+        );
+      }
+      await disposeMessageList(tester);
+    });
+
     testWidgets(
       'unacked append while scrolled up keeps the unread bar visible',
       (WidgetTester tester) async {
@@ -1760,7 +1823,6 @@ void main() {
         }
         final ScrollPosition position = messageListScrollPosition(tester);
 
-        // A finger drag, not a programmatic jump, is what disarms follow.
         await tester.drag(messageListScrollable(), const Offset(0, 120));
         await pumpFluxerFrames(tester);
         final double distance = position.maxScrollExtent - position.pixels;
@@ -1771,7 +1833,7 @@ void main() {
         );
         expect(
           distance,
-          lessThan(position.viewportDimension * kJumpToBottomViewportFraction),
+          lessThan(kJumpToBottomDistance),
           reason:
               'mark-read is the only to-tail intent reachable from inside '
               'the jump button threshold',
@@ -1787,7 +1849,7 @@ void main() {
           reason: 'a disarmed leave must not follow the live arrival',
         );
 
-        await tester.tap(find.text('Mark Read'));
+        await tester.tap(find.textContaining(RegExp(r'^Mark (as )?read$')));
         await pumpFluxerFrames(tester);
 
         final ScrollPosition landed = messageListScrollPosition(tester);
@@ -1866,7 +1928,6 @@ void main() {
         );
         await tester.pump();
 
-        // Scroll up into history (center-anchored: smaller pixels == older).
         final ScrollPosition position = messageListScrollPosition(tester);
         expect(position.minScrollExtent, lessThan(-600));
         position.jumpTo(-600);
@@ -1986,6 +2047,89 @@ void main() {
     });
   });
 
+  group('chat on-screen scope', () {
+    Widget onScreenHost(ValueNotifier<bool> onScreen) {
+      return ValueListenableBuilder<bool>(
+        valueListenable: onScreen,
+        builder: (BuildContext context, bool value, Widget? child) =>
+            ChatOnScreenScope(onScreen: value, child: child!),
+        child: const MessageList(expectedChannelId: messageListChannelId),
+      );
+    }
+
+    testWidgets('chat pushed off screen deactivates the read viewport', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(420, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final ValueNotifier<bool> onScreen = ValueNotifier<bool>(true);
+      addTearDown(onScreen.dispose);
+
+      final AroundAckMessageListHarness harness =
+          await createBottomMessageListHarness();
+
+      await tester.pumpWidget(
+        messageListApp(
+          database: harness.database,
+          chatViewModel: harness.chatViewModel,
+          body: onScreenHost(onScreen),
+        ),
+      );
+      await tester.pump();
+      final ProviderContainer container = ProviderScope.containerOf(
+        tester.element(find.byType(MessageList)),
+      );
+
+      expect(container.read(chatReadViewportProvider).viewportActive, isTrue);
+
+      onScreen.value = false;
+      await tester.pump();
+      expect(container.read(chatReadViewportProvider).viewportActive, isFalse);
+
+      onScreen.value = true;
+      await tester.pump();
+      expect(container.read(chatReadViewportProvider).viewportActive, isTrue);
+
+      await disposeMessageList(tester);
+    });
+
+    testWidgets('chat mounted off screen keeps the read viewport inactive', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(420, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final ValueNotifier<bool> onScreen = ValueNotifier<bool>(false);
+      addTearDown(onScreen.dispose);
+
+      final AroundAckMessageListHarness harness =
+          await createBottomMessageListHarness();
+
+      await tester.pumpWidget(
+        messageListApp(
+          database: harness.database,
+          chatViewModel: harness.chatViewModel,
+          body: onScreenHost(onScreen),
+        ),
+      );
+      await tester.pump();
+      final ProviderContainer container = ProviderScope.containerOf(
+        tester.element(find.byType(MessageList)),
+      );
+
+      expect(container.read(chatReadViewportProvider).viewportActive, isFalse);
+
+      onScreen.value = true;
+      await tester.pump();
+      expect(container.read(chatReadViewportProvider).viewportActive, isTrue);
+
+      await disposeMessageList(tester);
+    });
+  });
+
   group('keyboard viewport shrink near tail', () {
     Future<void> shrinkViewportHeight(
       WidgetTester tester, {
@@ -1993,7 +2137,6 @@ void main() {
     }) async {
       tester.view.physicalSize = Size(420, height);
       await tester.pump();
-      // Allow metrics notification + post-frame pin.
       await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
@@ -2023,7 +2166,6 @@ void main() {
         lessThanOrEqualTo(kMessageListReadBottomThreshold),
       );
 
-      // Slightly off the tail but still live-near-bottom (pin holds <=64px).
       position.jumpTo(position.pixels - 24);
       await tester.pump();
       expect(
@@ -2182,8 +2324,6 @@ void main() {
 
       await shrinkViewportHeight(tester, height: 400);
 
-      // Reading position may reflow with the shorter viewport, but must not
-      // snap to the live tail.
       expect(anchor, findsOneWidget);
       expect(
         position.maxScrollExtent - position.pixels,
@@ -2214,7 +2354,6 @@ void main() {
 
       final String newestId = harness.chatViewModel.testState.messages.last.id;
       final ScrollPosition position = messageListScrollPosition(tester);
-      // Far enough that newest is fully off-screen.
       position.jumpTo(position.pixels - 400);
       await tester.pump();
       await pumpFluxerFrames(tester);
@@ -2236,7 +2375,6 @@ void main() {
         position.pixels,
         isNot(moreOrLessEquals(position.maxScrollExtent, epsilon: 1)),
       );
-      // Position may reflow with shorter viewport but should stay scrolled up.
       expect(
         (position.pixels - pixelsBefore).abs(),
         lessThan(200),
@@ -2264,7 +2402,6 @@ void main() {
       );
       await pumpFluxerFrames(tester);
 
-      // Keyboard already open, then append at the live tail.
       await shrinkViewportHeight(tester, height: 400);
       final ScrollPosition position = messageListScrollPosition(tester);
       position.jumpTo(position.maxScrollExtent);
@@ -2314,7 +2451,6 @@ void main() {
         await pumpFluxerFrames(tester);
 
         final ScrollPosition position = messageListScrollPosition(tester);
-        // Near-tail but not exactly at the tail so a follow pin moves.
         position.jumpTo(position.pixels - 24);
         await tester.pump();
         expect(
@@ -2370,7 +2506,6 @@ void main() {
       harness.chatViewModel.scrollToMessage(targetId);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
-      // Shrink mid-settle / mid-jump.
       await shrinkViewportHeight(tester, height: 400);
       for (int i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 48));
@@ -2731,7 +2866,6 @@ void main() {
 
       final AroundAckMessageListHarness harness =
           await createBottomMessageListHarness();
-      // Mid-window target starts outside the lazy viewport.
       final String targetId = harness.messages[24].id;
 
       await tester.pumpWidget(
@@ -2790,26 +2924,16 @@ void main() {
         );
 
         final int loadNewerBefore = harness.chatViewModel.loadNewerCallCount;
-        // Ask past the OPEN older edge: the page that carries it is still in
-        // flight, so the target parks and the viewport is mid-jump.
         harness.chatViewModel.scrollToMessage(
           snowflakeForUtc(DateTime.utc(2020)),
         );
         await tester.pump();
-        // Force a republish while parked: geometry keeps flowing, but the
-        // ack-bearing tail flag is the one thing a parked jump may not
-        // assert.
         final ScrollPosition position = messageListScrollPosition(tester);
         position.jumpTo(position.pixels - 10);
         await tester.pump();
 
         final ChatReadViewportState parked = container.read(
           chatReadViewportProvider,
-        );
-        expect(
-          parked.viewportHeight,
-          greaterThan(0),
-          reason: 'a parked target must still publish viewport geometry',
         );
         expect(
           parked.distanceFromBottom,
@@ -2827,8 +2951,6 @@ void main() {
           reason: 'a parked target must not trigger loadNewer by itself',
         );
 
-        // The park is bounded: expiry retires the target and republishes
-        // with the flag restored.
         await tester.pump(const Duration(seconds: 7));
         expect(
           container.read(chatReadViewportProvider).nearLoadedTail,
@@ -2869,7 +2991,6 @@ void main() {
               channelId: messageListChannelId,
               nearLoadedTail: false,
               distanceFromBottom: double.infinity,
-              viewportHeight: 0,
               sampledTailId: null,
             );
 
@@ -2882,7 +3003,6 @@ void main() {
         );
         expect(after.channelId, messageListChannelId);
         expect(after.nearLoadedTail, isTrue);
-        expect(after.viewportHeight, greaterThan(0));
         expect(after.distanceFromBottom, isNot(double.infinity));
 
         await disposeMessageList(tester);
@@ -2952,10 +3072,6 @@ void main() {
       }
       await pumpFluxerFrames(tester);
 
-      // Pump chaining: the jump landed inside the newer margin, so demand
-      // drains BOTH fake pages during settle - each applied page released by
-      // its own post-layout revision - without any gesture, and the tail
-      // seals. Exactly one request per page: no per-frame refetch runaway.
       expect(
         chatViewModel.loadNewerCallCount,
         2,
@@ -2968,7 +3084,6 @@ void main() {
       );
       expect(chatViewModel.state.hasMoreNewerMessages, isFalse);
 
-      // A sealed edge ignores further gestures entirely.
       await tester.drag(messageListScrollable(), const Offset(0, -900));
       await tester.pump();
       expect(chatViewModel.loadNewerCallCount, 2);
@@ -2984,8 +3099,6 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
-        // Hold read state in AsyncLoading so open mode stays unresolved while
-        // the around-window arrives. Exercises initState pending + consume gate.
         final StreamController<db.ReadState?> readStateController =
             StreamController<db.ReadState?>.broadcast();
         addTearDown(readStateController.close);
@@ -3032,7 +3145,6 @@ void main() {
         await tester.pump();
         expect(messageItemFor(targetId), findsNothing);
 
-        // Around-window only — no scrollToMessage signal on this path.
         loadingChatViewModel.testState = loadingChatViewModel.testState
             .copyWith(
               write: (
@@ -3251,8 +3363,6 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
-        // Hold read state in AsyncLoading so open mode stays unresolved while
-        // the around-window and signal arrive. No widget.targetMessageId.
         final StreamController<db.ReadState?> readStateController =
             StreamController<db.ReadState?>.broadcast();
         addTearDown(readStateController.close);
@@ -3295,7 +3405,6 @@ void main() {
         await tester.pump();
         expect(messageItemFor(targetId), findsNothing);
 
-        // Around-window first, then scroll signal while still unresolved.
         loadingChatViewModel.testState = loadingChatViewModel.testState
             .copyWith(
               write: (
@@ -3341,13 +3450,10 @@ void main() {
       },
     );
 
+    // A deleted around target used to latch and hide jump-to-bottom: https://feedback.fluxer.com/p/1811
     testWidgets(
       'a missing jump target still settles and serves jump-to-bottom',
       (WidgetTester tester) async {
-        // #415. An `around=<id>` fetch whose target was deleted or filtered
-        // returns the neighbouring window with no error. The list lands on the
-        // closest snowflake neighbour instead of latching a pending target
-        // forever (which used to suppress the jump-to-bottom escape hatch).
         tester.view.physicalSize = const Size(420, 640);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
@@ -3359,7 +3465,6 @@ void main() {
 
         final AroundAckMessageListHarness source =
             await createBottomMessageListHarness();
-        // Never present in the window: the deleted search hit.
         const String deletedTargetId = 'deleted-search-hit';
 
         final InstrumentedChatViewModel chatViewModel =
@@ -3395,8 +3500,6 @@ void main() {
         );
         await tester.pump();
 
-        // The around window lands without the target; scroll settles on a
-        // neighbour rather than parking forever.
         chatViewModel.testState = chatViewModel.testState.copyWith(
           write: (messages: source.messages, origin: MessagesOrigin.windowSwap),
           isLoading: false,
@@ -3417,25 +3520,18 @@ void main() {
           chatReadViewportProvider,
         );
         expect(
-          viewport.viewportHeight,
-          greaterThan(0),
-          reason: 'a settled neighbour jump must publish viewport geometry',
-        );
-        expect(
           shouldShowJumpToBottomButton(
             hasMessages: true,
             isLoading: false,
             isActiveReadChannel: true,
             distanceFromBottom: viewport.distanceFromBottom,
-            viewportHeight: viewport.viewportHeight,
             hasMoreNewerMessages: chatViewModel.testState.hasMoreNewerMessages,
+            messageLoadFailed: chatViewModel.testState.messageLoadFailed,
           ),
           isTrue,
           reason: 'the escape hatch must stay reachable after a neighbour land',
         );
 
-        // Tapping the button routes through scrollToBottom(); with the tail
-        // unconfirmed it must fetch the present rather than no-op.
         chatViewModel.scrollToBottom();
         await tester.pump();
         await pumpFluxerFrames(tester);
@@ -3474,13 +3570,14 @@ void main() {
       await pumpFluxerFrames(tester);
 
       final ScrollPosition scrolled = messageListScrollPosition(tester);
-      await tester.drag(messageListScrollable(), const Offset(0, 400));
+      await tester.drag(
+        messageListScrollable(),
+        const Offset(0, kJumpToBottomDistance + 100),
+      );
       await pumpFluxerFrames(tester);
       expect(
         scrolled.maxScrollExtent - scrolled.pixels,
-        greaterThanOrEqualTo(
-          scrolled.viewportDimension * kJumpToBottomViewportFraction,
-        ),
+        greaterThanOrEqualTo(kJumpToBottomDistance),
         reason: 'the jump button only renders beyond its own threshold',
       );
 
@@ -3528,7 +3625,6 @@ void main() {
       await pumpFluxerFrames(tester);
 
       harness.chatViewModel.scrollToMessage(targetId);
-      // Exhaust the production settle window (~1.8s) so correction ends.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       for (int i = 0; i < 8; i++) {
@@ -3568,7 +3664,7 @@ void main() {
       await disposeMessageList(tester);
     });
 
-    // #394 post-ack: same mounted MessageList keeps jump centering.
+    // Jump centering holds after the ack in the same mounted MessageList: https://feedback.fluxer.com/p/1797
     testWidgets('post-ack sticky retained centers post-divider jump', (
       WidgetTester tester,
     ) async {
@@ -3836,8 +3932,6 @@ void main() {
       final double delta = (target.center.dy - viewport.center.dy).abs();
       final bool atMin = position.pixels <= position.minScrollExtent + 1;
       final bool atMax = position.pixels >= position.maxScrollExtent - 1;
-      // Strict center when not extent-clamped: sticky-cleared is the
-      // stream-split mismatch case (jump stream still injects divider).
       if (atMin || atMax) {
         expect(target.top, greaterThanOrEqualTo(viewport.top - 8));
         expect(target.bottom, lessThanOrEqualTo(viewport.bottom + 8));
@@ -3869,7 +3963,6 @@ void main() {
               ackIndex: 20,
               messageCount: 120,
             );
-        // Mid-window target so reverse-list extent allows true centering.
         final String targetId = harness.messages[90].id;
 
         await tester.pumpWidget(
@@ -3899,7 +3992,6 @@ void main() {
         await pumpFluxerFrames(tester);
         expect(find.text('NEW'), findsNothing);
 
-        // Around-window drops the open-mode center anchor; keep jump target.
         final List<Message> aroundWindow = harness.messages.sublist(50, 120);
         expect(
           aroundWindow.any((Message m) => m.id == harness.firstUnreadId),
@@ -4038,7 +4130,6 @@ void main() {
               ackIndex: 20,
               messageCount: 80,
             );
-        // Message near the open center that stays in the window after trim.
         final String preserveId = harness.messages[30].id;
 
         await tester.pumpWidget(
@@ -4051,7 +4142,6 @@ void main() {
         await pumpFluxerFrames(tester);
         expect(find.text('NEW'), findsOneWidget);
 
-        // Scroll so preserveId is the reading position (center-ish).
         harness.chatViewModel.scrollToMessage(preserveId);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
@@ -4070,8 +4160,6 @@ void main() {
           lessThanOrEqualTo(16),
         );
 
-        // Drop only the open-mode center anchor from the stream (trim older
-        // side through firstUnread) with no pending jump target.
         final int firstUnreadIndex = harness.messages.indexWhere(
           (Message m) => m.id == harness.firstUnreadId,
         );
@@ -4101,7 +4189,6 @@ void main() {
         }
         await pumpFluxerFrames(tester);
 
-        // Still visible after layout conversion — not yanked to live tail.
         expect(messageItemFor(preserveId), findsOneWidget);
         final Rect viewportAfter = tester.getRect(messageListScrollable());
         final Rect preserveAfter = tester.getRect(messageItemFor(preserveId));
@@ -4115,7 +4202,6 @@ void main() {
           greaterThan(viewportAfter.top + 8),
           reason: 'preserved message must remain in viewport after convert',
         );
-        // Must not be parked at the newest edge only (tail yank).
         final String newestId = trimmed.last.id;
         if (newestId != preserveId) {
           final Finder newestFinder = messageItemFor(newestId);
@@ -4194,7 +4280,6 @@ void main() {
               ackIndex: 25,
               messageCount: 70,
             );
-        // Deep in the leading (read) side, not the message adjacent to NEW.
         final String beforeId = harness.messages[8].id;
         final String deepAfterId = harness.messages[55].id;
 
@@ -4208,14 +4293,12 @@ void main() {
         await pumpFluxerFrames(tester);
         expect(find.text('NEW'), findsOneWidget);
 
-        // Scroll well into the trailing (post-divider) region first.
         harness.chatViewModel.scrollToMessage(deepAfterId);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
         await pumpFluxerFrames(tester);
         expect(messageItemFor(deepAfterId), findsOneWidget);
 
-        // Cross the center anchor upward to a deep pre-divider leading target.
         harness.chatViewModel.scrollToMessage(beforeId);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
@@ -4238,7 +4321,6 @@ void main() {
         final bool atMin = position.pixels <= position.minScrollExtent + 1;
         final bool atMax = position.pixels >= position.maxScrollExtent - 1;
         if (atMin || atMax) {
-          // Geometry cannot true-center; require full visibility.
           expect(
             target.top,
             greaterThanOrEqualTo(viewport.top + 8),
@@ -4274,13 +4356,11 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
-        // Plenty of messages after first unread so the target is mid-trailing.
         final AroundAckMessageListHarness harness =
             await createAroundAckMessageListHarness(
               ackIndex: 10,
               messageCount: 60,
             );
-        // Mid of the unread half (indices 11..59), not near the tail.
         final String midAfterId = harness.messages[30].id;
 
         await tester.pumpWidget(
@@ -4334,7 +4414,6 @@ void main() {
               ackIndex: 40,
               hasMoreNewerMessages: false,
             );
-        // Near the live tail on the unread side (few messages below).
         final String nearTailId = harness.messages[47].id;
 
         await tester.pumpWidget(
@@ -4356,8 +4435,6 @@ void main() {
         final Rect viewport = tester.getRect(messageListScrollable());
         final Rect target = tester.getRect(messageItemFor(nearTailId));
 
-        // Near-tail post-divider targets often cannot true-center (extent
-        // clamp). Contract is full visibility, not barely-on-screen.
         expect(
           target.top,
           greaterThanOrEqualTo(viewport.top + 8),
@@ -4374,7 +4451,6 @@ void main() {
           reason: 'fixture target must fit the viewport for this assertion',
         );
 
-        // Clamp detection must stop settle re-jumps against the extent edge.
         final ScrollPosition position = messageListScrollPosition(tester);
         final double pixelsAfterJump = position.pixels;
         await tester.pump(const Duration(milliseconds: 48));
@@ -4411,9 +4487,6 @@ void main() {
         );
         await pumpFluxerFrames(tester);
 
-        // The view model swaps the around page in and signals afterwards, so
-        // the epoch recorded at park time is already that install's. The page
-        // omits the target: deleted or filtered server-side.
         final List<Message> loaded = harness.chatViewModel.testState.messages;
         final String missingId = loaded[25].id;
         final String neighbourId = loaded[26].id;
@@ -4449,12 +4522,6 @@ void main() {
     );
   });
   group('origin-authorized follow', () {
-    // The follow-vs-preserve decision spec, pinned case by case. Post-install
-    // state cannot distinguish the final page of the user's own pagination
-    // from a live arrival (byte-identical observables), so the write's ORIGIN
-    // decides — and the assertions here are first-visible-item identity plus
-    // pixel offset, never absence-of-scroll-call: the primary snap was a
-    // layout-time teleport that emitted no scroll call at all.
     testWidgets(
       'an idle trim bounds the window without moving the visible rows',
       (WidgetTester tester) async {
@@ -4465,8 +4532,6 @@ void main() {
         );
         expect(chatViewModel.state.messages, hasLength(240));
 
-        // A held gesture never trims: a destructive trim landing mid-scroll
-        // is exactly the teleport this design removes.
         final TestGesture gesture = await tester.startGesture(
           tester.getCenter(messageListScrollable()),
         );
@@ -4520,11 +4585,6 @@ void main() {
       'case 1: the FINAL newer page — the one that flips hasMoreNewerMessages '
       'false as it lands — preserves the reader at the wall',
       (WidgetTester tester) async {
-        // The design discriminator. A follow decision gated on the flag
-        // (follow iff nearEdge && !hasMoreNewerMessages) authorizes the snap
-        // on exactly this landing, because messages and the flag move in one
-        // atomic write: the mutation MUST fail this case while case 2 stays
-        // green. Only the write's origin separates the two worlds.
         final InstrumentedChatViewModel chatViewModel = await pumpBottomList(
           tester,
           hasMoreNewer: true,
@@ -4669,8 +4729,6 @@ void main() {
         moreOrLessEquals(position.maxScrollExtent, epsilon: 1),
       );
 
-      // Drag physics leave the tail from anchor offset 0; the settled open
-      // parks at maxScrollExtent.
       position.jumpTo(0);
       await tester.pump();
 
@@ -4715,8 +4773,6 @@ void main() {
       );
       final ScrollPosition position = messageListScrollPosition(tester);
 
-      // Pin distance subtracts the 16px status overlay inset; clear past
-      // 8 + 16 so settle cannot re-engage.
       await tester.drag(messageListScrollable(), const Offset(0, 120));
       await pumpFluxerFrames(tester);
 
@@ -4773,7 +4829,6 @@ void main() {
         await tester.pump();
         expectPreserved(tester, before, reason: 'final page preserves');
 
-        // The reader catches up to the real bottom, then a create lands.
         position.jumpTo(position.maxScrollExtent);
         await pumpFluxerFrames(tester);
         final List<Message> caughtUp = chatViewModel.testState.messages;
@@ -4883,13 +4938,6 @@ void main() {
       'case 8: a coalesced delivery (pagination and create observed as one '
       'transition) preserves — the reader is mid-history',
       (WidgetTester tester) async {
-        // Two writes, ONE notification: the listener is handed
-        // previous=pre-pagination, next=post-create. The authorization the
-        // create minted names before=post-pagination, which the delivered
-        // previous does not match by identity, so the verdict falls to
-        // preserve. Dropping the before-identity conjunct is the mutation
-        // this case kills: the mutant follows and snaps the reader past the
-        // page they were reading.
         final InstrumentedChatViewModel chatViewModel = await pumpBottomList(
           tester,
           hasMoreNewer: true,
@@ -4951,10 +4999,6 @@ void main() {
           reason: 'the live authorization was real',
         );
 
-        // A local mutation drops the live row, then cache re-derivation
-        // re-assigns the IDENTICAL earlier instance. Every write mints its
-        // own record inside copyWith, so the stale liveCreate cannot be
-        // reconstructed — inherit-on-omission is unrepresentable.
         chatViewModel.testState = chatViewModel.testState.copyWith(
           write: (messages: old, origin: MessagesOrigin.localMutation),
         );
@@ -5025,8 +5069,6 @@ void main() {
               'terminal pagination frame; only origin plus pin may follow',
         );
 
-        // The preserved landing left the reader a page above the trailing
-        // edge; a follow is only legitimate once they are back at it.
         position.jumpTo(position.maxScrollExtent);
         await pumpFluxerFrames(tester);
         final List<Message> paged = harness.chatViewModel.testState.messages;
@@ -5064,9 +5106,6 @@ void main() {
               detachedState(seedMessages(60), hasMoreNewer: false),
             );
         final db.FluxerDatabase database = openTestDatabase();
-        // The switch target opens unread-centered (divider mid-viewport):
-        // that layout keeps real distance to the live tail, so a stale
-        // follow pin's jumpTo(maxScrollExtent) is observable as a tail yank.
         final DateTime switchBase = messageListSeedBase.subtract(
           const Duration(days: 2),
         );
@@ -5084,8 +5123,6 @@ void main() {
             lastMessageId: Value<String?>(switchedMessages[8].id),
           ),
         );
-        // No expectedChannelId: the same mounted list swaps channels via
-        // state alone - the hazard window.
         await tester.pumpWidget(
           messageListApp(
             database: database,
@@ -5097,9 +5134,6 @@ void main() {
         for (int i = 0; i < 4; i += 1) {
           await tester.pump();
         }
-        // Pre-warm the switch target's read-state family so the switch build
-        // resolves its unread anchor immediately (on device the family is
-        // warm for recently visited channels).
         final ProviderContainer container = ProviderScope.containerOf(
           tester.element(find.byType(MessageList)),
         );
@@ -5117,8 +5151,6 @@ void main() {
           moreOrLessEquals(position.maxScrollExtent, epsilon: 1),
         );
 
-        // A live arrival at the pinned tail schedules the follow pin for the
-        // end of the NEXT frame (registered outside a frame).
         final List<Message> old = chatViewModel.testState.messages;
         final List<Message> live = newerRows(old, count: 1, label: 'live');
         chatViewModel
@@ -5128,8 +5160,6 @@ void main() {
               origin: MessagesOrigin.liveCreate,
             ),
           )
-          // Same frame: the channel switches. Its unread open re-anchors the
-          // fresh position onto the NEW divider, away from the live tail.
           ..testState = ChatViewState(
             channelId: switchChannelId,
             messages: switchedMessages,
@@ -5150,8 +5180,6 @@ void main() {
         await tester.pump();
         await tester.pump();
 
-        // The switched channel opened on its unread anchor; a stale follow
-        // pin firing into it would sit at the live tail instead.
         final ScrollPosition switched = messageListScrollPosition(tester);
         expect(find.text('NEW'), findsOneWidget);
         expect(
@@ -5189,11 +5217,6 @@ void main() {
           ),
         );
 
-        // Before that frame renders, a detached around-window replaces the
-        // window wholesale (same channel). The stale pin's jump-to-max would
-        // land on the newest message of the fetched batch - re-triggering
-        // the newer edge fetch (the pagination loop). The swap write itself
-        // must invalidate it.
         final DateTime olderBase = messageListSeedBase.subtract(
           const Duration(days: 1),
         );
@@ -5211,7 +5234,6 @@ void main() {
           ),
           hasMoreNewerMessages: true,
         );
-        // The swapped window positions the reader mid-history.
         position.jumpTo(position.pixels - 600);
 
         await tester.pump();
@@ -5280,8 +5302,6 @@ void main() {
       },
     );
 
-    // ---- Phase 3 GATE tests: the unified center-anchored viewport ----
-
     testWidgets(
       'gate 1: in-window jump re-anchors the target to the viewport center '
       'atomically and holds',
@@ -5337,7 +5357,6 @@ void main() {
             ),
         ];
         final String targetId = aroundWindow[25].id;
-        // Out-of-window ask: the target parks until its page arrives.
         chatViewModel.scrollToMessage(targetId);
         await tester.pump();
 
@@ -5349,8 +5368,6 @@ void main() {
 
         final Rect viewport = tester.getRect(messageListScrollable());
         final Rect firstFrame = tester.getRect(messageItemFor(targetId));
-        // Anchor semantics on the very first frame: the target's LEADING
-        // edge sits at the anchor fraction - never a stale offset.
         expect(
           (firstFrame.top - viewport.center.dy).abs(),
           lessThanOrEqualTo(1),
@@ -5382,8 +5399,6 @@ void main() {
         );
         final List<Message> messages = chatViewModel.testState.messages;
         final String targetId = messages[40].id;
-        // A before-edge jump anchor repairs to the nearest NEWER survivor,
-        // keeping the leading partition (the OLDER neighbor) pixel-stable.
         final String neighborId = messages[39].id;
         chatViewModel.scrollToMessage(targetId);
         await tester.pump();
@@ -5420,8 +5435,6 @@ void main() {
           hasMoreNewer: false,
         );
         final List<Message> messages = chatViewModel.testState.messages;
-        // A jump anchors (target, 0.5, before), which only holds while the
-        // trailing side can fill the lower half of the viewport.
         chatViewModel.scrollToMessage(messages[40].id);
         await tester.pump();
         await pumpFluxerFrames(tester);
@@ -5431,8 +5444,6 @@ void main() {
           reason: 'the centered open must start filled',
         );
 
-        // MESSAGE_DELETE_BULK shape: one preserve-class write drops the anchor
-        // and every row but two.
         chatViewModel.testState = chatViewModel.testState.copyWith(
           write: (
             messages: <Message>[messages.first, messages.last],
@@ -5440,8 +5451,6 @@ void main() {
           ),
         );
         await pumpFluxerFrames(tester);
-        // The underfill reanchor runs in a post-frame callback whose jumpTo
-        // needs a further frame to lay out.
         for (int i = 0; i < 4; i += 1) {
           await tester.pump();
         }
@@ -5476,8 +5485,6 @@ void main() {
           tester,
           hasMoreNewer: false,
         );
-        // Live arrivals land in the trailing sliver under the open-time
-        // anchor, so the followed reader sits at the trailing edge.
         final List<Message> seeded = chatViewModel.testState.messages;
         final List<Message> withLive = <Message>[
           ...seeded,
@@ -5503,9 +5510,6 @@ void main() {
           reason: 'the framework clamp already holds the tail on a shrink',
         );
 
-        // MESSAGE_UPDATE shape: the status row grows. maxScrollExtent grows
-        // with it and nothing pulls pixels forward, so the newest row would
-        // otherwise be pushed below the fold.
         final Message newest = survivors.last;
         chatViewModel.testState = chatViewModel.testState.copyWith(
           write: (
@@ -5557,7 +5561,6 @@ void main() {
         await tester.pump();
         await pumpFluxerFrames(tester);
 
-        // Deep into history, more than a viewport above the anchor line.
         ScrollPosition position = messageListScrollPosition(tester);
         expect(position.maxScrollExtent, greaterThan(0));
         position.jumpTo(messageListOldestRowOffset(tester));
@@ -5569,9 +5572,6 @@ void main() {
           messages[2].id,
         );
 
-        // The purge drops only trailing-partition rows, so the leading extent
-        // and therefore minScrollExtent are untouched: this reader's offset
-        // survives the clamp and must survive the repair too.
         chatViewModel.testState = chatViewModel.testState.copyWith(
           write: (
             messages: <Message>[...messages.take(45), messages.last],
@@ -5597,7 +5597,6 @@ void main() {
           reason: 'no demotion remount while reading history',
         );
 
-        // Scrolling back to the trailing edge arms the withheld repair.
         await tester.drag(messageListScrollable(), const Offset(0, -1200));
         await pumpFluxerFrames(tester);
 
@@ -5628,6 +5627,73 @@ void main() {
   });
 
   group('live tail motion', () {
+    testWidgets('jump to present from an unread open keeps following arrivals '
+        'after it lands', (WidgetTester tester) async {
+      configureMessageListViewport(tester);
+      final AroundAckMessageListHarness harness =
+          await createAroundAckMessageListHarness(
+            messageCount: 70,
+            ackIndex: 30,
+          );
+      await tester.pumpWidget(
+        messageListApp(
+          database: harness.database,
+          chatViewModel: harness.chatViewModel,
+          disableMessageListAnimations: false,
+        ),
+      );
+      await pumpFluxerFrames(tester);
+      expect(find.text('NEW'), findsOneWidget);
+      final ProviderContainer container = ProviderScope.containerOf(
+        tester.element(find.byType(MessageList)),
+      );
+
+      harness.chatViewModel.scrollToBottom();
+      for (int frame = 0; frame < 30; frame += 1) {
+        if (frame == 4) {
+          harness.appendRealtimeMessage(acknowledgedByGateway: false);
+        }
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await pumpFluxerFrames(tester);
+
+      final ScrollPosition position = messageListScrollPosition(tester);
+      expect(
+        position.pixels,
+        moreOrLessEquals(position.maxScrollExtent, epsilon: 1),
+        reason: 'the jump lands at the live tail',
+      );
+      expect(
+        container.read(chatReadViewportProvider).followsLiveTail,
+        isTrue,
+        reason: 'a list resting at the live tail is pinned',
+      );
+
+      for (int arrival = 0; arrival < 3; arrival += 1) {
+        final String liveId = harness.appendRealtimeMessage(
+          acknowledgedByGateway: false,
+        );
+        await tester.pump();
+        await tester.pump(kMessageListTailFollowDuration);
+        await pumpFluxerFrames(tester);
+
+        expect(messageItemFor(liveId), findsOneWidget);
+        expect(
+          position.pixels,
+          moreOrLessEquals(position.maxScrollExtent, epsilon: 1),
+          reason: 'arrival $arrival must be followed',
+        );
+        final ChatReadViewportState viewport = container.read(
+          chatReadViewportProvider,
+        );
+        expect(viewport.followsLiveTail, isTrue);
+        expect(viewport.nearLoadedTail, isTrue);
+        expect(viewport.sampledTailId, liveId);
+      }
+
+      await disposeMessageList(tester);
+    });
+
     testWidgets('smooth follow lands at tail after motion completes', (
       WidgetTester tester,
     ) async {
@@ -5663,7 +5729,7 @@ void main() {
         reason: 'mid-follow must not snap early',
       );
 
-      await tester.pump(kMessageListLiveTailMotionDuration);
+      await tester.pump(kMessageListTailFollowDuration);
       await tester.pump();
 
       expect(messageItemFor(live.single.id), findsOneWidget);
@@ -5705,7 +5771,7 @@ void main() {
         reason: 'own send must smooth-follow at the pinned tail',
       );
 
-      await tester.pump(kMessageListLiveTailMotionDuration);
+      await tester.pump(kMessageListTailFollowDuration);
       await tester.pump();
 
       expect(messageItemFor(sent.single.id), findsOneWidget);
@@ -5749,7 +5815,7 @@ void main() {
       );
       await tester.pump();
       await tester.pump();
-      await tester.pump(kMessageListLiveTailMotionDuration);
+      await tester.pump(kMessageListTailFollowDuration);
       for (int i = 0; i < 4; i += 1) {
         await tester.pump();
       }
@@ -5765,6 +5831,127 @@ void main() {
         position.pixels,
         moreOrLessEquals(position.maxScrollExtent, epsilon: 1),
       );
+
+      await disposeMessageList(tester);
+    });
+
+    testWidgets('mixed-height live burst follows each arrival in one motion', (
+      WidgetTester tester,
+    ) async {
+      final InstrumentedChatViewModel chatViewModel = await pumpBottomList(
+        tester,
+        hasMoreNewer: false,
+        disableMessageListAnimations: false,
+      );
+      final ScrollPosition position = messageListScrollPosition(tester);
+      const List<String> bodies = <String>[
+        'short',
+        'a slightly longer line that wraps across the phone width for sure',
+        'two\nlines',
+        'para one with words words words\n\npara two with more words',
+      ];
+      double? landedBottom;
+      for (int i = 1; i <= 4; i += 1) {
+        final List<Message> old = chatViewModel.testState.messages;
+        final DateTime timestamp = old.last.timestamp.add(
+          const Duration(seconds: 1),
+        );
+        final String id = snowflakeForUtc(timestamp);
+        chatViewModel.testState = chatViewModel.testState.copyWith(
+          write: (
+            messages: <Message>[
+              ...old,
+              harnessMessage(
+                id: id,
+                content: 'burst $i ${bodies[i % bodies.length]}',
+                timestamp: timestamp,
+              ),
+            ],
+            origin: MessagesOrigin.liveCreate,
+          ),
+        );
+        final double from = position.pixels;
+        await tester.pump();
+        final double distance = position.maxScrollExtent - from;
+        double previous = position.pixels;
+        double largestStep = 0;
+        for (int frame = 0; frame < 20; frame += 1) {
+          await tester.pump(const Duration(milliseconds: 16));
+          largestStep = math.max(largestStep, position.pixels - previous);
+          previous = position.pixels;
+        }
+
+        expect(
+          largestStep,
+          lessThan(distance / 2),
+          reason: 'arrival $i must follow in one motion, not a mid-way snap',
+        );
+        expect(
+          position.pixels,
+          moreOrLessEquals(position.maxScrollExtent, epsilon: 1),
+        );
+        final double bottom = tester.getRect(messageItemFor(id)).bottom;
+        landedBottom ??= bottom;
+        expect(
+          bottom,
+          moreOrLessEquals(landedBottom, epsilon: 1),
+          reason: 'arrival $i must land fully above the composer',
+        );
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+
+      await disposeMessageList(tester);
+    });
+
+    testWidgets('live append taller than the viewport is opaque on the snap '
+        'frame', (WidgetTester tester) async {
+      final InstrumentedChatViewModel chatViewModel = await pumpBottomList(
+        tester,
+        hasMoreNewer: false,
+        disableMessageListAnimations: false,
+      );
+      final ScrollPosition position = messageListScrollPosition(tester);
+
+      final List<Message> old = chatViewModel.testState.messages;
+      final DateTime timestamp = old.last.timestamp.add(
+        const Duration(minutes: 1),
+      );
+      final String id = snowflakeForUtc(timestamp);
+      final String content = List<String>.generate(
+        60,
+        (int i) => 'long line $i',
+      ).join('\n');
+      chatViewModel.testState = chatViewModel.testState.copyWith(
+        write: (
+          messages: <Message>[
+            ...old,
+            harnessMessage(id: id, content: content, timestamp: timestamp),
+          ],
+          origin: MessagesOrigin.liveCreate,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        tester.getRect(messageItemFor(id)).height,
+        greaterThan(position.viewportDimension),
+      );
+      expect(
+        position.pixels,
+        moreOrLessEquals(position.maxScrollExtent, epsilon: 1),
+        reason: 'a taller-than-viewport arrival snaps to the tail',
+      );
+      final Iterable<Opacity> opacities = tester.widgetList<Opacity>(
+        find.ancestor(of: messageItemFor(id), matching: find.byType(Opacity)),
+      );
+      for (final Opacity opacity in opacities) {
+        expect(
+          opacity.opacity,
+          1,
+          reason: 'the snapped row fills the viewport and must not be faded',
+        );
+      }
 
       await disposeMessageList(tester);
     });
@@ -5793,6 +5980,17 @@ class _UnreadOpenFrameSample {
     return 'new=$hasNew y=$newCenterY unreadTop=$firstUnreadTop '
         'px=$pixels epoch=$epoch pad=$leadingPad';
   }
+}
+
+bool _isPainted(WidgetTester tester, Finder finder) {
+  if (finder.evaluate().isEmpty) {
+    return false;
+  }
+  return !tester
+      .widgetList<Opacity>(
+        find.ancestor(of: finder.first, matching: find.byType(Opacity)),
+      )
+      .any((Opacity opacity) => opacity.opacity == 0);
 }
 
 _UnreadOpenFrameSample _sampleUnreadOpenFrame(

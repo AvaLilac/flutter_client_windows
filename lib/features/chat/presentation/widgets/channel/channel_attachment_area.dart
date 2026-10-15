@@ -1,10 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/domain/pending_attachment.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/attachments/pending_attachment_preview.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/attachment_edit_modal.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/alt_text_badge.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/media_alt_text.dart';
@@ -17,13 +15,15 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 class ChannelAttachmentArea extends ConsumerWidget {
   const ChannelAttachmentArea({
     required this.channelId,
-    this.wideComposerAction = false,
+    this.animateSize = true,
     super.key,
   });
 
   final String channelId;
-  final bool wideComposerAction;
+  final bool animateSize;
 
+  static const Key uploadProgressKey = Key('composer-attachment-progress');
+  static const Key stripKey = Key('composer-attachment-strip');
   static const double _kAttachmentListHeight = 150;
 
   @override
@@ -31,19 +31,18 @@ class ChannelAttachmentArea extends ConsumerWidget {
     final List<PendingAttachment> attachments = ref
         .watch(cloudUploadControllerProvider(channelId))
         .items;
-    final bool hasAttachments = attachments.isNotEmpty;
+    final Widget body = attachments.isNotEmpty
+        ? _AttachmentAreaBody(channelId: channelId, attachments: attachments)
+        : const SizedBox(width: double.infinity, height: 0);
+    if (!animateSize) {
+      return body;
+    }
     return ClipRect(
       child: AnimatedSize(
         duration: context.motion.panel,
         curve: Curves.easeOutCubic,
         alignment: Alignment.bottomCenter,
-        child: hasAttachments
-            ? _AttachmentAreaBody(
-                channelId: channelId,
-                attachments: attachments,
-                wideComposerAction: wideComposerAction,
-              )
-            : const SizedBox(width: double.infinity, height: 0),
+        child: body,
       ),
     );
   }
@@ -53,12 +52,10 @@ class _AttachmentAreaBody extends ConsumerWidget {
   const _AttachmentAreaBody({
     required this.channelId,
     required this.attachments,
-    required this.wideComposerAction,
   });
 
   final String channelId;
   final List<PendingAttachment> attachments;
-  final bool wideComposerAction;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -66,11 +63,9 @@ class _AttachmentAreaBody extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (!wideComposerAction) const Divider(),
         Container(
-          margin: wideComposerAction
-              ? const EdgeInsets.only(bottom: 6, top: 6)
-              : const EdgeInsets.only(bottom: 6, top: 8),
+          key: ChannelAttachmentArea.stripKey,
+          margin: const EdgeInsets.symmetric(vertical: 6),
           height: ChannelAttachmentArea._kAttachmentListHeight,
           child: ReorderableListView.builder(
             scrollDirection: Axis.horizontal,
@@ -100,7 +95,7 @@ class _AttachmentAreaBody extends ConsumerWidget {
                 },
             itemBuilder: (BuildContext context, int index) {
               final PendingAttachment att = attachments[index];
-              return ReorderableDragStartListener(
+              return ReorderableDelayedDragStartListener(
                 key: ValueKey<int>(att.id),
                 index: index,
                 child: Padding(
@@ -126,17 +121,17 @@ class _AttachmentChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
-    final String path = attachment.file.path;
-    final bool hasImagePreview =
-        path.isNotEmpty &&
-        isImageAttachment(
-          filename: attachment.filename,
-          contentType: attachment.contentType,
-        );
     final bool isVideo = _isVideoFilename(attachment.filename);
     final bool isSpoiler = (attachment.flags & attachmentFlagIsSpoiler) != 0;
     final String? byteSizeLabel = formatAttachmentByteSize(attachment.size);
     final String? altText = resolvedMediaAltText(attachment.description);
+    final Widget fallbackIcon = Center(
+      child: Icon(
+        isVideo ? PhosphorIconsFill.filmStrip : _fileIcon(attachment.filename),
+        size: 44,
+        color: colors.textPrimaryMuted,
+      ),
+    );
 
     return SizedBox(
       width: 150,
@@ -158,24 +153,12 @@ class _AttachmentChip extends ConsumerWidget {
                     fit: StackFit.expand,
                     children: [
                       ColoredBox(color: colors.backgroundTertiary),
-                      if (hasImagePreview && !isSpoiler)
-                        if (isSvgImageMedia(
-                          url: path,
-                          filename: attachment.filename,
-                          contentType: attachment.contentType,
-                        ))
-                          SvgPicture.file(File(path), fit: BoxFit.cover)
-                        else
-                          Image.file(File(path), fit: BoxFit.cover)
+                      if (isSpoiler)
+                        fallbackIcon
                       else
-                        Center(
-                          child: Icon(
-                            isVideo
-                                ? PhosphorIconsFill.filmStrip
-                                : _fileIcon(attachment.filename),
-                            size: 44,
-                            color: colors.textPrimaryMuted,
-                          ),
+                        PendingAttachmentPreview(
+                          attachment: attachment,
+                          fallback: fallbackIcon,
                         ),
                       if (isSpoiler)
                         ColoredBox(
@@ -200,6 +183,20 @@ class _AttachmentChip extends ConsumerWidget {
                           bottom: 6,
                           child: IgnorePointer(
                             child: AltTextBadge(altText: altText),
+                          ),
+                        ),
+                      if (attachment.status ==
+                          PendingAttachmentStatus.uploading)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: LinearProgressIndicator(
+                            key: ChannelAttachmentArea.uploadProgressKey,
+                            minHeight: 3,
+                            value: attachment.uploadProgress.clamp(0, 1),
+                            backgroundColor: colors.backgroundTertiary,
+                            color: colors.brandPrimary,
                           ),
                         ),
                       if (attachment.status == PendingAttachmentStatus.failed)

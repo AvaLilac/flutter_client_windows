@@ -21,7 +21,6 @@ import 'package:fluxer_app/features/voice/utils/voice_connection_actions.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 
-/// Opens a channel from the guild sidebar or DM list.
 Future<void> navigateToChannelContent({
   required BuildContext context,
   required WidgetRef ref,
@@ -152,11 +151,12 @@ Future<void> openGuildChannelContent({
   int? effectivePermissionBits,
   String? targetMessageId,
 }) async {
-  if (await tryOpenLinkChannel(
-    context: context,
-    container: ref.container,
-    channel: channel,
-  )) {
+  if (channel.type == ChannelType.guildLink) {
+    await tryOpenLinkChannel(
+      context: context,
+      container: ref.container,
+      channel: channel,
+    );
     return;
   }
   if (!context.mounted) {
@@ -175,7 +175,11 @@ Future<void> openGuildChannelContent({
   void recordAndNavigate() {
     ref
         .read(recentChannelVisitsProvider.notifier)
-        .recordVisit(channelId: channel.id, guildId: guildId);
+        .recordVisit(
+          channelId: channel.id,
+          guildId: guildId,
+          isThread: channel.isThread,
+        );
     if (isAnnouncementConvertibleChannel(channel.type) || channel.isThread) {
       unawaited(
         ref

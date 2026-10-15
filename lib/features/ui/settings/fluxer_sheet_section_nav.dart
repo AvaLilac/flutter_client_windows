@@ -1,4 +1,5 @@
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/preview/fluxer_widget_preview.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/material_ui.dart';
@@ -79,7 +80,7 @@ class _FluxerSheetSectionNavState extends State<FluxerSheetSectionNav> {
       height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: layout.s4),
+        padding: EdgeInsets.symmetric(horizontal: layout.pageGutter),
         itemCount: widget.sections.length,
         separatorBuilder: (_, _) => SizedBox(width: layout.s2),
         itemBuilder: (context, index) {
@@ -133,7 +134,7 @@ class _SheetSectionPill extends StatelessWidget {
           decoration: BoxDecoration(
             color: isActive
                 ? colors.brandPrimary
-                : colors.backgroundSecondaryAlt,
+                : FluxerBottomSheet.cardColorOf(context),
             borderRadius: layout.radiusFull,
           ),
           child: AnimatedDefaultTextStyle(

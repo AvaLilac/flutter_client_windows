@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:cross_file/cross_file.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/system_permissions/system_permission_kind.dart';
 import 'package:fluxer_app/core/system_permissions/system_permission_service.dart';
@@ -13,6 +12,7 @@ import 'package:fluxer_app/features/chat/presentation/widgets/pickers/attachment
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/attachment_panel_source_bar.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/chat/providers/upload/cloud_upload_controller.dart';
+import 'package:fluxer_app/features/chat/providers/upload/user_upload_limits_provider.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/attachment_download_service.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/attachment_native_pickers.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/file_upload_constants.dart';
@@ -23,10 +23,9 @@ import 'package:fluxer_app/features/chat/utils/composer/composer_upload_file.dar
 import 'package:fluxer_app/features/settings/providers/chat_input_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
-import 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
-import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class AttachmentPanelContent extends ConsumerStatefulWidget {
@@ -50,7 +49,8 @@ class _AttachmentPanelContentState extends ConsumerState<AttachmentPanelContent>
   bool _loading = true;
   bool _loadingMore = false;
   bool _hasMore = true;
-  bool _isResolvingAsset = false;
+  final Set<String> _resolvingAssetIds = <String>{};
+  Future<void> _assetAdds = Future<void>.value();
   int _page = 0;
   int _loadGeneration = 0;
   bool _galleryNeedsRefresh = false;
@@ -224,12 +224,15 @@ class _AttachmentPanelContentState extends ConsumerState<AttachmentPanelContent>
     }
   }
 
-  Future<void> _addUploads(List<ComposerUploadFile> files) async {
+  Future<void> _addUploads(
+    List<ComposerUploadFile> files, {
+    String? channelId,
+  }) async {
     if (files.isEmpty) {
       return;
     }
     final FileUploadValidationResult result = await ref
-        .read(cloudUploadControllerProvider(_channelId).notifier)
+        .read(cloudUploadControllerProvider(channelId ?? _channelId).notifier)
         .addFiles(files);
     if (mounted) {
       _toastValidation(result);
@@ -240,38 +243,39 @@ class _AttachmentPanelContentState extends ConsumerState<AttachmentPanelContent>
     if (!mounted) {
       return;
     }
-    final String? message = fileUploadValidationMessage(
+    final FileUploadValidationCopy? copy = fileUploadValidationCopy(
       FluxerLocalizations.of(context),
       result,
+      maxAttachments: kMaxAttachmentsPerMessage,
+      maxFileBytes: ref.read(maxAttachmentFileBytesProvider),
     );
-    if (message == null) {
+    if (copy == null) {
       return;
     }
-    ref
-        .read(toastProvider.notifier)
-        .show(
-          FluxerToast(message: message, variant: FluxerToastVariant.warning),
-        );
+    unawaited(showErrorDialog(context, title: copy.title, body: copy.body));
   }
 
   Future<void> _onAssetPressed(AttachmentGalleryItem item) async {
-    if (_isResolvingAsset) {
+    if (_resolvingAssetIds.contains(item.id)) {
       return;
     }
+    final String channelId = _channelId;
+    final CloudUploadController uploads = ref.read(
+      cloudUploadControllerProvider(channelId).notifier,
+    );
     final List<PendingAttachment> attachments = ref
-        .read(cloudUploadControllerProvider(_channelId))
+        .read(cloudUploadControllerProvider(channelId))
         .items;
     final PendingAttachment? existing = pendingAttachmentForGalleryAsset(
       attachments: attachments,
       galleryAssetId: item.id,
     );
     if (existing != null) {
-      await ref
-          .read(cloudUploadControllerProvider(_channelId).notifier)
-          .removeAttachment(existing.id);
+      await uploads.removeAttachment(existing.id);
       return;
     }
-    if (attachments.length >= kMaxAttachmentsPerMessage) {
+    if (attachments.length + _resolvingAssetIds.length >=
+        kMaxAttachmentsPerMessage) {
       _toastValidation(
         const FileUploadValidationResult.failure(
           FileUploadValidationError.tooManyAttachments,
@@ -279,29 +283,30 @@ class _AttachmentPanelContentState extends ConsumerState<AttachmentPanelContent>
       );
       return;
     }
-    _isResolvingAsset = true;
+    setState(() => _resolvingAssetIds.add(item.id));
+    final Future<void> earlierAdds = _assetAdds;
+    final Completer<void> added = Completer<void>();
+    _assetAdds = added.future;
     try {
-      final XFile? file = await _gallerySource.resolveFile(item.id);
-      if (!mounted) {
-        return;
-      }
-      if (file == null) {
-        return;
-      }
-      if (ref.read(cloudUploadControllerProvider(_channelId)).items.length >=
-          kMaxAttachmentsPerMessage) {
-        _toastValidation(
-          const FileUploadValidationResult.failure(
-            FileUploadValidationError.tooManyAttachments,
-          ),
-        );
+      final AttachmentGalleryFile? picked = await _gallerySource.resolveFile(
+        item.id,
+      );
+      await earlierAdds;
+      if (!mounted || picked == null) {
         return;
       }
       await _addUploads(<ComposerUploadFile>[
-        composerUploadFile(file, galleryAssetId: item.id),
-      ]);
+        composerUploadFile(
+          picked.file,
+          displayFilename: picked.filename,
+          galleryAssetId: item.id,
+        ),
+      ], channelId: channelId);
     } finally {
-      _isResolvingAsset = false;
+      added.complete();
+      if (mounted) {
+        setState(() => _resolvingAssetIds.remove(item.id));
+      }
     }
   }
 
@@ -344,7 +349,14 @@ class _AttachmentPanelContentState extends ConsumerState<AttachmentPanelContent>
       );
       return;
     }
-    await _addUploads(await pickNativeGalleryUploads(limit: limit));
+    final String channelId = _channelId;
+    final GallerySelectionChange change = await pickNativeGallerySelection(
+      attachments: ref.read(cloudUploadControllerProvider(channelId)).items,
+    );
+    final FileUploadValidationResult result = await ref
+        .read(cloudUploadControllerProvider(channelId).notifier)
+        .applyGallerySelection(change);
+    _toastValidation(result);
   }
 
   Future<void> _onFilesPressed() async {
@@ -366,27 +378,30 @@ class _AttachmentPanelContentState extends ConsumerState<AttachmentPanelContent>
 
   @override
   Widget build(BuildContext context) {
-    final Set<String> selectedIds = ref.watch(
-      cloudUploadControllerProvider(_channelId).select(
-        (CloudComposerAttachments attachments) =>
-            selectedGalleryAssetIds(attachments.items),
+    final Set<String> selectedIds = <String>{
+      ...ref.watch(
+        cloudUploadControllerProvider(_channelId).select(
+          (CloudComposerAttachments attachments) =>
+              selectedGalleryAssetIds(attachments.items),
+        ),
       ),
-    );
+      ..._resolvingAssetIds,
+    };
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
 
     return ColoredBox(
       color: context.colors.chatInputBackground,
-      child: Stack(
+      child: Column(
         children: <Widget>[
-          Positioned.fill(child: _body(context, l10n, selectedIds)),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: EdgeInsets.only(bottom: context.layout.s2),
-              child: AttachmentPanelSourceBar(
-                onPhotosPressed: () => unawaited(_onPhotosPressed()),
-                onFilesPressed: () => unawaited(_onFilesPressed()),
-              ),
+          Expanded(child: _body(context, l10n, selectedIds)),
+          Padding(
+            padding: EdgeInsets.only(
+              top: context.layout.s1,
+              bottom: context.layout.s2,
+            ),
+            child: AttachmentPanelSourceBar(
+              onPhotosPressed: () => unawaited(_onPhotosPressed()),
+              onFilesPressed: () => unawaited(_onFilesPressed()),
             ),
           ),
         ],
@@ -407,7 +422,9 @@ class _AttachmentPanelContentState extends ConsumerState<AttachmentPanelContent>
         title: l10n.chatAttachmentLibraryPermissionTitle,
         description: l10n.chatAttachmentLibraryPermissionBody,
         settingsLabel: l10n.chatAttachmentLibraryPermissionSettings,
+        cameraLabel: l10n.chatAttachmentSourceCamera,
         onOpenSettings: () => unawaited(_onOpenPhotoSettings()),
+        onCameraPressed: () => unawaited(_onCameraPressed()),
       );
     }
     return AttachmentGalleryGrid(
@@ -429,13 +446,17 @@ class _AttachmentLibraryPermissionState extends StatelessWidget {
     required this.title,
     required this.description,
     required this.settingsLabel,
+    required this.cameraLabel,
     required this.onOpenSettings,
+    required this.onCameraPressed,
   });
 
   final String title;
   final String description;
   final String settingsLabel;
+  final String cameraLabel;
   final VoidCallback onOpenSettings;
+  final VoidCallback onCameraPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -470,9 +491,23 @@ class _AttachmentLibraryPermissionState extends StatelessWidget {
               ),
             ),
             SizedBox(height: layout.s4),
-            FluxerButton.secondary(
-              label: settingsLabel,
-              onPressed: onOpenSettings,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: layout.s2,
+              runSpacing: layout.s2,
+              children: <Widget>[
+                FluxerButton.secondary(
+                  label: settingsLabel,
+                  fitContent: true,
+                  onPressed: onOpenSettings,
+                ),
+                FluxerButton.secondary(
+                  icon: PhosphorIconsFill.camera,
+                  label: cameraLabel,
+                  fitContent: true,
+                  onPressed: onCameraPressed,
+                ),
+              ],
             ),
           ],
         ),

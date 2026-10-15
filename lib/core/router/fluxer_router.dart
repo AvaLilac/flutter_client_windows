@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 
-import 'package:fluxer_app/core/observability/fluxer_route_trace_observer.dart';
+import 'package:fluxer_app/core/build/app_build_config.dart';
+import 'package:fluxer_app/core/observability/fluxer_measure_navigator_observer.dart';
 import 'package:fluxer_app/core/providers/app_startup_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_connection_provider.dart';
@@ -62,7 +63,6 @@ import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/shell/presentation/splash_screen.dart';
 import 'package:fluxer_app/features/shell/providers/shell_popup_overlay_provider.dart';
 import 'package:fluxer_app/features/threads/presentation/thread_route_gate.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/features/voice/presentation/dm_voice_call_fullscreen_page.dart'
     deferred as dm_voice_call;
@@ -80,7 +80,6 @@ class AuthState extends _$AuthState {
   @override
   bool build() => false;
 
-  // Auth transitions are imperative events from startup/login/logout flows.
   void setAuthenticated({required bool value}) {
     if (state == value) {
       return;
@@ -94,7 +93,6 @@ class CurrentUserId extends _$CurrentUserId {
   @override
   String? build() => null;
 
-  // The active user id is assigned once a session is restored.
   void set(String id) {
     if (state == id) {
       return;
@@ -108,7 +106,6 @@ class CurrentUserPremiumType extends _$CurrentUserPremiumType {
   @override
   int build() => 0;
 
-  // Premium type mirrors the current user profile payload.
   void set(int type) {
     if (state == type) {
       return;
@@ -122,7 +119,6 @@ class ServerReachable extends _$ServerReachable {
   @override
   bool build() => true;
 
-  // Gateway reachability is driven by connection lifecycle events.
   void setReachable({required bool value}) {
     if (state == value) {
       return;
@@ -150,7 +146,8 @@ CustomTransitionPage<void> _dmShellTransitionPage(
       routeName: routeName,
       routePageKey: state.pageKey,
     ),
-    parallaxOutgoing: true,
+    name: routeName,
+    arguments: state.uri.path,
     child: DMLayout(channelId: channelId, targetMessageId: messageId),
   );
 }
@@ -183,8 +180,6 @@ GoRouter fluxerRouter(Ref ref) {
   }
 
   void deferProviderWrite(void Function() write) {
-    // GoRouter redirect / restore can run during build. Provider writes must
-    // wait until after the current frame's synchronous work.
     unawaited(Future<void>(write));
   }
 
@@ -196,7 +191,24 @@ GoRouter fluxerRouter(Ref ref) {
   final homeShellPopupRouteObserver = createShellPopupRouteObserver();
   final notificationsShellPopupRouteObserver = createShellPopupRouteObserver();
   final youShellPopupRouteObserver = createShellPopupRouteObserver();
-  final routeTraceObserver = FluxerRouteTraceObserver();
+  final FluxerMeasureNavigatorObserver? measureNavigatorObserver =
+      AppBuildConfig.hasObservabilityConfig
+      ? FluxerMeasureNavigatorObserver()
+      : null;
+  List<NavigatorObserver> withMeasureNavigatorObserver(
+    List<NavigatorObserver> observers,
+  ) {
+    if (measureNavigatorObserver == null) {
+      return observers;
+    }
+    return <NavigatorObserver>[...observers, measureNavigatorObserver];
+  }
+
+  final List<NavigatorObserver> navigationObservers =
+      withMeasureNavigatorObserver(<NavigatorObserver>[
+        ChannelPersistenceObserver(db),
+        rootShellPopupRouteObserver,
+      ]);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -205,11 +217,7 @@ GoRouter fluxerRouter(Ref ref) {
       return const InvalidDeepLinkScreen();
     },
     refreshListenable: refreshNotifier,
-    observers: [
-      ChannelPersistenceObserver(db),
-      rootShellPopupRouteObserver,
-      routeTraceObserver,
-    ],
+    observers: navigationObservers,
     redirect: (context, state) {
       final location = state.matchedLocation;
       final isOnLoading = location == '/loading';
@@ -229,7 +237,6 @@ GoRouter fluxerRouter(Ref ref) {
         return isOnLoading ? null : '/loading';
       }
 
-      // Still starting up, stay on splash.
       if (!isStartupComplete) {
         return isOnLoading ? null : '/loading';
       }
@@ -248,7 +255,6 @@ GoRouter fluxerRouter(Ref ref) {
         return '/reconnecting';
       }
 
-      // Authenticated but gateway hasn't delivered READY yet, stay on splash.
       if (isAuthenticated &&
           !isGatewayReady &&
           !isOnReconnecting &&
@@ -279,7 +285,6 @@ GoRouter fluxerRouter(Ref ref) {
               preferredPath: currentAccountPendingNavigationPath(
                 pending: ref.read(pendingPushNotificationPathProvider),
                 currentUserId: ref.read(currentUserIdProvider),
-                threadsActive: ref.read(threadsGateProvider).isActive,
               ),
             );
       }
@@ -308,7 +313,6 @@ GoRouter fluxerRouter(Ref ref) {
               preferredPath: currentAccountPendingNavigationPath(
                 pending: ref.read(pendingPushNotificationPathProvider),
                 currentUserId: ref.read(currentUserIdProvider),
-                threadsActive: ref.read(threadsGateProvider).isActive,
               ),
             );
       }
@@ -316,7 +320,6 @@ GoRouter fluxerRouter(Ref ref) {
       return null;
     },
     routes: [
-      // Auth / startup routes
       GoRoute(
         path: '/loading',
         pageBuilder: (BuildContext context, GoRouterState state) {
@@ -337,7 +340,6 @@ GoRouter fluxerRouter(Ref ref) {
         builder: (context, state) => const ReconnectingScreen(),
       ),
 
-      // Deep link routes
       GoRoute(
         path: '/invite/:code',
         name: RouteNames.invite,
@@ -365,11 +367,9 @@ GoRouter fluxerRouter(Ref ref) {
       GoRoute(
         path: '/theme/:themeId',
         name: RouteNames.themePreview,
-        // TODO(M0n7y5): show theme preview.
         redirect: (context, state) => RoutePaths.me,
       ),
 
-      // Guild settings (pushed on root navigator)
       GoRoute(
         path: '/settings/guild/:guildId',
         name: RouteNames.guildSettings,
@@ -385,7 +385,7 @@ GoRouter fluxerRouter(Ref ref) {
         pageBuilder: (BuildContext context, GoRouterState state) {
           final String guildId = state.pathParameters['guildId'] ?? '';
           if (isMobileLayout(context)) {
-            return shellMobileRootPushTransitionPage(
+            return shellMobileRootPushPage(
               context: context,
               key: state.pageKey,
               child: GuildSettingsOpenGate(
@@ -423,12 +423,11 @@ GoRouter fluxerRouter(Ref ref) {
         },
       ),
 
-      // Guild settings tab pages (full-screen on mobile, slide-over on desktop)
       GoRoute(
         path: '/settings/guild/:guildId/overview',
         name: RouteNames.guildSettingsOverview,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsOverviewPage(
@@ -440,7 +439,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/moderation',
         name: RouteNames.guildSettingsModeration,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsModerationPage(
@@ -452,7 +451,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/audit-log',
         name: RouteNames.guildSettingsAuditLog,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsAuditLogPage(
@@ -464,7 +463,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/bans',
         name: RouteNames.guildSettingsBans,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsBansPage(
@@ -476,7 +475,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/members',
         name: RouteNames.guildSettingsMembers,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsMembersPage(
@@ -488,7 +487,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/invites',
         name: RouteNames.guildSettingsInvites,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsInvitesPage(
@@ -500,7 +499,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/webhooks',
         name: RouteNames.guildSettingsWebhooks,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsWebhooksPage(
@@ -512,7 +511,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/discovery',
         name: RouteNames.guildSettingsDiscovery,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsDiscoveryPage(
@@ -524,7 +523,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/channels',
         name: RouteNames.guildSettingsChannels,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsChannelsPage(
@@ -536,7 +535,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/roles',
         name: RouteNames.guildSettingsRoles,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsRolesPage(
@@ -548,7 +547,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/emoji',
         name: RouteNames.guildSettingsEmoji,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsEmojiPage(
@@ -560,7 +559,7 @@ GoRouter fluxerRouter(Ref ref) {
         path: '/settings/guild/:guildId/stickers',
         name: RouteNames.guildSettingsStickers,
         parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => shellMobileRootPushTransitionPage(
+        pageBuilder: (context, state) => shellMobileRootPushPage(
           context: context,
           key: state.pageKey,
           child: SettingsStickersPage(
@@ -569,7 +568,6 @@ GoRouter fluxerRouter(Ref ref) {
         ),
       ),
 
-      // Channel settings (pushed on root navigator)
       GoRoute(
         path: '/settings/channel/:channelId',
         name: RouteNames.channelSettings,
@@ -585,7 +583,7 @@ GoRouter fluxerRouter(Ref ref) {
         pageBuilder: (BuildContext context, GoRouterState state) {
           final String channelId = state.pathParameters['channelId'] ?? '';
           if (isMobileLayout(context)) {
-            return shellMobileRootPushTransitionPage(
+            return shellMobileRootPushPage(
               context: context,
               key: state.pageKey,
               child: ChannelSettingsNavPage(channelId: channelId),
@@ -608,7 +606,7 @@ GoRouter fluxerRouter(Ref ref) {
         name: RouteNames.channelSettingsOverview,
         parentNavigatorKey: rootNavigatorKey,
         pageBuilder: (BuildContext context, GoRouterState state) =>
-            shellMobileRootPushTransitionPage(
+            shellMobileRootPushPage(
               context: context,
               key: state.pageKey,
               child: ChannelSettingsOverviewPage(
@@ -621,7 +619,7 @@ GoRouter fluxerRouter(Ref ref) {
         name: RouteNames.channelSettingsPermissions,
         parentNavigatorKey: rootNavigatorKey,
         pageBuilder: (BuildContext context, GoRouterState state) =>
-            shellMobileRootPushTransitionPage(
+            shellMobileRootPushPage(
               context: context,
               key: state.pageKey,
               child: ChannelSettingsPermissionsPage(
@@ -634,7 +632,7 @@ GoRouter fluxerRouter(Ref ref) {
         name: RouteNames.channelSettingsInvites,
         parentNavigatorKey: rootNavigatorKey,
         pageBuilder: (BuildContext context, GoRouterState state) =>
-            shellMobileRootPushTransitionPage(
+            shellMobileRootPushPage(
               context: context,
               key: state.pageKey,
               child: ChannelSettingsInvitesPage(
@@ -647,7 +645,7 @@ GoRouter fluxerRouter(Ref ref) {
         name: RouteNames.channelSettingsWebhooks,
         parentNavigatorKey: rootNavigatorKey,
         pageBuilder: (BuildContext context, GoRouterState state) =>
-            shellMobileRootPushTransitionPage(
+            shellMobileRootPushPage(
               context: context,
               key: state.pageKey,
               child: ChannelSettingsWebhooksPage(
@@ -656,7 +654,6 @@ GoRouter fluxerRouter(Ref ref) {
             ),
       ),
 
-      // Discover (root navigator — slide on mobile, inline shell on desktop)
       GoRoute(
         path: '/channels/@discover',
         name: RouteNames.discover,
@@ -677,7 +674,6 @@ GoRouter fluxerRouter(Ref ref) {
         },
       ),
 
-      // Main app shell
       StatefulShellRoute.indexedStack(
         pageBuilder: (context, state, navigationShell) =>
             shellFadeTransitionPage(
@@ -686,12 +682,12 @@ GoRouter fluxerRouter(Ref ref) {
               child: AppLayout(navigationShell: navigationShell),
             ),
         branches: [
-          // Branch 0: Home
           StatefulShellBranch(
             navigatorKey: homeBranchNavigatorKey,
-            observers: [homeShellPopupRouteObserver],
+            observers: withMeasureNavigatorObserver([
+              homeShellPopupRouteObserver,
+            ]),
             routes: [
-              // /channels/@me
               GoRoute(
                 path: '/channels/@me',
                 name: RouteNames.dms,
@@ -735,7 +731,7 @@ GoRouter fluxerRouter(Ref ref) {
                               child: callPage,
                             );
                           }
-                          return shellMobileRootPushTransitionPage(
+                          return shellMobileRootPushPage(
                             context: context,
                             key: state.pageKey,
                             child: callPage,
@@ -751,7 +747,6 @@ GoRouter fluxerRouter(Ref ref) {
                   ),
                 ],
               ),
-              // /channels/@favorites
               GoRoute(
                 path: '/channels/@favorites',
                 name: RouteNames.favorites,
@@ -764,6 +759,7 @@ GoRouter fluxerRouter(Ref ref) {
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const FavoritesLayout(),
                 ),
                 routes: [
@@ -773,7 +769,8 @@ GoRouter fluxerRouter(Ref ref) {
                     pageBuilder: (context, state) => shellSlideTransitionPage(
                       context: context,
                       key: kFavoritesChatPageKey,
-                      parallaxOutgoing: true,
+                      name: RouteNames.favoritesChannel,
+                      arguments: state.uri.path,
                       child: FavoritesLayout(
                         channelId: state.pathParameters['channelId'],
                         messageId: state.pathParameters['messageId'],
@@ -787,7 +784,8 @@ GoRouter fluxerRouter(Ref ref) {
                             shellSlideTransitionPage(
                               context: context,
                               key: state.pageKey,
-                              parallaxOutgoing: true,
+                              name: RouteNames.favoritesMessage,
+                              arguments: state.uri.path,
                               child: FavoritesLayout(
                                 channelId: state.pathParameters['channelId'],
                                 messageId: state.pathParameters['messageId'],
@@ -798,7 +796,6 @@ GoRouter fluxerRouter(Ref ref) {
                   ),
                 ],
               ),
-              // /channels/:guildId
               GoRoute(
                 path: '/channels/:guildId',
                 name: RouteNames.guild,
@@ -816,16 +813,12 @@ GoRouter fluxerRouter(Ref ref) {
                     trackedUnavailableGuildIds: ref.read(
                       guildAvailabilityProvider,
                     ),
-                    restoreThreadChannels:
-                        !ref.read(gatewayReadyProvider) ||
-                        ref
-                            .read(threadsGateProvider)
-                            .isActive(state.pathParameters['guildId']),
                   );
                 },
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: GuildRootPlaceholder(
                     guildId: state.pathParameters['guildId'] ?? '',
                   ),
@@ -837,6 +830,7 @@ GoRouter fluxerRouter(Ref ref) {
                     pageBuilder: (context, state) => shellSlideTransitionPage(
                       context: context,
                       key: state.pageKey,
+                      name: state.name,
                       child: GuildMembersPage(
                         guildId: state.pathParameters['guildId'] ?? '',
                       ),
@@ -851,8 +845,8 @@ GoRouter fluxerRouter(Ref ref) {
                       return shellSlideTransitionPage(
                         context: context,
                         key: guildChatPageKey(guildId),
-                        name: state.uri.path,
-                        parallaxOutgoing: true,
+                        name: RouteNames.channel,
+                        arguments: state.uri.path,
                         child: ThreadRouteGate(
                           guildId: guildId,
                           channelId: channelId,
@@ -875,6 +869,8 @@ GoRouter fluxerRouter(Ref ref) {
                           return shellSlideTransitionPage(
                             context: context,
                             key: state.pageKey,
+                            name: RouteNames.message,
+                            arguments: state.uri.path,
                             child: ThreadRouteGate(
                               guildId: guildId,
                               channelId: channelId,
@@ -891,33 +887,34 @@ GoRouter fluxerRouter(Ref ref) {
                   ),
                 ],
               ),
-              // /bookmarks
               GoRoute(
                 path: '/bookmarks',
                 name: RouteNames.bookmarks,
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const SavedMessagesPage(),
                 ),
               ),
-              // /mentions
               GoRoute(
                 path: '/mentions',
                 name: RouteNames.mentions,
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const RecentMentionsPage(),
                 ),
               ),
             ],
           ),
 
-          // Branch 1: Notifications
           StatefulShellBranch(
             navigatorKey: notificationsBranchNavigatorKey,
-            observers: [notificationsShellPopupRouteObserver],
+            observers: withMeasureNavigatorObserver([
+              notificationsShellPopupRouteObserver,
+            ]),
             routes: [
               GoRoute(
                 path: '/notifications',
@@ -925,16 +922,18 @@ GoRouter fluxerRouter(Ref ref) {
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const NotificationsPage(),
                 ),
               ),
             ],
           ),
 
-          // Branch 2: You
           StatefulShellBranch(
             navigatorKey: youBranchNavigatorKey,
-            observers: [youShellPopupRouteObserver],
+            observers: withMeasureNavigatorObserver([
+              youShellPopupRouteObserver,
+            ]),
             routes: [
               GoRoute(
                 path: '/you',
@@ -942,6 +941,7 @@ GoRouter fluxerRouter(Ref ref) {
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const ProfilePage(),
                 ),
               ),

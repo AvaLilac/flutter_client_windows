@@ -109,7 +109,7 @@ class ChannelSearchResultGroupHeader extends ConsumerWidget {
     if (dm != null && dm.isGroup) {
       return Padding(
         padding: const EdgeInsets.only(right: 8),
-        child: groupDmAvatarCluster(dm: dm, size: 20, status: dm.groupStatus),
+        child: GroupDmAvatar.conversation(dm, size: 20),
       );
     }
     return Padding(
@@ -169,7 +169,7 @@ class _GuildChannelScopeRow extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: PhosphorIcon(
-            PhosphorIconsFill.caretRight,
+            PhosphorIconsBold.caretRight,
             size: 12,
             color: context.colors.textPrimaryMuted,
           ),
@@ -207,7 +207,6 @@ class _GuildBadge extends StatelessWidget {
       name: guild.name,
       imageUrl: guild.iconUrl,
       size: 12,
-      initialsFontWeight: FontWeight.w700,
     );
   }
 }

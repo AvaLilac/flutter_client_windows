@@ -7,6 +7,7 @@ abstract final class InstanceConstants {
   static const String canaryInstanceInputUrl = 'canary.fluxer.com';
   static const String defaultMarketingBaseUrl = 'https://fluxer.app';
   static const String defaultProductName = 'Fluxer';
+  static const String defaultPremiumProductName = 'Plutonium';
   static const int maxRecentInstances = 5;
 
   static const Set<String> officialInstanceHosts = <String>{

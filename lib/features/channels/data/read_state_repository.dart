@@ -5,6 +5,7 @@ import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/push/push_notification_clear.dart';
 import 'package:fluxer_app/core/push/push_tray_registry.dart';
 import 'package:fluxer_app/features/channels/data/ack_batcher.dart';
+import 'package:fluxer_app/features/channels/data/read_state_decisions.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_app/features/channels/data/unread_settings_resolver.dart';
 import 'package:fluxer_dart/export.dart';
@@ -51,22 +52,32 @@ class ReadStateRepository {
   Future<void> clearSticky(String channelId) =>
       _db.readStateDao.clearStickyUnread(channelId);
 
-  /// Applies the authoritative read states returned by `/read-states/ack`.
-  /// Version-gated: skips a channel whose stored version is newer than the
-  /// response's, keeping local ack / mention / version aligned with the server
-  /// (mirrors the web's `ReadStates.applyAckResponse`).
   Future<void> applyAckResponse(ReadStateAckResponse response) async {
     for (final rs in response.readStates) {
+      final String? messageId = rs.lastMessageId;
+      if (messageId == null) {
+        continue;
+      }
       final current = await _db.readStateDao.getReadState(rs.id);
-      if (current?.version != null &&
-          rs.version != null &&
-          compareReadStateVersions(rs.version, current!.version) < 0) {
+      final ReadStateServerAckDecision decision =
+          resolveReadStateServerAckDecision(
+            ReadStateServerAckInput(
+              messageId: messageId,
+              ackMessageId: current?.lastMessageId,
+              serverVersion: current?.version,
+              version: rs.version,
+              manual: false,
+              hasMentionCount: true,
+            ),
+          );
+      if (decision.kind == ReadStateServerAckKind.ignoreStaleVersion ||
+          decision.kind == ReadStateServerAckKind.ignoreOlderMessage) {
         continue;
       }
       await _db.readStateDao.upsertReadState(
         ReadStatesCompanion(
           channelId: Value(rs.id),
-          lastMessageId: Value(rs.lastMessageId),
+          lastMessageId: Value(messageId),
           mentionCount: Value(rs.mentionCount),
           version: Value(rs.version),
           flags: rs.flags == null ? const Value.absent() : Value(rs.flags),
@@ -102,8 +113,6 @@ class ReadStateRepository {
     return messageId;
   }
 
-  /// Acks up to [messageId] (the newest loaded/visible message). Never
-  /// regresses an existing ack. Returns the acked id, or null when a no-op.
   Future<String?> applyLocalAckUpTo(String channelId, String messageId) async {
     final current = await _db.readStateDao.getReadState(channelId);
     final String? currentAck = current?.lastMessageId;
@@ -235,7 +244,6 @@ class ReadStateRepository {
     if (readStates.isEmpty) {
       return;
     }
-    // Per-row point reads here starve the first channel switch after READY.
     final knownChannelIds = <String>{
       for (final channel in await _db.channelDao.getAllChannels(
         includeThreads: true,
@@ -305,26 +313,30 @@ class ReadStateRepository {
 
   Future<String?> latestAckableMessageId(String channelId) async {
     final channel = await _db.channelDao.getChannelById(channelId);
-    final channelLastMessageId =
+    final String? channelLastMessageId =
         channel?.lastMessageId ??
         (await _db.dmChannelDao.getDmChannelById(channelId))?.lastMessageId;
-    final readState = await _db.readStateDao.getReadState(channelId);
-    final resolved = await resolveLatestMessageIdForChannel(
-      _db,
+    final String? cachedLastMessageId = (await _db.messageDao.getLastMessage(
       channelId,
-      channelLastMessageId: channelLastMessageId,
-    );
-    final latestForUnread = resolveLatestMessageIdForUnread(
-      strictLatestMessageId: resolved.id,
-      channelLastMessageId: channelLastMessageId,
-      ackLastMessageId: readState?.lastMessageId,
-      mentionCount: readState?.mentionCount ?? 0,
-      channelLastMessageExistsInCache: resolved.existsInCache,
-    );
-    if (latestForUnread != null && latestForUnread.isNotEmpty) {
-      return latestForUnread;
+    ))?.id;
+    final readState = await _db.readStateDao.getReadState(channelId);
+    String? latest;
+    for (final String? candidate in <String?>[
+      channelLastMessageId,
+      cachedLastMessageId,
+      readState?.lastMessageId,
+    ]) {
+      if (candidate == null || candidate.isEmpty) {
+        continue;
+      }
+      if (latest == null || compareSnowflakeIds(candidate, latest) > 0) {
+        latest = candidate;
+      }
     }
-    return readState?.lastMessageId;
+    if (latest == null && (readState?.mentionCount ?? 0) > 0) {
+      return channelId;
+    }
+    return latest;
   }
 
   Future<String?> _previousMessageId(String channelId, String messageId) async {
@@ -335,7 +347,7 @@ class ReadStateRepository {
     if (previous != null) {
       return previous.id;
     }
-    final reference = await _db.messageDao.getMessage(messageId);
+    final reference = await _db.messageDao.getMessage(channelId, messageId);
     if (reference != null) {
       return snowflakeAtPreviousMillisecond(messageId);
     }
@@ -360,9 +372,6 @@ class ReadStateRepository {
       ackMessageId: ackMessageId,
       currentUserId: currentUserId,
     );
-    // A backfill loads a partial window and can undercount, so keep the larger
-    // of stored and recomputed unless the caller is authoritative (a
-    // relationship change that must also drop counts).
     final next = allowDecrease
         ? recomputed
         : (recomputed > current.mentionCount
@@ -383,55 +392,9 @@ class ReadStateRepository {
     );
   }
 
-  /// Recomputes mention counts for every unread or mentioned channel after a
-  /// relationship change, so blocking a user drops their mentions and
-  /// unblocking restores them (mirrors the web's
-  /// `ReadStates.handleRelationshipUpdate`). Authoritative (`allowDecrease:
-  /// true`) so counts can fall as well as rise.
-  Future<void> recomputeMentionsForUnreadOrMentionedChannels({
-    required String? currentUserId,
-  }) async {
-    final readStates = await _db.readStateDao.getReadStates();
-    for (final readState in readStates) {
-      final bool unreadOrMentioned;
-      if (readState.mentionCount > 0) {
-        unreadOrMentioned = true;
-      } else {
-        final dm = await _db.dmChannelDao.getDmChannelById(readState.channelId);
-        if (dm != null) {
-          unreadOrMentioned = dm.unreadCount > 0;
-        } else {
-          final channel = await _db.channelDao.getChannelById(
-            readState.channelId,
-          );
-          unreadOrMentioned =
-              channel != null &&
-              compareSnowflakeIds(
-                    readState.lastMessageId,
-                    channel.lastMessageId,
-                  ) <
-                  0;
-        }
-      }
-      if (!unreadOrMentioned) {
-        continue;
-      }
-      await recomputeMentionsAfterBackfill(
-        channelId: readState.channelId,
-        currentUserId: currentUserId,
-        allowDecrease: true,
-      );
-    }
-  }
-
-  /// Reconciles read state after messages are deleted from a channel.
-  /// Walks the channel/DM tail back when the deleted message was the tail,
-  /// recomputes mention counts from remaining cached messages, and refreshes
-  /// the DM unread counter.
   Future<void> reconcileAfterMessageDelete({
     required String channelId,
     required List<String> deletedMessageIds,
-    required String? currentUserId,
   }) async {
     final channel = await _db.channelDao.getChannelById(channelId);
     final dm = channel == null
@@ -445,82 +408,77 @@ class ReadStateRepository {
     final bool wasDmTail =
         dm?.lastMessageId != null && deletedSet.contains(dm!.lastMessageId);
 
-    Message? lastCachedAfterTailWalk;
-    if (wasChannelTail || wasDmTail) {
-      lastCachedAfterTailWalk = await _db.messageDao.getLastMessage(channelId);
-      if (wasChannelTail) {
-        await _db.channelDao.setLastMessageId(
-          channelId,
-          lastCachedAfterTailWalk?.id,
-        );
-      }
-      if (wasDmTail) {
-        await _db.dmChannelDao.setLastMessage(
-          channelId: channelId,
-          messageId: lastCachedAfterTailWalk?.id,
-          message: lastCachedAfterTailWalk?.content,
-          authorId: lastCachedAfterTailWalk?.authorId,
-          timestamp: lastCachedAfterTailWalk?.timestamp,
-        );
-      }
-    }
+    final readState = await _db.readStateDao.getReadState(channelId);
+    final int mentionCount = readState?.mentionCount ?? 0;
 
-    var readState = await _db.readStateDao.getReadState(channelId);
-    if (readState != null &&
-        !readState.manual &&
-        (wasChannelTail || wasDmTail)) {
-      final String? ackMessageId = readState.lastMessageId;
+    if (wasChannelTail || wasDmTail) {
+      final String? ackMessageId = readState?.lastMessageId;
       final bool hasRemainingUnreadAfterAck = await _hasRemainingUnreadAfterAck(
         channelId: channelId,
         ackMessageId: ackMessageId,
         deletedSet: deletedSet,
       );
-      if (!hasRemainingUnreadAfterAck) {
-        final String? effectiveTail = lastCachedAfterTailWalk?.id;
-        String? ackTarget;
-        if (effectiveTail != null && effectiveTail.isNotEmpty) {
-          if (ackMessageId == null ||
-              ackMessageId.isEmpty ||
-              compareSnowflakeIds(ackMessageId, effectiveTail) < 0) {
-            ackTarget = effectiveTail;
-          }
-        } else {
-          for (final deletedId in deletedMessageIds) {
+      if (wasDmTail || hasRemainingUnreadAfterAck || mentionCount == 0) {
+        final Message? lastCachedAfterTailWalk = await _db.messageDao
+            .getLastMessage(channelId);
+        if (wasChannelTail) {
+          await _db.channelDao.setLastMessageId(
+            channelId,
+            lastCachedAfterTailWalk?.id,
+          );
+        }
+        if (wasDmTail) {
+          await _db.dmChannelDao.setLastMessage(
+            channelId: channelId,
+            messageId: lastCachedAfterTailWalk?.id,
+            message: lastCachedAfterTailWalk?.content,
+            authorId: lastCachedAfterTailWalk?.authorId,
+            timestamp: lastCachedAfterTailWalk?.timestamp,
+          );
+        }
+        if (readState != null &&
+            !readState.manual &&
+            mentionCount == 0 &&
+            !hasRemainingUnreadAfterAck) {
+          final String? effectiveTail = lastCachedAfterTailWalk?.id;
+          String? ackTarget;
+          if (effectiveTail != null && effectiveTail.isNotEmpty) {
             if (ackMessageId == null ||
                 ackMessageId.isEmpty ||
-                compareSnowflakeIds(ackMessageId, deletedId) < 0) {
-              if (ackTarget == null ||
-                  compareSnowflakeIds(deletedId, ackTarget) > 0) {
-                ackTarget = deletedId;
+                compareSnowflakeIds(ackMessageId, effectiveTail) < 0) {
+              ackTarget = effectiveTail;
+            }
+          } else {
+            for (final deletedId in deletedMessageIds) {
+              if (ackMessageId == null ||
+                  ackMessageId.isEmpty ||
+                  compareSnowflakeIds(ackMessageId, deletedId) < 0) {
+                if (ackTarget == null ||
+                    compareSnowflakeIds(deletedId, ackTarget) > 0) {
+                  ackTarget = deletedId;
+                }
               }
             }
           }
-        }
-        if (ackTarget != null) {
-          await applyLocalAck(
-            channelId: channelId,
-            messageId: ackTarget,
-            mentionCount: 0,
-          );
-          readState = await _db.readStateDao.getReadState(channelId);
+          if (ackTarget != null) {
+            await applyLocalAck(
+              channelId: channelId,
+              messageId: ackTarget,
+              mentionCount: 0,
+            );
+          }
         }
       }
     }
 
-    await recomputeMentionsAfterBackfill(
-      channelId: channelId,
-      currentUserId: currentUserId,
-      allowDecrease: true,
-    );
-
     if (dm != null) {
-      readState = await _db.readStateDao.getReadState(channelId);
+      final ackedReadState = await _db.readStateDao.getReadState(channelId);
       final updatedDm = await _db.dmChannelDao.getDmChannelById(channelId);
       final unreadCount = dmUnreadCountFromReadState(
         latestMessageId: updatedDm?.lastMessageId,
-        ackLastMessageId: readState?.lastMessageId,
+        ackLastMessageId: ackedReadState?.lastMessageId,
         fallbackAckMs: snowflakeTimestampMs(channelId),
-        mentionCount: readState?.mentionCount ?? 0,
+        mentionCount: mentionCount,
         cachedUnreadCount: updatedDm?.unreadCount ?? 0,
       );
       await _db.dmChannelDao.updateUnreadCount(channelId, unreadCount);

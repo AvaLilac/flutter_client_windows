@@ -21,7 +21,6 @@ import 'package:fluxer_app/features/settings/providers/guild/guild_role_settings
 import 'package:fluxer_app/features/settings/providers/guild/guild_settings_tab_providers.dart';
 import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/modal/fluxer_modal.dart';
 import 'package:fluxer_app/features/ui/settings/fluxer_settings_sheet.dart';
@@ -30,6 +29,7 @@ import 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
 import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 
 class GuildRolesSettingsWidget extends ConsumerStatefulWidget {
   const GuildRolesSettingsWidget({
@@ -173,10 +173,7 @@ class _GuildRolesSettingsWidgetState
           Permission.mentionEveryone,
         );
         final List<GuildPermissionCategorySpec> permissionSpecs =
-            generateGuildPermissionSpec(
-              l10n,
-              threads: ref.watch(threadChannelsActiveProvider(widget.guildId)),
-            );
+            generateGuildPermissionSpec(l10n);
         final List<GuildPermissionCategorySpec> filteredPermissionSpecs =
             filterGuildPermissionSpec(
               specs: permissionSpecs,
@@ -946,18 +943,7 @@ class _GuildRolesSettingsWidgetState
   Future<void> _showErrorModal({
     required String title,
     required String message,
-  }) async {
-    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
-    await FluxerModal.show<void>(
-      context,
-      title: title,
-      centered: true,
-      builder: (BuildContext dialogContext, VoidCallback close) {
-        return Text(message, style: dialogContext.textStyles.bodySmall);
-      },
-      actionsBuilder: (void Function([void]) pop) => <Widget>[
-        FluxerButton.primary(onPressed: () => pop(), label: l10n.uiConfirm),
-      ],
-    );
+  }) {
+    return showErrorDialog(context, title: title, body: message);
   }
 }

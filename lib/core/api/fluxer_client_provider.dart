@@ -11,7 +11,8 @@ import 'package:fluxer_app/core/api/session_auth_interceptor.dart';
 import 'package:fluxer_app/core/api/skip_auth_interceptor.dart';
 import 'package:fluxer_app/core/api/sudo_dialog.dart';
 import 'package:fluxer_app/core/api/sudo_interceptor.dart';
-import 'package:fluxer_app/core/observability/fluxer_otel_dio_interceptor.dart';
+import 'package:fluxer_app/core/build/app_build_config.dart';
+import 'package:fluxer_app/core/observability/fluxer_measure_dio_interceptor.dart';
 import 'package:fluxer_app/core/providers/active_instance_provider.dart';
 import 'package:fluxer_app/core/providers/app_runtime_info_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
@@ -72,14 +73,20 @@ Dio _buildFluxerDio({required Ref ref, required String baseUrl}) {
       readLocale: () => container.read(effectiveAppLocaleProvider),
     ),
   );
-  dio.interceptors.add(
-    SessionAuthInterceptor(readToken: () => ref.read(fluxerAuthTokenProvider)),
-  );
+  String? readToken() => ref.read(fluxerAuthTokenProvider);
+  dio.interceptors.add(SessionAuthInterceptor(readToken: readToken));
   dio.interceptors.add(SkipAuthInterceptor());
-  dio.interceptors.add(RetryInterceptor(dio: dio));
-  dio.interceptors.add(RateLimitInterceptor(pacer: sharedRateLimitPacer));
+  dio.interceptors.add(RetryInterceptor(dio: dio, readToken: readToken));
+  final RateLimitPacer rateLimitPacer = RateLimitPacer();
+  ref.listen<String?>(
+    fluxerAuthTokenProvider,
+    (String? previous, String? next) => rateLimitPacer.clear(),
+  );
+  dio.interceptors.add(RateLimitInterceptor(pacer: rateLimitPacer));
   dio.interceptors.add(PremiumStateResponseInterceptor());
-  dio.interceptors.add(const FluxerOtelDioInterceptor());
+  if (AppBuildConfig.hasObservabilityConfig) {
+    dio.interceptors.add(FluxerMeasureDioInterceptor());
+  }
   dio.interceptors.add(
     CaptchaInterceptor(
       dio: dio,
@@ -96,8 +103,11 @@ Dio _buildFluxerDio({required Ref ref, required String baseUrl}) {
   dio.interceptors.add(
     SudoInterceptor(
       dio: dio,
-      showSudoSheet: () =>
-          showSudoVerificationSheet(navigatorKey: rootNavigatorKey, dio: dio),
+      showSudoSheet: (SudoChallenge challenge) => showSudoVerificationSheet(
+        navigatorKey: rootNavigatorKey,
+        dio: dio,
+        challenge: challenge,
+      ),
     ),
   );
   if (kDebugMode) {
@@ -147,15 +157,11 @@ FluxerClient authFluxerClient(Ref ref) {
   return FluxerClient(dio, baseUrl: baseUrl);
 }
 
-/// Holds the current auth token. Set by the auth flow, watched by
-/// [fluxerClientProvider] so the client rebuilds when the token changes.
 @Riverpod(keepAlive: true)
 class FluxerAuthToken extends _$FluxerAuthToken {
   @override
   String? build() => null;
 
-  // Auth state is updated from repository flows; Riverpod state remains the
-  // source of truth for consumers.
   void setToken(String? token) {
     if (state == token) {
       return;

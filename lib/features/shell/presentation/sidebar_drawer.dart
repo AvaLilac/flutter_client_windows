@@ -15,10 +15,10 @@ import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/gestures/horizontal_reveal_physics.dart';
 import 'package:fluxer_app/shared/gestures/nested_horizontal_scrollable.dart';
 
-/// Compact wide mobile peeks the drawer at the channel list edge.
 class SidebarDrawer extends ConsumerStatefulWidget {
   final Widget base;
   final Widget slider;
+  final String? shellLocation;
 
   final Duration? revealDuration;
   final Curve revealCurve;
@@ -28,6 +28,7 @@ class SidebarDrawer extends ConsumerStatefulWidget {
   const SidebarDrawer({
     required this.base,
     required this.slider,
+    this.shellLocation,
     this.revealDuration,
     this.revealCurve = kHorizontalSwipeCurve,
     this.snapBackDuration,
@@ -59,7 +60,18 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
   @override
   void initState() {
     super.initState();
-    _currentSide = ref.read(currentRevealSideProvider);
+    final String? location = widget.shellLocation;
+    final RevealSide? routeSide = location == null
+        ? null
+        : syncedRevealSideFor(location);
+    _currentSide = routeSide ?? ref.read(currentRevealSideProvider);
+    if (routeSide != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(currentRevealSideProvider.notifier).set(routeSide);
+        }
+      });
+    }
     _animationController = createHorizontalRevealController(vsync: this)
       ..addListener(_schedulePublishPastHalf)
       ..addListener(_syncPaneTickers)
@@ -353,7 +365,10 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
               excluding: !peek && revealSide == RevealSide.left,
               child: ValueListenableBuilder<bool>(
                 valueListenable: _sliderTickersEnabled,
-                child: _DrawerSliderLayer(slider: widget.slider),
+                child: SidebarDrawerSliderScope(
+                  translate: _animationController,
+                  child: _DrawerSliderLayer(slider: widget.slider),
+                ),
                 builder: (BuildContext context, bool enabled, Widget? slider) =>
                     TickerMode(enabled: enabled, child: slider!),
               ),
@@ -407,18 +422,47 @@ class _DrawerSliderLayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final RevealSide revealSide = ref.watch(currentRevealSideProvider);
     final bool peek = isCompactWideDrawerPeekMode(
       context,
       shellLocation: ref.watch(shellLocationProvider),
-      revealSide: ref.watch(currentRevealSideProvider),
+      revealSide: revealSide,
     );
-    return ChatSwipeToReplyScope(
-      enabled: !peek,
-      child: IgnorePointer(
-        ignoring: peek,
-        child: RepaintBoundary(child: slider),
+    return ChatOnScreenScope(
+      onScreen: peek || revealSide == RevealSide.main,
+      child: ChatSwipeToReplyScope(
+        enabled: !peek,
+        child: IgnorePointer(
+          ignoring: peek,
+          child: RepaintBoundary(child: slider),
+        ),
       ),
     );
+  }
+}
+
+class SidebarDrawerSliderScope extends InheritedWidget {
+  const SidebarDrawerSliderScope({
+    required this.translate,
+    required super.child,
+    super.key,
+  });
+
+  final AnimationController translate;
+
+  static bool isPresentingOf(BuildContext context) {
+    final AnimationController? translate = context
+        .getInheritedWidgetOfExactType<SidebarDrawerSliderScope>()
+        ?.translate;
+    if (translate == null) {
+      return false;
+    }
+    return translate.value != 0 || translate.isAnimating;
+  }
+
+  @override
+  bool updateShouldNotify(SidebarDrawerSliderScope oldWidget) {
+    return translate != oldWidget.translate;
   }
 }
 
@@ -436,7 +480,6 @@ const Key kDrawerPeekInactiveScrimKey = ValueKey<String>('drawer-peek-scrim');
 
 const double kDrawerPeekInactiveScrimOpacity = 0.4;
 
-/// False in compact-wide peek.
 class ChatSwipeToReplyScope extends InheritedWidget {
   const ChatSwipeToReplyScope({
     required this.enabled,
@@ -456,6 +499,28 @@ class ChatSwipeToReplyScope extends InheritedWidget {
   @override
   bool updateShouldNotify(ChatSwipeToReplyScope oldWidget) {
     return enabled != oldWidget.enabled;
+  }
+}
+
+class ChatOnScreenScope extends InheritedWidget {
+  const ChatOnScreenScope({
+    required this.onScreen,
+    required super.child,
+    super.key,
+  });
+
+  final bool onScreen;
+
+  static bool onScreenOf(BuildContext context) {
+    return context
+            .dependOnInheritedWidgetOfExactType<ChatOnScreenScope>()
+            ?.onScreen ??
+        true;
+  }
+
+  @override
+  bool updateShouldNotify(ChatOnScreenScope oldWidget) {
+    return onScreen != oldWidget.onScreen;
   }
 }
 
@@ -498,7 +563,6 @@ RevealSide sidebarDrawerTargetForDrag({
   return open ? RevealSide.left : RevealSide.main;
 }
 
-/// True once the chat slider has moved past half the viewport.
 bool drawerTranslatePastHalfScreen({
   required double translate,
   required double screenWidth,

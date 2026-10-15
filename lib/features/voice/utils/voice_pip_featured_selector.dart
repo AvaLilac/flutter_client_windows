@@ -113,12 +113,10 @@ VoicePipCandidate? _fallbackTile({
   required Set<String> speakingKeys,
 }) {
   VoicePipCandidate? speaking;
-  VoicePipCandidate? screen;
   VoicePipCandidate? remote;
   VoicePipCandidate? local;
   for (final VoicePipCandidate tile in tiles) {
     if (tile.isScreenShare) {
-      screen ??= tile;
       continue;
     }
     if (_isSpeaking(tile, speakingKeys)) {
@@ -130,7 +128,7 @@ VoicePipCandidate? _fallbackTile({
       remote ??= tile;
     }
   }
-  return speaking ?? screen ?? remote ?? local;
+  return speaking ?? remote ?? local;
 }
 
 Map<String, DateTime> _nextSpeakingSince({
@@ -149,9 +147,6 @@ Map<String, DateTime> _nextSpeakingSince({
   return next;
 }
 
-/// Picks the PiP featured tile. Watched stream and pin win immediately.
-/// Speaking cameras switch only after [hysteresis], unless the current tile
-/// is gone or no longer speaking/recent.
 VoicePipFeaturedResult selectVoicePipFeatured({
   required VoicePipFeaturedResult previous,
   required DateTime now,
@@ -194,7 +189,10 @@ VoicePipFeaturedResult selectVoicePipFeatured({
         recentlySpokeKeys: recentlySpokeKeys,
       ) ??
       _fallbackTile(tiles: tiles, speakingKeys: speakingKeys);
-  final VoicePipCandidate? current = _byId(tiles, previous.tileId);
+  final VoicePipCandidate? previousTile = _byId(tiles, previous.tileId);
+  final VoicePipCandidate? current = previousTile?.isScreenShare ?? false
+      ? null
+      : previousTile;
 
   if (current == null) {
     return VoicePipFeaturedResult(

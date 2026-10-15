@@ -376,7 +376,6 @@ void main() {
 
   group('resolveMessageAuthorDisplay', () {
     const String botUserId = '99';
-    const String guildId = '10';
     final GuildUserDisplay botGuildDisplay = GuildUserDisplay(
       displayName: 'Fluxcord',
       accountDisplayName: 'Fluxcord',
@@ -401,19 +400,54 @@ void main() {
       avatarColor: 0x112233,
     );
 
-    test('uses message display when guild id is null', () {
+    test('uses friend nickname for direct message authors', () {
       final Message message = _message(
-        authorName: 'Proxy One',
-        authorAvatar: 'proxy_one',
-        authorIsBot: true,
+        authorName: 'Global Name',
+        authorAvatar: 'user_avatar',
+        authorIsBot: false,
       );
       final GuildUserDisplay actual = resolveMessageAuthorDisplay(
         message: message,
-        guildId: null,
-        guildDisplay: botGuildDisplay,
+        guildDisplay: resolveGuildUserDisplayFromRows(
+          user: _dbUser(),
+          member: null,
+          guildId: null,
+          friendNickname: 'KC',
+        ),
+      );
+      expect(actual.displayName, 'KC');
+    });
+
+    test('prefers group DM channel nick over friend nickname', () {
+      final GuildUserDisplay actual = resolveMessageAuthorDisplay(
+        message: _message(
+          authorName: 'Global Name',
+          authorAvatar: 'user_avatar',
+          authorIsBot: false,
+        ),
+        guildDisplay: resolveGuildUserDisplayFromRows(
+          user: _dbUser(),
+          member: null,
+          guildId: null,
+          friendNickname: 'KC',
+        ),
+        channelNickname: ' Group Nick ',
+      );
+      expect(actual.displayName, 'Group Nick');
+      expect(actual.accountDisplayName, 'Global Name');
+    });
+
+    test('keeps webhook display over a channel nick', () {
+      final GuildUserDisplay actual = resolveMessageAuthorDisplay(
+        message: _message(
+          authorName: 'Proxy One',
+          authorAvatar: 'proxy_one',
+          authorIsBot: true,
+          webhookId: 'webhook-1',
+        ),
+        channelNickname: 'Group Nick',
       );
       expect(actual.displayName, 'Proxy One');
-      expect(actual.avatarUrl, contains('/avatars/99/proxy_one.webp'));
     });
 
     test('uses message display when guild display is null', () {
@@ -424,7 +458,6 @@ void main() {
       );
       final GuildUserDisplay actual = resolveMessageAuthorDisplay(
         message: message,
-        guildId: guildId,
       );
       expect(actual.displayName, 'Proxy One');
     });
@@ -437,7 +470,6 @@ void main() {
       );
       final GuildUserDisplay actual = resolveMessageAuthorDisplay(
         message: message,
-        guildId: guildId,
         guildDisplay: humanGuildDisplay,
       );
       expect(actual.displayName, humanGuildDisplay.displayName);
@@ -452,7 +484,6 @@ void main() {
       );
       final GuildUserDisplay actual = resolveMessageAuthorDisplay(
         message: message,
-        guildId: guildId,
         guildDisplay: botGuildDisplay,
       );
       expect(actual.displayName, botGuildDisplay.displayName);
@@ -475,7 +506,6 @@ void main() {
       );
       final GuildUserDisplay actual = resolveMessageAuthorDisplay(
         message: message,
-        guildId: guildId,
         guildDisplay: nicknamedBotGuildDisplay,
       );
       expect(actual.displayName, 'Custom Bot Nick');
@@ -492,7 +522,6 @@ void main() {
         );
         final GuildUserDisplay actual = resolveMessageAuthorDisplay(
           message: message,
-          guildId: guildId,
           guildDisplay: botGuildDisplay,
         );
         expect(actual.displayName, botGuildDisplay.displayName);
@@ -508,7 +537,6 @@ void main() {
       );
       final GuildUserDisplay actual = resolveMessageAuthorDisplay(
         message: message,
-        guildId: guildId,
         guildDisplay: humanGuildDisplay,
       );
       expect(actual.displayName, humanGuildDisplay.displayName);
@@ -523,7 +551,6 @@ void main() {
       );
       final GuildUserDisplay actual = resolveMessageAuthorDisplay(
         message: message,
-        guildId: guildId,
         guildDisplay: botGuildDisplay,
       );
       expect(actual.displayName, botGuildDisplay.displayName);
@@ -540,7 +567,6 @@ void main() {
         );
         final GuildUserDisplay actual = resolveMessageAuthorDisplay(
           message: message,
-          guildId: guildId,
           guildDisplay: botGuildDisplay,
         );
         expect(actual.displayName, botGuildDisplay.displayName);
@@ -557,7 +583,6 @@ void main() {
       );
       final GuildUserDisplay actual = resolveMessageAuthorDisplay(
         message: message,
-        guildId: guildId,
         guildDisplay: botGuildDisplay,
       );
       expect(actual.displayName, 'Webhook User');

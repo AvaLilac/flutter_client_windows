@@ -35,7 +35,6 @@ String _resolveSheetHeaderTitle({
   return l10n.incomingVoiceCallTitle;
 }
 
-/// Web mobile parity: [BottomSheet] with Accept / Reject / Ignore.
 Future<String?> showIncomingVoiceCallSheet(
   BuildContext context, {
   required WidgetRef ref,
@@ -222,7 +221,7 @@ class _IncomingVoiceCallSheetBodyState
   Widget _buildAvatar(BuildContext context, {required DmConversation? dm}) {
     const double size = 80;
     if (dm != null && dm.isGroup) {
-      return groupDmAvatarCluster(dm: dm, size: size, status: dm.groupStatus);
+      return GroupDmAvatar.conversation(dm, size: size);
     }
     if (dm != null) {
       return FluxerAvatar.userPresence(

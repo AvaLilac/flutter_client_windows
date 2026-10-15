@@ -26,6 +26,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.TURN_SCREEN_ON" />
@@ -47,11 +48,14 @@
 
     <!-- Without a category, Xiaomi Game Turbo treats the app as a game and caps it at 60 Hz (flutter/flutter#192600). -->
     <application
+        android:name=".FluxerApplication"
         android:label="${appLabel}"
         android:icon="@mipmap/ic_launcher"
         android:localeConfig="@xml/locales_config"
         android:appCategory="social"
         android:enableOnBackInvokedCallback="true">
+        <meta-data android:name="sh.measure.android.API_KEY" android:value="${measureApiKey}" />
+        <meta-data android:name="sh.measure.android.API_URL" android:value="${measureApiUrl}" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -149,6 +153,42 @@
             android:icon="@mipmap/ic_launcher"
             android:label="${appLabel}"
             android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="${appIconAliasPrefix}.starfield"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:icon="@mipmap/fluxer_icon_starfield"
+            android:label="${appLabel}"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="${appIconAliasPrefix}.sweden"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:icon="@mipmap/fluxer_icon_sweden"
+            android:label="${appLabel}"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="${appIconAliasPrefix}.waves"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:icon="@mipmap/fluxer_icon_waves"
+            android:label="${appLabel}"
+            android:enabled="false">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -268,6 +308,10 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+        <service
+            android:name=".UploadKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
         <service
             android:name="com.ryanheise.audioservice.AudioService"
             android:exported="true"

@@ -70,7 +70,6 @@ void main() {
           const EmbedAnimatedImage(
             animatedUrl: 'https://x/a.webp',
             staticUrl: 'https://x/a.png',
-            visibilityKey: 'v1',
           ),
         ),
       );
@@ -93,7 +92,6 @@ void main() {
                   child: EmbedAnimatedImage(
                     animatedUrl: 'https://x/a.webp',
                     staticUrl: 'https://x/a.png',
-                    visibilityKey: 'v1',
                   ),
                 ),
               ],
@@ -123,7 +121,6 @@ void main() {
                     child: EmbedAnimatedImage(
                       animatedUrl: 'https://x/a.webp',
                       staticUrl: 'https://x/a.png',
-                      visibilityKey: 'v-off',
                     ),
                   ),
                 ),
@@ -144,81 +141,91 @@ void main() {
       );
     });
 
-    testWidgets('keeps the animated image mounted while scroll pauses it', (
+    testWidgets('keeps an over-budget animated image mounted while paused', (
       tester,
     ) async {
       final AnimatedImagePlaybackController controller =
-          AnimatedImagePlaybackController(suppressWhileScrolling: true);
+          AnimatedImagePlaybackController(maxActiveVideos: 1);
       await tester.pumpWidget(
         _wrap(
           AnimatedImagePlaybackScope(
             controller: controller,
-            child: const SizedBox(
-              height: 200,
-              child: EmbedAnimatedImage(
-                animatedUrl: 'https://x/a.webp',
-                staticUrl: 'https://x/a.png',
-                visibilityKey: 'v-scroll',
-              ),
+            child: const Column(
+              children: <Widget>[
+                SizedBox(
+                  height: 200,
+                  child: EmbedAnimatedImage(
+                    animatedUrl: 'https://x/a.webp',
+                    staticUrl: 'https://x/a.png',
+                  ),
+                ),
+                SizedBox(
+                  height: 200,
+                  child: EmbedAnimatedImage(
+                    animatedUrl: 'https://x/b.webp',
+                    staticUrl: 'https://x/b.png',
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       );
       await tester.pump();
-      controller.setScrollActive(active: true);
-      await tester.pump();
 
-      final FluxerAnimatedImage image = tester.widget<FluxerAnimatedImage>(
-        find.byType(FluxerAnimatedImage),
-      );
-      expect(image.playing, isFalse);
-      expect(image.loadAnimated, isTrue);
-      final TickerMode ticker = tester.widget<TickerMode>(
+      final FluxerAnimatedImage paused = tester
+          .widgetList<FluxerAnimatedImage>(find.byType(FluxerAnimatedImage))
+          .singleWhere((FluxerAnimatedImage image) => !image.playing);
+      expect(paused.loadAnimated, isTrue);
+      final Iterable<TickerMode> tickers = tester.widgetList<TickerMode>(
         find.byKey(const ValueKey<String>('fluxer-animated-image-ticker')),
       );
-      expect(ticker.enabled, isFalse);
       expect(
-        find.descendant(
-          of: find.byKey(
-            const ValueKey<String>('fluxer-animated-image-ticker'),
-          ),
-          matching: find.byWidgetPredicate(
-            (Widget widget) =>
-                widget is CachedNetworkImage &&
-                widget.imageUrl.contains('a.webp'),
-          ),
-        ),
-        findsOneWidget,
+        tickers.map((TickerMode ticker) => ticker.enabled),
+        unorderedEquals(<bool>[true, false]),
       );
     });
 
-    testWidgets('keeps playing while the playback controller is scrolling', (
-      tester,
-    ) async {
+    testWidgets('keeps playing after its message row remounts', (tester) async {
       final AnimatedImagePlaybackController controller =
-          AnimatedImagePlaybackController();
-      await tester.pumpWidget(
-        _wrap(
+          AnimatedImagePlaybackController(maxActiveVideos: 3);
+      Widget row({required bool spaced}) {
+        const Widget image = SizedBox(
+          height: 200,
+          child: EmbedAnimatedImage(
+            animatedUrl: 'https://x/a.webp',
+            staticUrl: 'https://x/a.png',
+          ),
+        );
+        return _wrap(
           AnimatedImagePlaybackScope(
             controller: controller,
-            child: const SizedBox(
-              height: 200,
-              child: EmbedAnimatedImage(
-                animatedUrl: 'https://x/a.webp',
-                staticUrl: 'https://x/a.png',
-                visibilityKey: 'v1',
-              ),
-            ),
+            child: spaced
+                ? const Column(children: <Widget>[SizedBox(height: 8), image])
+                : image,
           ),
-        ),
-      );
+        );
+      }
+
+      await tester.pumpWidget(row(spaced: false));
       await tester.pump();
-      controller.setScrollActive(active: true);
-      await tester.pump();
-      final FluxerAnimatedImage image = tester.widget<FluxerAnimatedImage>(
-        find.byType(FluxerAnimatedImage),
+      expect(
+        tester
+            .widget<FluxerAnimatedImage>(find.byType(FluxerAnimatedImage))
+            .playing,
+        isTrue,
       );
-      expect(image.playing, isTrue);
+
+      await tester.pumpWidget(row(spaced: true));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<FluxerAnimatedImage>(find.byType(FluxerAnimatedImage))
+            .playing,
+        isTrue,
+      );
     });
 
     testWidgets('plays all visible images in scope', (tester) async {
@@ -235,7 +242,6 @@ void main() {
                   child: EmbedAnimatedImage(
                     animatedUrl: 'https://x/a.webp',
                     staticUrl: 'https://x/a.png',
-                    visibilityKey: 'v1',
                   ),
                 ),
                 SizedBox(
@@ -243,7 +249,6 @@ void main() {
                   child: EmbedAnimatedImage(
                     animatedUrl: 'https://x/b.webp',
                     staticUrl: 'https://x/b.png',
-                    visibilityKey: 'v2',
                   ),
                 ),
               ],
@@ -276,7 +281,6 @@ void main() {
                     child: EmbedAnimatedImage(
                       animatedUrl: 'https://x/$index.webp',
                       staticUrl: 'https://x/$index.png',
-                      visibilityKey: 'v$index',
                     ),
                   ),
               ],
@@ -317,7 +321,6 @@ void main() {
                       child: EmbedAnimatedImage(
                         animatedUrl: 'https://x/a.webp',
                         staticUrl: 'https://x/a.png',
-                        visibilityKey: 'v1',
                       ),
                     ),
                     SizedBox(
@@ -325,7 +328,6 @@ void main() {
                       child: EmbedAnimatedImage(
                         animatedUrl: 'https://x/b.webp',
                         staticUrl: 'https://x/b.png',
-                        visibilityKey: 'v2',
                       ),
                     ),
                   ],
@@ -335,16 +337,19 @@ void main() {
           ),
         ),
       );
+      List<bool> playing() => tester
+          .widgetList<FluxerAnimatedImage>(find.byType(FluxerAnimatedImage))
+          .map((FluxerAnimatedImage image) => image.playing)
+          .toList();
+
       await tester.pump();
-      expect(controller.isPlaying('v1'), isTrue);
-      expect(controller.isPlaying('v2'), isFalse);
+      expect(playing(), <bool>[true, false]);
 
       scrollController.jumpTo(100);
       await tester.pump();
       await tester.pump();
 
-      expect(controller.isPlaying('v2'), isTrue);
-      expect(controller.isPlaying('v1'), isFalse);
+      expect(playing(), <bool>[false, true]);
     });
 
     testWidgets('sticker mode stays static when never animate', (tester) async {
@@ -353,7 +358,6 @@ void main() {
           const EmbedAnimatedImage(
             animatedUrl: 'https://x/a.webp',
             staticUrl: 'https://x/a.png',
-            visibilityKey: 'sticker-1',
             useStickerAnimationPreference: true,
           ),
           animateStickers: StickerAnimationOptions.neverAnimate,
@@ -387,7 +391,6 @@ void main() {
             child: EmbedAnimatedImage(
               animatedUrl: 'https://x/a.webp',
               staticUrl: 'https://x/a.png',
-              visibilityKey: 'sticker-idle',
               useStickerAnimationPreference: true,
             ),
           ),
@@ -417,7 +420,6 @@ void main() {
             child: EmbedAnimatedImage(
               animatedUrl: 'https://x/a.webp',
               staticUrl: 'https://x/a.png',
-              visibilityKey: 'sticker-hover',
               useStickerAnimationPreference: true,
             ),
           ),
@@ -455,7 +457,6 @@ void main() {
           const EmbedAnimatedImage(
             animatedUrl: 'https://x/a.webp',
             staticUrl: 'https://x/a.png',
-            visibilityKey: 'sticker-2',
             useStickerAnimationPreference: true,
           ),
         ),
@@ -492,7 +493,6 @@ void main() {
                       child: EmbedAnimatedImage(
                         animatedUrl: 'https://x/a.webp',
                         staticUrl: 'https://x/a.png',
-                        visibilityKey: 'gif-1',
                       ),
                     ),
                     SizedBox(
@@ -500,7 +500,6 @@ void main() {
                       child: EmbedAnimatedImage(
                         animatedUrl: 'https://x/b.webp',
                         staticUrl: 'https://x/b.png',
-                        visibilityKey: 'sticker-3',
                         useStickerAnimationPreference: true,
                       ),
                     ),
@@ -521,6 +520,138 @@ void main() {
       expect(images[1].loadAnimated, isTrue);
     });
 
+    testWidgets('paused stickers leave the playback budget to gifs', (
+      tester,
+    ) async {
+      final AnimatedImagePlaybackController controller =
+          AnimatedImagePlaybackController(
+            maxActiveVideos: kMaxActiveChatAnimatedImages,
+          );
+      await tester.pumpWidget(
+        _wrap(
+          AnimatedImagePlaybackScope(
+            controller: controller,
+            child: Column(
+              children: <Widget>[
+                const SizedBox(
+                  height: 100,
+                  child: EmbedAnimatedImage(
+                    animatedUrl: 'https://x/gif.webp',
+                    staticUrl: 'https://x/gif.png',
+                  ),
+                ),
+                for (
+                  int index = 0;
+                  index < kMaxActiveChatAnimatedImages;
+                  index += 1
+                )
+                  SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: EmbedAnimatedImage(
+                      animatedUrl: 'https://x/sticker-$index.webp',
+                      staticUrl: 'https://x/sticker-$index.png',
+                      useStickerAnimationPreference: true,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          animateStickers: StickerAnimationOptions.animateOnInteraction,
+        ),
+      );
+      await tester.pump();
+
+      FluxerAnimatedImage image(String url) => tester
+          .widgetList<FluxerAnimatedImage>(find.byType(FluxerAnimatedImage))
+          .singleWhere((FluxerAnimatedImage image) => image.animatedUrl == url);
+
+      expect(image('https://x/gif.webp').playing, isTrue);
+
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(
+          find.byWidgetPredicate(
+            (Widget widget) =>
+                widget is EmbedAnimatedImage &&
+                widget.animatedUrl == 'https://x/sticker-1.webp',
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(image('https://x/sticker-1.webp').playing, isTrue);
+      expect(image('https://x/gif.webp').playing, isTrue);
+
+      await gesture.up();
+      await tester.pump();
+      expect(image('https://x/sticker-1.webp').playing, isFalse);
+      expect(image('https://x/gif.webp').playing, isTrue);
+    });
+
+    testWidgets('a pressed sticker plays when gifs fill the budget', (
+      tester,
+    ) async {
+      final AnimatedImagePlaybackController controller =
+          AnimatedImagePlaybackController(
+            maxActiveVideos: kMaxActiveChatAnimatedImages,
+          );
+      await tester.pumpWidget(
+        _wrap(
+          AnimatedImagePlaybackScope(
+            controller: controller,
+            child: Column(
+              children: <Widget>[
+                const SizedBox(
+                  width: 100,
+                  height: 100,
+                  child: EmbedAnimatedImage(
+                    animatedUrl: 'https://x/sticker.webp',
+                    staticUrl: 'https://x/sticker.png',
+                    useStickerAnimationPreference: true,
+                  ),
+                ),
+                for (
+                  int index = 0;
+                  index < kMaxActiveChatAnimatedImages;
+                  index += 1
+                )
+                  SizedBox(
+                    height: 100,
+                    child: EmbedAnimatedImage(
+                      animatedUrl: 'https://x/gif-$index.webp',
+                      staticUrl: 'https://x/gif-$index.png',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          animateStickers: StickerAnimationOptions.animateOnInteraction,
+        ),
+      );
+      await tester.pump();
+
+      FluxerAnimatedImage image(String url) => tester
+          .widgetList<FluxerAnimatedImage>(find.byType(FluxerAnimatedImage))
+          .singleWhere((FluxerAnimatedImage image) => image.animatedUrl == url);
+
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(
+          find.byWidgetPredicate(
+            (Widget widget) =>
+                widget is EmbedAnimatedImage &&
+                widget.animatedUrl == 'https://x/sticker.webp',
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(image('https://x/sticker.webp').playing, isTrue);
+      await gesture.up();
+      await tester.pump();
+      expect(<bool>[
+        for (int index = 0; index < kMaxActiveChatAnimatedImages; index += 1)
+          image('https://x/gif-$index.webp').playing,
+      ], everyElement(isTrue));
+    });
+
     testWidgets('stays playing across a transient hide blip', (tester) async {
       await tester.pumpWidget(
         _wrap(
@@ -530,7 +661,6 @@ void main() {
             child: EmbedAnimatedImage(
               animatedUrl: 'https://x/a.webp',
               staticUrl: 'https://x/a.png',
-              visibilityKey: 'v-blip',
             ),
           ),
         ),
@@ -583,7 +713,6 @@ void main() {
                 child: EmbedAnimatedImage(
                   animatedUrl: 'https://x/a.webp',
                   staticUrl: 'https://x/a.png',
-                  visibilityKey: 'same',
                 ),
               ),
               SizedBox(
@@ -591,7 +720,6 @@ void main() {
                 child: EmbedAnimatedImage(
                   animatedUrl: 'https://x/b.webp',
                   staticUrl: 'https://x/b.png',
-                  visibilityKey: 'same',
                 ),
               ),
             ],

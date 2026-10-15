@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:fluxer_app/core/api/api_exception.dart';
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/core/audio/enums/fluxer_sfx_clip.dart';
 import 'package:fluxer_app/core/gateway/providers/gateway_event_providers.dart';
@@ -61,6 +62,7 @@ import 'package:fluxer_app/features/voice/utils/voice_server_update_decision.dar
 import 'package:fluxer_app/features/voice/utils/voice_volume_utils.dart';
 import 'package:fluxer_app/features/voice/voice_session_errors.dart';
 import 'package:fluxer_app/l10n/app_locale_provider.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:fluxer_dart/gateway.dart';
 import 'package:livekit_client/livekit_client.dart';
@@ -68,8 +70,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'voice_session_provider.g.dart';
 
-/// Cleared when a voice server update is accepted and LiveKit connection is
-/// scheduled. Covers slow gateway only, not LiveKit [Room.connect] duration.
 const Duration _kVoiceJoinWatchdogDuration = Duration(seconds: 15);
 const Duration _kDeferredServerDisconnectDuration = Duration(seconds: 5);
 const List<Duration> _kMicPublishRetryDelays = <Duration>[
@@ -470,11 +470,6 @@ class VoiceSession extends _$VoiceSession {
     );
   }
 
-  /// Joins a voice channel; the gateway responds with [VoiceServerUpdateEvent],
-  /// which is forwarded to [handleVoiceServerUpdate].
-  ///
-  /// [ringSilently] (with [startOutgoingCall]): POST
-  /// ring with an empty recipient list.
   Future<bool> connectToVoiceChannel({
     required String? guildId,
     required String channelId,
@@ -542,9 +537,20 @@ class VoiceSession extends _$VoiceSession {
         '(channelId=$channelId, guildId=$guildId).',
       );
       state = state.copyWith(
-        errorMessage: isGuildVoiceJoin
-            ? kVoiceSessionErrorNoConnectPermission
-            : kVoiceSessionErrorDirectCallNotEligible,
+        errorMessage: switch (eligibility.blockReason) {
+          VoiceJoinBlockReason.timedOut => kVoiceSessionErrorTimedOut,
+          VoiceJoinBlockReason.unclaimed =>
+            isGuildVoiceJoin
+                ? kVoiceSessionErrorUnclaimed
+                : kVoiceSessionErrorUnclaimedDirectCall,
+          VoiceJoinBlockReason.userLimit => kVoiceSessionErrorUserLimit,
+          VoiceJoinBlockReason.noPermission =>
+            kVoiceSessionErrorNoConnectPermission,
+          null =>
+            isGuildVoiceJoin
+                ? kVoiceSessionErrorNoConnectPermission
+                : kVoiceSessionErrorDirectCallNotEligible,
+        },
       );
       return false;
     }
@@ -774,7 +780,39 @@ class VoiceSession extends _$VoiceSession {
     return resolvedChannelId;
   }
 
+  void _adoptServerVoiceMove(String channelId) {
+    talker.info(
+      '[Voice] VOICE_SERVER_UPDATE: server moved this connection '
+      '(from=${state.channelId}, to=$channelId).',
+    );
+    _connectGeneration++;
+    _voiceMovePreviousChannelId = state.channelId;
+    _expectedChannelId = channelId;
+    state = voiceSessionStateAfterServerMove(
+      state: state,
+      channelId: channelId,
+    );
+    prefetchVoiceParticipantsForChannel(
+      ref,
+      guildId: _expectedGuildId,
+      channelId: channelId,
+    );
+  }
+
   void handleVoiceServerUpdate(VoiceServerUpdateEvent event) {
+    final String? moveChannelId = event.channelId;
+    if (moveChannelId != null &&
+        event.token.isNotEmpty &&
+        event.endpoint.isNotEmpty &&
+        isServerInitiatedVoiceMove(
+          state: state,
+          expectedGuildId: _normalizeVoiceGuildId(_expectedGuildId),
+          expectedChannelId: _expectedChannelId,
+          incomingGuildId: _normalizeVoiceGuildId(event.guildId),
+          incomingChannelId: moveChannelId,
+        )) {
+      _adoptServerVoiceMove(moveChannelId);
+    }
     final String? resolvedChannelId = _acceptedVoiceServerChannelId(
       guildId: event.guildId,
       channelId: event.channelId,
@@ -1289,32 +1327,15 @@ class VoiceSession extends _$VoiceSession {
     }
   }
 
-  void handleVoiceStateAck(VoiceStateAckEvent event) {
-    if (shouldNotifyCameraUserLimitRejection(
-      status: event.status,
-      errorCode: event.errorCode,
-    )) {
-      unawaited(_turnCameraOffAfterLimitRejection());
-    }
-    final VoiceState? canonical = event.canonicalState;
-    if (canonical == null ||
-        canonical.channelId == null ||
-        canonical.connectionId == null) {
+  void handleGuildDeleted(String guildId) {
+    if (!voiceSessionIsInGuild(state: state, guildId: guildId)) {
       return;
     }
-    final VoiceState? current = _selfConnectionVoiceState();
-    if (current != null &&
-        current.channelId == canonical.channelId &&
-        current.connectionId == canonical.connectionId &&
-        current.selfMute == canonical.selfMute &&
-        current.selfDeaf == canonical.selfDeaf &&
-        current.selfVideo == canonical.selfVideo &&
-        current.mute == canonical.mute &&
-        current.deaf == canonical.deaf &&
-        current.suppress == canonical.suppress) {
-      return;
-    }
-    handleSelfVoiceStateUpdate(canonical);
+    talker.info(
+      '[Voice] Leaving voice: guild is gone or unavailable '
+      '(guildId=$guildId, channelId=${state.channelId}).',
+    );
+    unawaited(leaveVoice(endCall: false));
   }
 
   void handleEntranceSoundPlay(EntranceSoundPlayEvent event) {
@@ -1339,21 +1360,6 @@ class VoiceSession extends _$VoiceSession {
       ref
           .read(entranceSoundPlayerProvider)
           .play(url: event.url, volume: volume),
-    );
-  }
-
-  Future<void> _turnCameraOffAfterLimitRejection() async {
-    talker.warning('[Voice] Camera rejected: channel camera user limit');
-    try {
-      await _setSessionCameraEnabled(enabled: false);
-    } on Object catch (e) {
-      talker.warning('[Voice] Failed to disable camera after limit: $e');
-    }
-    final VoiceState? vs = _selfConnectionVoiceState();
-    await _applySelfVoiceState(
-      selfMute: vs?.selfMute ?? false,
-      selfDeaf: vs?.selfDeaf ?? false,
-      selfVideo: false,
     );
   }
 
@@ -1446,7 +1452,12 @@ class VoiceSession extends _$VoiceSession {
       );
       return;
     }
-    await _disconnectRoomOnly();
+    await _disconnectRoomOnly(
+      skipGatewayDisconnect: !shouldSendVoiceDisconnectForReplacedRoom(
+        state: state,
+        incomingConnectionId: event.connectionId,
+      ),
+    );
     if (attempt != _connectGeneration) {
       return;
     }
@@ -1960,6 +1971,11 @@ class VoiceSession extends _$VoiceSession {
       );
     } on Object catch (e) {
       talker.warning('[Voice] ringCallRecipients: $e');
+      final String? code = ApiException.from(e).code;
+      if (code == 'NEW_CONVERSATIONS_LIMITED' || code == 'ACCOUNT_LIMITED') {
+        unawaited(showApiErrorFromRoot(ApiErrorAction.openDm, e));
+        await leaveVoice();
+      }
     }
   }
 
@@ -2146,7 +2162,6 @@ class VoiceSession extends _$VoiceSession {
   }
 
   void _teardownOnDispose() {
-    // Prevent stale in-flight connects from creating a room after disposal.
     _intentionalLiveKitTeardown = true;
     _connectGeneration++;
     logVoiceLifecycle(

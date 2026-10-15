@@ -47,8 +47,6 @@ enum Permission {
 
 const int allPermissions = (1 << 55) - 1;
 
-/// Base guild permissions when the @everyone role record is not loaded yet.
-/// Follows `DEFAULT_PERMISSIONS` in `@fluxer/constants` in the web project
 final int defaultPermissions =
     Permission.createInstantInvite.value |
     Permission.addReactions.value |
@@ -77,5 +75,4 @@ bool hasPermission(int permissions, Permission permission) =>
     (permissions & permission.value) != 0;
 
 bool bypassesSlowmode(int permissions) =>
-    hasPermission(permissions, Permission.bypassSlowmode) ||
-    hasPermission(permissions, Permission.administrator);
+    hasPermission(permissions, Permission.bypassSlowmode);

@@ -19,7 +19,7 @@ class _ChannelTile extends ConsumerWidget {
     final bool isSelected = ref.watch(
       activeChannelIdProvider.select((String? id) => id == channel.id),
     );
-    final unread = ref.watch(channelUnreadProvider(channel.id)).value;
+    final unread = ref.watch(channelUnreadOrLastKnownProvider(channel.id));
     final bool hasUnread = unread?.hasUnread ?? false;
     final int mentionCount = unread?.mentionCount ?? 0;
     final bool hasUnreadMessages = unread?.hasUnreadMessages ?? false;
@@ -78,10 +78,8 @@ class _ChannelTile extends ConsumerWidget {
         );
 
     final double rowOpacity = isChannelDirectlyMuted && !isSelected ? 0.5 : 1.0;
-    final Color baseTextColor = isSelected
+    final Color baseTextColor = isSelected || channelUnreadState.isHighlight
         ? context.colors.textPrimary
-        : channelUnreadState.isHighlight
-        ? context.colors.textSecondary
         : context.colors.textTertiaryMuted;
     final Color textColor = rowOpacity < 1
         ? baseTextColor.withValues(alpha: baseTextColor.a * rowOpacity)
@@ -117,9 +115,12 @@ class _ChannelTile extends ConsumerWidget {
         FluxerSelectableRow(
           isSelected: isSelected,
           selectedColor: context.colors.backgroundModifierSelected,
-          borderRadius: BorderRadius.circular(4),
-          margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          borderRadius: context.layout.radiusLg,
+          margin: EdgeInsets.symmetric(
+            horizontal: context.layout.s2,
+            vertical: 1,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
           semanticLabel: navigationItemSemanticLabel(
             l10n: FluxerLocalizations.of(context),
             name: channel.name,
@@ -171,8 +172,12 @@ class _ChannelTile extends ConsumerWidget {
                   channel.name,
                   style: context.textStyles.channelName.copyWith(
                     color: textColor,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: channelUnreadState.isHighlight && !isSelected
+                        ? FontWeight.w600
+                        : FontWeight.w500,
+                    height: 20 / 16,
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -183,7 +188,9 @@ class _ChannelTile extends ConsumerWidget {
               ),
               if (showMentionBadge) ...[
                 const SizedBox(width: 4),
-                FluxerBadge.count(count: mentionCount),
+                FluxerBadgeEntrance(
+                  child: FluxerBadge.count(count: mentionCount),
+                ),
               ],
               if (showVoiceUserCount) ...[
                 const SizedBox(width: 4),
@@ -428,6 +435,16 @@ class _ChannelTile extends ConsumerWidget {
       case ChannelMenuAction.editChannel:
         close();
         unawaited(ChannelSettingsFlow.show(menuContext, channelId: channel.id));
+      case ChannelMenuAction.moveToCategory:
+        close();
+        unawaited(
+          showMoveChannelToCategorySheet(
+            hostContext,
+            ref,
+            guildId: guildId,
+            channelId: channel.id,
+          ),
+        );
       case ChannelMenuAction.duplicateChannel:
         close();
         _showComingSoon(menuContext, ref);
@@ -516,46 +533,8 @@ class _ChannelTile extends ConsumerWidget {
         title: FluxerLocalizations.of(context).dmDebugChannel,
       );
 
-  Future<void> _confirmDeleteChannel(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    await FluxerConfirmSheet.show(
-      context,
-      title: 'Delete Channel',
-      description:
-          'Are you sure you want to delete #${channel.name}? '
-          'This action cannot be undone.',
-      confirmLabel: 'Delete Channel',
-      isDanger: true,
-      onConfirm: () => unawaited(_deleteChannel(ref)),
-    );
-  }
-
-  Future<void> _deleteChannel(WidgetRef ref) async {
-    final toast = ref.read(toastProvider.notifier);
-    try {
-      await ref
-          .read(fluxerClientProvider)
-          .channels
-          .deleteChannel(
-            channelId: channel.id,
-            body: const SudoVerificationSchema(),
-          );
-      toast.show(
-        const FluxerToast(
-          message: 'Channel deleted',
-          variant: FluxerToastVariant.success,
-        ),
-      );
-    } on Object {
-      toast.show(
-        const FluxerToast(
-          message: 'Failed to delete channel',
-          variant: FluxerToastVariant.danger,
-        ),
-      );
-    }
+  Future<void> _confirmDeleteChannel(BuildContext context, WidgetRef ref) {
+    return DeleteChannelFlow.confirmAndDelete(context, ref, channel: channel);
   }
 
   Future<void> _openChannelMuteSheet(

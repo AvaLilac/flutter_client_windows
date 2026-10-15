@@ -1,12 +1,14 @@
 import 'package:drift/drift.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' hide Message;
 import 'package:fluxer_app/core/utils/message_mention_resolver.dart';
+import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_app/features/chat/data/message_repository.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/notifications/domain/unread_inbox_entry.dart';
 import 'package:fluxer_dart/export.dart';
 
 const int _kNotificationMessageBufferSize = 50;
+const int kUnreadPreviewMessageLimit = 25;
 
 class NotificationsRepository {
   NotificationsRepository({
@@ -21,100 +23,41 @@ class NotificationsRepository {
   final FluxerClient _client;
   final String? _currentUserId;
 
-  Future<List<Message>> loadGuildUnreadPreview({
-    required String channelId,
-    ReadState? readStateRow,
-    String? channelLastMessageId,
-  }) async {
-    final String? ackId = readStateRow?.lastMessageId;
-    try {
-      if (ackId != null && ackId.isNotEmpty) {
-        final afterAwait = await _messages.getMessages(
+  Future<List<Message>> loadUnreadPreview(UnreadInboxEntry entry) async {
+    final String channelId = entry.channelId;
+    final String? ackId = entry.ackMessageId;
+    if (ackId != null && ackId.isNotEmpty) {
+      try {
+        final List<Message> afterAck = await _messages.getMessages(
           channelId: channelId,
-          limit: _kNotificationMessageBufferSize,
+          limit: kUnreadPreviewMessageLimit,
           after: ackId,
         );
-        if (afterAwait.isNotEmpty) {
-          return afterAwait;
+        if (afterAck.isNotEmpty) {
+          return afterAck;
         }
-      }
-    } on Object catch (_) {}
+      } on Object catch (_) {}
+    }
 
-    var aroundTarget = channelLastMessageId ?? ackId;
+    String? aroundTarget = entry.lastMessageId ?? ackId;
     if (aroundTarget == null || aroundTarget.isEmpty) {
       final driftRows = await _database.messageDao.getMessages(
         channelId,
         limit: 1,
       );
-      final String? lastId = driftRows.isNotEmpty ? driftRows.last.id : null;
-      if (lastId == null || lastId.isEmpty) {
-        return [];
-      }
-      aroundTarget = lastId;
+      aroundTarget = driftRows.isNotEmpty ? driftRows.last.id : null;
     }
-
-    try {
-      return await _messages.getMessages(
-        channelId: channelId,
-        limit: _kNotificationMessageBufferSize * 2,
-        around: aroundTarget,
-      );
-    } on Object catch (_) {
-      return [];
+    if (aroundTarget == null || aroundTarget.isEmpty) {
+      return <Message>[];
     }
-  }
-
-  Future<List<Message>> loadDmUnreadPreview({required String channelId}) async {
-    final readStateRow = await _database.readStateDao.getReadState(channelId);
-    final ackId = readStateRow?.lastMessageId;
-    try {
-      if (ackId != null && ackId.isNotEmpty) {
-        final afterAwait = await _messages.getMessages(
-          channelId: channelId,
-          limit: _kNotificationMessageBufferSize,
-          after: ackId,
-        );
-        if (afterAwait.isNotEmpty) {
-          return afterAwait;
-        }
-      }
-    } on Object catch (_) {}
-
-    final driftRows = await _database.messageDao.getMessages(
-      channelId,
-      limit: 1,
+    final List<Message> latest = await _messages.getMessages(
+      channelId: channelId,
+      limit: kUnreadPreviewMessageLimit * 2,
+      around: aroundTarget,
     );
-    final lastId = driftRows.isNotEmpty ? driftRows.last.id : null;
-    if (lastId == null || lastId.isEmpty) {
-      return [];
-    }
-
-    try {
-      return await _messages.getMessages(
-        channelId: channelId,
-        limit: _kNotificationMessageBufferSize * 2,
-        around: lastId,
-      );
-    } on Object catch (_) {
-      return [];
-    }
-  }
-
-  Future<List<Message>> loadPreviewForEntry({
-    required UnreadInboxEntry entry,
-    required Channel? guildChannelRow,
-  }) async {
-    if (entry.isDm) {
-      return loadDmUnreadPreview(channelId: entry.channelId);
-    }
-    final ReadState? rs = await _database.readStateDao.getReadState(
-      entry.channelId,
-    );
-    return loadGuildUnreadPreview(
-      channelId: entry.channelId,
-      readStateRow: rs,
-      channelLastMessageId: guildChannelRow?.lastMessageId,
-    );
+    return latest.length <= kUnreadPreviewMessageLimit
+        ? latest
+        : latest.sublist(latest.length - kUnreadPreviewMessageLimit);
   }
 
   Future<bool> replaceMentionsFromApi({
@@ -250,9 +193,7 @@ class NotificationsRepository {
     List<UnreadInboxEntry> entries,
   ) async {
     for (final UnreadInboxEntry entry in entries) {
-      final String? messageId = await _resolveMarkReadMessageId(
-        entry.channelId,
-      );
+      final String? messageId = await resolveMarkReadMessageId(entry.channelId);
       if (messageId == null || messageId.isEmpty) {
         continue;
       }
@@ -260,12 +201,15 @@ class NotificationsRepository {
     }
   }
 
-  Future<String?> _resolveMarkReadMessageId(String channelId) async {
+  Future<String?> resolveMarkReadMessageId(String channelId) async {
     final channel = await _database.channelDao.getChannelById(channelId);
-    String? messageId = channel?.lastMessageId;
+    final dm = channel == null
+        ? await _database.dmChannelDao.getDmChannelById(channelId)
+        : null;
+    String? messageId = channel?.lastMessageId ?? dm?.lastMessageId;
     final msgs = await _database.messageDao.getMessages(channelId, limit: 1);
-    if (msgs.isNotEmpty) {
-      messageId = msgs.last.id;
+    if (msgs.isNotEmpty && compareSnowflakeIds(msgs.first.id, messageId) > 0) {
+      messageId = msgs.first.id;
     }
     return messageId;
   }

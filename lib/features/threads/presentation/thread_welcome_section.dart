@@ -18,7 +18,7 @@ part 'thread_welcome_section.g.dart';
 Stream<bool> threadStarterMissing(Ref ref, String threadId) => ref
     .watch(fluxerDatabaseProvider)
     .messageDao
-    .watchMessage(threadId)
+    .watchMessage(threadId, threadId)
     .map((db.Message? row) => row == null)
     .distinct();
 
@@ -69,9 +69,11 @@ class ThreadWelcomeSection extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            thread.name,
-            style: context.textStyles.heading.copyWith(fontSize: 24),
+          ClipRect(
+            child: Text(
+              thread.name,
+              style: context.textStyles.heading.copyWith(fontSize: 24),
+            ),
           ),
           if (ownerName != null) ...<Widget>[
             const SizedBox(height: 4),

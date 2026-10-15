@@ -12,11 +12,10 @@ void main() {
 
   setUp(() {
     db = openTestDatabase();
-    // A long window keeps the debounce timer from firing on its own; tests
-    // flush deterministically with flushAll().
     batcher = ReadStateWriteBatcher(
       database: db,
       window: const Duration(hours: 1),
+      mentionWindow: const Duration(hours: 1),
     );
   });
 
@@ -50,7 +49,6 @@ void main() {
 
     final readState = await db.readStateDao.getReadState(channelId);
     expect(readState?.mentionCount, 2);
-    // Seeded once from the first never-acked message.
     expect(readState?.lastMessageId, '100');
   });
 
@@ -76,7 +74,6 @@ void main() {
 
       final readState = await db.readStateDao.getReadState(channelId);
       expect(readState?.mentionCount, 3);
-      // Known channel: no re-seed of the ack baseline.
       expect(readState?.lastMessageId, '100');
     },
   );
@@ -91,10 +88,7 @@ void main() {
       ),
     );
 
-    // At/below the ack -> covered -> skipped (e.g. an immediate ack advanced the
-    // baseline past it while it sat in the window).
     enqueue(channelId, '300', mention: true);
-    // Above the ack -> still unread -> counted.
     enqueue(channelId, '700', mention: true);
 
     await batcher.flushAll();
@@ -124,8 +118,74 @@ void main() {
     expect(dm?.unreadCount, 3);
     final readState = await db.readStateDao.getReadState(channelId);
     expect(readState?.mentionCount, 3);
-    // DMs never seed the ack baseline; unread is tracked via the DM counter.
     expect(readState?.lastMessageId, isNull);
+  });
+
+  test('pending overlay reflects mention increments before flush', () {
+    const channelId = 'guild-channel-overlay';
+    enqueue(channelId, '200', mention: true, seed: '100');
+
+    final overlay = batcher.effectiveFields(channelId, null);
+    expect(overlay.mentionCount, 1);
+    expect(batcher.hasPending(channelId), isTrue);
+  });
+
+  test('held overlay clears once the flush write lands', () async {
+    const channelId = 'guild-channel-reconcile';
+    enqueue(channelId, '200', mention: true, seed: '100');
+    expect(batcher.effectiveFields(channelId, null).mentionCount, 1);
+
+    await batcher.flush(channelId);
+    expect(batcher.overlayChannelIds(), isEmpty);
+    expect((await db.readStateDao.getReadState(channelId))?.mentionCount, 1);
+  });
+
+  test('a flush that writes nothing leaves no overlay behind', () async {
+    const channelId = 'guild-channel-plain';
+    await db.readStateDao.upsertReadState(
+      const ReadStatesCompanion(
+        channelId: Value(channelId),
+        lastMessageId: Value('100'),
+        mentionCount: Value(1),
+      ),
+    );
+    enqueue(channelId, '200', mention: false);
+    await batcher.flush(channelId);
+    expect(batcher.overlayChannelIds(), isEmpty);
+
+    const ReadState read = ReadState(
+      channelId: channelId,
+      lastMessageId: '200',
+      mentionCount: 0,
+      manual: false,
+    );
+    final effective = batcher.effectiveFields(channelId, read);
+    expect(effective.mentionCount, 0);
+    expect(effective.lastMessageId, '200');
+  });
+
+  test('an ack flush leaves no overlay over a later mark unread', () async {
+    const channelId = 'guild-channel-ack';
+    batcher.enqueueAck(
+      channelId: channelId,
+      messageId: '300',
+      isDm: false,
+      clearSticky: true,
+      markDmRead: false,
+    );
+    await batcher.flushAck(channelId);
+    expect(batcher.overlayChannelIds(), isEmpty);
+
+    const ReadState markedUnread = ReadState(
+      channelId: channelId,
+      lastMessageId: '200',
+      mentionCount: 0,
+      manual: true,
+    );
+    expect(
+      batcher.effectiveFields(channelId, markedUnread).lastMessageId,
+      '200',
+    );
   });
 
   test('discard drops pending increments without writing', () async {
@@ -155,7 +215,7 @@ void main() {
       fastBatcher.enqueueUnread(
         channelId: channelId,
         messageId: '100',
-        shouldMention: true,
+        shouldMention: false,
         isDm: false,
         seedAckCandidate: null,
       );
@@ -165,7 +225,7 @@ void main() {
       fastBatcher.enqueueUnread(
         channelId: channelId,
         messageId: '200',
-        shouldMention: true,
+        shouldMention: false,
         isDm: false,
         seedAckCandidate: null,
       );
@@ -174,6 +234,47 @@ void main() {
 
       async.elapse(const Duration(milliseconds: 40));
       expect(fastBatcher.hasPending(channelId), isFalse);
+    });
+  });
+
+  test('a mention flushes on the short window despite the unread interval', () {
+    fakeAsync((FakeAsync async) {
+      const String channelId = 'guild-channel-mention';
+      final ReadStateWriteBatcher mentionBatcher = ReadStateWriteBatcher(
+        database: db,
+        minIntervalBetweenUnreadFlushes: const Duration(seconds: 5),
+      );
+      addTearDown(mentionBatcher.clearAll);
+
+      mentionBatcher.enqueueUnread(
+        channelId: channelId,
+        messageId: '100',
+        shouldMention: false,
+        isDm: false,
+        seedAckCandidate: null,
+      );
+      async.elapse(const Duration(milliseconds: 10));
+      expect(mentionBatcher.hasPending(channelId), isTrue);
+
+      mentionBatcher.enqueueUnread(
+        channelId: channelId,
+        messageId: '200',
+        shouldMention: true,
+        isDm: false,
+        seedAckCandidate: null,
+      );
+      async.elapse(const Duration(milliseconds: kReadStateMentionBatchMs));
+      expect(mentionBatcher.hasPending(channelId), isFalse);
+
+      mentionBatcher.enqueueUnread(
+        channelId: channelId,
+        messageId: '300',
+        shouldMention: true,
+        isDm: false,
+        seedAckCandidate: null,
+      );
+      async.elapse(const Duration(milliseconds: kReadStateMentionBatchMs));
+      expect(mentionBatcher.hasPending(channelId), isFalse);
     });
   });
 }

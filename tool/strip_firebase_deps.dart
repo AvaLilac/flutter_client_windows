@@ -1,5 +1,3 @@
-// Tool script: removes Firebase merge artifacts from OSS / UnifiedPush builds.
-
 import 'dart:io';
 
 Future<void> main(List<String> args) async {

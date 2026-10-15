@@ -10,6 +10,7 @@ enum CategoryMenuAction {
   toggleCollapse,
   toggleCollapseAll,
   mute,
+  createChannel,
   editCategory,
   deleteCategory,
   copyCategoryId,
@@ -88,6 +89,12 @@ List<CategoryMenuGroup> buildCategoryMenuGroups({
   final List<CategoryMenuEntry> manageItems = <CategoryMenuEntry>[
     if (state.canManageChannels)
       CategoryMenuEntry(
+        label: l10n.guildNavbarCreateChannel,
+        icon: PhosphorIconsFill.plusCircle,
+        action: CategoryMenuAction.createChannel,
+      ),
+    if (state.canManageChannels)
+      CategoryMenuEntry(
         label: l10n.channelSettingsEditCategory,
         icon: PhosphorIconsFill.pencilSimple,
         action: CategoryMenuAction.editCategory,
@@ -134,8 +141,8 @@ List<CategoryMenuGroup> buildCategoryMenuGroups({
             ? l10n.categoryExpandCategory
             : l10n.categoryCollapseCategory,
         icon: state.isCollapsed
-            ? PhosphorIconsFill.caretRight
-            : PhosphorIconsFill.caretDown,
+            ? PhosphorIconsBold.caretRight
+            : PhosphorIconsBold.caretDown,
         action: CategoryMenuAction.toggleCollapse,
       ),
       CategoryMenuEntry(
@@ -143,8 +150,8 @@ List<CategoryMenuGroup> buildCategoryMenuGroups({
             ? l10n.categoryExpandAllCategories
             : l10n.categoryCollapseAllCategories,
         icon: state.allCategoriesCollapsed
-            ? PhosphorIconsFill.caretRight
-            : PhosphorIconsFill.caretDown,
+            ? PhosphorIconsBold.caretRight
+            : PhosphorIconsBold.caretDown,
         action: CategoryMenuAction.toggleCollapseAll,
       ),
     ],
@@ -191,7 +198,12 @@ Widget categoryMenuGroupsToBottomSheetContent({
     controller: scrollController,
     padding: FluxerBottomSheet.scrollViewPadding(
       context,
-      padding: EdgeInsets.fromLTRB(layout.s4, 0, layout.s4, layout.s4),
+      padding: EdgeInsets.fromLTRB(
+        layout.s4,
+        0,
+        layout.s4,
+        FluxerBottomSheet.bottomGapOf(context),
+      ),
     ),
     children: [FluxerBottomSheetGroupColumn(children: menuGroups)],
   );

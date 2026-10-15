@@ -1,7 +1,8 @@
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_drag_provider.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
-import 'package:fluxer_app/features/ui/action_menu/context_menu_widgets.dart';
+import 'package:fluxer_app/features/ui/action_menu/sidebar_peek_menu_panel.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -21,6 +22,8 @@ abstract class SidebarPeekContent {
     required BuildContext context,
     required ValueChanged<Object> onSelect,
   });
+
+  double estimateMenuHeight(BuildContext context);
 
   Object? hitTestAction(Offset globalPosition);
 
@@ -42,6 +45,14 @@ class GuildIconPeekMenuConfig implements SidebarPeekContent {
         for (final GuildIconPeekAction action in GuildIconPeekAction.values)
           action: GlobalKey(),
       };
+
+  @override
+  double estimateMenuHeight(BuildContext context) {
+    return estimateSidebarPeekMenuHeight(
+      context,
+      rowCount: visibleGuildIconPeekActions(hasUnread: hasUnread).length,
+    );
+  }
 
   @override
   Widget buildPanel({
@@ -126,13 +137,6 @@ bool shouldSuppressPeekForDrag({
   );
 }
 
-/// Anchor for a sidebar peek/context menu beside a guild or folder icon.
-Offset sidebarPeekMenuAnchorPosition(RenderBox box) {
-  final Offset topLeft = box.localToGlobal(Offset.zero);
-  final Size size = box.size;
-  return Offset(topLeft.dx + size.width + 8, topLeft.dy + size.height / 2);
-}
-
 T? hitTestKeyedPeekTarget<T extends Object>({
   required Offset globalPosition,
   required Map<T, GlobalKey> itemKeys,
@@ -175,7 +179,7 @@ String peekActionLabel(FluxerLocalizations l10n, GuildIconPeekAction action) {
     case GuildIconPeekAction.notifications:
       return l10n.notificationSettings;
     case GuildIconPeekAction.moreOptions:
-      return l10n.guildPeekMoreOptions;
+      return l10n.threadMoreOptions;
   }
 }
 
@@ -209,24 +213,28 @@ class GuildIconPeekMenuPanel extends StatelessWidget {
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     final List<GuildIconPeekAction> visibleActions =
         visibleGuildIconPeekActions(hasUnread: hasUnread);
-    final List<Widget> items = <Widget>[
-      ContextMenuTitle(title: guildName),
-      const ContextMenuDivider(),
-      for (final GuildIconPeekAction action in visibleActions)
-        KeyedSubtree(
-          key: itemKeys[action],
-          child: ContextMenuItem(
-            label: peekActionLabel(l10n, action),
-            icon: peekActionIcon(action),
-            onTap: () => onActionTap?.call(action),
-          ),
-        ),
-    ];
     return Align(
       widthFactor: 1,
       heightFactor: 1,
       alignment: Alignment.centerLeft,
-      child: ContextMenuPanel(items: items),
+      child: SidebarPeekMenuPanel(
+        title: guildName,
+        sections: [
+          FluxerMenuGroup(
+            children: [
+              for (final GuildIconPeekAction action in visibleActions)
+                KeyedSubtree(
+                  key: itemKeys[action],
+                  child: FluxerBottomSheetMenuItem(
+                    label: peekActionLabel(l10n, action),
+                    icon: peekActionIcon(action),
+                    onTap: () => onActionTap?.call(action),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

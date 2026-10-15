@@ -137,10 +137,7 @@ void main() {
 
     expect(find.text(':party:'), findsOneWidget);
     expect(find.text(testL10n.emojiInfoCustomGuildDescription), findsOneWidget);
-    expect(
-      find.text(testL10n.emojiInfoFromHeader.toUpperCase()),
-      findsOneWidget,
-    );
+    expect(find.text(testL10n.emojiInfoFromHeader), findsOneWidget);
     expect(find.text('Test Community'), findsOneWidget);
     expect(find.text(testL10n.emojiInfoPrivateCommunity), findsOneWidget);
     expect(
@@ -180,15 +177,56 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(find.text(testL10n.emojiInfoCustomGuildDescription), findsOneWidget);
+    expect(find.text(testL10n.emojiInfoCustomGuildDescription), findsNothing);
+    expect(
+      find.text(testL10n.emojiInfoCustomUnknownDescription),
+      findsOneWidget,
+    );
     expect(
       find.text(testL10n.emojiInfoCustomInviteRequiredDescription),
       findsNothing,
     );
+    expect(find.text(testL10n.emojiInfoFromHeader), findsOneWidget);
+    expect(find.text('Test Community'), findsOneWidget);
+  });
+
+  testWidgets('does not say this community outside a community', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _buildTestApp(
+        currentGuildId: null,
+        child: Builder(
+          builder: (context) {
+            return ElevatedButton(
+              onPressed: () {
+                unawaited(
+                  EmojiInfoBottomSheet.show(
+                    context,
+                    emoji: const EmojiInfoData(
+                      id: 'emoji-1',
+                      name: 'party',
+                      guildId: 'guild-1',
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Open'),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(testL10n.emojiInfoCustomGuildDescription), findsNothing);
     expect(
-      find.text(testL10n.emojiInfoFromHeader.toUpperCase()),
+      find.text(testL10n.emojiInfoCustomUnknownDescription),
       findsOneWidget,
     );
+    expect(find.text(testL10n.emojiInfoFromHeader), findsOneWidget);
     expect(find.text('Test Community'), findsOneWidget);
   });
 
@@ -227,7 +265,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text(testL10n.emojiInfoCustomGuildDescription), findsNothing);
-    expect(find.text(testL10n.emojiInfoFromHeader.toUpperCase()), findsNothing);
+    expect(find.text(testL10n.emojiInfoFromHeader), findsNothing);
     expect(find.text('Test Community'), findsNothing);
   });
 
@@ -258,5 +296,78 @@ void main() {
       findsOneWidget,
     );
     expect(data.favoriteKeyForGuild(null), isNotNull);
+  });
+
+  Widget composerHost({required void Function(BuildContext) onOpen}) {
+    return _buildTestApp(
+      child: Column(
+        children: [
+          const TextField(autofocus: true),
+          Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => onOpen(context),
+              child: const Text('Open'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> openAndClose(WidgetTester tester) async {
+    await tester.pumpAndSettle();
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(tester.testTextInput.isVisible, isFalse);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsNothing);
+  }
+
+  testWidgets('message emoji long-press does not refocus the composer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      composerHost(
+        onOpen: (context) => handleFluxerMarkdownEmojiLongPress(
+          context,
+          emojiId: null,
+          name: EmojiRegistry.allEmojis.first.surrogates,
+          animated: false,
+          isCustom: false,
+        ),
+      ),
+    );
+
+    await openAndClose(tester);
+
+    expect(tester.testTextInput.isVisible, isFalse);
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus,
+      isFalse,
+    );
+  });
+
+  testWidgets('picker emoji info gives focus back to the composer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      composerHost(
+        onOpen: (context) => openEmojiInfoBottomSheet(
+          context,
+          emoji: EmojiInfoData(name: EmojiRegistry.allEmojis.first.surrogates),
+        ),
+      ),
+    );
+
+    await openAndClose(tester);
+
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus,
+      isTrue,
+    );
   });
 }

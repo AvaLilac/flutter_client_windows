@@ -14,10 +14,10 @@ import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/channels/data/read_state_repository.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
+import 'package:fluxer_app/features/channels/providers/read_state_write_batcher_provider.dart';
 import 'package:fluxer_app/features/chat/data/message_write_batcher.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_read_state_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_read_state_ready_provider.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_app/shared/utils/snowflake_time.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:fluxer_dart/gateway.dart' show MessageDeleteEvent;
@@ -718,7 +718,7 @@ void main() {
       expect(incremental.hasPlainUnread, full.hasPlainUnread);
       expect(incremental.mentionCount, full.mentionCount);
       expect(incremental.unreadChannelId, full.unreadChannelId);
-      expect(incremental.mentionChannels, full.mentionChannels);
+      expect(incremental.mentionCountByChannel, full.mentionCountByChannel);
     },
   );
 
@@ -752,7 +752,6 @@ void main() {
     await _waitForGuildState(container, 'guild-1');
     final before = container.read(guildReadStateProvider)['guild-1']!;
 
-    // Message-only edit: channel.lastMessageId is unchanged, so no recompute fires.
     await db.messageDao.upsertMessage(
       _cachedMessage(id: lastId, channelId: 'channel-1'),
     );
@@ -803,7 +802,6 @@ void main() {
         isTrue,
       );
 
-      // A recovery bump alone must not re-mark the channel unread.
       container.read(gatewaySessionRecoveryProvider.notifier).bump();
       await db.readStateDao.upsertReadState(
         ReadStatesCompanion(
@@ -867,7 +865,6 @@ void main() {
         isFalse,
       );
 
-      // A bare recovery bump must not reseed the guild into an unread state.
       container.read(gatewaySessionRecoveryProvider.notifier).bump();
       await Future<void>.delayed(const Duration(milliseconds: 80));
       expect(
@@ -875,7 +872,6 @@ void main() {
         isFalse,
       );
 
-      // A real channel write still flows through the reactive watcher.
       final newerMessageId = _recentSnowflake(ago: Duration.zero);
       await db.channelDao.upsertChannel(
         ChannelsCompanion.insert(
@@ -901,6 +897,60 @@ void main() {
       );
     },
   );
+
+  test('a READY on the same connection reseeds the guild fold', () async {
+    final db = openTestDatabase();
+    final lastMessageId = _recentSnowflake();
+    await _seedGuild(
+      db,
+      'guild-1',
+      channels: [
+        (
+          id: 'channel-1',
+          name: 'general',
+          type: 0,
+          lastMessageId: lastMessageId,
+        ),
+      ],
+    );
+    await db.readStateDao.upsertReadState(
+      ReadStatesCompanion(
+        channelId: const Value('channel-1'),
+        lastMessageId: Value(lastMessageId),
+      ),
+    );
+
+    final container = _container(db);
+    addTearDown(container.dispose);
+    container.read(gatewayReadyProvider.notifier).setReady();
+    container.read(gatewayFullRecoveryProvider.notifier).bump();
+    final sub = container.listen(
+      guildReadStateProvider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(sub.close);
+    await _waitFor(() => container.read(guildReadStateReadyProvider));
+    expect(
+      container.read(guildReadStateProvider)['guild-1']?.hasUnread ?? false,
+      isFalse,
+    );
+
+    await db.messageDao.upsertMessage(
+      _cachedMessage(
+        id: _recentSnowflake(ago: const Duration(minutes: 5)),
+        channelId: 'channel-1',
+      ),
+    );
+    container.read(gatewayReadyProvider.notifier).setReady();
+    container.read(gatewayFullRecoveryProvider.notifier).bump();
+
+    await _waitForGuildState(container, 'guild-1');
+    expect(
+      container.read(guildReadStateProvider)['guild-1']!.hasUnread,
+      isTrue,
+    );
+  });
 
   test('gateway ready reseeds guild fold from database truth', () async {
     final db = openTestDatabase();
@@ -939,8 +989,6 @@ void main() {
       isFalse,
     );
 
-    // The fold does not watch the messages table, so a backfilled newer
-    // message row leaves it stale until the next READY reseed.
     final newerMessageId = _recentSnowflake(ago: const Duration(minutes: 5));
     await db.messageDao.upsertMessage(
       _cachedMessage(id: newerMessageId, channelId: 'channel-1'),
@@ -988,8 +1036,6 @@ void main() {
           ),
         );
       }
-      // @everyone denies VIEW_CHANNEL in guild-deny, grants it in
-      // guild-allow; a member row exists, so both outcomes are definitive.
       await db.roleDao.upsertRoles([
         RolesCompanion.insert(
           id: 'guild-deny',
@@ -1325,7 +1371,6 @@ void main() {
     Future<ProviderContainer> seedThread(
       FluxerDatabase db, {
       bool memberMuted = false,
-      bool threadsActive = true,
       List<String> mutedOverrides = const <String>[],
     }) async {
       final lastMessageId = _recentSnowflake();
@@ -1375,9 +1420,6 @@ void main() {
       }
       final container = _container(db);
       addTearDown(container.dispose);
-      container
-          .read(threadsGateProvider)
-          .apply('guild-1', active: threadsActive);
       container.read(gatewayReadyProvider.notifier).setReady();
       final sub = container.listen(
         guildReadStateProvider,
@@ -1398,30 +1440,6 @@ void main() {
         isTrue,
       );
     });
-
-    test(
-      'a joined thread lights the guild only while the gate is on',
-      () async {
-        final db = openTestDatabase();
-        final container = await seedThread(db, threadsActive: false);
-        expect(
-          container.read(guildReadStateProvider)['guild-1']?.hasUnread ?? false,
-          isFalse,
-        );
-        container.read(threadsGateProvider).apply('guild-1', active: true);
-        await _waitFor(
-          () =>
-              container.read(guildReadStateProvider)['guild-1']?.hasUnread ??
-              false,
-        );
-        container.read(threadsGateProvider).resetConnection();
-        await _waitFor(
-          () =>
-              container.read(guildReadStateProvider)['guild-1']?.hasUnread ==
-              false,
-        );
-      },
-    );
 
     test('a muted joined thread does not light the guild', () async {
       final db = openTestDatabase();
@@ -1462,6 +1480,62 @@ void main() {
       );
     });
   });
+
+  test(
+    'guild mention count includes pending read-state overlay before flush',
+    () async {
+      final FluxerDatabase db = openTestDatabase();
+      final String readMessageId = _recentSnowflake(
+        ago: const Duration(hours: 2),
+      );
+      await _seedGuild(
+        db,
+        'guild-1',
+        channels: [
+          (
+            id: 'channel-1',
+            name: 'general',
+            type: 0,
+            lastMessageId: readMessageId,
+          ),
+        ],
+      );
+      await db.readStateDao.upsertReadState(
+        ReadStatesCompanion(
+          channelId: const Value('channel-1'),
+          lastMessageId: Value(readMessageId),
+        ),
+      );
+      final ProviderContainer container = _container(db);
+      addTearDown(container.dispose);
+      container.read(gatewayReadyProvider.notifier).setReady();
+      final ProviderSubscription<Map<String, GuildReadStateEntry>> sub =
+          container.listen(
+            guildReadStateProvider,
+            (_, _) {},
+            fireImmediately: true,
+          );
+      addTearDown(sub.close);
+      await _waitUntilReady(container);
+
+      container
+          .read(readStateWriteBatcherProvider)
+          .enqueueUnread(
+            channelId: 'channel-1',
+            messageId: _recentSnowflake(),
+            shouldMention: true,
+            isDm: false,
+            seedAckCandidate: readMessageId,
+          );
+
+      await _waitFor(
+        () =>
+            (container.read(guildReadStateProvider)['guild-1']?.mentionCount ??
+                0) >
+            0,
+      );
+    },
+  );
 }
 
 Future<void> _bumpMentionCount(FluxerDatabase db, String channelId) async {

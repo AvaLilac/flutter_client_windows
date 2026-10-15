@@ -12,6 +12,7 @@ import 'package:fluxer_app/features/settings/providers/linked_devices_view_model
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/relative_time.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -52,9 +53,6 @@ class _UserLinkedDevicesState extends ConsumerState<UserLinkedDevices> {
     if (state.isLoading) {
       body = const Center(child: FluxerLoadingSpinner());
     } else if (state.error != null || current == null) {
-      // Mirrors the web client: if the gateway-supplied session id hash is
-      // unavailable or does not match any returned session, refuse to render
-      // the list (any revocation would risk targeting the wrong session).
       body = _buildLoadError(context, colors, layout, l10n);
     } else {
       final others = state.sessions.where((s) => s != current).toList();
@@ -85,7 +83,7 @@ class _UserLinkedDevicesState extends ConsumerState<UserLinkedDevices> {
     FluxerLocalizations l10n,
   ) {
     return Padding(
-      padding: EdgeInsets.all(layout.s4),
+      padding: EdgeInsets.symmetric(vertical: layout.s4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -132,7 +130,7 @@ class _UserLinkedDevicesState extends ConsumerState<UserLinkedDevices> {
   ) {
     final state = ref.watch(linkedDevicesViewModelProvider);
     return Padding(
-      padding: EdgeInsets.fromLTRB(layout.s4, layout.s4, layout.s4, 0),
+      padding: EdgeInsets.only(top: layout.s4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -479,26 +477,15 @@ class _UserLinkedDevicesState extends ConsumerState<UserLinkedDevices> {
             ),
           );
       return true;
-    } on Object {
+    } on Object catch (error) {
       if (!mounted) {
         return false;
       }
-      ref
-          .read(toastProvider.notifier)
-          .show(
-            FluxerToast(
-              message: l10n.linkedDevicesRevokeError,
-              variant: FluxerToastVariant.danger,
-            ),
-          );
+      await showApiError(context, ApiErrorAction.revokeSessions, error);
       return false;
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
 
 class _AuthSessionCard extends StatelessWidget {
   const _AuthSessionCard({
@@ -751,12 +738,6 @@ class _DeviceActionButtonState extends State<_DeviceActionButton> {
                       : (hovered || pressed)
                       ? colors.textPrimary
                       : colors.textTertiary;
-                  final Color borderColor =
-                      FluxerButtonVariant.secondary.borderColor(
-                        colors,
-                        hovered: hovered,
-                      ) ??
-                      colors.backgroundModifierAccent;
                   return Container(
                     width: _kDeviceActionSize,
                     height: _kDeviceActionSize,
@@ -764,7 +745,10 @@ class _DeviceActionButtonState extends State<_DeviceActionButton> {
                     decoration: BoxDecoration(
                       color: background,
                       borderRadius: radius,
-                      border: Border.all(color: borderColor),
+                      border: FluxerButtonVariant.secondary.border(
+                        colors,
+                        hovered: hovered,
+                      ),
                     ),
                     child: PhosphorIcon(
                       widget.icon,

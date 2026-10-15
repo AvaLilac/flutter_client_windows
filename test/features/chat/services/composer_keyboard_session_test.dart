@@ -222,7 +222,6 @@ void main() {
     await tester.pumpAndSettle();
     focusNode.requestFocus();
     await tester.pumpAndSettle();
-    session.handleFocusChange(focused: true);
 
     widgetRef.read(mobileKeyboardMetricsProvider.notifier)
       ..updateLayout(screenHeight: 800, isPortrait: true, isIos: false)

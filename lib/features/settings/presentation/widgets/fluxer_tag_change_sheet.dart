@@ -252,7 +252,10 @@ class _FluxerTagChangeContentState
       }
       setState(() {
         _isSubmitting = false;
-        _error = FluxerLocalizations.of(context).fluxerTagUpdateFailed;
+        _error = userFacingErrorMessage(
+          e,
+          FluxerLocalizations.of(context).fluxerTagUpdateFailed,
+        );
       });
     }
   }
@@ -526,7 +529,7 @@ class _FluxerTagChangeContentState
             SizedBox(height: layout.s3),
             DecoratedBox(
               decoration: BoxDecoration(
-                color: colors.backgroundSecondary,
+                color: FluxerBottomSheet.cardColorOf(context),
                 borderRadius: layout.radiusSm,
                 border: Border.all(color: colors.borderColor),
               ),

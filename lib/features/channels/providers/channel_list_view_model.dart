@@ -8,8 +8,10 @@ import 'package:fluxer_app/core/synced_preferences/engine/synced_preferences_sto
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_availability_provider.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_list_view_model.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_providers.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
+import 'package:fluxer_app/features/guilds/utils/guild_outage_availability.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'channel_list_view_model.g.dart';
@@ -84,7 +86,6 @@ class ChannelListViewModel extends _$ChannelListViewModel {
   String? _currentGuildId;
   StreamSubscription<List<Channel>>? _subscription;
   StreamSubscription<Guild?>? _guildSubscription;
-  List<Channel>? _channels;
   final Map<String, List<ChannelCategory>> _categoryCache =
       <String, List<ChannelCategory>>{};
 
@@ -99,27 +100,6 @@ class ChannelListViewModel extends _$ChannelListViewModel {
       }
       _categoryCache.clear();
     });
-    ref.listen<Set<String>>(threadGuildGateProvider, (
-      Set<String>? previous,
-      Set<String> next,
-    ) {
-      final Set<String> prior = previous ?? const <String>{};
-      final Set<String> changed = <String>{
-        ...next.difference(prior),
-        ...prior.difference(next),
-      };
-      _categoryCache.removeWhere(
-        (String guildId, _) => changed.contains(guildId),
-      );
-      final String? guildId = _currentGuildId;
-      final List<Channel>? channels = _channels;
-      if (guildId == null || channels == null || !changed.contains(guildId)) {
-        return;
-      }
-      final List<ChannelCategory> categories = _groupVisible(guildId, channels);
-      _categoryCache[guildId] = categories;
-      state = state.copyWith(categories: categories);
-    });
     ref.onDispose(() {
       unawaited(_subscription?.cancel());
       unawaited(_guildSubscription?.cancel());
@@ -129,6 +109,20 @@ class ChannelListViewModel extends _$ChannelListViewModel {
       categories: [],
       selectedChannelId: null,
     );
+  }
+
+  bool loadActiveGuild(String guildId) {
+    final List<Guild> guilds = ref.read(guildListViewModelProvider).guilds;
+    final Guild? guild = guilds.where((Guild g) => g.id == guildId).firstOrNull;
+    if (isGuildOutageUnavailable(
+      guildId: guildId,
+      trackedUnavailableGuildIds: ref.read(guildAvailabilityProvider),
+      guild: guild,
+    )) {
+      return false;
+    }
+    loadChannels(guildId, guild: guild);
+    return true;
   }
 
   void loadChannels(String guildId, {Guild? guild}) {
@@ -142,7 +136,6 @@ class ChannelListViewModel extends _$ChannelListViewModel {
       _categoryCache[_currentGuildId!] = state.categories;
     }
     _currentGuildId = guildId;
-    _channels = null;
     final List<ChannelCategory> cachedCategories =
         _categoryCache[guildId] ?? const <ChannelCategory>[];
     state = ChannelListState(
@@ -160,8 +153,7 @@ class ChannelListViewModel extends _$ChannelListViewModel {
         .watchChannels(guildId)
         .listen(
           (channels) {
-            _channels = channels;
-            final categories = _groupVisible(guildId, channels);
+            final categories = groupChannelsIntoCategories(channels);
             _categoryCache[guildId] = categories;
             state = state.copyWith(
               categories: categories,
@@ -170,14 +162,15 @@ class ChannelListViewModel extends _$ChannelListViewModel {
             final ChannelPermissionCaches cachedBits = ref.read(
               channelPermissionCacheProvider,
             );
-            final bool allChannelsCached = channels.every(
-              (Channel channel) => cachedBits.hasEffectiveBits(channel.id),
-            );
-            if (!allChannelsCached) {
+            final Set<String> uncached = <String>{
+              for (final Channel channel in channels)
+                if (!cachedBits.hasEffectiveBits(channel.id)) channel.id,
+            };
+            if (uncached.isNotEmpty) {
               unawaited(
                 ref
                     .read(channelPermissionCacheProvider.notifier)
-                    .rebuildGuild(guildId),
+                    .rebuildGuild(guildId, onlyChannelIds: uncached),
               );
             }
           },
@@ -201,16 +194,6 @@ class ChannelListViewModel extends _$ChannelListViewModel {
             debugPrint('[ChannelListViewModel] Guild watch error: $error');
           },
         );
-  }
-
-  List<ChannelCategory> _groupVisible(String guildId, List<Channel> channels) {
-    if (ref.read(threadsGateProvider).isActive(guildId)) {
-      return groupChannelsIntoCategories(channels);
-    }
-    return groupChannelsIntoCategories(<Channel>[
-      for (final Channel channel in channels)
-        if (!isThreadOnlyChannelType(channel.type.wireValue)) channel,
-    ]);
   }
 
   void toggleMemberList({

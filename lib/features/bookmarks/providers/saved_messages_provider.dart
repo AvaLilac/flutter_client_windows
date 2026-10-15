@@ -106,7 +106,10 @@ class SavedMessagesNotifier extends Notifier<SavedMessagesState> {
     state = state.copyWith(messages: messages, missing: missing);
   }
 
-  void handleMessageUpdate(MessageResponseSchema schema) {
+  void handleMessageUpdate(
+    MessageResponseSchema schema, {
+    required bool isMentioned,
+  }) {
     final int index = state.messages.indexWhere(
       (Message message) => message.id == schema.id,
     );
@@ -116,7 +119,7 @@ class SavedMessagesNotifier extends Notifier<SavedMessagesState> {
     final List<Message> messages = List<Message>.from(state.messages);
     messages[index] = messages[index].applyGatewayUpdate(
       schema,
-      currentUserId: ref.read(currentUserIdProvider),
+      isMentioned: isMentioned,
     );
     state = state.copyWith(messages: messages);
   }
@@ -195,38 +198,36 @@ class SavedMessagesNotifier extends Notifier<SavedMessagesState> {
 
   void _onRealtimeEvent(MessageRealtimeEvent event) {
     switch (event) {
-      case MessageUpdated(event: final update):
-        handleMessageUpdate(update.message);
+      case MessageUpdated(event: final update, :final mentionsCurrentUser):
+        handleMessageUpdate(update.message, isMentioned: mentionsCurrentUser);
       case MessageDeleted(event: final deleted):
         handleMessageDelete(deleted.messageId);
       case MessagesDeletedBulk(event: final deleted):
         for (final String id in deleted.ids) {
           handleMessageDelete(id);
         }
-      case MessageReactionsChanged(:final messageId):
-        unawaited(_reloadMessage(messageId));
+      case MessageReactionsChanged(:final channelId, :final messageId):
+        unawaited(_reloadMessage(channelId, messageId));
       case MessageCreated():
         break;
     }
   }
 
-  Future<void> _reloadMessage(String messageId) async {
-    final int index = state.messages.indexWhere(
-      (Message message) => message.id == messageId,
-    );
+  Future<void> _reloadMessage(String channelId, String messageId) async {
+    bool matches(Message message) =>
+        message.channelId == channelId && message.id == messageId;
+    final int index = state.messages.indexWhere(matches);
     if (index == -1) {
       return;
     }
     final row = await ref
         .read(fluxerDatabaseProvider)
         .messageDao
-        .getMessage(messageId);
+        .getMessage(channelId, messageId);
     if (row == null) {
       return;
     }
-    final int latest = state.messages.indexWhere(
-      (Message message) => message.id == messageId,
-    );
+    final int latest = state.messages.indexWhere(matches);
     if (latest == -1) {
       return;
     }

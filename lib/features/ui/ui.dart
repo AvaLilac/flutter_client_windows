@@ -1,7 +1,4 @@
-// Foundations
-// Display
 export 'package:fluxer_app/features/ui/accordion/fluxer_accordion.dart';
-// Overlays
 export 'package:fluxer_app/features/ui/action_menu/fluxer_action_menu.dart';
 export 'package:fluxer_app/features/ui/alt_text_tooltip/fluxer_alt_text_tooltip.dart';
 export 'package:fluxer_app/features/ui/avatar/fluxer_avatar.dart';
@@ -14,14 +11,12 @@ export 'package:fluxer_app/features/ui/badge/fluxer_guild_badge.dart';
 export 'package:fluxer_app/features/ui/badge/fluxer_user_tag.dart';
 export 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 export 'package:fluxer_app/features/ui/bottom_sheet/fluxer_sheet_identity_header.dart';
-// Buttons
 export 'package:fluxer_app/features/ui/button/fluxer_action_button.dart';
 export 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 export 'package:fluxer_app/features/ui/button/fluxer_button_size.dart';
 export 'package:fluxer_app/features/ui/button/fluxer_button_variant.dart';
 export 'package:fluxer_app/features/ui/button/fluxer_circle_fab.dart';
 export 'package:fluxer_app/features/ui/card_alignment_controls/fluxer_card_alignment_controls.dart';
-// Inputs
 export 'package:fluxer_app/features/ui/character_counter/fluxer_character_counter.dart';
 export 'package:fluxer_app/features/ui/checkbox/fluxer_checkbox.dart';
 export 'package:fluxer_app/features/ui/color_picker/fluxer_color_picker_field.dart';
@@ -29,8 +24,8 @@ export 'package:fluxer_app/features/ui/emoji_picker/fluxer_emoji_picker_popout.d
 export 'package:fluxer_app/features/ui/emoji_picker/fluxer_emoji_picker_sheet.dart';
 export 'package:fluxer_app/features/ui/emoji_picker/fluxer_selected_emoji.dart';
 export 'package:fluxer_app/features/ui/focus_ring/fluxer_focus_ring.dart';
+export 'package:fluxer_app/features/ui/input/fluxer_focus_after_entrance.dart';
 export 'package:fluxer_app/features/ui/input/fluxer_input.dart';
-// Lists
 export 'package:fluxer_app/features/ui/list/fluxer_list_row.dart';
 export 'package:fluxer_app/features/ui/list/fluxer_list_section.dart';
 export 'package:fluxer_app/features/ui/list/fluxer_selectable_row.dart';
@@ -45,6 +40,7 @@ export 'package:fluxer_app/features/ui/qr_code/fluxer_qr_code.dart';
 export 'package:fluxer_app/features/ui/radio_group/fluxer_radio_group.dart';
 export 'package:fluxer_app/features/ui/refresh/fluxer_refresh_scroll_view.dart';
 export 'package:fluxer_app/features/ui/select/fluxer_select.dart';
+export 'package:fluxer_app/features/ui/selected_check/fluxer_selected_check.dart';
 export 'package:fluxer_app/features/ui/settings/fluxer_save_bar.dart';
 export 'package:fluxer_app/features/ui/settings/fluxer_settings.dart';
 export 'package:fluxer_app/features/ui/settings/fluxer_settings_configure_row.dart';
@@ -63,16 +59,13 @@ export 'package:fluxer_app/features/ui/status_indicator/fluxer_typing_status_ind
 export 'package:fluxer_app/features/ui/stepped_carousel/fluxer_stepped_carousel.dart';
 export 'package:fluxer_app/features/ui/switch_group/fluxer_switch_group.dart';
 export 'package:fluxer_app/features/ui/tabs/fluxer_segmented_tabs.dart';
-// Navigation
 export 'package:fluxer_app/features/ui/tabs/fluxer_tabs.dart';
 export 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 export 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
-// Text
 export 'package:fluxer_app/features/ui/text/fluxer_field_label.dart';
 export 'package:fluxer_app/features/ui/text/fluxer_hint_text.dart';
 export 'package:fluxer_app/features/ui/text/fluxer_subsection_label.dart';
 export 'package:fluxer_app/features/ui/text_link/fluxer_text_link.dart';
-// Feedback
 export 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
 export 'package:fluxer_app/features/ui/toast/fluxer_toast_overlay.dart';
 export 'package:fluxer_app/features/ui/toast/toast_provider.dart';

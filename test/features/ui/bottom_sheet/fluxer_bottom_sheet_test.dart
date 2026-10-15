@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/material.dart' as material;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
+import 'package:fluxer_app/core/theme/fluxer_motion_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme.dart';
 import 'package:fluxer_app/core/theme/themes/dark.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_sheet_motion.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -15,14 +18,29 @@ import '../../../helpers/test_l10n.dart';
 
 void _noop() {}
 
-double _maxAnimatedPaddingBottom(WidgetTester tester) {
+const Key _insetBodyKey = ValueKey<String>('inset-body');
+
+double _maxSheetPaddingBottom(WidgetTester tester) {
   double maxBottom = 0;
-  for (final Element element in find.byType(AnimatedPadding).evaluate()) {
-    final AnimatedPadding padding = element.widget as AnimatedPadding;
+  for (final Element element
+      in find
+          .ancestor(
+            of: find.byKey(_insetBodyKey),
+            matching: find.byType(Padding),
+          )
+          .evaluate()) {
+    final Padding padding = element.widget as Padding;
     final EdgeInsets resolved = padding.padding.resolve(TextDirection.ltr);
     maxBottom = math.max(maxBottom, resolved.bottom);
   }
   return maxBottom;
+}
+
+double _sheetAvailableHeight(WidgetTester tester) {
+  final Finder sheet = find.byType(FluxerDraggableScrollableSheet);
+  final FluxerDraggableScrollableSheet widget = tester.widget(sheet);
+  final RenderBox box = tester.renderObject(sheet);
+  return math.min(widget.maxHeight, box.constraints.maxHeight);
 }
 
 class _PopCountingObserver extends NavigatorObserver {
@@ -158,6 +176,56 @@ void main() {
       expect(find.byType(FluxerBottomSheetDragHandle), findsOneWidget);
     });
 
+    testWidgets('opens with the sheet motion over the sheet scrim', (
+      tester,
+    ) async {
+      ModalRoute<dynamic>? route;
+      await tester.pumpWidget(
+        buildTestApp(
+          Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () {
+                  unawaited(
+                    FluxerBottomSheet.show(
+                      context,
+                      builder: (context, close) {
+                        route = ModalRoute.of(context);
+                        return const SizedBox(height: 100);
+                      },
+                    ),
+                  );
+                },
+                child: const Text('Open'),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(route!.transitionDuration, FluxerMotionTheme.sheetDuration);
+      expect(route!.reverseTransitionDuration, kFluxerSheetCloseDuration);
+      final Iterable<ModalBarrier> barriers = tester
+          .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+          .where((ModalBarrier barrier) => barrier.color != null);
+      expect(
+        barriers.map((ModalBarrier barrier) => barrier.color),
+        contains(kFluxerSheetScrimColor),
+      );
+      expect(
+        tester.getSize(
+          find.descendant(
+            of: find.byType(FluxerBottomSheetDragHandle),
+            matching: find.byType(Container),
+          ),
+        ),
+        const Size(36, 4),
+      );
+    });
+
     testWidgets('drag handle has expanded hit target', (tester) async {
       await tester.pumpWidget(
         buildTestApp(
@@ -169,63 +237,6 @@ void main() {
         find.byType(FluxerBottomSheetDragHandle),
       );
       expect(size.height, greaterThanOrEqualTo(24));
-    });
-
-    testWidgets('scrollable sheet drag handle resizes the sheet', (
-      tester,
-    ) async {
-      final DraggableScrollableController sheetController =
-          DraggableScrollableController();
-      addTearDown(sheetController.dispose);
-
-      await tester.pumpWidget(
-        buildTestApp(
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SizedBox(
-              height: 800,
-              child: DraggableScrollableSheet(
-                expand: false,
-                controller: sheetController,
-                initialChildSize: 0.7,
-                minChildSize: 0.4,
-                maxChildSize: 0.95,
-                builder: (context, scrollController) {
-                  return Column(
-                    children: [
-                      FluxerBottomSheetDragHandle(
-                        sheetController: sheetController,
-                        minChildSize: 0.4,
-                        maxChildSize: 0.95,
-                      ),
-                      Expanded(
-                        child: ListView.builder(
-                          controller: scrollController,
-                          itemCount: 40,
-                          itemBuilder: (context, index) =>
-                              ListTile(title: Text('Item $index')),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(sheetController.isAttached, isTrue);
-      final double initialSize = sheetController.size;
-
-      await tester.drag(
-        find.byType(FluxerBottomSheetDragHandle),
-        const Offset(0, 80),
-      );
-      await tester.pumpAndSettle();
-
-      expect(sheetController.size, lessThan(initialSize));
     });
 
     testWidgets('scrollable sheet header drag resizes the sheet', (
@@ -391,7 +402,7 @@ void main() {
 
       await tester.drag(
         find.byType(FluxerBottomSheetDragHandle),
-        const Offset(0, 300),
+        const Offset(0, 450),
       );
       await tester.pumpAndSettle();
 
@@ -412,8 +423,6 @@ void main() {
                       context,
                       initialChildSize:
                           FluxerBottomSheet.scrollableSheetHalfSize,
-                      // Empty/loading states never attach the controller, so
-                      // the handle has no sheet extent to move.
                       builder: (context, scrollController, close) =>
                           const Center(child: Text('Nothing here')),
                     ),
@@ -477,8 +486,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Scroll Item 0'), findsOneWidget);
 
-      // Long enough to cross min extent mid-drag, which also trips the modal
-      // route's own min-extent close.
       await tester.drag(
         find.byType(FluxerBottomSheetDragHandle),
         const Offset(0, 500),
@@ -552,9 +559,15 @@ void main() {
 
         await tester.tap(find.text('Open'));
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 140));
         expect(find.text('Choose'), findsOneWidget);
 
+        await tester.tap(find.text('Choose'), warnIfMissed: false);
+        await tester.pump();
+        expect(observer.pops, 0);
+
+        await tester.pump(kFluxerSheetBackdropLead + kFluxerSheetInputLockout);
+        expect(find.text('Choose').hitTestable(), findsOneWidget);
         await tester.tap(find.text('Choose'));
         await tester.pumpAndSettle();
 
@@ -636,9 +649,15 @@ void main() {
 
         await tester.tap(find.text('Open'));
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 140));
         expect(find.text('Choose'), findsOneWidget);
 
+        await tester.tap(find.text('Choose'), warnIfMissed: false);
+        await tester.pump();
+        expect(observer.pops, 0);
+
+        await tester.pump(kFluxerSheetBackdropLead + kFluxerSheetInputLockout);
+        expect(find.text('Choose').hitTestable(), findsOneWidget);
         await tester.tap(find.text('Choose'));
         await tester.pumpAndSettle();
 
@@ -730,10 +749,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      final RenderBox sheetBox = tester.renderObject(
-        find.byType(DraggableScrollableSheet),
-      );
-      final double parentHeight = sheetBox.constraints.maxHeight;
+      final double parentHeight = _sheetAvailableHeight(tester);
       final double fullTop = tester
           .getTopLeft(find.byType(FluxerBottomSheetDragHandle))
           .dy;
@@ -794,19 +810,19 @@ void main() {
 
       final Finder handle = find.byType(FluxerBottomSheetDragHandle);
       final RenderBox sheetBox = tester.renderObject(
-        find.byType(DraggableScrollableSheet),
+        find.byType(FluxerDraggableScrollableSheet),
       );
-      final double parentHeight = sheetBox.constraints.maxHeight;
+      final double parentHeight = _sheetAvailableHeight(tester);
       final double fullHeight = sheetBox.size.height;
 
       final TestGesture gesture = await tester.startGesture(
         tester.getCenter(handle),
       );
-      await gesture.moveBy(Offset(0, parentHeight * 0.7));
+      await gesture.moveBy(Offset(0, parentHeight * 0.8));
       await tester.pump();
 
       final RenderBox draggedBox = tester.renderObject(
-        find.byType(DraggableScrollableSheet),
+        find.byType(FluxerDraggableScrollableSheet),
       );
       expect(
         draggedBox.size.height,
@@ -872,13 +888,12 @@ void main() {
       expect(tester.getTopLeft(handle).dy, lessThan(initialTop - 20));
 
       final RenderBox sheetBox = tester.renderObject(
-        find.byType(DraggableScrollableSheet),
+        find.byType(FluxerDraggableScrollableSheet),
       );
       expect(
         sheetBox.size.height,
         closeTo(
-          sheetBox.constraints.maxHeight *
-              FluxerBottomSheet.scrollableSheetSize,
+          _sheetAvailableHeight(tester) * FluxerBottomSheet.scrollableSheetSize,
           2,
         ),
       );
@@ -920,16 +935,16 @@ void main() {
       await tester.pumpAndSettle();
 
       final RenderBox initialBox = tester.renderObject(
-        find.byType(DraggableScrollableSheet),
+        find.byType(FluxerDraggableScrollableSheet),
       );
       final double initialHeight = initialBox.size.height;
-      final double parentHeight = initialBox.constraints.maxHeight;
+      final double parentHeight = _sheetAvailableHeight(tester);
 
       await tester.drag(find.text('Scroll Item 0'), const Offset(0, -220));
       await tester.pumpAndSettle();
 
       final RenderBox expandedBox = tester.renderObject(
-        find.byType(DraggableScrollableSheet),
+        find.byType(FluxerDraggableScrollableSheet),
       );
       expect(expandedBox.size.height, greaterThan(initialHeight + 20));
       expect(
@@ -977,7 +992,7 @@ void main() {
 
         await tester.drag(
           find.byType(FluxerBottomSheetDragHandle),
-          const Offset(0, 300),
+          const Offset(0, 520),
         );
         await tester.pumpAndSettle();
 
@@ -1019,7 +1034,7 @@ void main() {
 
       await tester.drag(
         find.byType(FluxerBottomSheetDragHandle),
-        const Offset(0, 80),
+        const Offset(0, 240),
       );
       await tester.pumpAndSettle();
 
@@ -1047,7 +1062,10 @@ void main() {
                         context,
                         manageKeyboardInset: false,
                         builder: (context, close) {
-                          return const SizedBox(height: 100);
+                          return const SizedBox(
+                            key: _insetBodyKey,
+                            height: 100,
+                          );
                         },
                       ),
                     );
@@ -1063,7 +1081,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(_maxAnimatedPaddingBottom(tester), 0);
+      expect(_maxSheetPaddingBottom(tester), 0);
     });
 
     testWidgets('manageKeyboardInset true pads sheet for viewInsets', (
@@ -1086,7 +1104,10 @@ void main() {
                       FluxerBottomSheet.show(
                         context,
                         builder: (context, close) {
-                          return const SizedBox(height: 100);
+                          return const SizedBox(
+                            key: _insetBodyKey,
+                            height: 100,
+                          );
                         },
                       ),
                     );
@@ -1102,7 +1123,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(_maxAnimatedPaddingBottom(tester), keyboardHeight);
+      expect(_maxSheetPaddingBottom(tester), keyboardHeight);
     });
 
     testWidgets('header supports back and trailing actions', (tester) async {
@@ -1135,6 +1156,26 @@ void main() {
       await tester.tap(find.byIcon(Icons.add));
       await tester.pump();
       expect(trailingPressed, 1);
+    });
+
+    testWidgets('header clips combining marks in the title', (tester) async {
+      const String zalgo =
+          'z\u030d\u030e\u0304\u0305\u033f\u0311\u0316\u0317\u0318\u0319al';
+      await tester.pumpWidget(
+        buildTestApp(
+          const Material(child: FluxerBottomSheetHeader(title: zalgo)),
+        ),
+      );
+
+      final Finder title = find.byWidgetPredicate((Widget widget) {
+        return widget is material.RichText &&
+            widget.text.toPlainText() == zalgo;
+      });
+      expect(tester.widget<material.RichText>(title).maxLines, 2);
+      expect(
+        find.ancestor(of: title, matching: find.byType(ClipRect)),
+        findsWidgets,
+      );
     });
 
     testWidgets('section and footer provide reusable sheet structure', (
@@ -1587,7 +1628,7 @@ void main() {
         await tester.pumpAndSettle();
 
         final Finder sheetMaterial = find.descendant(
-          of: find.byType(DraggableScrollableSheet),
+          of: find.byType(FluxerDraggableScrollableSheet),
           matching: find.byType(Material),
         );
         final double height = tester.getSize(sheetMaterial).height;
@@ -1646,20 +1687,19 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      final DraggableScrollableSheet sheet = tester.widget(
-        find.byType(DraggableScrollableSheet),
+      final FluxerDraggableScrollableSheet sheet = tester.widget(
+        find.byType(FluxerDraggableScrollableSheet),
       );
       expect(sheet.initialChildSize, FluxerBottomSheet.scrollableSheetSize);
       expect(sheet.maxChildSize, FluxerBottomSheet.scrollableSheetSize);
 
       final RenderBox sheetBox = tester.renderObject(
-        find.byType(DraggableScrollableSheet),
+        find.byType(FluxerDraggableScrollableSheet),
       );
       expect(
         sheetBox.size.height,
         closeTo(
-          sheetBox.constraints.maxHeight *
-              FluxerBottomSheet.scrollableSheetSize,
+          _sheetAvailableHeight(tester) * FluxerBottomSheet.scrollableSheetSize,
           1,
         ),
       );

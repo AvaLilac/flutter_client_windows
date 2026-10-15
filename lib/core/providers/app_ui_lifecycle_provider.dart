@@ -1,42 +1,53 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:dynamic_app_icon_flutter_plus/dynamic_app_icon_flutter_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/audio/app_media_audio_session.dart';
 import 'package:fluxer_app/core/bootstrap/image_cache_config.dart';
+import 'package:fluxer_app/core/providers/local_day_provider.dart';
 import 'package:fluxer_app/core/providers/well_known_provider.dart';
 import 'package:fluxer_app/features/chat/utils/media/media_kit_player_lifecycle.dart';
 import 'package:fluxer_app/features/voice/services/voice_wakelock_coordinator.dart';
 import 'package:fluxer_app/l10n/app_locale_provider.dart';
 import 'package:fluxer_app/shared/external_links/external_url_launcher.dart';
+import 'package:fluxer_app/shared/utils/emoji_sprite_sheet.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'app_ui_lifecycle_provider.g.dart';
 
-bool isAppUiForegroundLifecycle(AppLifecycleState state) {
-  return state == AppLifecycleState.resumed ||
-      state == AppLifecycleState.inactive;
+bool isAppUiForegroundLifecycle(
+  AppLifecycleState state, {
+  required bool wasForeground,
+}) {
+  return switch (state) {
+    AppLifecycleState.resumed => true,
+    AppLifecycleState.inactive => wasForeground || !_isMobileTarget,
+    _ => false,
+  };
 }
+
+bool get _isMobileTarget =>
+    defaultTargetPlatform == TargetPlatform.iOS ||
+    defaultTargetPlatform == TargetPlatform.android;
 
 bool shouldCloseInAppBrowserOnLifecycleResume({
   required bool wasForeground,
   required AppLifecycleState state,
 }) {
-  return !wasForeground && isAppUiForegroundLifecycle(state);
+  return !wasForeground && state == AppLifecycleState.resumed;
 }
 
-/// True while the app is visible (resumed or briefly inactive)
 @Riverpod(keepAlive: true)
 class AppUiForeground extends _$AppUiForeground {
   @override
   bool build() {
-    final AppLifecycleState? s = WidgetsBinding.instance.lifecycleState;
-    if (s == null) {
-      return false;
-    }
-    return isAppUiForegroundLifecycle(s);
+    final AppLifecycleState? state = WidgetsBinding.instance.lifecycleState;
+    return state != null &&
+        isAppUiForegroundLifecycle(state, wasForeground: false);
   }
 
   // Keep the notifier API stable for tests and lifecycle call sites.
@@ -49,7 +60,6 @@ class AppUiForeground extends _$AppUiForeground {
   }
 }
 
-/// Pushes platform lifecycle and locale changes into Riverpod state.
 class AppUiLifecycleObserver extends ConsumerStatefulWidget {
   const AppUiLifecycleObserver({required this.child, super.key});
 
@@ -62,6 +72,8 @@ class AppUiLifecycleObserver extends ConsumerStatefulWidget {
 
 class _AppUiLifecycleObserverState extends ConsumerState<AppUiLifecycleObserver>
     with WidgetsBindingObserver {
+  Timer? _localDayTimer;
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +88,7 @@ class _AppUiLifecycleObserverState extends ConsumerState<AppUiLifecycleObserver>
 
   @override
   void dispose() {
+    _localDayTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -99,13 +112,17 @@ class _AppUiLifecycleObserverState extends ConsumerState<AppUiLifecycleObserver>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       clearFluxerImageCache();
+      EmojiSpriteSheet.release();
       unawaited(MediaKitPlayerLifecycleCoordinator.instance.pauseAll());
       if (Platform.isAndroid) {
         unawaited(DynamicAppIconFlutterPlus.applyPendingIcon());
       }
     }
     final bool wasForeground = ref.read(appUiForegroundProvider);
-    final bool isForeground = isAppUiForegroundLifecycle(state);
+    final bool isForeground = isAppUiForegroundLifecycle(
+      state,
+      wasForeground: wasForeground,
+    );
     if (shouldCloseInAppBrowserOnLifecycleResume(
       wasForeground: wasForeground,
       state: state,
@@ -113,14 +130,28 @@ class _AppUiLifecycleObserverState extends ConsumerState<AppUiLifecycleObserver>
       unawaited(closeInAppBrowserIfOpen());
     }
     ref.read(appUiForegroundProvider.notifier).setResumed(isForeground);
+    if (isForeground) {
+      _syncLocalDay();
+    } else {
+      _localDayTimer?.cancel();
+      _localDayTimer = null;
+    }
     if (!wasForeground && isForeground) {
       unawaited(ref.read(wellKnownProvider.notifier).refresh());
     }
-    if ((Platform.isIOS || Platform.isAndroid) &&
-        isForeground &&
-        !wasForeground) {
-      unawaited(prepareAppMediaAudioSession());
+    unawaited(
+      AppMediaAudioSession.instance.setForeground(foreground: isForeground),
+    );
+  }
+
+  void _syncLocalDay() {
+    _localDayTimer?.cancel();
+    if (!mounted) {
+      _localDayTimer = null;
+      return;
     }
+    ref.read(localDayProvider.notifier).sync();
+    _localDayTimer = Timer(nextLocalDayCheckDelay(clock.now()), _syncLocalDay);
   }
 
   @override

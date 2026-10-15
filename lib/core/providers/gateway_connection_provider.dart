@@ -11,7 +11,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'gateway_connection_provider.g.dart';
 
-/// Mirrors web GatewayIdentifyFlags.DEBOUNCE_MESSAGE_REACTIONS (1 << 1).
 const int kGatewayDebounceMessageReactions = 1 << 1;
 
 const int kGatewayChannelThreads = 1 << 2;
@@ -27,7 +26,6 @@ class IdentifyInitialGuildId extends _$IdentifyInitialGuildId {
   @override
   String? build() => null;
 
-  // Applied from the persisted last location before Identify.
   void set(String? guildId) {
     if (state == guildId) {
       return;
@@ -44,6 +42,10 @@ Future<void> restoreIdentifyInitialGuildId(
   notifier.set(location == null ? null : extractGuildId(location));
 }
 
+String? readGatewaySessionId(Ref ref) => ref.read(gatewayHasAuthTokenProvider)
+    ? ref.read(gatewayConnectionProvider).sessionId
+    : null;
+
 @Riverpod(keepAlive: true)
 GatewayConnection gatewayConnection(Ref ref) {
   final Dio dio = ref.watch(fluxerDioProvider);
@@ -57,7 +59,6 @@ GatewayConnection gatewayConnection(Ref ref) {
   final String token = ref.read(fluxerAuthTokenProvider)!;
   final clientProperties = ref.read(fluxerClientPropertiesProvider);
 
-  // /loading has no guild; use the persisted last location on cold start.
   final String? initialGuildId =
       ref.read(activeGuildIdProvider) ??
       ref.read(identifyInitialGuildIdProvider);

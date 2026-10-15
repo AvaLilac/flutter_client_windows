@@ -173,11 +173,10 @@ class _SectionHeaderRow extends StatelessWidget {
           ],
           Expanded(
             child: Text(
-              entry.label.toUpperCase(),
+              entry.label,
               style: context.textStyles.bodySmall.copyWith(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.48,
                 color: muted,
               ),
             ),
@@ -570,7 +569,9 @@ class _FilterChipLabel extends StatelessWidget {
         children: <InlineSpan>[
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
-            child: _SyntaxChip(label: syntaxLabel, textColor: textColor),
+            child: MediaQuery.withNoTextScaling(
+              child: _SyntaxChip(label: syntaxLabel, textColor: textColor),
+            ),
           ),
           if (description != null && description!.isNotEmpty)
             TextSpan(

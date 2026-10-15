@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Prøv igen",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Forbundet",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Søg i KLIPY",
+    "gifPickerSearchKlipy": "Søg i Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Søg i Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Favoritter",
     "@gifPickerFavorites": {
@@ -2591,10 +2591,6 @@
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
     },
-    "dangerZoneDeleteCancelSubscription": "Annuller dit aktive Plutonium-abonnement i Plutonium-indstillingerne, før du sletter din konto.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
-    },
     "dangerZoneDeleteCannotDeleteAccount": "Kan ikke slette konto",
     "@dangerZoneDeleteCannotDeleteAccount": {
         "description": "Title for the guild ownership warning modal when trying to delete account."
@@ -2918,20 +2914,11 @@
             }
         }
     },
-    "userProfilePlutoniumBadgeTooltip": "{productName} Plutonium",
-    "@userProfilePlutoniumBadgeTooltip": {
-        "description": "Short badge title in the user profile badges popout. English locales use Title Case for official badge titles; other locales should use natural local capitalization.",
+    "userProfilePremiumSubscriberSinceTooltip": "{premiumProductFullName}-abonnent siden {date}",
+    "@userProfilePremiumSubscriberSinceTooltip": {
+        "description": "Badge label with a date in the user profile badges popout. Preserve {premiumProductFullName} and {date}; they are inserted by code. premiumProductFullName is the instance product name followed by its premium product name, for example Fluxer Plutonium. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
         "placeholders": {
-            "productName": {
-                "type": "String"
-            }
-        }
-    },
-    "userProfilePlutoniumSubscriberSinceTooltip": "{productName} Plutonium-abonnent siden {date}",
-    "@userProfilePlutoniumSubscriberSinceTooltip": {
-        "description": "Badge label with a date in the user profile badges popout. Preserve {date}; it is inserted by code. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
-        "placeholders": {
-            "productName": {
+            "premiumProductFullName": {
                 "type": "String"
             },
             "date": {
@@ -3822,6 +3809,71 @@
     "channelComposerBarrierVerifyEmail": "Bekræft e-mail",
     "@channelComposerBarrierVerifyEmail": {
         "description": "Action button on the composer barrier for unverified email."
+    },
+    "accountLimitedNotice": "Beskeder er sat på pause på din konto. Tjek din e-mail for et hurtigt trin, så du kan fortsætte.",
+    "@accountLimitedNotice": {
+        "description": "Notice shown in place of the message composer and as a banner at the top of the app when messaging is paused on the current account until the user completes one quick step described in an email. Keep the tone calm and friendly."
+    },
+    "messagingPausedTextDidNotGoThrough": "Min sms gik ikke igennem",
+    "@messagingPausedTextDidNotGoThrough": {
+        "description": "Button shown while messaging is paused on the current account, and the title of the help sheet it opens. The email describing the quick step asks the user to send a text message from their phone. This is for users who could not send that text, and also for users who sent it and nothing happened. The translation should cover both. Also used as the subject of the support email."
+    },
+    "messagingPausedHelpBody": "Skriv til {supportEmail}, så kigger en person på din konto. Du kan også svare på den e-mail, vi sendte dig.",
+    "@messagingPausedHelpBody": {
+        "description": "Body of the help sheet opened from \"My text didn't go through\" while messaging is paused on the account. supportEmail is the support email address. Keep it short, calm and neutral.",
+        "placeholders": {
+            "supportEmail": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLabel": "Land, du er i",
+    "@messagingPausedHelpCountryLabel": {
+        "description": "Field label in the help sheet opened from \"My text didn't go through\". The user types the country they are in so support can help."
+    },
+    "messagingPausedHelpCopyDetails": "Kopiér oplysninger",
+    "@messagingPausedHelpCopyDetails": {
+        "description": "Button in the help sheet opened from \"My text didn't go through\". Copies the account details for a support email to the clipboard."
+    },
+    "messagingPausedHelpEmailSupport": "Skriv til support",
+    "@messagingPausedHelpEmailSupport": {
+        "description": "Primary button in the help sheet opened from \"My text didn't go through\". Opens a new email to support with the account details filled in."
+    },
+    "messagingPausedHelpAccountIdLine": "Konto-id: {accountId}",
+    "@messagingPausedHelpAccountIdLine": {
+        "description": "One line of the support email written for the user. accountId is the numeric account ID.",
+        "placeholders": {
+            "accountId": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpUsernameLine": "Brugernavn: {username}",
+    "@messagingPausedHelpUsernameLine": {
+        "description": "One line of the support email written for the user. username is the account username with its tag.",
+        "placeholders": {
+            "username": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpAccountCreatedLine": "Konto oprettet: {createdAt}",
+    "@messagingPausedHelpAccountCreatedLine": {
+        "description": "One line of the support email written for the user. createdAt is the account creation time as an ISO 8601 UTC timestamp.",
+        "placeholders": {
+            "createdAt": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLine": "Land: {country}",
+    "@messagingPausedHelpCountryLine": {
+        "description": "One line of the support email written for the user. country is the country the user typed.",
+        "placeholders": {
+            "country": {
+                "type": "String"
+            }
+        }
     },
     "chatAttachmentTooMany": "For mange vedhæftninger (max {max})",
     "@chatAttachmentTooMany": {
@@ -5138,7 +5190,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Vis chat med {count, plural, one {# ulæst besked} other {# ulæste beskeder}}",
+    "voiceTextChatShowUnread": "Vis chat med {count, plural, one {{count} ulæst besked} other {{count} ulæste beskeder}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5407,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "Kunne ikke sende besked. Tryk for indstillinger.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "Din besked kunne ikke leveres. Dette skyldes normalt, at du ikke deler et fællesskab med modtageren, eller at modtageren kun accepterer direkte beskeder fra venner. Du skal muligvis også justere dine egne indstillinger for direkte beskeders privatliv i {settingsPath}.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5519,6 @@
     "forwardSuccessToast": "Besked videresendt",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Kunne ikke videresende besked",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Kommentarer er utilgængelige, fordi en valgt kanal har slowmode aktiveret.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6126,19 +6178,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "DIN KONTO",
+    "userSettingsGroupYourAccount": "Din konto",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6466,11 +6518,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Indtast instans-URL (f.eks. fluxer.app)",
+    "instanceUrlPlaceholder": "Indtast instans-URL (f.eks. fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Brug fluxer.app til den officielle instans, eller den nøjagtige URL for en selvhostet instans.",
+    "instanceUrlHelper": "Brug fluxer.com til den officielle instans, eller den nøjagtige URL for en selvhostet instans.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },
@@ -6690,13 +6742,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "NY",
+    "scrollIndicatorNew": "Ny",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "NY BESKED",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Nye beskeder",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Skjul {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -6985,10 +7037,6 @@
     "guildMenuMarkAsRead": "Markér som læst",
     "@guildMenuMarkAsRead": {
         "description": "Guild menu action to mark all channels as read."
-    },
-    "guildPeekMoreOptions": "Flere valgmuligheder",
-    "@guildPeekMoreOptions": {
-        "description": "Guild peek menu action to open the full guild options sheet."
     },
     "guildMenuInviteMembers": "Inviter medlemmer",
     "@guildMenuInviteMembers": {
@@ -8119,7 +8167,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Slettet # besked.} other{Slettet # beskeder.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Slettet {count} besked.} other{Slettet {count} beskeder.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8176,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Fjernede # medlem.} other{Fjernede # medlemmer.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Fjernede {count} medlem.} other{Fjernede {count} medlemmer.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8333,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -13711,7 +13759,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Alle undtagen {count, plural, one {# fællesskab} other {# fællesskaber}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Alle undtagen {count, plural, one {{count} fællesskab} other {{count} fællesskaber}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13720,7 +13768,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Kun {count, plural, one {# fællesskab} other {# fællesskaber}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Kun {count, plural, one {{count} fællesskab} other {{count} fællesskaber}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13749,7 +13797,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# time} other {# timer}} og {minutes, plural, one {# minut} other {# minutter}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} time} other {{hours} timer}} og {minutes, plural, one {{minutes} minut} other {{minutes} minutter}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13761,7 +13809,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# time} other {# timer}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} time} other {{hours} timer}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13770,7 +13818,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# minut} other {# minutter}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} minut} other {{minutes} minutter}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13779,7 +13827,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# sekund} other {# sekunder}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} sekund} other {{seconds} sekunder}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14485,7 +14533,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -16513,5 +16561,96 @@
     },
     "channelUnsupportedTitle": "Kanaltype understøttes ikke",
     "channelUnsupportedBody": "Denne version af appen understøtter ikke denne kanaltype.",
-    "channelDetailsUnsupportedChannel": "Kanal understøttes ikke"
+    "channelDetailsUnsupportedChannel": "Kanal understøttes ikke",
+    "forumPostNewBadge": "Ny",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} ny besked} other {{count} nye beskeder}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Ny",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} ny} other {{unreadCount} nye}} siden {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ nye siden {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} ny besked} other {{unreadCount} nye beskeder}} siden {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ nye beskeder siden {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Markér som læst",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Markér som læst",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Gå til første ulæste besked",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Du ser ældre beskeder",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Gå til nyeste",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Omdøb kategori",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

@@ -10,6 +10,7 @@ import 'package:fluxer_app/features/settings/utils/premium_purchases_disabled_l1
 import 'package:fluxer_app/features/settings/utils/premium_subscription_status.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
+import 'package:fluxer_app/features/ui/button/fluxer_button_size.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/features/ui/text_link/fluxer_text_link.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
@@ -24,6 +25,7 @@ class PremiumStoreBar extends StatelessWidget {
     required this.purchaseDisabledMessage,
     required this.onBuy,
     required this.onManage,
+    this.onRestore,
     this.otherStoreNotice,
     super.key,
   });
@@ -35,17 +37,19 @@ class PremiumStoreBar extends StatelessWidget {
   final String? purchaseDisabledMessage;
   final void Function(PremiumStorePlan plan) onBuy;
   final VoidCallback? onManage;
+  final Future<void> Function()? onRestore;
   final String? otherStoreNotice;
 
   @override
   Widget build(BuildContext context) {
+    final PremiumStoreStyle style = PremiumStoreStyle.of(context);
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     final layout = context.layout;
     final double bottom = MediaQuery.paddingOf(context).bottom;
 
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: PremiumStoreStyle.line)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: style.line)),
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -65,6 +69,7 @@ class PremiumStoreBar extends StatelessWidget {
             purchaseDisabledMessage: purchaseDisabledMessage,
             otherStoreNotice: otherStoreNotice,
             onBuy: onBuy,
+            onRestore: onRestore,
             statusLines: [
               _giftText(l10n),
               l10n.premiumGiftTimeAddedAfterSubscription,
@@ -84,6 +89,7 @@ class PremiumStoreBar extends StatelessWidget {
             purchaseDisabledMessage: purchaseDisabledMessage,
             otherStoreNotice: otherStoreNotice,
             onBuy: onBuy,
+            onRestore: onRestore,
           ),
         },
       ),
@@ -128,12 +134,11 @@ class _StatusText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final PremiumStoreStyle style = PremiumStoreStyle.of(context);
     return Text(
       text,
       textAlign: TextAlign.center,
-      style: context.textStyles.bodySmall.copyWith(
-        color: PremiumStoreStyle.ink,
-      ),
+      style: context.textStyles.bodySmall.copyWith(color: style.ink),
     );
   }
 }
@@ -143,17 +148,16 @@ class _WaitingStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final PremiumStoreStyle style = PremiumStoreStyle.of(context);
     final layout = context.layout;
     return Row(
       children: [
-        const FluxerLoadingSpinner(),
+        const FluxerLoadingSpinner(size: FluxerLoadingSpinnerSize.small),
         SizedBox(width: layout.s3),
         Expanded(
           child: Text(
             FluxerLocalizations.of(context).storePlutoniumWaiting,
-            style: context.textStyles.bodySmall.copyWith(
-              color: PremiumStoreStyle.ink,
-            ),
+            style: context.textStyles.bodySmall.copyWith(color: style.ink),
           ),
         ),
       ],
@@ -176,6 +180,7 @@ class _ManageStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final PremiumStoreStyle style = PremiumStoreStyle.of(context);
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     final layout = context.layout;
     return Column(
@@ -185,18 +190,14 @@ class _ManageStatus extends StatelessWidget {
           Text(
             cycle!,
             textAlign: TextAlign.center,
-            style: context.textStyles.bodySmall.copyWith(
-              color: PremiumStoreStyle.ink,
-            ),
+            style: context.textStyles.bodySmall.copyWith(color: style.ink),
           ),
         if (detail != null) ...[
           SizedBox(height: layout.s1),
           Text(
             detail!,
             textAlign: TextAlign.center,
-            style: context.textStyles.bodySmall.copyWith(
-              color: PremiumStoreStyle.inkMuted,
-            ),
+            style: context.textStyles.bodySmall.copyWith(color: style.inkMuted),
           ),
         ],
         if (onManage != null) ...[
@@ -210,9 +211,7 @@ class _ManageStatus extends StatelessWidget {
           Text(
             otherStoreNotice!,
             textAlign: TextAlign.center,
-            style: context.textStyles.bodySmall.copyWith(
-              color: PremiumStoreStyle.inkMuted,
-            ),
+            style: context.textStyles.bodySmall.copyWith(color: style.inkMuted),
           ),
         ],
       ],
@@ -228,6 +227,7 @@ class _SubscribeActions extends ConsumerWidget {
     required this.purchaseDisabledMessage,
     required this.otherStoreNotice,
     required this.onBuy,
+    required this.onRestore,
     this.statusLines = const [],
   });
 
@@ -237,10 +237,12 @@ class _SubscribeActions extends ConsumerWidget {
   final String? purchaseDisabledMessage;
   final String? otherStoreNotice;
   final void Function(PremiumStorePlan plan) onBuy;
+  final Future<void> Function()? onRestore;
   final List<String> statusLines;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final PremiumStoreStyle style = PremiumStoreStyle.of(context);
     final layout = context.layout;
     final bool sideBySide = !isMobileLayout(context);
     final int? savings = plutoniumYearlySavingsPercent(
@@ -312,18 +314,14 @@ class _SubscribeActions extends ConsumerWidget {
           Text(
             renewsThrough,
             textAlign: TextAlign.center,
-            style: context.textStyles.timestamp.copyWith(
-              color: PremiumStoreStyle.inkMuted,
-            ),
+            style: context.textStyles.timestamp.copyWith(color: style.inkMuted),
           ),
         if (blockMessage != null) ...[
           SizedBox(height: layout.s2),
           Text(
             blockMessage,
             textAlign: TextAlign.center,
-            style: context.textStyles.bodySmall.copyWith(
-              color: PremiumStoreStyle.inkMuted,
-            ),
+            style: context.textStyles.bodySmall.copyWith(color: style.inkMuted),
           ),
         ],
         if (!store.subscriptionPurchaseBlocked) ...[
@@ -345,6 +343,14 @@ class _SubscribeActions extends ConsumerWidget {
           SizedBox(height: layout.s3),
           const _PurchaseTerms(),
         ],
+        if (onRestore != null) ...[
+          SizedBox(height: layout.s2),
+          FluxerButton.ghost(
+            size: FluxerButtonSize.compact,
+            label: l10n.storePlutoniumRestorePurchases,
+            onPressedAsync: onRestore,
+          ),
+        ],
       ],
     );
   }
@@ -362,9 +368,10 @@ class _PurchaseTerms extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final PremiumStoreStyle style = PremiumStoreStyle.of(context);
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     final TextStyle muted = context.textStyles.timestamp.copyWith(
-      color: PremiumStoreStyle.inkMuted,
+      color: style.inkMuted,
     );
     return Text.rich(
       TextSpan(
@@ -374,20 +381,24 @@ class _PurchaseTerms extends StatelessWidget {
           WidgetSpan(
             alignment: PlaceholderAlignment.baseline,
             baseline: TextBaseline.alphabetic,
-            child: FluxerTextLink(
-              text: l10n.premiumTermsOfService,
-              url: 'https://fluxer.app/terms',
-              style: muted.copyWith(color: PremiumStoreStyle.accent),
+            child: MediaQuery.withNoTextScaling(
+              child: FluxerTextLink(
+                text: l10n.premiumTermsOfService,
+                url: 'https://fluxer.app/terms',
+                style: muted.copyWith(color: style.accent),
+              ),
             ),
           ),
           TextSpan(text: l10n.premiumDisclaimerAgreementMiddle),
           WidgetSpan(
             alignment: PlaceholderAlignment.baseline,
             baseline: TextBaseline.alphabetic,
-            child: FluxerTextLink(
-              text: l10n.premiumPrivacyPolicy,
-              url: 'https://fluxer.app/privacy',
-              style: muted.copyWith(color: PremiumStoreStyle.accent),
+            child: MediaQuery.withNoTextScaling(
+              child: FluxerTextLink(
+                text: l10n.premiumPrivacyPolicy,
+                url: 'https://fluxer.app/privacy',
+                style: muted.copyWith(color: style.accent),
+              ),
             ),
           ),
           const TextSpan(text: '.'),

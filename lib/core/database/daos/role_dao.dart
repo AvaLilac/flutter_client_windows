@@ -23,6 +23,9 @@ class RoleDao extends DatabaseAccessor<FluxerDatabase> with _$RoleDaoMixin {
           .watch()
           .suppressDriftCancellation;
 
+  Stream<List<Role>> watchAllRoles() =>
+      select(roles).watch().suppressDriftCancellation;
+
   Future<Role?> getRoleById(String id) =>
       (select(roles)..where((r) => r.id.equals(id))).getSingleOrNull();
 
@@ -36,6 +39,29 @@ class RoleDao extends DatabaseAccessor<FluxerDatabase> with _$RoleDaoMixin {
 
   Future<void> deleteRole(String id) =>
       (delete(roles)..where((r) => r.id.equals(id))).go();
+
+  Future<Set<String>> deleteGuildRolesNotIn(
+    Map<String, Set<String>> keepIdsByGuildId,
+  ) async {
+    if (keepIdsByGuildId.isEmpty) {
+      return const <String>{};
+    }
+    final List<Role> staleRoles = <Role>[
+      for (final Role row in await (select(
+        roles,
+      )..where((r) => r.guildId.isIn(keepIdsByGuildId.keys))).get())
+        if (!(keepIdsByGuildId[row.guildId]?.contains(row.id) ?? true)) row,
+    ];
+    if (staleRoles.isNotEmpty) {
+      await (delete(roles)..where(
+            (r) => r.id.isIn(<String>[
+              for (final Role role in staleRoles) role.id,
+            ]),
+          ))
+          .go();
+    }
+    return <String>{for (final Role role in staleRoles) role.guildId};
+  }
 
   Future<void> deleteRolesForGuild(String guildId) =>
       (delete(roles)..where((r) => r.guildId.equals(guildId))).go();

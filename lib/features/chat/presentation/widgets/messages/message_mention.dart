@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
+import 'package:fluxer_app/core/deep_links/app_page_links.dart';
 import 'package:fluxer_app/core/deep_links/user_settings_deep_link.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
+import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/core/utils/channel_jump_link.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
@@ -14,6 +16,7 @@ import 'package:fluxer_app/features/channels/utils/channel_mention_utils.dart';
 import 'package:fluxer_app/features/channels/utils/navigate_to_channel_content.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/channel_access_denied_sheet.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_double_tap_exemption.dart';
 import 'package:fluxer_app/features/chat/utils/channel_jump_navigator.dart';
 import 'package:fluxer_app/features/dm/domain/dm_channel_types.dart';
 import 'package:fluxer_app/features/dm/providers/dm_providers.dart';
@@ -23,14 +26,13 @@ import 'package:fluxer_app/features/guilds/providers/role_providers.dart';
 import 'package:fluxer_app/features/profile/presentation/user_profile_sheet.dart';
 import 'package:fluxer_app/features/settings/utils/open_user_settings_deep_link.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_billing_nav.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
+import 'package:fluxer_app/features/ui/avatar/fluxer_guild_acronym.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/providers/guild_user_display_provider.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 import 'package:fluxer_app/shared/utils/display_name.dart';
-import 'package:fluxer_app/shared/utils/guild_name_abbreviation.dart';
 import 'package:fluxer_markdown/fluxer_markdown.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -52,28 +54,22 @@ class ChannelMention extends ConsumerWidget {
       channelByIdProvider(channelId).select((async) => async.value),
     );
     final colors = context.colors;
-    final style = (baseStyle ?? context.textStyles.messageText).copyWith(
-      color: colors.markupMentionText,
-      fontWeight: FontWeight.w500,
+    final style = _mentionTextStyle(
+      baseStyle ?? context.textStyles.messageText,
+      colors.markupMentionText,
     );
     final l10n = FluxerLocalizations.of(context);
     if (channel != null && channel.type == ChannelType.guildCategory) {
       return Text(
         '#${channel.name}',
-        style: style,
+        style: baseStyle ?? context.textStyles.messageText,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         softWrap: false,
       );
     }
     final bool clickable =
-        channel != null &&
-        isClickableChannelMention(
-          channel,
-          threadsActive:
-              (channel.isThread || channel.isThreadOnly) &&
-              ref.watch(threadChannelsActiveProvider(channel.guildId)),
-        );
+        channel != null && isClickableChannelMention(channel);
     if (channel != null && !clickable) {
       return _buildUnknownMentionPill(
         context,
@@ -88,7 +84,7 @@ class ChannelMention extends ConsumerWidget {
         (fallback == null
             ? ChannelType.guildText
             : ChannelType.fromWire(fallback!.type));
-    return FluxerGestureDetector(
+    return _MentionPill(
       onTap: clickable
           ? () => navigateToGuildChannelContent(
               context: context,
@@ -97,20 +93,17 @@ class ChannelMention extends ConsumerWidget {
               channel: channel,
             )
           : null,
-      child: _MentionPill(
-        baseStyle: style,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ChannelIcon(
-              type: type,
-              size: (style.fontSize ?? 14) * 0.9,
-              color: colors.markupMentionText,
-            ),
-            SizedBox(width: _mentionInlineGap(style)),
-            _MentionLabel(name, style: style),
-          ],
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ChannelIcon(
+            type: type,
+            size: _mentionIconSize(style),
+            color: colors.markupMentionText,
+          ),
+          SizedBox(width: _mentionInlineGap(style)),
+          _MentionLabel(name, style: style),
+        ],
       ),
     );
   }
@@ -123,13 +116,12 @@ Widget _buildUnknownMentionPill(
 ) {
   final colors = context.colors;
   return _MentionPill(
-    baseStyle: style,
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         ChannelIcon(
           type: ChannelType.guildText,
-          size: (style.fontSize ?? 14) * 0.9,
+          size: _mentionIconSize(style),
           color: colors.markupMentionText,
         ),
         SizedBox(width: _mentionInlineGap(style)),
@@ -148,12 +140,11 @@ class TextMention extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final style = (baseStyle ?? context.textStyles.messageText).copyWith(
-      color: colors.markupMentionText,
-      fontWeight: FontWeight.w500,
+    final style = _mentionTextStyle(
+      baseStyle ?? context.textStyles.messageText,
+      colors.markupMentionText,
     );
     return _MentionPill(
-      baseStyle: style,
       child: Text(
         label,
         style: style,
@@ -206,42 +197,99 @@ class GuildNavigationMention extends StatelessWidget {
   }
 }
 
-/// Mention pill metrics scale with [TextStyle.fontSize] (baseline 14px).
-double _mentionPillHorizontalPadding(TextStyle style) =>
-    (style.fontSize ?? 14) * (3.2 / 14);
+const double _kMentionPillHorizontalPadding = 2;
+const double _kMentionPillBorderRadius = 3;
+const double _kMentionDividerOpacity = 0.64;
+const double _kMentionPillLineHeight = 1.25;
 
-double _mentionPillBorderRadius(TextStyle style) =>
-    (style.fontSize ?? 14) * (4 / 14);
+double _mentionIconSize(TextStyle style) => style.fontSize ?? 16;
 
-double _mentionInlineGap(TextStyle style) => (style.fontSize ?? 14) * (2 / 14);
+double _mentionInlineGap(TextStyle style) => _mentionIconSize(style) * 0.125;
 
-class _MentionPill extends StatelessWidget {
+double _mentionDividerSize(TextStyle style) => _mentionIconSize(style) * 0.7;
+
+TextStyle _mentionTextStyle(TextStyle base, Color color) {
+  final double? baseHeight = base.height;
+  return base.copyWith(
+    color: color,
+    fontWeight: FontWeight.w500,
+    height: baseHeight == null || baseHeight > _kMentionPillLineHeight
+        ? _kMentionPillLineHeight
+        : baseHeight,
+  );
+}
+
+class _MentionPill extends StatefulWidget {
   const _MentionPill({
     required this.child,
-    required this.baseStyle,
     this.fillColor,
+    this.pressedFillColor,
+    this.ringColor,
+    this.onTap,
   });
 
   final Widget child;
-  final TextStyle baseStyle;
   final Color? fillColor;
+  final Color? pressedFillColor;
+  final Color? ringColor;
+  final VoidCallback? onTap;
+
+  @override
+  State<_MentionPill> createState() => _MentionPillState();
+}
+
+class _MentionPillState extends State<_MentionPill> {
+  var _active = false;
+
+  void _setActive(bool active) {
+    if (_active == active || !mounted) {
+      return;
+    }
+    setState(() => _active = active);
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
-      clipBehavior: Clip.antiAlias,
+    final VoidCallback? onTap = widget.onTap;
+    final Color? ringColor = widget.ringColor;
+    final BorderRadius radius = BorderRadius.circular(
+      _kMentionPillBorderRadius,
+    );
+    final Widget pill = AnimatedContainer(
+      duration: const Duration(milliseconds: 100),
       decoration: BoxDecoration(
-        color: fillColor ?? colors.markupMentionFill,
-        borderRadius: BorderRadius.circular(
-          _mentionPillBorderRadius(baseStyle),
+        color: _active && onTap != null
+            ? widget.pressedFillColor ?? colors.markupInteractiveHoverFill
+            : widget.fillColor ?? colors.markupMentionFill,
+        borderRadius: radius,
+      ),
+      foregroundDecoration: ringColor == null
+          ? null
+          : BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(color: ringColor),
+            ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _kMentionPillHorizontalPadding,
+      ),
+      child: widget.child,
+    );
+    if (onTap == null) {
+      return pill;
+    }
+    return MouseRegion(
+      onEnter: (_) => _setActive(true),
+      onExit: (_) => _setActive(false),
+      child: MessageDoubleTapExempt(
+        child: FluxerGestureDetector(
+          onTap: onTap,
+          onTapDown: (_) => _setActive(true),
+          onTapUp: (_) => _setActive(false),
+          onTapCancel: () => _setActive(false),
+          child: pill,
         ),
-        border: Border.all(color: colors.markupMentionBorder),
       ),
-      padding: EdgeInsets.symmetric(
-        horizontal: _mentionPillHorizontalPadding(baseStyle),
-      ),
-      child: child,
     );
   }
 }
@@ -271,11 +319,11 @@ class UserMention extends ConsumerWidget {
       guildId: guildId,
     );
     final colors = context.colors;
-    final style = (baseStyle ?? context.textStyles.messageText).copyWith(
-      color: colors.markupMentionText,
-      fontWeight: FontWeight.w500,
+    final style = _mentionTextStyle(
+      baseStyle ?? context.textStyles.messageText,
+      colors.markupMentionText,
     );
-    return FluxerGestureDetector(
+    return _MentionPill(
       onTap: () => unawaited(
         FluxerUserProfileSheet.show(
           context,
@@ -283,15 +331,12 @@ class UserMention extends ConsumerWidget {
           guildId: resolvedGuildId,
         ),
       ),
-      child: _MentionPill(
-        baseStyle: style,
-        child: Text(
-          '@$name',
-          style: style,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          softWrap: false,
-        ),
+      child: Text(
+        '@$name',
+        style: style,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
       ),
     );
   }
@@ -308,28 +353,31 @@ class RoleMention extends ConsumerWidget {
     final role = ref.watch(
       roleByIdProvider(roleId).select((async) {
         final value = async.value;
-        if (value == null) {
-          return null;
-        }
-        return (name: value.name, color: value.color);
+        return (
+          isLoading: async.isLoading,
+          name: value?.name,
+          color: value?.color ?? 0,
+        );
       }),
     );
     final colors = context.colors;
-    final hasColor = (role?.color ?? 0) != 0;
-    final roleColor = hasColor ? Color(role!.color | 0xFF000000) : null;
-    // 0.1 opacity fill matching web app
-    final fillColor = roleColor?.withValues(alpha: 0.1);
-
-    final style = (baseStyle ?? context.textStyles.messageText).copyWith(
-      color: roleColor ?? colors.markupMentionText,
-      fontWeight: FontWeight.w500,
+    final Color? roleColor = role.color == 0
+        ? null
+        : Color(role.color | 0xFF000000);
+    final style = _mentionTextStyle(
+      baseStyle ?? context.textStyles.messageText,
+      roleColor ?? colors.markupMentionText,
     );
-
+    final String name =
+        role.name ??
+        (role.isLoading
+            ? ''
+            : FluxerLocalizations.of(context).channelSettingsUnknownRole);
     return _MentionPill(
-      baseStyle: style,
-      fillColor: fillColor,
+      fillColor: roleColor?.withValues(alpha: 0.1),
+      ringColor: roleColor?.withValues(alpha: 0.3),
       child: Text(
-        '@${role?.name ?? roleId}',
+        '@$name',
         style: style,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -347,7 +395,6 @@ final FutureProviderFamily<Guild?, String> _guildByIdProvider = FutureProvider
       return row == null ? null : Guild.fromRow(row);
     });
 
-// temporary solution :)
 final FutureProviderFamily<String?, String> _dmNameByChannelIdProvider =
     FutureProvider.autoDispose.family<String?, String>((ref, channelId) async {
       final db = ref.watch(fluxerDatabaseProvider);
@@ -375,6 +422,42 @@ final FutureProviderFamily<String?, String> _dmNameByChannelIdProvider =
       );
     });
 
+class AppPageJumpLinkMention extends StatelessWidget {
+  const AppPageJumpLinkMention({required this.page, this.baseStyle, super.key});
+
+  final AppPageId page;
+  final TextStyle? baseStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = FluxerLocalizations.of(context);
+    final colors = context.colors;
+    final style = _mentionTextStyle(
+      baseStyle ?? context.textStyles.messageText,
+      colors.markupMentionText,
+    );
+    final iconSize = _mentionIconSize(style);
+
+    return _MentionPill(
+      fillColor: colors.markupJumpLinkFill,
+      pressedFillColor: colors.markupJumpLinkHoverFill,
+      onTap: () => navigateToAppPage(context, page),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PhosphorIcon(
+            appPageIcon(page),
+            size: iconSize,
+            color: colors.markupMentionText,
+          ),
+          SizedBox(width: _mentionInlineGap(style)),
+          _MentionLabel(appPageLabel(l10n, page), style: style),
+        ],
+      ),
+    );
+  }
+}
+
 class SettingsJumpLinkMention extends ConsumerWidget {
   const SettingsJumpLinkMention({
     required this.target,
@@ -389,18 +472,24 @@ class SettingsJumpLinkMention extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = FluxerLocalizations.of(context);
     final colors = context.colors;
-    final style = (baseStyle ?? context.textStyles.messageText).copyWith(
-      color: colors.markupMentionText,
-      fontWeight: FontWeight.w500,
+    final style = _mentionTextStyle(
+      baseStyle ?? context.textStyles.messageText,
+      colors.markupMentionText,
     );
-    final iconSize = (style.fontSize ?? 14) * 0.9;
+    final iconSize = _mentionIconSize(style);
 
+    final String premiumProductName = ref.watch(
+      instanceRuntimeConfigProvider.select(
+        (config) => config.premiumProductName,
+      ),
+    );
     final UserSettingsDeepLinkPresentation presentation =
         buildUserSettingsDeepLinkPresentation(
           isTouchPrimary: isTouchPrimaryInput(ref),
           l10n: l10n,
           target: target,
           showBilling: userSettingsShowBillingNav(ref),
+          premiumProductName: premiumProductName,
         );
 
     void onTap() {
@@ -414,8 +503,9 @@ class SettingsJumpLinkMention extends ConsumerWidget {
       );
     }
 
-    return _JumpLinkPill(
-      baseStyle: style,
+    return _MentionPill(
+      fillColor: colors.markupJumpLinkFill,
+      pressedFillColor: colors.markupJumpLinkHoverFill,
       onTap: onTap,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -425,17 +515,10 @@ class SettingsJumpLinkMention extends ConsumerWidget {
             size: iconSize,
             color: colors.markupMentionText,
           ),
-          SizedBox(width: iconSize * 0.2),
+          SizedBox(width: _mentionInlineGap(style)),
           _MentionLabel(presentation.tabLabel, style: style),
           if (presentation.fieldLabel != null) ...[
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: iconSize * 0.1),
-              child: PhosphorIcon(
-                PhosphorIconsBold.caretRight,
-                size: iconSize * 0.6,
-                color: colors.markupMentionText,
-              ),
-            ),
+            _MentionDivider(style: style),
             _MentionLabel(presentation.fieldLabel!, style: style),
           ],
         ],
@@ -487,11 +570,11 @@ class ChannelJumpLinkMention extends ConsumerWidget {
     final dmName = dmNameAsync ?? link.channelId;
 
     final colors = context.colors;
-    final style = (baseStyle ?? context.textStyles.messageText).copyWith(
-      color: colors.markupMentionText,
-      fontWeight: FontWeight.w500,
+    final style = _mentionTextStyle(
+      baseStyle ?? context.textStyles.messageText,
+      colors.markupMentionText,
     );
-    final iconSize = (style.fontSize ?? 14) * 0.9;
+    final iconSize = _mentionIconSize(style);
 
     void onTap() {
       unawaited(
@@ -499,6 +582,7 @@ class ChannelJumpLinkMention extends ConsumerWidget {
           container: ref.container,
           context: context,
           link: link,
+          dismissCoveringPages: true,
         ),
       );
     }
@@ -509,8 +593,9 @@ class ChannelJumpLinkMention extends ConsumerWidget {
         unawaited(showChannelAccessDeniedSheet(context));
       }
 
-      return _JumpLinkPill(
-        baseStyle: style,
+      return _MentionPill(
+        fillColor: colors.markupJumpLinkFill,
+        pressedFillColor: colors.markupJumpLinkHoverFill,
         onTap: onInaccessibleTap,
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -520,15 +605,16 @@ class ChannelJumpLinkMention extends ConsumerWidget {
               size: iconSize,
               color: colors.markupMentionText,
             ),
-            SizedBox(width: iconSize * 0.2),
+            SizedBox(width: _mentionInlineGap(style)),
             _MentionLabel(l10n.messageJumpLinkNoAccess, style: style),
           ],
         ),
       );
     }
 
-    return _JumpLinkPill(
-      baseStyle: style,
+    return _MentionPill(
+      fillColor: colors.markupJumpLinkFill,
+      pressedFillColor: colors.markupJumpLinkHoverFill,
       onTap: onTap,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -539,14 +625,7 @@ class ChannelJumpLinkMention extends ConsumerWidget {
             else
               _MentionLabel('# $dmName', style: style),
             if (isMessage) ...[
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: iconSize * 0.1),
-                child: PhosphorIcon(
-                  PhosphorIconsBold.caretRight,
-                  size: iconSize * 0.6,
-                  color: colors.markupMentionText,
-                ),
-              ),
+              _MentionDivider(style: style),
               PhosphorIcon(
                 PhosphorIconsFill.chatCircle,
                 size: iconSize,
@@ -556,16 +635,9 @@ class ChannelJumpLinkMention extends ConsumerWidget {
           ] else ...[
             if (guild != null) ...[
               _GuildIcon(guild: guild, size: iconSize),
-              SizedBox(width: iconSize * 0.2),
+              SizedBox(width: _mentionInlineGap(style)),
               _MentionLabel(guild.name, style: style),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: iconSize * 0.1),
-                child: PhosphorIcon(
-                  PhosphorIconsBold.caretRight,
-                  size: iconSize * 0.6,
-                  color: colors.markupMentionText,
-                ),
-              ),
+              _MentionDivider(style: style),
             ],
             if (isMessage)
               PhosphorIcon(
@@ -579,7 +651,7 @@ class ChannelJumpLinkMention extends ConsumerWidget {
                 size: iconSize,
                 color: colors.markupMentionText,
               ),
-              SizedBox(width: iconSize * 0.2),
+              SizedBox(width: _mentionInlineGap(style)),
               _MentionLabel(channelAsync?.name ?? link.channelId, style: style),
             ],
           ],
@@ -589,48 +661,21 @@ class ChannelJumpLinkMention extends ConsumerWidget {
   }
 }
 
-class _JumpLinkPill extends StatefulWidget {
-  const _JumpLinkPill({
-    required this.child,
-    required this.baseStyle,
-    this.onTap,
-  });
+class _MentionDivider extends StatelessWidget {
+  const _MentionDivider({required this.style});
 
-  final Widget child;
-  final TextStyle baseStyle;
-  final VoidCallback? onTap;
-
-  @override
-  State<_JumpLinkPill> createState() => _JumpLinkPillState();
-}
-
-class _JumpLinkPillState extends State<_JumpLinkPill> {
-  var _hovered = false;
+  final TextStyle style;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: FluxerGestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 50),
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: _hovered
-                ? colors.markupJumpLinkHoverFill
-                : colors.markupJumpLinkFill,
-            borderRadius: BorderRadius.circular(
-              _mentionPillBorderRadius(widget.baseStyle),
-            ),
-            border: Border.all(color: colors.markupMentionBorder),
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: _mentionPillHorizontalPadding(widget.baseStyle),
-          ),
-          child: widget.child,
+    final double gap = _mentionInlineGap(style);
+    return Padding(
+      padding: EdgeInsetsDirectional.only(start: gap, end: gap * 2),
+      child: PhosphorIcon(
+        PhosphorIconsBold.caretRight,
+        size: _mentionDividerSize(style),
+        color: context.colors.markupMentionText.withValues(
+          alpha: _kMentionDividerOpacity,
         ),
       ),
     );
@@ -691,8 +736,6 @@ class _GuildInitials extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = abbreviateGuildName(guild.name);
-    final initialsLength = guildNameInitialsLength(guild.name);
     final colors = context.colors;
     return Container(
       width: size,
@@ -701,26 +744,11 @@ class _GuildInitials extends StatelessWidget {
         color: colors.backgroundSecondary,
         shape: BoxShape.circle,
       ),
-      alignment: Alignment.center,
-      child: Text(
-        initials,
-        style: context.textStyles.smallText.copyWith(
-          fontSize: _guildMentionInitialsFontSize(initialsLength, size),
-          fontWeight: FontWeight.w700,
-          color: colors.markupMentionText,
-          height: 1,
-        ),
+      clipBehavior: Clip.antiAlias,
+      child: FluxerGuildAcronym(
+        name: guild.name,
+        color: colors.markupMentionText,
       ),
     );
   }
-}
-
-double _guildMentionInitialsFontSize(int initialsLength, double size) {
-  if (initialsLength <= 2) {
-    return size * 0.6;
-  }
-  if (initialsLength <= kGuildIconInitialsMaxLength) {
-    return size * 0.45;
-  }
-  return size * 0.35;
 }

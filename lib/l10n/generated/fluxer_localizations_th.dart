@@ -12,11 +12,82 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get reconnectingTitle => 'เรามีปัญหา!';
 
   @override
+  String get chatJumpToPresent => 'ไปยังข้อความล่าสุด';
+
+  @override
+  String get chatViewingOlderMessages => 'คุณกำลังดูข้อความเก่า';
+
+  @override
+  String get chatNewMessagesBarJumpToFirstUnread =>
+      'ข้ามไปยังข้อความแรกที่ยังไม่ได้อ่าน';
+
+  @override
+  String get chatNewMessagesBarMarkAsRead => 'ทำเครื่องหมายว่าอ่านแล้ว';
+
+  @override
+  String get chatNewMessagesBarMarkRead => 'ทำเครื่องหมายว่าอ่านแล้ว';
+
+  @override
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return 'ข้อความใหม่ $unreadCountString+ รายการ ตั้งแต่ $compactTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: 'ข้อความใหม่ $unreadCount รายการ',
+      one: 'ข้อความใหม่ $unreadCount รายการ',
+    );
+    return '$_temp0 ตั้งแต่ $compactTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewSinceEstimated(
+    int unreadCount,
+    String shortTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return 'ใหม่ $unreadCountString+ ข้อความ ตั้งแต่ $shortTime';
+  }
+
+  @override
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: 'ใหม่ $unreadCount ข้อความ',
+    );
+    return '$_temp0 ตั้งแต่ $shortTime';
+  }
+
+  @override
   String get reconnectingBody =>
       'มีบางอย่างผิดปกติกับอินสแตนซ์\nน่าจะแก้ไขได้ในเร็วๆ นี้!';
 
   @override
   String get gatewayReconnectingToast => 'กำลังเชื่อมต่อใหม่…';
+
+  @override
+  String get gatewayReconnectTryAgain => 'ลองอีกครั้ง';
 
   @override
   String get gatewayConnectedToast => 'เชื่อมต่อแล้ว';
@@ -176,10 +247,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get nagbarEnableNotifications => 'เปิดการแจ้งเตือน';
 
   @override
-  String get nagbarBillingPortalFailed =>
-      'ไม่สามารถเปิดหน้าชำระเงินได้ โปรดลองอีกครั้งในสักครู่';
-
-  @override
   String get welcomeBack => 'ยินดีต้อนรับกลับมา';
 
   @override
@@ -272,6 +339,9 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get next => 'ถัดไป';
 
   @override
+  String get create => 'Create';
+
+  @override
   String get mfaTitle => 'การยืนยันตัวตนแบบสองชั้น';
 
   @override
@@ -309,6 +379,11 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   @override
   String get accountRemoveDescription =>
       'การดำเนินการนี้จะลบเซสชันที่บันทึกไว้สำหรับบัญชีนี้';
+
+  @override
+  String accountSignOutTitle(String identifier) {
+    return 'Sign out of $identifier?';
+  }
 
   @override
   String get accountExpired => 'หมดอายุแล้ว';
@@ -1363,24 +1438,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get dmFriendRequestSentToast => 'ส่งคำขอเป็นเพื่อนแล้ว';
 
   @override
-  String get dmFriendRequestFailed => 'ส่งคำขอเป็นเพื่อนไม่สำเร็จ';
-
-  @override
-  String get dmAcceptFriendRequestFailed => 'ยอมรับคำขอเป็นเพื่อนไม่สำเร็จ';
-
-  @override
-  String get dmRemoveFriendFailed => 'ลบเพื่อนไม่สำเร็จ';
-
-  @override
-  String get dmBlockFailed => 'บล็อกผู้ใช้ไม่สำเร็จ';
-
-  @override
-  String get dmUnblockFailed => 'เลิกบล็อกผู้ใช้ไม่สำเร็จ';
-
-  @override
-  String get dmIgnoreFriendRequestFailed => 'เพิกเฉยต่อคำขอเป็นเพื่อนไม่สำเร็จ';
-
-  @override
   String get dmAddFriends => 'เพิ่มเพื่อน';
 
   @override
@@ -1496,6 +1553,13 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
       'รายชื่อเพื่อนของคุณหรือของอีกฝ่ายเต็มแล้ว ลบเพื่อนบางคนออกแล้วลองอีกครั้ง';
 
   @override
+  String get addFriendSendFailedTitle => 'Couldn\'t send friend request';
+
+  @override
+  String get addFriendSendFailedMessage =>
+      'Couldn\'t send the friend request. Try again.';
+
+  @override
   String get userTagBot => 'BOT';
 
   @override
@@ -1567,13 +1631,10 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get gifPickerSearch => 'ค้นหา GIF';
 
   @override
-  String get gifPickerSearchKlipy => 'ค้นหา KLIPY';
+  String get gifPickerSearchKlipy => 'ค้นหา Klipy';
 
   @override
   String get gifPickerSearchTenor => 'ค้นหา Tenor';
-
-  @override
-  String get gifPickerPoweredByKlipy => 'KLIPY';
 
   @override
   String get gifPickerFavorites => 'รายการโปรด';
@@ -2409,10 +2470,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
       'ลบบัญชีและข้อมูลทั้งหมดที่เกี่ยวข้องอย่างถาวร การดำเนินการนี้ไม่สามารถเลิกทำได้';
 
   @override
-  String get dangerZoneDeleteCancelSubscription =>
-      'ยกเลิกการสมัครใช้งาน Plutonium ที่ใช้งานอยู่ของคุณในการตั้งค่า Plutonium ก่อนที่จะลบบัญชีของคุณ';
-
-  @override
   String get dangerZoneDeleteCannotDeleteAccount => 'ไม่สามารถลบบัญชีได้';
 
   @override
@@ -3038,16 +3095,11 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   }
 
   @override
-  String userProfilePlutoniumBadgeTooltip(String productName) {
-    return '$productName Plutonium';
-  }
-
-  @override
-  String userProfilePlutoniumSubscriberSinceTooltip(
-    String productName,
+  String userProfilePremiumSubscriberSinceTooltip(
+    String premiumProductFullName,
     String date,
   ) {
-    return 'สมาชิก $productName Plutonium ตั้งแต่ $date';
+    return 'สมาชิก $premiumProductFullName ตั้งแต่ $date';
   }
 
   @override
@@ -3319,13 +3371,7 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   }
 
   @override
-  String get userProfileFailedOpenDm => 'ไม่สามารถเปิด DM ได้';
-
-  @override
   String get userProfileFailedSaveNote => 'ไม่สามารถบันทึกหมายเหตุได้';
-
-  @override
-  String get userProfileActionFailed => 'การดำเนินการล้มเหลว โปรดลองอีกครั้ง';
 
   @override
   String get userProfileChangeNickname => 'เปลี่ยนชื่อเล่น';
@@ -3881,13 +3927,44 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get channelComposerBarrierVerifyEmail => 'ยืนยันอีเมล';
 
   @override
-  String chatAttachmentTooMany(int max) {
-    return 'ไฟล์แนบมากเกินไป (สูงสุด $max ไฟล์)';
+  String get accountLimitedNotice =>
+      'ขณะนี้การส่งข้อความในบัญชีของคุณหยุดชั่วคราว โปรดดูอีเมลของคุณ แล้วทำขั้นตอนง่าย ๆ เพียงขั้นตอนเดียวเพื่อใช้งานต่อ';
+
+  @override
+  String get messagingPausedTextDidNotGoThrough => 'SMS ของฉันส่งไม่ถึง';
+
+  @override
+  String messagingPausedHelpBody(String supportEmail) {
+    return 'ส่งอีเมลไปที่ $supportEmail แล้วเจ้าหน้าที่จะตรวจสอบบัญชีของคุณ คุณยังตอบกลับอีเมลที่เราส่งให้คุณได้ด้วย';
   }
 
   @override
-  String chatAttachmentFileTooLarge(String fileName, String fileSize) {
-    return '$fileName มีขนาดใหญ่เกินขีดจำกัด ($fileSize)';
+  String get messagingPausedHelpCountryLabel => 'ประเทศที่คุณอยู่';
+
+  @override
+  String get messagingPausedHelpCopyDetails => 'คัดลอกรายละเอียด';
+
+  @override
+  String get messagingPausedHelpEmailSupport => 'ส่งอีเมลถึงฝ่ายสนับสนุน';
+
+  @override
+  String messagingPausedHelpAccountIdLine(String accountId) {
+    return 'ID บัญชี: $accountId';
+  }
+
+  @override
+  String messagingPausedHelpUsernameLine(String username) {
+    return 'ชื่อผู้ใช้: $username';
+  }
+
+  @override
+  String messagingPausedHelpAccountCreatedLine(String createdAt) {
+    return 'สร้างบัญชีเมื่อ: $createdAt';
+  }
+
+  @override
+  String messagingPausedHelpCountryLine(String country) {
+    return 'ประเทศ: $country';
   }
 
   @override
@@ -5844,10 +5921,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get voiceParticipantMenuStopStreaming => 'หยุดสตรีม';
 
   @override
-  String get voiceParticipantModerationFailed =>
-      'ไม่สามารถอัปเดตสมาชิกนั้นได้ โปรดลองอีกครั้ง';
-
-  @override
   String get voiceControlChat => 'แชท';
 
   @override
@@ -5895,8 +5968,8 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# ข้อความ',
-      one: '# ข้อความ',
+      other: '$count ข้อความ',
+      one: '$count ข้อความ',
     );
     return 'แสดงแชทพร้อมข้อความที่ยังไม่ได้อ่าน $_temp0';
   }
@@ -6043,6 +6116,40 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get notificationsMessageUnavailable => 'ไม่สามารถโหลดข้อความนี้ได้';
 
   @override
+  String notificationsMentionedYouIn(String author, String place) {
+    return '$author mentioned you in $place:';
+  }
+
+  @override
+  String notificationsRepliedToYouIn(String author, String place) {
+    return '$author replied to you in $place:';
+  }
+
+  @override
+  String notificationsMentionedYou(String author) {
+    return '$author mentioned you:';
+  }
+
+  @override
+  String notificationsRepliedToYou(String author) {
+    return '$author replied to you:';
+  }
+
+  @override
+  String notificationsMentionPlace(String server, String channel) {
+    return '$server – $channel';
+  }
+
+  @override
+  String get notificationsSendReply => 'Send a reply';
+
+  @override
+  String get notificationsRecentActivity => 'Recent activity';
+
+  @override
+  String get notificationsRemoveNotification => 'Remove notification';
+
+  @override
   String characterCounterRemaining(int remaining) {
     return '$remaining ตัวอักษรที่เหลือ';
   }
@@ -6061,6 +6168,10 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get chatMessageFailedToSend => 'ส่งข้อความไม่สำเร็จ';
+
+  @override
+  String get chatMessageFailedToSendTapForOptions =>
+      'ส่งข้อความไม่สำเร็จ แตะเพื่อดูตัวเลือก';
 
   @override
   String chatSendFailureDmRestricted(String settingsPath) {
@@ -6503,8 +6614,8 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# ชุมชน',
-      one: '# ชุมชน',
+      other: '$count ชุมชน',
+      one: '$count ชุมชน',
     );
     return 'ทั้งหมด ยกเว้น $_temp0';
   }
@@ -6514,8 +6625,8 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# ชุมชน',
-      one: '# ชุมชน',
+      other: '$count ชุมชน',
+      one: '$count ชุมชน',
     );
     return 'เพียง $_temp0';
   }
@@ -6544,14 +6655,14 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# ชั่วโมง',
-      one: '# ชั่วโมง',
+      other: '$hours ชั่วโมง',
+      one: '$hours ชั่วโมง',
     );
     String _temp1 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: 'และ # นาที',
-      one: 'และ # นาที',
+      other: 'และ $minutes นาที',
+      one: 'และ $minutes นาที',
     );
     return '$_temp0 $_temp1';
   }
@@ -6561,8 +6672,8 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# ชั่วโมง',
-      one: '# ชั่วโมง',
+      other: '$hours ชั่วโมง',
+      one: '$hours ชั่วโมง',
     );
     return '$_temp0';
   }
@@ -6572,8 +6683,8 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# นาที',
-      one: '# นาที',
+      other: '$minutes นาที',
+      one: '$minutes นาที',
     );
     return '$_temp0';
   }
@@ -6583,8 +6694,8 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       seconds,
       locale: localeName,
-      other: '# วินาที',
-      one: '# วินาที',
+      other: '$seconds วินาที',
+      one: '$seconds วินาที',
     );
     return '$_temp0';
   }
@@ -6612,6 +6723,9 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get doubleTapReactionHint => 'แตะสองครั้งที่ข้อความเพื่อ';
+
+  @override
+  String get doubleTapEditHint => 'Double tap your own message to edit it';
 
   @override
   String get doubleTapReactionEdit => 'แก้ไข';
@@ -6716,9 +6830,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get forwardSuccessToast => 'ส่งต่อข้อความแล้ว';
-
-  @override
-  String get forwardFailed => 'ส่งต่อข้อความไม่สำเร็จ';
 
   @override
   String get forwardCommentSlowmodeDisabled =>
@@ -7079,6 +7190,9 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get chatMessagesLoadError => 'ไม่สามารถโหลดข้อความได้';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'ข้ามการตั้งค่าการกล่าวถึงหรือไม่';
 
@@ -7120,6 +7234,12 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get chatEditNoChanges => 'ไม่มีการเปลี่ยนแปลงที่ต้องบันทึก';
+
+  @override
+  String get chatEditFailed => 'Your message didn\'t update';
+
+  @override
+  String get chatEditFailedEditAgain => 'Edit again';
 
   @override
   String get chatChannelNotReady =>
@@ -7230,6 +7350,9 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get composerAutocompleteStickersHeading => 'สติกเกอร์';
+
+  @override
+  String get composerAutocompleteEmojisHeading => 'Emojis';
 
   @override
   String get composerAutocompleteGifsHeading => 'GIF';
@@ -7370,9 +7493,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get addGuildInviteInvalid => 'คำเชิญนี้ไม่ถูกต้องหรือไม่ถูกต้องแล้ว';
-
-  @override
-  String get addGuildJoinFailed => 'ไม่สามารถเข้าร่วมชุมชนได้ โปรดลองอีกครั้ง';
 
   @override
   String get addGuildCreateTitle => 'สร้างคอมมูนิตี้';
@@ -8000,6 +8120,20 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get channelMenuDuplicateChannel => 'ทำซ้ำช่อง';
 
   @override
+  String get channelMenuMoveToCategory => 'Move to category';
+
+  @override
+  String get channelMenuNoCategory => 'No category';
+
+  @override
+  String get channelMoveCategoryFullTitle => 'Category full';
+
+  @override
+  String channelMoveCategoryFullMessage(int maxChannelsPerCategory) {
+    return 'This category already contains the maximum of $maxChannelsPerCategory channels.';
+  }
+
+  @override
   String get channelMenuResetMatureContentAgreeState =>
       'รีเซ็ตสถานะข้อตกลงเนื้อหาสำหรับผู้ใหญ่';
 
@@ -8249,6 +8383,72 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get channelHeaderSearchClearHistory => 'ล้าง';
+
+  @override
+  String get channelSearchRemoveRecent => 'Remove from recent searches';
+
+  @override
+  String get channelSearchFiltersButton => 'Filters';
+
+  @override
+  String get channelSearchFilterMenuTitle => 'Filter results';
+
+  @override
+  String get channelSearchFilterFromLabel => 'From a specific person';
+
+  @override
+  String get channelSearchFilterMentionsLabel => 'Mentions a specific person';
+
+  @override
+  String get channelSearchFilterHasLabel => 'Has a link, file or embed';
+
+  @override
+  String get channelSearchFilterInLabel => 'In a specific channel';
+
+  @override
+  String get channelSearchFilterDuringLabel => 'Sent on a date';
+
+  @override
+  String get channelSearchFilterBeforeLabel => 'Sent before a date';
+
+  @override
+  String get channelSearchFilterAfterLabel => 'Sent after a date';
+
+  @override
+  String get channelSearchFilterPinnedLabel => 'Pinned or not pinned';
+
+  @override
+  String get channelSearchFilterAuthorTypeLabel => 'By author type';
+
+  @override
+  String get channelSearchDateToday => 'Today';
+
+  @override
+  String get channelSearchDateYesterday => 'Yesterday';
+
+  @override
+  String get channelSearchTabMessages => 'Messages';
+
+  @override
+  String get channelSearchTabImages => 'Images';
+
+  @override
+  String get channelSearchTabPins => 'Pins';
+
+  @override
+  String get channelSearchTabLinks => 'Links';
+
+  @override
+  String get channelSearchTabFiles => 'Files';
+
+  @override
+  String channelSearchTabCount(String label, int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return '$label ($countString)';
+  }
 
   @override
   String get channelHeaderSearchFilterDescFrom => 'ผู้ใช้';
@@ -8662,10 +8862,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
       'ชุมชนนี้ถึงขีดจำกัดการเชิญแล้ว';
 
   @override
-  String get guildNavbarCreateInviteTemporarilyDisabled =>
-      'การสร้างคำเชิญถูกปิดใช้งานชั่วคราวสำหรับชุมชนนี้';
-
-  @override
   String get groupDmCopyInviteFailed => 'คัดลอกลิงก์เชิญไม่สำเร็จ';
 
   @override
@@ -8687,6 +8883,25 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get groupDmInviteRevoked => 'ยกเลิกคำเชิญแล้ว';
+
+  @override
+  String get groupDmRemoveFromGroup => 'Remove from group';
+
+  @override
+  String groupDmRemoveFromGroupConfirm(String userName) {
+    return 'Remove $userName from the group?';
+  }
+
+  @override
+  String get groupDmRemoveFromGroupAction => 'Remove';
+
+  @override
+  String get groupDmRemovedFromGroup => 'Removed from group';
+
+  @override
+  String groupDmRemoveFromGroupFailed(String userName) {
+    return '$userName is still in the group. Try again in a moment.';
+  }
 
   @override
   String groupDmInviteCreatedByExpires(String name, String time) {
@@ -8829,16 +9044,16 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get userSettingsGroupYourAccount => 'บัญชีของคุณ';
 
   @override
-  String get userSettingsGroupBilling => 'BILLING';
+  String get userSettingsGroupBilling => 'Billing';
 
   @override
-  String get userSettingsGroupApplication => 'APPLICATION';
+  String get userSettingsGroupApplication => 'Application';
 
   @override
-  String get userSettingsGroupDeveloper => 'DEVELOPER';
+  String get userSettingsGroupDeveloper => 'Developer';
 
   @override
-  String get userSettingsGroupStaffOnly => 'STAFF-ONLY';
+  String get userSettingsGroupStaffOnly => 'Staff-only';
 
   @override
   String get userSettingsSearchPlaceholder => 'ค้นหาการตั้งค่า...';
@@ -8854,6 +9069,11 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get userSettingsCopyLinkToPage => 'Copy link to page';
+
+  @override
+  String userSettingsJumpLinkPremiumPage(String productName) {
+    return '$productName page';
+  }
 
   @override
   String get userSettingsNavProfile => 'โปรไฟล์';
@@ -9380,6 +9600,9 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   @override
   String get storePlutoniumRenewsThroughAppStore =>
       'ต่ออายุอัตโนมัติผ่าน App Store จนกว่าคุณจะยกเลิก';
+
+  @override
+  String get storePlutoniumRestorePurchases => 'Restore purchases';
 
   @override
   String get storePlutoniumAlreadySubscribed =>
@@ -10730,7 +10953,13 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get chatJumpToBottom => 'เลื่อนไปยังด้านล่าง';
 
   @override
+  String get chatUnreadDividerNew => 'ใหม่';
+
+  @override
   String get uiConfirm => 'ยืนยัน';
+
+  @override
+  String get uiUnderstood => 'Understood';
 
   @override
   String get uiLoading => 'กำลังโหลด';
@@ -10808,11 +11037,11 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get instanceUrlLabel => 'URL อินสแตนซ์';
 
   @override
-  String get instanceUrlPlaceholder => 'ป้อน URL อินสแตนซ์ (เช่น fluxer.app)';
+  String get instanceUrlPlaceholder => 'ป้อน URL อินสแตนซ์ (เช่น fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'ใช้ fluxer.app สำหรับอินสแตนซ์อย่างเป็นทางการ หรือ URL ที่ถูกต้องของอินสแตนซ์ที่โฮสต์เอง';
+      'ใช้ fluxer.com สำหรับอินสแตนซ์อย่างเป็นทางการ หรือ URL ที่ถูกต้องของอินสแตนซ์ที่โฮสต์เอง';
 
   @override
   String get resetToDefaultInstance => 'รีเซ็ตเป็น Fluxer';
@@ -11031,7 +11260,7 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get scrollIndicatorNew => 'ใหม่';
 
   @override
-  String get scrollIndicatorNewMessage => 'ข้อความใหม่';
+  String get scrollIndicatorNewMessages => 'ข้อความใหม่';
 
   @override
   String guildNavbarCollapseFolder(String folderName) {
@@ -11419,9 +11648,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
 
   @override
   String get guildMenuMarkAsRead => 'ทำเครื่องหมายว่าอ่านแล้ว';
-
-  @override
-  String get guildPeekMoreOptions => 'ตัวเลือกเพิ่มเติม';
 
   @override
   String get guildMenuInviteMembers => 'เชิญสมาชิก';
@@ -12804,6 +13030,51 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get auditLogChangeUpdatedCommunityIcon => 'อัปเดตไอคอนชุมชน';
 
   @override
+  String get auditLogChangePausedInvites => 'Paused invites.';
+
+  @override
+  String get auditLogChangeResumedInvites => 'Resumed invites.';
+
+  @override
+  String get auditLogChangeTurnedOnDetachedBanner =>
+      'Turned on the detached banner.';
+
+  @override
+  String get auditLogChangeTurnedOffDetachedBanner =>
+      'Turned off the detached banner.';
+
+  @override
+  String get auditLogChangeAllowedFlexibleChannelNames =>
+      'Allowed flexible text channel names.';
+
+  @override
+  String get auditLogChangeDisallowedFlexibleChannelNames =>
+      'Stopped allowing flexible text channel names.';
+
+  @override
+  String get auditLogChangeHidOwnerCrown => 'Hid the community owner crown.';
+
+  @override
+  String get auditLogChangeShowedOwnerCrown =>
+      'Stopped hiding the community owner crown.';
+
+  @override
+  String get auditLogChangeAllowedEmojiCloning =>
+      'Allowed others to clone this community\'s emojis.';
+
+  @override
+  String get auditLogChangeStoppedEmojiCloning =>
+      'Stopped allowing others to clone this community\'s emojis.';
+
+  @override
+  String get auditLogChangeAllowedStickerCloning =>
+      'Allowed others to clone this community\'s stickers.';
+
+  @override
+  String get auditLogChangeStoppedStickerCloning =>
+      'Stopped allowing others to clone this community\'s stickers.';
+
+  @override
   String auditLogChangeRenamedChannel(String name) {
     return 'เปลี่ยนชื่อช่องเป็น $name';
   }
@@ -12876,8 +13147,8 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'ลบข้อความ # รายการ',
-      one: 'ลบข้อความ # รายการ',
+      other: 'ลบข้อความ $count รายการ',
+      one: 'ลบข้อความ $count รายการ',
     );
     return '$_temp0';
   }
@@ -12887,8 +13158,8 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'ลบสมาชิก # รายการ',
-      one: 'ลบสมาชิก # รายการ',
+      other: 'ลบสมาชิก $count รายการ',
+      one: 'ลบสมาชิก $count รายการ',
     );
     return '$_temp0';
   }
@@ -13391,10 +13662,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   }
 
   @override
-  String get guildSettingsRevokeBanError =>
-      'ไม่สามารถเพิกถอนการแบนได้ ลองอีกครั้ง';
-
-  @override
   String get guildSettingsCommunitySettings => 'การตั้งค่าคอมมูนิตี้';
 
   @override
@@ -13412,16 +13679,16 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
       'ไม่สามารถลบคอมมูนิตี้นี้ได้';
 
   @override
-  String get guildSettingsCategoryExpressions => 'EXPRESSIONS';
+  String get guildSettingsCategoryExpressions => 'Expressions';
 
   @override
-  String get guildSettingsCategoryCommunity => 'COMMUNITY';
+  String get guildSettingsCategoryCommunity => 'Community';
 
   @override
-  String get guildSettingsCategoryIntegrations => 'INTEGRATIONS';
+  String get guildSettingsCategoryIntegrations => 'Integrations';
 
   @override
-  String get guildSettingsCategoryPeople => 'PEOPLE';
+  String get guildSettingsCategoryPeople => 'People';
 
   @override
   String get guildSettingsOverviewBrandingTitle => 'แบรนด์';
@@ -14054,9 +14321,6 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get createDmUnaddableGroupDisabled => 'ไม่อนุญาตให้เพิ่มเข้าแชทกลุ่ม';
 
   @override
-  String get createDmFailed => 'ไม่สามารถสร้างการสนทนาได้ ลองอีกครั้ง';
-
-  @override
   String get dmListMessagesTitle => 'ข้อความ';
 
   @override
@@ -14687,7 +14951,7 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String get forumPostArchived => 'Archived';
 
   @override
-  String get forumPostNewBadge => 'NEW';
+  String get forumPostNewBadge => 'ใหม่';
 
   @override
   String get forumPostStarterDeleted => 'The original message was deleted.';
@@ -14702,8 +14966,8 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new messages',
-      one: '1 new message',
+      other: '$count ข้อความใหม่',
+      one: '$count ข้อความใหม่',
     );
     return '$_temp0';
   }
@@ -15012,4 +15276,624 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
   String voiceP2pPeerFailedTitle(String name) {
     return 'Cannot connect directly to $name';
   }
+
+  @override
+  String get favoritesRenameCategory => 'เปลี่ยนชื่อหมวดหมู่';
+
+  @override
+  String get friendAcceptFailedTitle => 'Couldn\'t accept friend request';
+
+  @override
+  String get friendAcceptUnavailable =>
+      'That friend request is no longer available. Refresh and try again.';
+
+  @override
+  String get friendAcceptClaimToAccept =>
+      'Finish signing up to accept friend requests.';
+
+  @override
+  String get friendAcceptFailedMessage =>
+      'Couldn\'t accept the friend request. Try again.';
+
+  @override
+  String get friendCancelFailedTitle => 'Couldn\'t cancel friend request';
+
+  @override
+  String get friendIgnoreFailedTitle => 'Couldn\'t ignore friend request';
+
+  @override
+  String get friendIgnoreFailedMessage =>
+      'Couldn\'t ignore the friend request. Try again.';
+
+  @override
+  String get friendRemoveFailedTitle => 'Couldn\'t remove friend';
+
+  @override
+  String get friendRemoveFailedMessage =>
+      'Couldn\'t remove this friend. Try again.';
+
+  @override
+  String get userBlockFailedTitle => 'Couldn\'t block user';
+
+  @override
+  String get userBlockSystemAccount => 'This account can\'t be blocked.';
+
+  @override
+  String get userBlockFailedMessage => 'Couldn\'t block this user. Try again.';
+
+  @override
+  String get userUnblockFailedTitle => 'Couldn\'t unblock user';
+
+  @override
+  String get userUnblockFailedMessage =>
+      'Couldn\'t unblock this user. Try again.';
+
+  @override
+  String friendCancelRequestConfirmDescription(String userName) {
+    return 'Cancel your friend request to $userName?';
+  }
+
+  @override
+  String get errorSomethingWentWrongTitle => 'Something went wrong';
+
+  @override
+  String get errorUnexpectedTryAgain =>
+      'An unexpected error occurred. Try again.';
+
+  @override
+  String get errorMessagingPausedTitle => 'Messaging is paused';
+
+  @override
+  String get errorMessagingPausedMessage =>
+      'Messaging is paused on your account. Check your email for a quick step to continue.';
+
+  @override
+  String get errorFeatureDisabledTitle => 'Feature temporarily disabled';
+
+  @override
+  String get errorFeatureDisabledMessage =>
+      'This feature is paused. Try again later.';
+
+  @override
+  String get dmErrorStartConversationTitle =>
+      'Couldn\'t start this conversation';
+
+  @override
+  String get dmErrorCannotMessageMessage =>
+      'They might not be accepting messages from you, or you no longer share a community.';
+
+  @override
+  String get dmErrorUnknownUserMessage =>
+      'This user no longer exists. Refresh and try again.';
+
+  @override
+  String get dmErrorClaimMessage =>
+      'You need to claim your account before you can start a direct message.';
+
+  @override
+  String get dmErrorVerifyEmailMessage =>
+      'You need to verify your email address before you can start a direct message.';
+
+  @override
+  String get dmErrorTooManyRecipientsTitle => 'This group has too many people';
+
+  @override
+  String get dmErrorTooManyRecipientsMessage =>
+      'You\'ve added more people than a group DM allows. Remove a few and try again.';
+
+  @override
+  String get dmErrorMaxGroupDmsTitle => 'You\'ve reached the group DM limit';
+
+  @override
+  String get dmErrorMaxGroupDmsMessage =>
+      'You or someone you\'re adding already has the maximum number of group DMs open. Leave one and try again.';
+
+  @override
+  String get groupDmAddFailedTitle => 'Couldn\'t add to group';
+
+  @override
+  String get groupDmInviteFailedTitle => 'Couldn\'t create invite link';
+
+  @override
+  String get dmCloseFailedTitle => 'Couldn\'t close DM';
+
+  @override
+  String get groupDmLeaveFailedTitle => 'Couldn\'t leave group';
+
+  @override
+  String get inviteJoinFailedTitle => 'Couldn\'t join community';
+
+  @override
+  String get inviteErrorPausedMessage =>
+      'Admins paused invites — you can\'t join right now.';
+
+  @override
+  String get inviteErrorAtCapacityTitle => 'Community at capacity';
+
+  @override
+  String get inviteErrorAtCapacityMessage =>
+      'This community has reached its maximum member limit and is not accepting new members at this time.';
+
+  @override
+  String get inviteErrorPresenceTitle => 'Gateway connection required';
+
+  @override
+  String get inviteErrorPresenceMessage =>
+      'Temporary invites need a live connection. Check yours and try again.';
+
+  @override
+  String get inviteErrorBannedTitle => 'You\'re banned';
+
+  @override
+  String get inviteErrorBannedMessage =>
+      'You are banned from this community and cannot join.';
+
+  @override
+  String get inviteErrorIpBannedTitle => 'Your IP is banned';
+
+  @override
+  String get inviteErrorIpBannedMessage =>
+      'Your IP address is banned from this community and you cannot join.';
+
+  @override
+  String get inviteErrorClaimTitle => 'Account verification required';
+
+  @override
+  String get inviteErrorClaimMessage =>
+      'Add an email and password to your account first.';
+
+  @override
+  String get leaveCommunityFailedTitle => 'Failed to leave community';
+
+  @override
+  String get leaveCommunityFailedMessage =>
+      'Couldn\'t leave right now. Try again in a moment.';
+
+  @override
+  String get chatSendFailedTitle => 'Your message didn\'t send';
+
+  @override
+  String get chatSendFailedMessage => 'Try sending your message again.';
+
+  @override
+  String get chatSendTooQuickTitle => 'You\'re sending messages too quickly';
+
+  @override
+  String get chatRateLimitedMessage =>
+      'Slow down — wait a moment before trying again.';
+
+  @override
+  String get chatMatureContentTitle => 'Mature content not allowed';
+
+  @override
+  String get chatMatureContentGuildMessage =>
+      'This channel is not marked for mature content. Mature content can only be sent in channels marked for mature content. Ask a moderator to update this channel if appropriate.';
+
+  @override
+  String chatMatureContentDmMessage(String settingsPath) {
+    return 'You or the person you are messaging has chosen to block sensitive media in direct messages. Each of you can change this in $settingsPath.';
+  }
+
+  @override
+  String get chatMatureContentGroupDmMessage =>
+      'This group is not marked for mature content. The group owner can turn on Mature content in the group settings if everyone in the group is 18 or older.';
+
+  @override
+  String get chatFileTooLargeTitle => 'File size too large';
+
+  @override
+  String chatFileTooLargeMessage(String maxSize) {
+    return 'One or more files you\'re trying to upload exceed the maximum size limit of $maxSize per file.';
+  }
+
+  @override
+  String get chatHeavyTitle => 'Whoa, this is heavy';
+
+  @override
+  String get chatReactionsHeavyMessage =>
+      'This is one heavy message. Some reactions need to be removed before you can add more.';
+
+  @override
+  String get chatReactionTimedOut =>
+      'You can\'t add new reactions while you\'re timed out.';
+
+  @override
+  String chatTooManyAttachmentsMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files',
+      one: '$count file',
+    );
+    return 'You can only upload $_temp0 at a time. Try again with fewer files.';
+  }
+
+  @override
+  String get chatEditTooQuickTitle => 'You\'re editing messages too quickly';
+
+  @override
+  String get chatEditFailedMessage => 'Try editing your message again.';
+
+  @override
+  String get chatDeleteTooQuickTitle => 'You\'re deleting messages too quickly';
+
+  @override
+  String get chatDeleteTooQuickMessage =>
+      'Wait a moment before deleting more messages.';
+
+  @override
+  String get chatDeleteFailedTitle => 'That message couldn\'t be deleted';
+
+  @override
+  String get chatDeleteFailedMessage => 'Try deleting that message again.';
+
+  @override
+  String get chatAttachmentDeleteFailedTitle => 'Couldn\'t delete attachment';
+
+  @override
+  String get chatAttachmentDeleteFailedMessage =>
+      'Try deleting that attachment again.';
+
+  @override
+  String get chatAltTextFailedTitle => 'Couldn\'t update alt text';
+
+  @override
+  String get chatAltTextUnknownMessage => 'This message no longer exists.';
+
+  @override
+  String get chatAltTextNoPermission => 'You can\'t edit this message.';
+
+  @override
+  String get chatAltTextUnavailable =>
+      'Editing is temporarily unavailable. Please try again later.';
+
+  @override
+  String get chatAltTextFailedMessage =>
+      'Couldn\'t update the alt text. Please try again.';
+
+  @override
+  String get chatPinFailedTitle => 'Failed to pin message';
+
+  @override
+  String get chatUnpinFailedTitle => 'Failed to unpin message';
+
+  @override
+  String get chatPinFailedMessage => 'Something went wrong. Try again later.';
+
+  @override
+  String get chatPinBlockedMessage =>
+      'You cannot interact with this user right now.';
+
+  @override
+  String get bookmarkLimitTitle => 'Bookmark limit reached';
+
+  @override
+  String bookmarkLimitMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bookmarks',
+      one: '$count bookmark',
+    );
+    return 'You\'re at $_temp0. Remove one to add another.';
+  }
+
+  @override
+  String get savedMediaLimitTitle => 'Saved media limit reached';
+
+  @override
+  String savedMediaLimitMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count saved media items',
+      one: '$count saved media item',
+    );
+    return 'You\'re at the cap of $_temp0. Remove one to add another.';
+  }
+
+  @override
+  String get errorContentBlockedTitle => 'Content blocked';
+
+  @override
+  String get errorContentBlockedMessage =>
+      'Your action could not be completed because it was flagged by our safety systems. If you believe this is a mistake, please contact support.';
+
+  @override
+  String get errorContentBlockedSelfHostedMessage =>
+      'Your action could not be completed because it was flagged by our safety systems. If you believe this is a mistake, please contact the administrators of this instance.';
+
+  @override
+  String get channelDeletedToast => 'Channel deleted';
+
+  @override
+  String get categoryDeletedToast => 'Category deleted';
+
+  @override
+  String get channelDeleteNoPermissionTitle => 'You can\'t delete this';
+
+  @override
+  String get channelDeleteNoPermissionChannel =>
+      'You don\'t have permission to delete this channel.';
+
+  @override
+  String get channelDeleteNoPermissionCategory =>
+      'You don\'t have permission to delete this category.';
+
+  @override
+  String get channelDeleteAlreadyDeletedTitle => 'Already deleted';
+
+  @override
+  String get channelDeleteAlreadyDeletedChannel =>
+      'This channel no longer exists. It may have already been deleted.';
+
+  @override
+  String get channelDeleteAlreadyDeletedCategory =>
+      'This category no longer exists. It may have already been deleted.';
+
+  @override
+  String get channelDeleteFailedChannelTitle => 'Couldn\'t delete this channel';
+
+  @override
+  String get channelDeleteFailedCategoryTitle =>
+      'Couldn\'t delete this category';
+
+  @override
+  String get channelPermissionsUpdateFailedTitle =>
+      'Couldn\'t update channel permissions';
+
+  @override
+  String get channelSettingsSaveFailedTitle =>
+      'Couldn\'t save channel settings';
+
+  @override
+  String get emojiSlotsFullTitle => 'No emoji slots available';
+
+  @override
+  String get stickerSlotsFullTitle => 'No sticker slots available';
+
+  @override
+  String get emojiSomeFailedMessage =>
+      'Review these files and try again with smaller or simpler images.';
+
+  @override
+  String get emojiNameInvalidCharacters =>
+      'Emoji names can only use letters, numbers and underscores.';
+
+  @override
+  String get emojiErrorGoneTitle => 'This emoji no longer exists';
+
+  @override
+  String get emojiRenameGoneMessage =>
+      'It may have been deleted. The name was reverted to what it was before.';
+
+  @override
+  String get emojiRenameNoPermissionTitle => 'You can\'t rename this emoji';
+
+  @override
+  String get emojiRenameNoPermissionMessage =>
+      'You don\'t have permission to rename this emoji. The name was reverted to what it was before.';
+
+  @override
+  String get emojiRenameRateLimitedMessage =>
+      'Please wait a moment and try renaming again.';
+
+  @override
+  String get emojiRenameFailedMessage =>
+      'The name was reverted to what it was before. Please try again in a moment.';
+
+  @override
+  String get emojiDeleteGoneMessage => 'It looks like it was already deleted.';
+
+  @override
+  String get emojiDeleteNoPermissionTitle => 'You can\'t delete this emoji';
+
+  @override
+  String get emojiDeleteNoPermissionMessage =>
+      'You don\'t have permission to delete this emoji.';
+
+  @override
+  String get emojiDeleteRateLimitedMessage =>
+      'Please wait a moment and try deleting again.';
+
+  @override
+  String get stickerTooLargeTitle => 'Sticker is too large';
+
+  @override
+  String stickerTooLargeMessage(String maxSize) {
+    return 'The upload service rejected this sticker as larger than $maxSize. Try a smaller file, a simpler image, or a shorter animation.';
+  }
+
+  @override
+  String get stickerCreateFailedMessage =>
+      'Something went wrong while preparing this sticker. Try another file or try again in a moment.';
+
+  @override
+  String get stickerUpdateFailedTitle => 'Couldn\'t update this sticker';
+
+  @override
+  String get moderationTimeoutFailed => 'Failed to time out member. Try again.';
+
+  @override
+  String get moderationRemoveTimeoutFailed =>
+      'Failed to remove timeout. Try again.';
+
+  @override
+  String get moderationKickFailed => 'Failed to kick member. Try again.';
+
+  @override
+  String get moderationBanFailed => 'Failed to ban member. Try again.';
+
+  @override
+  String get transferOwnershipFailedTitle => 'Failed to transfer ownership';
+
+  @override
+  String transferOwnershipFailedMessage(String username) {
+    return 'Ownership could not be transferred to $username at this time.';
+  }
+
+  @override
+  String get revokeBanFailedTitle => 'Couldn\'t revoke ban';
+
+  @override
+  String get voiceModerationNoPermissionTitle => 'You can\'t do that';
+
+  @override
+  String get voiceModerationNoPermissionMessage =>
+      'You don\'t have permission to do this to this member.';
+
+  @override
+  String get voiceModerationLeftTitle => 'They left the call';
+
+  @override
+  String get voiceModerationLeftMessage =>
+      'This member isn\'t connected to voice anymore.';
+
+  @override
+  String get voiceModerationUnknownMemberTitle => 'Member not found';
+
+  @override
+  String get voiceModerationUnknownMemberMessage =>
+      'This member is no longer in the community. Refresh and try again.';
+
+  @override
+  String get voiceJoinTimedOut => 'You can\'t join while you\'re timed out.';
+
+  @override
+  String get voiceJoinClaimAccount =>
+      'Claim your account to join this voice channel.';
+
+  @override
+  String get voiceJoinClaimAccountDirectCall =>
+      'Claim your account to start or join 1:1 calls.';
+
+  @override
+  String get voiceJoinUserLimit =>
+      'This voice channel has reached its user limit. Try again later or join a different channel.';
+
+  @override
+  String get voiceJoinConnectionLimit =>
+      'You\'ve reached this voice channel\'s connection limit.';
+
+  @override
+  String get voiceJoinChannelUnavailable =>
+      'This voice channel is no longer available.';
+
+  @override
+  String get avatarUploadFailedTitle => 'Couldn\'t upload avatar';
+
+  @override
+  String get bannerUploadFailedTitle => 'Couldn\'t upload banner';
+
+  @override
+  String get animatedImageUseStatic => 'Upload a static image instead.';
+
+  @override
+  String get passkeyDeleteFailedTitle => 'Couldn\'t delete passkey';
+
+  @override
+  String get premiumPaymentsUnavailableTitle => 'Payments are unavailable';
+
+  @override
+  String get premiumPaymentsUnavailableMessage =>
+      'Payments are temporarily unavailable. Please try again in a moment.';
+
+  @override
+  String get premiumNoSubscriptionTitle => 'No active subscription';
+
+  @override
+  String get premiumNoSubscriptionMessage =>
+      'We couldn\'t find an active subscription on this account. Refresh and try again.';
+
+  @override
+  String get premiumAlreadyCancelingTitle => 'Already set to cancel';
+
+  @override
+  String get premiumAlreadyCancelingMessage =>
+      'Your subscription is already set to cancel at the end of your billing period.';
+
+  @override
+  String get premiumNotCancelingTitle =>
+      'Subscription is not scheduled to cancel';
+
+  @override
+  String get premiumNotCancelingMessage =>
+      'Your subscription isn\'t set to cancel, so there\'s nothing to reactivate.';
+
+  @override
+  String get premiumCancelFailedTitle => 'Couldn\'t cancel your subscription';
+
+  @override
+  String get premiumCancelFailedMessage =>
+      'Something went wrong while canceling your subscription. Please try again in a moment.';
+
+  @override
+  String get premiumReactivateFailedTitle =>
+      'Couldn\'t reactivate your subscription';
+
+  @override
+  String get premiumReactivateFailedMessage =>
+      'Something went wrong while reactivating your subscription. Please try again in a moment.';
+
+  @override
+  String get premiumRefundConfirmTitle => 'Refund your most recent purchase?';
+
+  @override
+  String get premiumRefundConfirmBody =>
+      'This refunds your most recent invoice and cancels any associated subscription. You won\'t be able to self-refund again for 30 days.';
+
+  @override
+  String get premiumRefundConfirm => 'Refund purchase';
+
+  @override
+  String get premiumRefundIssuedToast =>
+      'Refund issued. May take a few business days to appear.';
+
+  @override
+  String get premiumRefundOutsideWindowTitle => 'Outside the refund window';
+
+  @override
+  String get premiumRefundOutsideWindowMessage =>
+      'Your most recent purchase is no longer within the refund window. Contact support for billing issues.';
+
+  @override
+  String get premiumRefundCooldownTitle => 'You have refunded recently';
+
+  @override
+  String get premiumRefundCooldownMessage =>
+      'You\'ve already used a self-serve refund recently. You can refund again once the cooldown ends.';
+
+  @override
+  String get premiumRefundNothingTitle => 'Nothing to refund';
+
+  @override
+  String get premiumRefundNothingMessage =>
+      'We couldn\'t find a recent purchase to refund on this account.';
+
+  @override
+  String get premiumRefundFailedTitle => 'Couldn\'t refund this purchase';
+
+  @override
+  String get premiumRefundFailedMessage =>
+      'Something went wrong while issuing your refund. Contact support if this keeps happening.';
+
+  @override
+  String get premiumVerifyEmailTitle => 'Verify your email first';
+
+  @override
+  String premiumVerifyEmailBody(String productName) {
+    return 'You need to verify your email before you can purchase $productName.';
+  }
+
+  @override
+  String get premiumCheckoutBlockedTitle => 'Checkout unavailable';
+
+  @override
+  String premiumCheckoutBlockedBody(String supportEmail) {
+    return 'Checkout is blocked for this account. Contact $supportEmail if you need help.';
+  }
+
+  @override
+  String get premiumCheckoutBlockedBodySelfHosted =>
+      'Checkout is blocked for this account.';
 }

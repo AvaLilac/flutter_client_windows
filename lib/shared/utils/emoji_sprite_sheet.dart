@@ -4,11 +4,14 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/utils/emoji_utils.dart';
+import 'package:fluxer_markdown/fluxer_markdown.dart';
 
 const _kSpriteSize = 32;
 const _kNonDiversitySpritesPerRow = 42;
 const _kDiversitySpritesPerRow = 10;
 const _kSpriteAssetDir = 'assets/emoji-sprites';
+
+const Duration kEmojiSpriteSheetReleaseDelay = Duration(seconds: 30);
 
 const Map<String, String> _kSpriteSheetNames = {
   'default': 'spritesheet-emoji',
@@ -35,14 +38,13 @@ class EmojiSpriteSheet {
   static final Map<String, ui.Image> _images = <String, ui.Image>{};
   static final Map<String, Future<ui.Image>> _loading =
       <String, Future<ui.Image>>{};
+  static final ValueNotifier<int> _releases = ValueNotifier<int>(0);
+  static int _users = 0;
+  static Timer? _releaseTimer;
 
-  static Future<void> preload({String? skinTone}) async {
-    final key = _spriteSheetKeyForSkinTone(skinTone);
-    if (_images.containsKey(key)) {
-      return;
-    }
-    _images[key] = await _load(key);
-  }
+  static Future<void> preload({String? skinTone}) => ensureLoaded(
+    skinTone: skinTone,
+  ).then<void>((ui.Image _) {}, onError: (Object _) {});
 
   static Future<ui.Image> ensureLoaded({String? skinTone}) {
     final key = _spriteSheetKeyForSkinTone(skinTone);
@@ -50,15 +52,45 @@ class EmojiSpriteSheet {
     if (existing != null) {
       return Future.value(existing);
     }
-    return _loading[key] ??= _load(key).then((img) {
-      _images[key] = img;
-      final _ = _loading.remove(key);
-      return img;
-    });
+    return _loading[key] ??= _loadAndCache(key);
   }
 
   static ui.Image? imageFor({String? skinTone}) =>
       _images[_spriteSheetKeyForSkinTone(skinTone)];
+
+  static void release() {
+    _releaseTimer?.cancel();
+    _releaseTimer = null;
+    if (_images.isEmpty && _loading.isEmpty) {
+      return;
+    }
+    for (final ui.Image image in _images.values) {
+      image.dispose();
+    }
+    _images.clear();
+    _loading.clear();
+    _releases.value++;
+  }
+
+  static Future<ui.Image> _loadAndCache(String key) async {
+    final int generation = _releases.value;
+    try {
+      final ui.Image image = await _load(key);
+      if (generation != _releases.value) {
+        image.dispose();
+        throw StateError('Emoji sprite sheet released while decoding');
+      }
+      _images[key] = image;
+      if (_users == 0) {
+        _scheduleRelease();
+      }
+      return image;
+    } finally {
+      if (generation == _releases.value) {
+        final _ = _loading.remove(key);
+      }
+    }
+  }
 
   static Future<ui.Image> _load(String key) async {
     final name = _kSpriteSheetNames[key] ?? _kSpriteSheetNames['default']!;
@@ -68,7 +100,27 @@ class EmojiSpriteSheet {
     return frame.image;
   }
 
-  /// Source rect for [index] in the @2x sheet (64px cells).
+  static void _addUser() {
+    _users++;
+    _releaseTimer?.cancel();
+    _releaseTimer = null;
+  }
+
+  static void _removeUser() {
+    _users--;
+    if (_users == 0) {
+      _scheduleRelease();
+    }
+  }
+
+  static void _scheduleRelease() {
+    if (_images.isEmpty) {
+      return;
+    }
+    _releaseTimer?.cancel();
+    _releaseTimer = Timer(kEmojiSpriteSheetReleaseDelay, release);
+  }
+
   static Rect spriteRect(int index, {required bool diversity}) {
     final spritesPerRow = diversity
         ? _kDiversitySpritesPerRow
@@ -87,7 +139,7 @@ class EmojiSpritePainter extends CustomPainter {
     required this.diversity,
   });
 
-  // High-DPR cells upscale the @2x sheet; mipmaps cover downscale (issue #99).
+  // Medium filtering smooths sprite upscaling on high-DPR screens: https://feedback.fluxer.com/p/1551
   static final Paint _paint = Paint()
     ..filterQuality = FilterQuality.medium
     ..isAntiAlias = true;
@@ -110,8 +162,9 @@ class EmojiSpritePainter extends CustomPainter {
       !identical(oldDelegate.image, image);
 }
 
-class SpriteEmoji extends StatelessWidget {
+class SpriteEmoji extends StatefulWidget {
   const SpriteEmoji({
+    required this.emoji,
     required this.index,
     required this.size,
     this.diversityIndex,
@@ -119,65 +172,106 @@ class SpriteEmoji extends StatelessWidget {
     super.key,
   });
 
+  final String emoji;
   final int index;
   final double size;
   final int? diversityIndex;
   final String? skinTone;
 
   @override
-  Widget build(BuildContext context) {
-    final useDiversitySheet =
-        skinTone != null && skinTone!.isNotEmpty && diversityIndex != null;
-    final targetSkinTone = useDiversitySheet ? skinTone : null;
-    final image = EmojiSpriteSheet.imageFor(skinTone: targetSkinTone);
-
-    if (image == null) {
-      return FutureBuilder<ui.Image>(
-        future: EmojiSpriteSheet.ensureLoaded(skinTone: targetSkinTone),
-        builder: (context, snapshot) {
-          final resolvedImage = snapshot.data;
-          if (resolvedImage == null) {
-            return SizedBox(width: size, height: size);
-          }
-          return _SpriteEmojiPaint(
-            image: resolvedImage,
-            index: useDiversitySheet ? diversityIndex! : index,
-            size: size,
-            diversity: useDiversitySheet,
-          );
-        },
-      );
-    }
-
-    return _SpriteEmojiPaint(
-      image: image,
-      index: useDiversitySheet ? diversityIndex! : index,
-      size: size,
-      diversity: useDiversitySheet,
-    );
-  }
+  State<SpriteEmoji> createState() => _SpriteEmojiState();
 }
 
-class _SpriteEmojiPaint extends StatelessWidget {
-  const _SpriteEmojiPaint({
-    required this.image,
-    required this.index,
-    required this.size,
-    required this.diversity,
-  });
+class _SpriteEmojiState extends State<SpriteEmoji> {
+  ui.Image? _sheet;
+  bool _needsSheet = true;
 
-  final ui.Image image;
-  final int index;
-  final double size;
-  final bool diversity;
+  bool get _useDiversitySheet =>
+      widget.skinTone != null &&
+      widget.skinTone!.isNotEmpty &&
+      widget.diversityIndex != null;
+
+  String? get _sheetSkinTone => _useDiversitySheet ? widget.skinTone : null;
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    size: Size(size, size),
-    painter: EmojiSpritePainter(
-      image: image,
-      spriteIndex: index,
-      diversity: diversity,
-    ),
-  );
+  void initState() {
+    super.initState();
+    EmojiSpriteSheet._addUser();
+    EmojiSpriteSheet._releases.addListener(_onSheetsReleased);
+  }
+
+  @override
+  void didUpdateWidget(SpriteEmoji oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final bool oldUsesDiversity =
+        oldWidget.skinTone != null &&
+        oldWidget.skinTone!.isNotEmpty &&
+        oldWidget.diversityIndex != null;
+    final String? oldSkinTone = oldUsesDiversity ? oldWidget.skinTone : null;
+    if (_spriteSheetKeyForSkinTone(oldSkinTone) !=
+        _spriteSheetKeyForSkinTone(_sheetSkinTone)) {
+      _dropSheet();
+      _needsSheet = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    EmojiSpriteSheet._releases.removeListener(_onSheetsReleased);
+    _dropSheet();
+    EmojiSpriteSheet._removeUser();
+    super.dispose();
+  }
+
+  void _onSheetsReleased() {
+    _dropSheet();
+    setState(() => _needsSheet = true);
+  }
+
+  void _dropSheet() {
+    _sheet?.dispose();
+    _sheet = null;
+  }
+
+  void _requestSheet() {
+    _needsSheet = false;
+    final String? skinTone = _sheetSkinTone;
+    final ui.Image? cached = EmojiSpriteSheet.imageFor(skinTone: skinTone);
+    if (cached != null) {
+      _sheet = cached.clone();
+      return;
+    }
+    unawaited(
+      EmojiSpriteSheet.ensureLoaded(skinTone: skinTone).then<void>((
+        ui.Image _,
+      ) {
+        if (!mounted || _sheet != null || skinTone != _sheetSkinTone) {
+          return;
+        }
+        final ui.Image? loaded = EmojiSpriteSheet.imageFor(skinTone: skinTone);
+        if (loaded != null) {
+          setState(() => _sheet = loaded.clone());
+        }
+      }, onError: (Object _) {}),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_needsSheet) {
+      _requestSheet();
+    }
+    final ui.Image? sheet = _sheet;
+    if (sheet == null) {
+      return SystemEmojiFallback(emoji: widget.emoji, size: widget.size);
+    }
+    return CustomPaint(
+      size: Size(widget.size, widget.size),
+      painter: EmojiSpritePainter(
+        image: sheet,
+        spriteIndex: _useDiversitySheet ? widget.diversityIndex! : widget.index,
+        diversity: _useDiversitySheet,
+      ),
+    );
+  }
 }

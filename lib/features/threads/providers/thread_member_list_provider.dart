@@ -2,12 +2,21 @@ import 'dart:async';
 
 import 'package:fluxer_app/core/providers/gateway_connection_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
+import 'package:fluxer_app/features/guilds/providers/guild_sync_provider.dart';
 import 'package:fluxer_dart/gateway.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'thread_member_list_provider.g.dart';
+
+LazyRequestSubscription _threadMemberListGatewaySubscription(
+  List<String> threadIds,
+) => LazyRequestSubscription(
+  active: true,
+  sync: true,
+  threads: true,
+  threadMemberLists: threadIds,
+);
 
 @Riverpod(keepAlive: true)
 class ThreadMemberLists extends _$ThreadMemberLists {
@@ -52,15 +61,6 @@ class ThreadMemberLists extends _$ThreadMemberLists {
     }
     state = const <String, List<ThreadMemberEntry>>{};
   }
-
-  void clearGuild(String guildId) {
-    final Set<String>? ids = _subscribed[guildId];
-    if (ids == null || !ids.any(state.containsKey)) {
-      return;
-    }
-    state = Map<String, List<ThreadMemberEntry>>.of(state)
-      ..removeWhere((String threadId, _) => ids.contains(threadId));
-  }
 }
 
 @riverpod
@@ -79,7 +79,7 @@ void threadMemberListSubscription(Ref ref, String guildId, String threadId) {
   void send(GatewayConnection connection, List<String> threadIds) {
     connection.sendLazyRequest(
       subscriptions: <String, LazyRequestSubscription>{
-        guildId: LazyRequestSubscription(threadMemberLists: threadIds),
+        guildId: _threadMemberListGatewaySubscription(threadIds),
       },
     );
   }
@@ -89,12 +89,11 @@ void threadMemberListSubscription(Ref ref, String guildId, String threadId) {
       return;
     }
     final GatewayConnection connection = ref.read(gatewayConnectionProvider);
-    final bool active = ref.read(threadChannelsActiveProvider(guildId));
-    if (!active || connection.state != GatewayState.connected) {
-      lists.unsubscribe(guildId, threadId);
+    if (connection.state != GatewayState.connected) {
       subscribedConnection = null;
       return;
     }
+    ref.read(guildSyncProvider.notifier).syncIfNeeded(guildId);
     send(connection, lists.subscribe(guildId, threadId));
     subscribedConnection = connection;
   }
@@ -104,10 +103,6 @@ void threadMemberListSubscription(Ref ref, String guildId, String threadId) {
       gatewayConnectionProvider.select(
         (GatewayConnection c) => c.state == GatewayState.connected,
       ),
-      (_, _) => scheduleMicrotask(sync),
-    )
-    ..listen<bool>(
-      threadChannelsActiveProvider(guildId),
       (_, _) => scheduleMicrotask(sync),
     )
     ..listen<int>(

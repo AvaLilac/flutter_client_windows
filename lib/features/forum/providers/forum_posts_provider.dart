@@ -5,14 +5,17 @@ import 'package:flutter_riverpod/misc.dart'
     show NotifierProviderFamily, StreamProviderFamily;
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/gateway/channel_last_message_index.dart';
+import 'package:fluxer_app/core/permissions/thread_permissions.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/gateway_performance_providers.dart';
+import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/forum/data/forum_repository.dart';
 import 'package:fluxer_app/features/forum/domain/forum_channel.dart';
 import 'package:fluxer_app/features/forum/providers/forum_first_messages_provider.dart';
 import 'package:fluxer_app/features/notifications/data/merge_void_streams.dart';
+import 'package:fluxer_app/features/threads/providers/thread_ui_providers.dart';
 
 enum ForumListKind { archived, search }
 
@@ -112,9 +115,15 @@ class ForumPostsController extends Notifier<ForumViewState> {
   final Map<ForumListKind, int> _attempts = <ForumListKind, int>{};
   final Map<ForumListKind, Timer> _retryTimers = <ForumListKind, Timer>{};
   Timer? _searchTimer;
+  int _listeners = 0;
+  ProviderSubscription<ThreadActor?>? _accessWatch;
 
   @override
   ForumViewState build() {
+    ref
+      ..onAddListener(() => _listeners++)
+      ..onRemoveListener(() => _listeners--)
+      ..listen<int>(gatewayFullRecoveryProvider, (_, _) => _resetAfterReady());
     ref.onDispose(() {
       _searchTimer?.cancel();
       for (final Timer timer in _retryTimers.values) {
@@ -139,11 +148,27 @@ class ForumPostsController extends Notifier<ForumViewState> {
     if (!state.archived.loaded && !state.archived.loading) {
       unawaited(_fetch(ForumListKind.archived, append: false));
     }
+    final ForumListState search = state.search;
+    if (state.isSearching &&
+        !(_searchTimer?.isActive ?? false) &&
+        !search.loaded &&
+        !search.loading &&
+        !search.indexing) {
+      unawaited(_fetch(ForumListKind.search, append: false));
+    }
+  }
+
+  void _resetAfterReady() {
+    _reset(ForumListKind.archived);
+    _reset(ForumListKind.search);
+    if (_listeners > 0) {
+      ensureLoaded();
+    }
   }
 
   void loadMore(ForumListKind kind) {
     final ForumListState list = state.list(kind);
-    if (list.loading || !list.hasMore || list.indexing) {
+    if (list.loading || !list.hasMore || list.indexing || list.failed) {
       return;
     }
     unawaited(_fetch(kind, append: list.loaded));
@@ -216,6 +241,23 @@ class ForumPostsController extends Notifier<ForumViewState> {
   Future<void> _fetch(ForumListKind kind, {required bool append}) async {
     final Channel? forum = await _forum();
     if (!ref.mounted || forum == null) {
+      return;
+    }
+    final ParentThreadActorProvider access = parentThreadActorProvider(
+      forum.guildId,
+      forumId,
+    );
+    if (!canRequestForumPosts(ref.read(access))) {
+      _accessWatch ??= ref.listen<ThreadActor?>(access, (_, ThreadActor? next) {
+        if (!canRequestForumPosts(next)) {
+          return;
+        }
+        _accessWatch?.close();
+        _accessWatch = null;
+        if (_listeners > 0) {
+          ensureLoaded();
+        }
+      });
       return;
     }
     final String query = state.query.trim();

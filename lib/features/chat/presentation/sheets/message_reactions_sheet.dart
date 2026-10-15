@@ -6,23 +6,39 @@ import 'package:fluxer_app/core/api/dio_error_message.dart';
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/core/theme/reaction_chip_colors.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/providers/messages/message_reactors_provider.dart';
+import 'package:fluxer_app/features/chat/providers/pickers/emoji_picker_provider.dart';
 import 'package:fluxer_app/features/friends/providers/friend_providers.dart';
+import 'package:fluxer_app/features/profile/presentation/user_profile_sheet.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_avatar.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
+import 'package:fluxer_app/features/ui/input/emoji_inline_token.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/providers/guild_user_display_provider.dart';
 import 'package:fluxer_app/shared/utils/display_name.dart';
+import 'package:fluxer_app/shared/utils/emoji_registry.dart';
 import 'package:fluxer_app/shared/utils/guild_user_display.dart';
 import 'package:fluxer_app/shared/widgets/unicode_emoji_widget.dart';
 import 'package:fluxer_dart/export.dart';
 
 const double _kReactionTabEmojiSize = 18;
 const double _kAvatarSize = 36;
+
+String reactionEmojiName(Reaction reaction) {
+  if (reaction.isCustom) {
+    return ':${reaction.emoji}:';
+  }
+  final EmojiEntry? entry = EmojiRegistry.entryBySurrogates(reaction.emoji);
+  if (entry == null) {
+    return reaction.emoji;
+  }
+  return buildEmojiWireToken(entry.primaryName, reaction.emoji);
+}
 
 Future<void> showMessageReactionsSheet(
   BuildContext context, {
@@ -123,12 +139,29 @@ class _MessageReactionsSheetBodyState
     );
 
     final String? guildId = ref.watch(contextualGuildIdProvider);
+    ref.watch(emojiRegistryLoadedProvider);
     return Column(
       children: [
         _ReactionTabRow(
           reactions: widget.message.reactions,
           selected: _selected,
           onSelected: _selectReaction,
+        ),
+        Padding(
+          padding: EdgeInsets.only(
+            left: context.layout.s4,
+            right: context.layout.s4,
+            bottom: context.layout.s2,
+          ),
+          child: Text(
+            reactionEmojiName(_selected),
+            style: context.textStyles.label.copyWith(
+              color: colors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         Divider(
           height: 1,
@@ -245,17 +278,21 @@ class _ReactionTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final Color card = FluxerBottomSheet.cardColorOf(context);
+    final SelectedReactionChipColors selected = selectedReactionChipColors(
+      context,
+      surface: card,
+    );
     return FluxerGestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
+        key: ValueKey<String>('reaction-tab-${reaction.apiParam}'),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected
-              ? colors.brandPrimary.withValues(alpha: 0.2)
-              : colors.backgroundSecondaryAlt.withValues(alpha: 0.4),
+          color: isSelected ? selected.background : card,
           border: Border.all(
-            color: isSelected ? colors.brandPrimary : Colors.transparent,
+            color: isSelected ? selected.border : Colors.transparent,
           ),
           borderRadius: BorderRadius.circular(10),
         ),
@@ -281,7 +318,7 @@ class _ReactionTab extends StatelessWidget {
             Text(
               '${reaction.count}',
               style: context.textStyles.label.copyWith(
-                color: isSelected ? colors.brandPrimary : colors.textChat,
+                color: isSelected ? selected.foreground : colors.textChat,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -316,47 +353,53 @@ class _ReactorRow extends ConsumerWidget {
           username: user.username,
         );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          FluxerAvatar.user(
-            userId: user.id,
-            fallbackText: displayName,
-            imageUrl: FluxerMediaUrl.userAvatar(
+    return FluxerGestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => unawaited(
+        FluxerUserProfileSheet.show(context, userId: user.id, guildId: guildId),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            FluxerAvatar.user(
               userId: user.id,
-              hash: user.avatar,
+              fallbackText: displayName,
+              imageUrl: FluxerMediaUrl.userAvatar(
+                userId: user.id,
+                hash: user.avatar,
+              ),
+              avatarColor: user.avatarColor,
+              showStatus: false,
+              size: _kAvatarSize,
             ),
-            avatarColor: user.avatarColor,
-            showStatus: false,
-            size: _kAvatarSize,
-          ),
-          SizedBox(width: context.layout.s3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  displayName,
-                  style: context.textStyles.label.copyWith(
-                    color: context.colors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (hasGlobalName)
+            SizedBox(width: context.layout.s3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                   Text(
-                    user.username,
-                    style: context.textStyles.bodySmall.copyWith(
-                      color: context.colors.textTertiary,
+                    displayName,
+                    style: context.textStyles.label.copyWith(
+                      color: context.colors.textPrimary,
+                      fontWeight: FontWeight.w600,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                  if (hasGlobalName)
+                    Text(
+                      user.username,
+                      style: context.textStyles.bodySmall.copyWith(
+                        color: context.colors.textTertiary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
@@ -20,22 +22,19 @@ const MediaQueryData _mobileMediaQuery = MediaQueryData(
   viewPadding: EdgeInsets.only(bottom: _homeInset),
 );
 
-Finder _spacerAnimatedContainerFinder() {
+Finder _spacerSizedBoxFinder() {
   return find.descendant(
     of: find.byType(BottomInputSpacer),
-    matching: find.byType(AnimatedContainer),
+    matching: find.byWidgetPredicate(
+      (Widget widget) => widget is SizedBox && widget.height != null,
+    ),
   );
 }
 
-double _spacerBodyHeight(WidgetTester tester) {
-  return tester.getSize(_spacerAnimatedContainerFinder()).height;
-}
-
-double _spacerTotalHeight(WidgetTester tester) {
-  return tester.getSize(find.byType(BottomInputSpacer)).height;
-}
-
-Widget _buildSpacerHarness(ProviderContainer container) {
+Widget _buildSpacerHarness(
+  ProviderContainer container, {
+  MediaQueryData mediaQuery = _mobileMediaQuery,
+}) {
   final colorTheme = buildDarkColorTheme();
   return UncontrolledProviderScope(
     container: container,
@@ -48,10 +47,10 @@ Widget _buildSpacerHarness(ProviderContainer container) {
         textTheme: FluxerTextTheme.fromColors(colorTheme),
         layoutTheme: FluxerLayoutTheme.scaled(),
       ),
-      home: const Scaffold(
+      home: Scaffold(
         body: MediaQuery(
-          data: _mobileMediaQuery,
-          child: Column(
+          data: mediaQuery,
+          child: const Column(
             children: <Widget>[
               Expanded(child: SizedBox()),
               BottomInputSpacer(),
@@ -122,6 +121,65 @@ void main() {
     );
   });
 
+  testWidgets('BottomInputSpacer grows from the safe bar when opened at rest', (
+    tester,
+  ) async {
+    final ProviderContainer container = ProviderContainer();
+    addTearDown(container.dispose);
+    container.read(mobileKeyboardMetricsProvider.notifier)
+      ..updateLayout(screenHeight: 800, isPortrait: true, isIos: true)
+      ..syncViewInsets(0, safeAreaBottom: 0);
+
+    await tester.pumpWidget(_buildSpacerHarness(container));
+    await tester.pump();
+    expect(tester.getSize(find.byType(BottomInputSpacer)).height, 0);
+
+    container.read(expressionPanelProvider.notifier).open();
+    await tester.pump();
+    expect(
+      tester.getSize(find.byType(BottomInputSpacer)).height,
+      _homeInset - kMobileComposerBottomGap,
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final double midHeight = tester
+        .getSize(find.byType(BottomInputSpacer))
+        .height;
+    expect(midHeight, greaterThan(_homeInset));
+
+    await tester.pumpAndSettle();
+    final double settledHeight = tester
+        .getSize(find.byType(BottomInputSpacer))
+        .height;
+    expect(settledHeight, greaterThan(200));
+    expect(midHeight, lessThan(settledHeight));
+  });
+
+  testWidgets('BottomInputSpacer swaps instantly when opening over keyboard', (
+    tester,
+  ) async {
+    final ProviderContainer container = ProviderContainer();
+    addTearDown(container.dispose);
+    container.read(mobileKeyboardMetricsProvider.notifier)
+      ..updateLayout(screenHeight: 800, isPortrait: true, isIos: true)
+      ..debugApplyNativeMetrics(
+        keyboardHeight: 336,
+        isKeyboardVisible: true,
+        nativeSafeAreaBottom: 34,
+      )
+      ..syncViewInsets(336, safeAreaBottom: 0);
+
+    await tester.pumpWidget(_buildSpacerHarness(container));
+    await tester.pump();
+
+    container.read(expressionPanelProvider.notifier).open();
+    await tester.pump();
+    expect(tester.getSize(find.byType(BottomInputSpacer)).height, 336);
+
+    await tester.pump(const Duration(milliseconds: 500));
+  });
+
   testWidgets(
     'BottomInputSpacer matches keyboard slot height when panel is closed',
     (tester) async {
@@ -135,11 +193,18 @@ void main() {
       await tester.pump();
 
       expect(container.read(bottomInputSlotProvider).slotHeight, 336);
-      expect(_spacerTotalHeight(tester), 336);
-      expect(_spacerBodyHeight(tester), 336);
+      expect(
+        find.descendant(
+          of: find.byType(BottomInputSpacer),
+          matching: find.byType(AnimatedContainer),
+        ),
+        findsNothing,
+      );
+      expect(tester.getSize(_spacerSizedBoxFinder()).height, 336);
 
       await tester.pump(const Duration(milliseconds: 500));
     },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );
 
   testWidgets('BottomInputSpacer tracks keyboard height without overshoot', (
@@ -157,14 +222,52 @@ void main() {
     for (final double height in <double>[300, 310, 302]) {
       notifier.syncViewInsets(height, safeAreaBottom: 0);
       await tester.pump();
-      expect(_spacerBodyHeight(tester), height);
+      expect(tester.getSize(_spacerSizedBoxFinder()).height, height);
     }
 
     await tester.pump(const Duration(milliseconds: 500));
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
   testWidgets(
-    'BottomInputSpacer keeps slot height when viewInsets clear before native',
+    'BottomInputSpacer follows a shrinking inset before the provider syncs',
+    (tester) async {
+      final ProviderContainer container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(mobileKeyboardMetricsProvider.notifier)
+        ..updateLayout(screenHeight: 800, isPortrait: true, isIos: true)
+        ..syncViewInsets(336, safeAreaBottom: 0);
+
+      await tester.pumpWidget(
+        _buildSpacerHarness(
+          container,
+          mediaQuery: _mobileMediaQuery.copyWith(
+            viewInsets: const EdgeInsets.only(bottom: 336),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.getSize(_spacerSizedBoxFinder()).height, 336);
+
+      await tester.pumpWidget(
+        _buildSpacerHarness(
+          container,
+          mediaQuery: _mobileMediaQuery.copyWith(
+            viewInsets: const EdgeInsets.only(bottom: 270),
+          ),
+        ),
+      );
+      expect(
+        container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
+        336,
+      );
+      expect(tester.getSize(_spacerSizedBoxFinder()).height, 270);
+
+      await tester.pump(const Duration(milliseconds: 500));
+    },
+  );
+
+  testWidgets(
+    'BottomInputSpacer collapses when viewInsets clear before native',
     (tester) async {
       final ProviderContainer container = ProviderContainer();
       addTearDown(container.dispose);
@@ -183,15 +286,15 @@ void main() {
         )
         ..syncViewInsets(302, safeAreaBottom: 0);
       await tester.pump();
-      expect(_spacerBodyHeight(tester), 302);
+      expect(tester.getSize(_spacerSizedBoxFinder()).height, 302);
 
       notifier.syncViewInsets(0, safeAreaBottom: 34);
       await tester.pump();
       expect(
         container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
-        302,
+        0,
       );
-      expect(_spacerBodyHeight(tester), 302);
+      expect(tester.getSize(find.byType(BottomInputSpacer)).height, 0);
 
       notifier.debugApplyNativeMetrics(
         keyboardHeight: 0,
@@ -203,6 +306,7 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 500));
     },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );
 
   testWidgets('BottomInputSpacer stays collapsed when keyboard is dismissed', (
@@ -223,8 +327,8 @@ void main() {
       notifier.syncViewInsets(height, safeAreaBottom: 0);
       await tester.pump();
       expect(
-        _spacerTotalHeight(tester),
-        height > _homeInset ? height : _homeInset,
+        tester.getSize(_spacerSizedBoxFinder()).height,
+        math.max(height, _homeInset - kMobileComposerBottomGap),
       );
     }
 
@@ -233,7 +337,7 @@ void main() {
     expect(tester.getSize(find.byType(BottomInputSpacer)).height, 0);
 
     await tester.pump(const Duration(milliseconds: 500));
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
   testWidgets(
     'BottomInputSpacer reserves height when the attachment panel is open',
@@ -326,9 +430,38 @@ void main() {
               ),
             )
             .height,
-        kIosFallbackKeyboardHeight - _homeInset,
+        kIosFallbackKeyboardHeight,
       );
-      expect(_spacerTotalHeight(tester), kIosFallbackKeyboardHeight);
+    },
+  );
+
+  testWidgets(
+    'BottomInputSpacer animates down when a closing panel releases its slot',
+    (tester) async {
+      final ProviderContainer container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(mobileKeyboardMetricsProvider.notifier)
+        ..updateLayout(screenHeight: 800, isPortrait: true, isIos: true)
+        ..syncViewInsets(0, safeAreaBottom: 0);
+      container.read(expressionPanelProvider.notifier).open();
+
+      await tester.pumpWidget(_buildSpacerHarness(container));
+      await tester.pumpAndSettle();
+
+      final Finder spacer = find.byType(BottomInputSpacer);
+      final double openHeight = tester.getSize(spacer).height;
+      expect(openHeight, greaterThan(200));
+
+      container.read(bottomInputSlotProvider.notifier)
+        ..holdSlotHeight(openHeight)
+        ..holdSlotHeight(0);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(tester.getSize(spacer).height, greaterThan(openHeight / 2));
+
+      await tester.pumpAndSettle();
+      expect(tester.getSize(spacer).height, 0);
     },
   );
 }

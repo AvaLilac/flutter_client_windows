@@ -7,19 +7,27 @@ import 'package:fluxer_app/core/theme/fluxer_theme.dart';
 import 'package:fluxer_app/core/theme/themes/dark.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/chat_expression_expandable_sheet.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/expression_panel_provider.dart';
-import 'package:fluxer_app/features/chat/utils/composer/inline_expression_panel_layout.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../../helpers/sheet_corner_pixels.dart';
 import '../../../../../helpers/test_l10n.dart';
 
 const Size _kMobileViewport = Size(390, 844);
 const double _kAnchorHeight = 291;
-const double _kDragHandleHeight = 36;
+const double _kDragHandleHeight = kFluxerSheetHandleHeight;
+const Key _kFirstControlKey = Key('expression-sheet-first-control');
 const double _kDockedContentHeight = _kAnchorHeight - _kDragHandleHeight;
 const double _kTextareaHeight = 72;
+const TargetPlatformVariant _kTouchPlatforms = TargetPlatformVariant(
+  <TargetPlatform>{TargetPlatform.android, TargetPlatform.iOS},
+);
 
 void main() {
   final FluxerColorTheme colorTheme = buildDarkColorTheme();
+
+  setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
 
   group('ChatExpressionExpandableSheet', () {
     testWidgets('opens at anchor height, not full screen', (tester) async {
@@ -76,14 +84,13 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('panel height stays within anchor and 80% screen bounds', (
+    testWidgets('panel height stays below the header and rubber-bands down', (
       tester,
     ) async {
       await _pumpSheet(tester, colorTheme: colorTheme);
       final Finder dragTarget = find.byKey(kChatExpressionSheetDragHeaderKey);
       final Finder sheet = find.byKey(kChatExpressionSheetKey);
-      final double maxHeight =
-          _kMobileViewport.height * kInlineExpressionPanelMaxScreenFraction;
+      final double maxHeight = _kMobileViewport.height;
       final TestGesture expandGesture = await tester.startGesture(
         tester.getCenter(dragTarget),
       );
@@ -99,10 +106,14 @@ void main() {
       await tester.pump();
       expect(
         tester.getSize(sheet).height,
-        greaterThanOrEqualTo(_kAnchorHeight - 1),
+        greaterThanOrEqualTo(_kAnchorHeight - kExpressionSheetRubberBandLimit),
       );
       await collapseGesture.up();
       await tester.pumpAndSettle();
+      expect(
+        tester.getSize(sheet).height,
+        greaterThanOrEqualTo(_kAnchorHeight - 1),
+      );
     });
 
     testWidgets('list pull up expands docked sheet to expanded height', (
@@ -120,6 +131,53 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.getSize(sheet).height, greaterThan(dockedHeight + 40));
     });
+
+    testWidgets('slow list drag up expands the docked sheet before scrolling', (
+      tester,
+    ) async {
+      await _pumpSheet(tester, colorTheme: colorTheme);
+      final Finder sheet = find.byKey(kChatExpressionSheetKey);
+      final double dockedHeight = tester.getSize(sheet).height;
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(find.byType(Scrollable).last),
+      );
+      for (int i = 0; i < 20; i++) {
+        await gesture.moveBy(const Offset(0, -3));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(_listPosition(tester).pixels, 0);
+      expect(tester.getSize(sheet).height, greaterThan(dockedHeight + 40));
+      for (int i = 0; i < 60; i++) {
+        await gesture.moveBy(const Offset(0, -3));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(tester.getSize(sheet).height, greaterThan(dockedHeight + 150));
+    }, variant: _kTouchPlatforms);
+
+    testWidgets('slow list drag up scrolls a docked list that is not at top', (
+      tester,
+    ) async {
+      await _pumpSheet(tester, colorTheme: colorTheme);
+      _listPosition(tester).jumpTo(100);
+      await tester.pump();
+      final Finder sheet = find.byKey(kChatExpressionSheetKey);
+      final double dockedHeight = tester.getSize(sheet).height;
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(find.byType(Scrollable).last),
+      );
+      for (int i = 0; i < 20; i++) {
+        await gesture.moveBy(const Offset(0, -3));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(_listPosition(tester).pixels, greaterThan(120));
+      expect(tester.getSize(sheet).height, closeTo(dockedHeight, 1));
+      await tester.pump(const Duration(milliseconds: 300));
+      await gesture.up();
+      await tester.pumpAndSettle();
+    }, variant: _kTouchPlatforms);
 
     testWidgets('list pull down collapses expanded sheet to docked height', (
       tester,
@@ -344,6 +402,48 @@ void main() {
       expect(find.byType(Scrollable), findsWidgets);
     });
 
+    testWidgets('expanded handle spacing matches the shared sheet', (
+      tester,
+    ) async {
+      _usePhoneView(tester);
+      await _pumpSheet(tester, colorTheme: colorTheme);
+      await _expandSheet(tester);
+      final Rect sheet = _sheetSurfaceRect(tester);
+      final Rect bar = tester.getRect(
+        find.descendant(
+          of: find.byKey(kChatExpressionSheetDragHandleKey),
+          matching: find.byType(FluxerSheetHandleBar),
+        ),
+      );
+      final Rect control = tester.getRect(find.byKey(_kFirstControlKey));
+      expect(bar.top - sheet.top, kFluxerSheetHandleTop);
+      expect(control.top - bar.bottom, kFluxerSheetHandleGap);
+    }, variant: _kTouchPlatforms);
+
+    testWidgets('expanded corners show only surface and dimmed backdrop', (
+      tester,
+    ) async {
+      _usePhoneView(tester);
+      await _pumpSheet(tester, colorTheme: colorTheme);
+      await _expandSheet(tester);
+      final Rect sheet = _sheetSurfaceRect(tester);
+      expect(sheet.left, 0);
+      expect(sheet.top, greaterThan(kExpressionSheetCornerRadius));
+      final Color surface = colorTheme.backgroundSecondaryAlt;
+
+      final ScreenPixels pixels = await ScreenPixels.capture(tester);
+      expect(pixels.at(Offset(4, sheet.top - 3)), isNot(surface));
+      expect(
+        sheetCornerColorMismatches(
+          pixels: pixels,
+          sheet: sheet,
+          radius: kExpressionSheetCornerRadius,
+          surface: surface,
+        ),
+        isEmpty,
+      );
+    }, variant: _kTouchPlatforms);
+
     testWidgets('search expand increases content height', (tester) async {
       await _pumpSheet(tester, colorTheme: colorTheme);
       final ChatExpressionExpandableSheetState sheetState = tester.state(
@@ -447,6 +547,7 @@ Future<void> _pumpSheet(
     UncontrolledProviderScope(
       container: scopeContainer,
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
         locale: kTestLocale,
         localizationsDelegates: fluxerLocalizationsDelegates,
         supportedLocales: FluxerLocalizations.supportedLocales,
@@ -487,6 +588,7 @@ Future<void> _pumpSheet(
                             controller: scrollController,
                             children: const <Widget>[
                               SizedBox(
+                                key: _kFirstControlKey,
                                 height: 800,
                                 child: ColoredBox(color: Color(0xFF333333)),
                               ),
@@ -520,4 +622,23 @@ Future<void> _pumpSheet(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+void _usePhoneView(WidgetTester tester) {
+  tester.view.physicalSize = _kMobileViewport * 3;
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+}
+
+Rect _sheetSurfaceRect(WidgetTester tester) => tester.getRect(
+  find
+      .ancestor(
+        of: find.byKey(kChatExpressionSheetDragHandleKey),
+        matching: find.byType(AnimatedContainer),
+      )
+      .first,
+);
+
+ScrollPosition _listPosition(WidgetTester tester) {
+  return tester.state<ScrollableState>(find.byType(Scrollable).last).position;
 }

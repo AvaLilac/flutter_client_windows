@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/platform/fluxer_platform.dart';
 import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
 import 'package:fluxer_app/features/voice/utils/voice_connection_voice_state.dart';
@@ -38,21 +38,26 @@ List<VoiceState> _voiceStatesInGuildChannel(
   return out;
 }
 
+bool _isInPrivateChannel(VoiceState voiceState, String channelId) {
+  final String? guildId = voiceState.guildId;
+  return voiceState.channelId == channelId &&
+      (guildId == null || guildId.isEmpty);
+}
+
+bool _isNewerVoiceState(VoiceState voiceState, VoiceState other) {
+  final int? version = voiceState.version;
+  final int? otherVersion = other.version;
+  return version != null && otherVersion != null && version > otherVersion;
+}
+
 List<VoiceState> _voiceStatesInPrivateChannel(
   Map<String, VoiceState> map,
   String channelId,
 ) {
-  final List<VoiceState> out = <VoiceState>[];
-  for (final VoiceState vs in map.values) {
-    if (vs.channelId != channelId) {
-      continue;
-    }
-    if (vs.guildId != null && vs.guildId!.isNotEmpty) {
-      continue;
-    }
-    out.add(vs);
-  }
-  return out;
+  return <VoiceState>[
+    for (final VoiceState vs in map.values)
+      if (_isInPrivateChannel(vs, channelId)) vs,
+  ];
 }
 
 String _voiceStatesFingerprint(Iterable<VoiceState> states) {
@@ -103,13 +108,12 @@ typedef SelfVoiceConnectionsForJoin = ({
   List<VoiceState> otherDevices,
 });
 
-/// Splits same user voice connections into stale ghosts (this client, no live
-/// session) vs connections that should trigger the multi device join modal.
 SelfVoiceConnectionsForJoin partitionSelfVoiceConnectionsForJoin({
   required Map<String, VoiceState> voiceStates,
   required String? guildId,
   required String channelId,
   required String currentUserId,
+  required String? gatewaySessionId,
   required VoiceSessionState session,
 }) {
   final List<VoiceState> candidates = otherUserConnectionsInChannel(
@@ -119,16 +123,13 @@ SelfVoiceConnectionsForJoin partitionSelfVoiceConnectionsForJoin({
     currentUserId: currentUserId,
     localConnectionId: session.activeConnectionId,
   );
-  if (session.isInVoice || candidates.isEmpty) {
+  if (session.isInVoice || candidates.isEmpty || gatewaySessionId == null) {
     return (stale: const <VoiceState>[], otherDevices: candidates);
   }
-  final bool recoveringFromFailedJoin =
-      session.connectFailed &&
-      session.connectFailedTarget?.channelId == channelId;
   final List<VoiceState> stale = <VoiceState>[];
   final List<VoiceState> otherDevices = <VoiceState>[];
   for (final VoiceState vs in candidates) {
-    if (recoveringFromFailedJoin || vs.isMobile == isFluxerMobileOs) {
+    if (vs.sessionId == gatewaySessionId) {
       stale.add(vs);
     } else {
       otherDevices.add(vs);
@@ -233,9 +234,6 @@ class TypingIndicators extends _$TypingIndicators {
   }
 }
 
-/// Tracks voice state per gateway [VoiceState.connectionId] (or a synthetic key
-/// when [VoiceState.connectionId] is null) so the same user can have multiple
-/// simultaneous connections. Map keys are not user ids.
 @Riverpod(keepAlive: true)
 class VoiceStatesMap extends _$VoiceStatesMap {
   @override
@@ -279,7 +277,8 @@ class VoiceStatesMap extends _$VoiceStatesMap {
     }
     final String key = _voiceStateStorageKey(voiceState);
     final VoiceState? existing = next[key];
-    if (existing == voiceState) {
+    if (existing == voiceState ||
+        (existing != null && _isNewerVoiceState(existing, voiceState))) {
       return;
     }
     if (voiceState.connectionId != null &&
@@ -356,10 +355,52 @@ class VoiceStatesMap extends _$VoiceStatesMap {
     }
   }
 
+  void replaceGuild(String guildId, List<VoiceState> voiceStates) {
+    final Map<String, VoiceState> next = <String, VoiceState>{
+      for (final MapEntry<String, VoiceState> entry in state.entries)
+        if (entry.value.guildId != guildId) entry.key: entry.value,
+    };
+    for (final VoiceState voiceState in voiceStates) {
+      if (voiceState.channelId != null) {
+        next[_voiceStateStorageKey(voiceState)] = voiceState;
+      }
+    }
+    if (mapEquals(next, state)) {
+      return;
+    }
+    state = next;
+  }
+
+  void replacePrivateChannel(String channelId, List<VoiceState> voiceStates) {
+    final List<VoiceState> listed = <VoiceState>[
+      for (final VoiceState voiceState in voiceStates)
+        if (_isInPrivateChannel(voiceState, channelId)) voiceState,
+    ];
+    final Set<String> listedUserIds = <String>{
+      for (final VoiceState voiceState in listed) voiceState.userId,
+    };
+    final Map<String, VoiceState> next = <String, VoiceState>{
+      for (final MapEntry<String, VoiceState> entry in state.entries)
+        if (!_isInPrivateChannel(entry.value, channelId) ||
+            listedUserIds.contains(entry.value.userId))
+          entry.key: entry.value,
+    };
+    for (final VoiceState voiceState in listed) {
+      final String key = _voiceStateStorageKey(voiceState);
+      final VoiceState? live = state[key];
+      if (live == null || !_isNewerVoiceState(live, voiceState)) {
+        next[key] = voiceState;
+      }
+    }
+    if (mapEquals(next, state)) {
+      return;
+    }
+    state = next;
+  }
+
   void clear() => state = {};
 }
 
-/// Active call state per channel.
 class CallState {
   const CallState({
     required this.channelId,
@@ -367,27 +408,21 @@ class CallState {
     this.region,
     this.ringing = const [],
     this.pendingRingUserIds = const {},
-    this.voiceStates = const [],
   });
 
   final String channelId;
   final String? messageId;
   final String? region;
 
-  /// Last gateway snapshot of user IDs receiving a ring tone.
   final List<String> ringing;
 
-  /// Subset tracked for incoming-call UI (reset from gateway `ringing` when
-  /// present; mutated locally after accept/reject/ignore until next update).
   final Set<String> pendingRingUserIds;
-  final List<VoiceState> voiceStates;
 
   CallState copyWith({
     String? messageId,
     String? region,
     List<String>? ringing,
     Set<String>? pendingRingUserIds,
-    List<VoiceState>? voiceStates,
   }) {
     return CallState(
       channelId: channelId,
@@ -395,7 +430,6 @@ class CallState {
       region: region ?? this.region,
       ringing: ringing ?? this.ringing,
       pendingRingUserIds: pendingRingUserIds ?? this.pendingRingUserIds,
-      voiceStates: voiceStates ?? this.voiceStates,
     );
   }
 }
@@ -413,7 +447,6 @@ class ActiveCalls extends _$ActiveCalls {
     String? messageId,
     String? region,
     List<String>? ringing,
-    List<VoiceState>? voiceStates,
   }) {
     final List<String> ringList = List<String>.from(ringing ?? const []);
     state = {
@@ -424,7 +457,6 @@ class ActiveCalls extends _$ActiveCalls {
         region: region,
         ringing: ringList,
         pendingRingUserIds: _normalizeRingIds(ringing),
-        voiceStates: voiceStates ?? const [],
       ),
     };
   }
@@ -434,7 +466,6 @@ class ActiveCalls extends _$ActiveCalls {
     String? messageId,
     String? region,
     List<String>? ringing,
-    List<VoiceState>? voiceStates,
   }) {
     final CallState? existing = state[channelId];
     if (existing == null) {
@@ -443,7 +474,6 @@ class ActiveCalls extends _$ActiveCalls {
         messageId: messageId,
         region: region,
         ringing: ringing,
-        voiceStates: voiceStates,
       );
       return;
     }
@@ -462,7 +492,6 @@ class ActiveCalls extends _$ActiveCalls {
         region: region ?? existing.region,
         ringing: nextRing,
         pendingRingUserIds: nextPending,
-        voiceStates: voiceStates ?? existing.voiceStates,
       ),
     };
   }
@@ -497,8 +526,6 @@ class ActiveCalls extends _$ActiveCalls {
   void clear() => state = {};
 }
 
-/// Tracks channels where this client initiated an outbound ring (suppresses
-/// incoming overlay for caller), matching the web `CallInitiator`.
 @Riverpod(keepAlive: true)
 class OutgoingVoiceCallInitiator extends _$OutgoingVoiceCallInitiator {
   @override
@@ -529,8 +556,6 @@ class OutgoingVoiceCallInitiator extends _$OutgoingVoiceCallInitiator {
   void clearAll() => state = {};
 }
 
-/// Returns the [VoiceState] for a specific connection ID.
-/// Uses select to only rebuild when this connection's state changes.
 @riverpod
 VoiceState? voiceStateForConnection(Ref ref, String connectionId) {
   return ref.watch(
@@ -540,8 +565,6 @@ VoiceState? voiceStateForConnection(Ref ref, String connectionId) {
   );
 }
 
-/// Returns voice states for a specific guild channel.
-/// Only emits when voice states for this specific channel change.
 @riverpod
 List<VoiceState> voiceStatesInChannel(
   Ref ref,
@@ -561,8 +584,6 @@ List<VoiceState> voiceStatesInChannel(
   );
 }
 
-/// Returns voice states for a specific DM/private channel.
-/// Only emits when voice states for this specific channel change.
 @riverpod
 List<VoiceState> voiceStatesInPrivateChannel(Ref ref, String channelId) {
   ref.watch(
@@ -577,15 +598,12 @@ List<VoiceState> voiceStatesInPrivateChannel(Ref ref, String channelId) {
   );
 }
 
-/// Returns voice states for a specific guild (all channels).
-/// Only emits when voice states for this guild change.
 @riverpod
 List<VoiceState> voiceStatesInGuild(Ref ref, String guildId) {
   final Map<String, VoiceState> map = ref.watch(voiceStatesMapProvider);
   return map.values.where((VoiceState vs) => vs.guildId == guildId).toList();
 }
 
-/// Returns the count of unique participants in a private DM channel.
 @riverpod
 int privateChannelVoiceParticipantCount(Ref ref, String channelId) {
   return ref.watch(
@@ -597,7 +615,6 @@ int privateChannelVoiceParticipantCount(Ref ref, String channelId) {
   );
 }
 
-/// Returns the count of unique participants in a guild voice channel.
 @riverpod
 int guildChannelVoiceParticipantCount(
   Ref ref,
@@ -613,7 +630,6 @@ int guildChannelVoiceParticipantCount(
   );
 }
 
-/// Clears ephemeral gateway derived UI state after a full identify (READY).
 @Riverpod(keepAlive: true)
 void gatewayEphemeralStateRecoveryListener(Ref ref) {
   ref.listen<int>(gatewayFullRecoveryProvider, (int? previous, int next) {
@@ -627,7 +643,6 @@ void gatewayEphemeralStateRecoveryListener(Ref ref) {
   });
 }
 
-/// In-memory invite cache.
 @Riverpod(keepAlive: true)
 class InviteCache extends _$InviteCache {
   @override

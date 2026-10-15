@@ -32,8 +32,6 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const int kShareMediaSelectionLimit = 5;
 
-/// Opens the share sheet for [files]: a searchable, multi select destination
-/// picker (up to [kShareMediaSelectionLimit]) with an optional message.
 Future<void> showShareMediaSheet(
   BuildContext context, {
   required List<XFile> files,
@@ -722,22 +720,16 @@ class _DestinationTile extends StatelessWidget {
   }
 
   Widget _checkbox(FluxerColorTheme colors) {
+    if (isSelected) {
+      return const FluxerSelectedCheck();
+    }
     return Container(
       width: 22,
       height: 22,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: isSelected
-              ? colors.brandPrimary
-              : colors.backgroundHeaderSecondary,
-          width: 2,
-        ),
-        color: isSelected ? colors.brandPrimary : Colors.transparent,
+        border: Border.all(color: colors.backgroundHeaderSecondary, width: 2),
       ),
-      child: isSelected
-          ? const Icon(PhosphorIconsBold.check, size: 14, color: Colors.white)
-          : null,
     );
   }
 }

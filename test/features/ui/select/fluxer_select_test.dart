@@ -4,6 +4,7 @@ import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme.dart';
 import 'package:fluxer_app/core/theme/themes/dark.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/select/fluxer_select.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -81,7 +82,6 @@ void main() {
       await tester.tap(find.text('Alpha'));
       await tester.pumpAndSettle();
 
-      // All items should be visible in the dropdown
       expect(find.text('Alpha'), findsExactly(2));
       expect(find.text('Beta'), findsOneWidget);
       expect(find.text('Gamma'), findsOneWidget);
@@ -100,16 +100,13 @@ void main() {
         ),
       );
 
-      // Open the dropdown by tapping the caret icon area
       await tester.tap(find.byIcon(PhosphorIconsBold.caretDown));
       await tester.pumpAndSettle();
 
-      // Tap on Beta
       await tester.tap(find.text('Beta'));
       await tester.pumpAndSettle();
 
       expect(selectedValue, equals('b'));
-      // Dropdown should be closed — only the trigger text remains
       expect(find.text('Gamma'), findsNothing);
     });
 
@@ -136,13 +133,11 @@ void main() {
         ),
       );
 
-      // No check icon visible before opening
       expect(find.byIcon(PhosphorIconsBold.check), findsNothing);
 
       await tester.tap(find.text('Alpha'));
       await tester.pumpAndSettle();
 
-      // Check icon visible for selected item
       expect(find.byIcon(PhosphorIconsBold.check), findsOneWidget);
     });
 
@@ -201,14 +196,14 @@ void main() {
 
       expect(find.text('Search options'), findsOneWidget);
 
-      await tester.enterText(find.byType(TextFormField), 'Gam');
+      await tester.enterText(find.byType(EditableText), 'Gam');
       await tester.pumpAndSettle();
 
       expect(find.text('Gamma'), findsOneWidget);
       expect(find.text('Third option'), findsOneWidget);
       expect(find.text('Alpha'), findsNothing);
 
-      await tester.enterText(find.byType(TextFormField), 'zzz');
+      await tester.enterText(find.byType(EditableText), 'zzz');
       await tester.pumpAndSettle();
 
       expect(find.text('No matches found'), findsOneWidget);
@@ -247,14 +242,12 @@ void main() {
           ),
         );
 
-        // Stretched: caret sits at the field's right edge.
         expect(
           _fieldRight(tester, const Key('stretched')) -
               _caretRight(tester, const Key('stretched')),
           lessThan(24),
         );
 
-        // Content-sized: caret sits well left of the right edge.
         expect(
           _fieldRight(tester, const Key('content')) -
               _caretRight(tester, const Key('content')),
@@ -281,7 +274,7 @@ void main() {
         await tester.tap(find.byIcon(PhosphorIconsBold.caretDown));
         await tester.pumpAndSettle();
 
-        expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+        expect(find.byType(FluxerDraggableScrollableSheet), findsOneWidget);
       },
     );
 
@@ -302,7 +295,7 @@ void main() {
         await tester.tap(find.byIcon(PhosphorIconsBold.caretDown));
         await tester.pumpAndSettle();
 
-        expect(find.byType(DraggableScrollableSheet), findsNothing);
+        expect(find.byType(FluxerDraggableScrollableSheet), findsNothing);
       },
     );
   });

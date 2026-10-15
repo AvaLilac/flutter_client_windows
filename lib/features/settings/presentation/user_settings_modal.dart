@@ -117,8 +117,17 @@ class UserSettingsModal extends ConsumerStatefulWidget {
     UserSettingsSection? initialSection,
     String? initialFieldId,
     String? guildId,
+    bool sectionOnly = false,
   }) {
     if (isMobileLayout(context)) {
+      if (sectionOnly && initialSection != null) {
+        return _showMobileSettingsSection(
+          context,
+          section: initialSection,
+          initialFieldId: initialFieldId,
+          presentation: FluxerPageSheetPresentation.root,
+        );
+      }
       return _showMobileSettings(
         context,
         openProfileSection: openProfileSection,
@@ -335,7 +344,7 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
               Expanded(
                 child: ColoredBox(
                   color: storePane
-                      ? PremiumStoreStyle.spaceTop
+                      ? PremiumStoreStyle.of(context).spaceTop
                       : Colors.transparent,
                   child: Column(
                     children: [
@@ -352,7 +361,7 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
                               selectedEntry.displayLabel(l10n),
                               style: storePane
                                   ? context.textStyles.heading.copyWith(
-                                      color: PremiumStoreStyle.ink,
+                                      color: PremiumStoreStyle.of(context).ink,
                                     )
                                   : context.textStyles.heading,
                             ),
@@ -380,7 +389,9 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
                             ],
                             const Spacer(),
                             _buildCloseButton(
-                              color: storePane ? PremiumStoreStyle.ink : null,
+                              color: storePane
+                                  ? PremiumStoreStyle.of(context).ink
+                                  : null,
                             ),
                           ],
                         ),
@@ -483,7 +494,6 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
     ref.read(gatewayReadyProvider.notifier).reset();
 
     ref
-      // Gateway
       ..invalidate(gatewayConnectionProvider)
       ..invalidate(gatewayEventListenerProvider)
       ..invalidate(gatewayStateListenerProvider)
@@ -492,15 +502,12 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
       ..invalidate(gatewayReconnectBannerProvider)
       ..invalidate(gatewayConnectionFailedProvider)
       ..invalidate(connectivityListenerProvider)
-      // Gateway event state
       ..invalidate(typingIndicatorsProvider)
       ..invalidate(voiceStatesMapProvider)
       ..invalidate(activeCallsProvider)
       ..invalidate(outgoingVoiceCallInitiatorProvider)
       ..invalidate(inviteCacheProvider)
-      // Session
       ..invalidate(currentUserIdProvider)
-      // View models
       ..invalidate(dmViewModelProvider)
       ..invalidate(guildListViewModelProvider)
       ..invalidate(organizedGuildListProvider)
@@ -510,7 +517,6 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
       ..invalidate(userSettingsViewModelProvider)
       ..invalidate(loginViewModelProvider);
 
-    // AccountManager handles API logout + auth state reset.
     await ref.read(accountManagerProvider.notifier).signOut(userId);
     if (mounted) {
       Navigator.of(context).pop();
@@ -566,10 +572,6 @@ class _UserSettingsModalState extends ConsumerState<UserSettingsModal>
     ),
   );
 }
-
-// ---------------------------------------------------------------------------
-// Mobile settings — page sheets
-// ---------------------------------------------------------------------------
 
 class _MobileSettingsNavBody extends ConsumerStatefulWidget {
   const _MobileSettingsNavBody({
@@ -667,7 +669,7 @@ class _MobileSettingsNavBodyState extends ConsumerState<_MobileSettingsNavBody>
       controller: widget.scrollController,
       padding: EdgeInsets.fromLTRB(
         layout.s4,
-        0,
+        layout.s6,
         layout.s4,
         kSettingsScrollBottomPadding,
       ),
@@ -739,32 +741,12 @@ class _MobileSettingsNavBodyState extends ConsumerState<_MobileSettingsNavBody>
         ref.read(inputModalityProvider)) {
       return;
     }
-    final l10n = FluxerLocalizations.of(context);
-    final bool storePage =
-        section == UserSettingsSection.fluxerPlutonium &&
-        isPremiumStorePageActive();
-    final String? pageLink = userSettingsPageDeepLinkHref(section);
-    final canDismiss = ValueNotifier<bool>(true);
     unawaited(
-      FluxerPageSheet.showScrollable<void>(
+      _showMobileSettingsSection(
         context,
-        title: userSettingsSectionLabel(l10n, section),
-        titleTrailing: pageLink == null
-            ? null
-            : FluxerSettingsHeadingLinkButton(
-                href: pageLink,
-                target: FluxerSettingsHeadingLinkTarget.page,
-              ),
-        backgroundColor: storePage ? PremiumStoreStyle.spaceTop : null,
-        foregroundColor: storePage ? PremiumStoreStyle.ink : null,
-        canDismissNotifier: canDismiss,
-        builder: (sheetContext, scrollController, close) =>
-            _MobileSettingsContentBody(
-              section: section,
-              scrollController: scrollController,
-              canDismissNotifier: canDismiss,
-              initialFieldId: initialFieldId,
-            ),
+        section: section,
+        initialFieldId: initialFieldId,
+        presentation: FluxerPageSheetPresentation.nested,
       ),
     );
   }
@@ -796,7 +778,6 @@ class _MobileSettingsNavBodyState extends ConsumerState<_MobileSettingsNavBody>
     ref.read(gatewayReadyProvider.notifier).reset();
 
     ref
-      // Gateway
       ..invalidate(gatewayConnectionProvider)
       ..invalidate(gatewayEventListenerProvider)
       ..invalidate(gatewayStateListenerProvider)
@@ -805,15 +786,12 @@ class _MobileSettingsNavBodyState extends ConsumerState<_MobileSettingsNavBody>
       ..invalidate(gatewayReconnectBannerProvider)
       ..invalidate(gatewayConnectionFailedProvider)
       ..invalidate(connectivityListenerProvider)
-      // Gateway event state
       ..invalidate(typingIndicatorsProvider)
       ..invalidate(voiceStatesMapProvider)
       ..invalidate(activeCallsProvider)
       ..invalidate(outgoingVoiceCallInitiatorProvider)
       ..invalidate(inviteCacheProvider)
-      // Session
       ..invalidate(currentUserIdProvider)
-      // View models
       ..invalidate(dmViewModelProvider)
       ..invalidate(guildListViewModelProvider)
       ..invalidate(organizedGuildListProvider)
@@ -828,6 +806,41 @@ class _MobileSettingsNavBodyState extends ConsumerState<_MobileSettingsNavBody>
       Navigator.of(context, rootNavigator: true).pop();
     }
   }
+}
+
+Future<void> _showMobileSettingsSection(
+  BuildContext context, {
+  required UserSettingsSection section,
+  required FluxerPageSheetPresentation presentation,
+  String? initialFieldId,
+}) {
+  final l10n = FluxerLocalizations.of(context);
+  final bool storePage =
+      section == UserSettingsSection.fluxerPlutonium &&
+      isPremiumStorePageActive();
+  final String? pageLink = userSettingsPageDeepLinkHref(section);
+  final canDismiss = ValueNotifier<bool>(true);
+  return FluxerPageSheet.showScrollable<void>(
+    context,
+    title: userSettingsSectionLabel(l10n, section),
+    titleTrailing: pageLink == null
+        ? null
+        : FluxerSettingsHeadingLinkButton(
+            href: pageLink,
+            target: FluxerSettingsHeadingLinkTarget.page,
+          ),
+    backgroundColor: storePage ? PremiumStoreStyle.of(context).spaceTop : null,
+    foregroundColor: storePage ? PremiumStoreStyle.of(context).ink : null,
+    presentation: presentation,
+    canDismissNotifier: canDismiss,
+    builder: (sheetContext, scrollController, close) =>
+        _MobileSettingsContentBody(
+          section: section,
+          scrollController: scrollController,
+          canDismissNotifier: canDismiss,
+          initialFieldId: initialFieldId,
+        ),
+  );
 }
 
 class _MobileSettingsContentBody extends ConsumerStatefulWidget {

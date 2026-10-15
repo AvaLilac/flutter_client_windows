@@ -50,7 +50,6 @@ void main() {
       expect(find.text('Accept terms'), findsOneWidget);
       expect(find.byType(Checkbox), findsOneWidget);
 
-      // Tap the label to toggle.
       await tester.tap(find.text('Accept terms'));
       await tester.pump();
       expect(checked, isTrue);
@@ -98,13 +97,11 @@ void main() {
         ),
       );
 
-      // All labels rendered.
       expect(find.text('Alpha'), findsOneWidget);
       expect(find.text('Beta'), findsOneWidget);
       expect(find.text('Gamma'), findsOneWidget);
       expect(find.byType(AnimatedContainer), findsNWidgets(3));
 
-      // Tap label to select.
       await tester.tap(find.text('Beta'));
       await tester.pump();
       expect(selected, 'b');
@@ -125,7 +122,6 @@ void main() {
         ),
       );
 
-      // Verify the Flex widget uses horizontal direction.
       final flex = tester.widget<Flex>(find.byType(Flex));
       expect(flex.direction, Axis.horizontal);
     });
@@ -151,7 +147,6 @@ void main() {
       expect(find.text('Enable notifications'), findsOneWidget);
       expect(find.byType(FluxerSwitchControl), findsOneWidget);
 
-      // Tap the label to toggle.
       await tester.tap(find.text('Enable notifications'));
       await tester.pump();
       expect(toggled, isTrue);
@@ -243,6 +238,7 @@ void main() {
 
       final SemanticsNode beta = tester.getSemantics(find.text('Beta'));
       expect(beta.flagsCollection.isChecked, CheckedState.isTrue);
+      expect(beta.flagsCollection.isSelected, Tristate.isTrue);
     });
 
     testWidgets('toggle switch exposes toggled state', (tester) async {

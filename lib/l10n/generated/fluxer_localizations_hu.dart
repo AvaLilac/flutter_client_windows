@@ -12,11 +12,83 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get reconnectingTitle => 'Valami elromlott!';
 
   @override
+  String get chatJumpToPresent => 'Ugrás a jelenlegi üzenetekhez';
+
+  @override
+  String get chatViewingOlderMessages => 'Régebbi üzeneteket nézel';
+
+  @override
+  String get chatNewMessagesBarJumpToFirstUnread =>
+      'Ugrás az első olvasatlan üzenetre';
+
+  @override
+  String get chatNewMessagesBarMarkAsRead => 'Megjelölés olvasottként';
+
+  @override
+  String get chatNewMessagesBarMarkRead => 'Megjelölés olvasottként';
+
+  @override
+  String chatNewMessagesBarNewMessagesSinceEstimated(
+    int unreadCount,
+    String compactTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ új üzenet $compactTime óta';
+  }
+
+  @override
+  String chatNewMessagesBarNewMessagesSince(
+    int unreadCount,
+    String compactTime,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount új üzenet',
+      one: '$unreadCount új üzenet',
+    );
+    return '$_temp0 $compactTime óta';
+  }
+
+  @override
+  String chatNewMessagesBarNewSinceEstimated(
+    int unreadCount,
+    String shortTime,
+  ) {
+    final intl.NumberFormat unreadCountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String unreadCountString = unreadCountNumberFormat.format(
+      unreadCount,
+    );
+
+    return '$unreadCountString+ új üzenet $shortTime óta';
+  }
+
+  @override
+  String chatNewMessagesBarNewSince(int unreadCount, String shortTime) {
+    String _temp0 = intl.Intl.pluralLogic(
+      unreadCount,
+      locale: localeName,
+      other: '$unreadCount új üzenet',
+      one: '$unreadCount új üzenet',
+    );
+    return '$_temp0 $shortTime óta';
+  }
+
+  @override
   String get reconnectingBody =>
       'Valami hiba történt az instanciával.\nHamarosan javítjuk!';
 
   @override
   String get gatewayReconnectingToast => 'Újracsatlakozás…';
+
+  @override
+  String get gatewayReconnectTryAgain => 'Újra';
 
   @override
   String get gatewayConnectedToast => 'Csatlakoztatva';
@@ -176,10 +248,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get nagbarEnableNotifications => 'Értesítések engedélyezése';
 
   @override
-  String get nagbarBillingPortalFailed =>
-      'Nem sikerült megnyitni a számlázási portált. Kérjük, próbálkozzon újra egy pillanat múlva.';
-
-  @override
   String get welcomeBack => 'Üdv újra';
 
   @override
@@ -273,6 +341,9 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get next => 'Tovább';
 
   @override
+  String get create => 'Create';
+
+  @override
   String get mfaTitle => 'Kétlépcsős azonosítás';
 
   @override
@@ -311,6 +382,11 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   @override
   String get accountRemoveDescription =>
       'Ezzel eltávolítja a mentett munkamenetet ehhez a fiókhoz.';
+
+  @override
+  String accountSignOutTitle(String identifier) {
+    return 'Sign out of $identifier?';
+  }
 
   @override
   String get accountExpired => 'Lejárt';
@@ -1385,27 +1461,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get dmFriendRequestSentToast => 'Ismerősjelölés elküldve';
 
   @override
-  String get dmFriendRequestFailed => 'Nem sikerült elküldeni a barát kérést';
-
-  @override
-  String get dmAcceptFriendRequestFailed =>
-      'Nem sikerült elfogadni a barát kérést';
-
-  @override
-  String get dmRemoveFriendFailed => 'Nem sikerült eltávolítani a barátot';
-
-  @override
-  String get dmBlockFailed => 'Nem sikerült blokkolni a felhasználót';
-
-  @override
-  String get dmUnblockFailed =>
-      'Nem sikerült feloldani a felhasználó blokkolását';
-
-  @override
-  String get dmIgnoreFriendRequestFailed =>
-      'Nem sikerült figyelmen kívül hagyni a barát kérést';
-
-  @override
   String get dmAddFriends => 'Ismerősök hozzáadása';
 
   @override
@@ -1525,6 +1580,13 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
       'Megtelt az ismerőslistád vagy az övé. Távolíts el valakit, és próbáld újra.';
 
   @override
+  String get addFriendSendFailedTitle => 'Couldn\'t send friend request';
+
+  @override
+  String get addFriendSendFailedMessage =>
+      'Couldn\'t send the friend request. Try again.';
+
+  @override
   String get userTagBot => 'BOT';
 
   @override
@@ -1597,13 +1659,10 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get gifPickerSearch => 'GIF-ek keresése';
 
   @override
-  String get gifPickerSearchKlipy => 'KLIPY keresése';
+  String get gifPickerSearchKlipy => 'Klipy keresése';
 
   @override
   String get gifPickerSearchTenor => 'Tenor keresése';
-
-  @override
-  String get gifPickerPoweredByKlipy => 'KLIPY';
 
   @override
   String get gifPickerFavorites => 'Kedvencek';
@@ -2453,10 +2512,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
       'Véglegesen törli a fiókodat és minden kapcsolódó adatot. Ez nem vonható vissza.';
 
   @override
-  String get dangerZoneDeleteCancelSubscription =>
-      'A fiókod törlése előtt mondd le az aktív Plutonium előfizetésedet a Plutonium beállításaiban.';
-
-  @override
   String get dangerZoneDeleteCannotDeleteAccount => 'A fiók nem törölhető';
 
   @override
@@ -3093,16 +3148,11 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   }
 
   @override
-  String userProfilePlutoniumBadgeTooltip(String productName) {
-    return '$productName Plutonium';
-  }
-
-  @override
-  String userProfilePlutoniumSubscriberSinceTooltip(
-    String productName,
+  String userProfilePremiumSubscriberSinceTooltip(
+    String premiumProductFullName,
     String date,
   ) {
-    return '$productName Plutonium előfizető $date óta';
+    return '$premiumProductFullName előfizető $date óta';
   }
 
   @override
@@ -3376,13 +3426,7 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   }
 
   @override
-  String get userProfileFailedOpenDm => 'Nem sikerült megnyitni a DM-et';
-
-  @override
   String get userProfileFailedSaveNote => 'Nem sikerült menteni a jegyzetet';
-
-  @override
-  String get userProfileActionFailed => 'A művelet sikertelen, próbáld újra';
 
   @override
   String get userProfileChangeNickname => 'Becenév módosítása';
@@ -3942,13 +3986,44 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get channelComposerBarrierVerifyEmail => 'E-mail-cím megerősítése';
 
   @override
-  String chatAttachmentTooMany(int max) {
-    return 'Túl sok melléklet ($max max)';
+  String get accountLimitedNotice =>
+      'Az üzenetküldés jelenleg szünetel a fiókodban. Nézd meg az e-mailjeidet: egy gyors lépés, és folytathatod.';
+
+  @override
+  String get messagingPausedTextDidNotGoThrough => 'Nem ment át az SMS-em';
+
+  @override
+  String messagingPausedHelpBody(String supportEmail) {
+    return 'Írj a(z) $supportEmail címre, és egy munkatársunk átnézi a fiókodat. Arra az e-mailre is válaszolhatsz, amit küldtünk neked.';
   }
 
   @override
-  String chatAttachmentFileTooLarge(String fileName, String fileSize) {
-    return '$fileName meghaladja a méretkorlátot ($fileSize)';
+  String get messagingPausedHelpCountryLabel => 'Ország, ahol vagy';
+
+  @override
+  String get messagingPausedHelpCopyDetails => 'Adatok másolása';
+
+  @override
+  String get messagingPausedHelpEmailSupport => 'Írj az ügyfélszolgálatnak';
+
+  @override
+  String messagingPausedHelpAccountIdLine(String accountId) {
+    return 'Fiókazonosító: $accountId';
+  }
+
+  @override
+  String messagingPausedHelpUsernameLine(String username) {
+    return 'Felhasználónév: $username';
+  }
+
+  @override
+  String messagingPausedHelpAccountCreatedLine(String createdAt) {
+    return 'Fiók létrehozva: $createdAt';
+  }
+
+  @override
+  String messagingPausedHelpCountryLine(String country) {
+    return 'Ország: $country';
   }
 
   @override
@@ -5929,10 +6004,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get voiceParticipantMenuStopStreaming => 'Streamelés leállítása';
 
   @override
-  String get voiceParticipantModerationFailed =>
-      'Nem sikerült frissíteni a tagot. Kérlek, próbáld újra.';
-
-  @override
   String get voiceControlChat => 'Csevegés';
 
   @override
@@ -5981,8 +6052,8 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# olvasatlan üzenet',
-      one: '# olvasatlan üzenet',
+      other: '$count olvasatlan üzenet',
+      one: '$count olvasatlan üzenet',
     );
     return 'Csevegés megjelenítése $_temp0';
   }
@@ -6132,6 +6203,40 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get notificationsMessageUnavailable => 'Az üzenet nem tölthető be.';
 
   @override
+  String notificationsMentionedYouIn(String author, String place) {
+    return '$author mentioned you in $place:';
+  }
+
+  @override
+  String notificationsRepliedToYouIn(String author, String place) {
+    return '$author replied to you in $place:';
+  }
+
+  @override
+  String notificationsMentionedYou(String author) {
+    return '$author mentioned you:';
+  }
+
+  @override
+  String notificationsRepliedToYou(String author) {
+    return '$author replied to you:';
+  }
+
+  @override
+  String notificationsMentionPlace(String server, String channel) {
+    return '$server – $channel';
+  }
+
+  @override
+  String get notificationsSendReply => 'Send a reply';
+
+  @override
+  String get notificationsRecentActivity => 'Recent activity';
+
+  @override
+  String get notificationsRemoveNotification => 'Remove notification';
+
+  @override
   String characterCounterRemaining(int remaining) {
     return '$remaining karakter maradt';
   }
@@ -6150,6 +6255,10 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get chatMessageFailedToSend => 'Az üzenet küldése sikertelen';
+
+  @override
+  String get chatMessageFailedToSendTapForOptions =>
+      'Nem sikerült elküldeni az üzenetet. Érintsd meg a lehetőségekért.';
 
   @override
   String chatSendFailureDmRestricted(String settingsPath) {
@@ -6597,8 +6706,8 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# közösséget',
-      one: '# közösséget',
+      other: '$count közösséget',
+      one: '$count közösséget',
     );
     return 'Összes, kivéve $_temp0';
   }
@@ -6608,8 +6717,8 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '# közösség',
-      one: '# közösség',
+      other: '$count közösség',
+      one: '$count közösség',
     );
     return 'Csak $_temp0';
   }
@@ -6639,14 +6748,14 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# óra',
-      one: '# óra',
+      other: '$hours óra',
+      one: '$hours óra',
     );
     String _temp1 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# perc',
-      one: '# perc',
+      other: '$minutes perc',
+      one: '$minutes perc',
     );
     return '$_temp0 és $_temp1';
   }
@@ -6656,8 +6765,8 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       hours,
       locale: localeName,
-      other: '# óra',
-      one: '# óra',
+      other: '$hours óra',
+      one: '$hours óra',
     );
     return '$_temp0';
   }
@@ -6667,8 +6776,8 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       minutes,
       locale: localeName,
-      other: '# perc',
-      one: '# perc',
+      other: '$minutes perc',
+      one: '$minutes perc',
     );
     return '$_temp0';
   }
@@ -6678,8 +6787,8 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       seconds,
       locale: localeName,
-      other: '# másodperc',
-      one: '# másodperc',
+      other: '$seconds másodperc',
+      one: '$seconds másodperc',
     );
     return '$_temp0';
   }
@@ -6708,6 +6817,9 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   @override
   String get doubleTapReactionHint =>
       'Koppints duplán egy üzenetre, hogy reagálj ezzel:';
+
+  @override
+  String get doubleTapEditHint => 'Double tap your own message to edit it';
 
   @override
   String get doubleTapReactionEdit => 'Szerkesztés';
@@ -6813,9 +6925,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get forwardSuccessToast => 'Üzenet továbbítva';
-
-  @override
-  String get forwardFailed => 'Az üzenet továbbítása sikertelen';
 
   @override
   String get forwardCommentSlowmodeDisabled =>
@@ -7185,6 +7294,9 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Nem sikerült betölteni az üzeneteket.';
 
   @override
+  String get chatMessagesFailedToLoad => 'Messages failed to load';
+
+  @override
   String get chatReplyMentionOverrideTitle =>
       'Felülbírálod az említési beállítást?';
 
@@ -7227,6 +7339,12 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get chatEditNoChanges => 'Nincs menthető változás';
+
+  @override
+  String get chatEditFailed => 'Your message didn\'t update';
+
+  @override
+  String get chatEditFailedEditAgain => 'Edit again';
 
   @override
   String get chatChannelNotReady =>
@@ -7338,6 +7456,9 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get composerAutocompleteStickersHeading => 'Matricák';
+
+  @override
+  String get composerAutocompleteEmojisHeading => 'Emojis';
 
   @override
   String get composerAutocompleteGifsHeading => 'GIF-ek';
@@ -7483,10 +7604,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get addGuildInviteInvalid => 'Ez a meghívó érvénytelen, vagy lejárt.';
-
-  @override
-  String get addGuildJoinFailed =>
-      'Nem sikerült csatlakozni a közösséghez. Kérjük, próbálja újra.';
 
   @override
   String get addGuildCreateTitle => 'Közösség létrehozása';
@@ -8128,6 +8245,20 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get channelMenuDuplicateChannel => 'Csatorna duplikálása';
 
   @override
+  String get channelMenuMoveToCategory => 'Move to category';
+
+  @override
+  String get channelMenuNoCategory => 'No category';
+
+  @override
+  String get channelMoveCategoryFullTitle => 'Category full';
+
+  @override
+  String channelMoveCategoryFullMessage(int maxChannelsPerCategory) {
+    return 'This category already contains the maximum of $maxChannelsPerCategory channels.';
+  }
+
+  @override
   String get channelMenuResetMatureContentAgreeState =>
       'Felnőtt tartalomra vonatkozó beleegyezés állapotának visszaállítása';
 
@@ -8380,6 +8511,72 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get channelHeaderSearchClearHistory => 'Törlés';
+
+  @override
+  String get channelSearchRemoveRecent => 'Remove from recent searches';
+
+  @override
+  String get channelSearchFiltersButton => 'Filters';
+
+  @override
+  String get channelSearchFilterMenuTitle => 'Filter results';
+
+  @override
+  String get channelSearchFilterFromLabel => 'From a specific person';
+
+  @override
+  String get channelSearchFilterMentionsLabel => 'Mentions a specific person';
+
+  @override
+  String get channelSearchFilterHasLabel => 'Has a link, file or embed';
+
+  @override
+  String get channelSearchFilterInLabel => 'In a specific channel';
+
+  @override
+  String get channelSearchFilterDuringLabel => 'Sent on a date';
+
+  @override
+  String get channelSearchFilterBeforeLabel => 'Sent before a date';
+
+  @override
+  String get channelSearchFilterAfterLabel => 'Sent after a date';
+
+  @override
+  String get channelSearchFilterPinnedLabel => 'Pinned or not pinned';
+
+  @override
+  String get channelSearchFilterAuthorTypeLabel => 'By author type';
+
+  @override
+  String get channelSearchDateToday => 'Today';
+
+  @override
+  String get channelSearchDateYesterday => 'Yesterday';
+
+  @override
+  String get channelSearchTabMessages => 'Messages';
+
+  @override
+  String get channelSearchTabImages => 'Images';
+
+  @override
+  String get channelSearchTabPins => 'Pins';
+
+  @override
+  String get channelSearchTabLinks => 'Links';
+
+  @override
+  String get channelSearchTabFiles => 'Files';
+
+  @override
+  String channelSearchTabCount(String label, int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return '$label ($countString)';
+  }
 
   @override
   String get channelHeaderSearchFilterDescFrom => 'egy felhasználó';
@@ -8803,10 +9000,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
       'Ez a közösség elérte a meghívási limitet.';
 
   @override
-  String get guildNavbarCreateInviteTemporarilyDisabled =>
-      'Meghívó létrehozása ideiglenesen nem elérhető ehhez a közösséghez.';
-
-  @override
   String get groupDmCopyInviteFailed =>
       'Nem sikerült kimásolni a meghívólinket';
 
@@ -8830,6 +9023,25 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get groupDmInviteRevoked => 'Meghívó visszavonva';
+
+  @override
+  String get groupDmRemoveFromGroup => 'Remove from group';
+
+  @override
+  String groupDmRemoveFromGroupConfirm(String userName) {
+    return 'Remove $userName from the group?';
+  }
+
+  @override
+  String get groupDmRemoveFromGroupAction => 'Remove';
+
+  @override
+  String get groupDmRemovedFromGroup => 'Removed from group';
+
+  @override
+  String groupDmRemoveFromGroupFailed(String userName) {
+    return '$userName is still in the group. Try again in a moment.';
+  }
 
   @override
   String groupDmInviteCreatedByExpires(String name, String time) {
@@ -8973,19 +9185,19 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
       'Nem sikerült törölni a személyes jegyzeteket';
 
   @override
-  String get userSettingsGroupYourAccount => 'A SZÁMLÁD';
+  String get userSettingsGroupYourAccount => 'A számlád';
 
   @override
-  String get userSettingsGroupBilling => 'BILLING';
+  String get userSettingsGroupBilling => 'Billing';
 
   @override
-  String get userSettingsGroupApplication => 'APPLICATION';
+  String get userSettingsGroupApplication => 'Application';
 
   @override
-  String get userSettingsGroupDeveloper => 'DEVELOPER';
+  String get userSettingsGroupDeveloper => 'Developer';
 
   @override
-  String get userSettingsGroupStaffOnly => 'STAFF-ONLY';
+  String get userSettingsGroupStaffOnly => 'Staff-only';
 
   @override
   String get userSettingsSearchPlaceholder => 'Beállítások keresése...';
@@ -9001,6 +9213,11 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get userSettingsCopyLinkToPage => 'Copy link to page';
+
+  @override
+  String userSettingsJumpLinkPremiumPage(String productName) {
+    return '$productName page';
+  }
 
   @override
   String get userSettingsNavProfile => 'Profil';
@@ -9535,6 +9752,9 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   @override
   String get storePlutoniumRenewsThroughAppStore =>
       'Az App Store-on keresztül automatikusan megújul, amíg le nem mondod.';
+
+  @override
+  String get storePlutoniumRestorePurchases => 'Restore purchases';
 
   @override
   String get storePlutoniumAlreadySubscribed =>
@@ -10915,7 +11135,13 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get chatJumpToBottom => 'Ugrás alulra';
 
   @override
+  String get chatUnreadDividerNew => 'Új';
+
+  @override
   String get uiConfirm => 'Megerősítés';
+
+  @override
+  String get uiUnderstood => 'Understood';
 
   @override
   String get uiLoading => 'Betöltés';
@@ -10994,11 +11220,11 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get instanceUrlPlaceholder =>
-      'Add meg a példány URL-jét (pl. fluxer.app)';
+      'Add meg a példány URL-jét (pl. fluxer.com)';
 
   @override
   String get instanceUrlHelper =>
-      'Használd a fluxer.app címet a hivatalos példányhoz, vagy egy saját üzemeltetésű példány pontos URL-jét.';
+      'Használd a fluxer.com címet a hivatalos példányhoz, vagy egy saját üzemeltetésű példány pontos URL-jét.';
 
   @override
   String get resetToDefaultInstance => 'Visszaállítás Fluxer-re';
@@ -11216,10 +11442,10 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get guildNavbarHelp => 'Súgó';
 
   @override
-  String get scrollIndicatorNew => 'ÚJ';
+  String get scrollIndicatorNew => 'Új';
 
   @override
-  String get scrollIndicatorNewMessage => 'ÚJ ÜZENET';
+  String get scrollIndicatorNewMessages => 'Új üzenetek';
 
   @override
   String guildNavbarCollapseFolder(String folderName) {
@@ -11615,9 +11841,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
 
   @override
   String get guildMenuMarkAsRead => 'Megjelölés olvasottként';
-
-  @override
-  String get guildPeekMoreOptions => 'További lehetőségek';
 
   @override
   String get guildMenuInviteMembers => 'Tagok meghívása';
@@ -13021,6 +13244,51 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
       'A közösség ikonja frissítve.';
 
   @override
+  String get auditLogChangePausedInvites => 'Paused invites.';
+
+  @override
+  String get auditLogChangeResumedInvites => 'Resumed invites.';
+
+  @override
+  String get auditLogChangeTurnedOnDetachedBanner =>
+      'Turned on the detached banner.';
+
+  @override
+  String get auditLogChangeTurnedOffDetachedBanner =>
+      'Turned off the detached banner.';
+
+  @override
+  String get auditLogChangeAllowedFlexibleChannelNames =>
+      'Allowed flexible text channel names.';
+
+  @override
+  String get auditLogChangeDisallowedFlexibleChannelNames =>
+      'Stopped allowing flexible text channel names.';
+
+  @override
+  String get auditLogChangeHidOwnerCrown => 'Hid the community owner crown.';
+
+  @override
+  String get auditLogChangeShowedOwnerCrown =>
+      'Stopped hiding the community owner crown.';
+
+  @override
+  String get auditLogChangeAllowedEmojiCloning =>
+      'Allowed others to clone this community\'s emojis.';
+
+  @override
+  String get auditLogChangeStoppedEmojiCloning =>
+      'Stopped allowing others to clone this community\'s emojis.';
+
+  @override
+  String get auditLogChangeAllowedStickerCloning =>
+      'Allowed others to clone this community\'s stickers.';
+
+  @override
+  String get auditLogChangeStoppedStickerCloning =>
+      'Stopped allowing others to clone this community\'s stickers.';
+
+  @override
   String auditLogChangeRenamedChannel(String name) {
     return 'A csatorna átnevezve erre: $name.';
   }
@@ -13092,7 +13360,7 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Törölve # üzenet.',
+      other: 'Törölve $count üzenet.',
       one: 'Törölve 1 üzenet.',
     );
     return '$_temp0';
@@ -13103,7 +13371,7 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Eltávolítva # tag.',
+      other: 'Eltávolítva $count tag.',
       one: 'Eltávolítva 1 tag.',
     );
     return '$_temp0';
@@ -13618,10 +13886,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   }
 
   @override
-  String get guildSettingsRevokeBanError =>
-      'Nem sikerült visszavonni a letiltást. Próbáld újra.';
-
-  @override
   String get guildSettingsCommunitySettings => 'Közösségi beállítások';
 
   @override
@@ -13639,16 +13903,16 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
       'Nem sikerült törölni ezt a közösséget';
 
   @override
-  String get guildSettingsCategoryExpressions => 'EXPRESSIONS';
+  String get guildSettingsCategoryExpressions => 'Expressions';
 
   @override
-  String get guildSettingsCategoryCommunity => 'COMMUNITY';
+  String get guildSettingsCategoryCommunity => 'Community';
 
   @override
-  String get guildSettingsCategoryIntegrations => 'INTEGRATIONS';
+  String get guildSettingsCategoryIntegrations => 'Integrations';
 
   @override
-  String get guildSettingsCategoryPeople => 'PEOPLE';
+  String get guildSettingsCategoryPeople => 'People';
 
   @override
   String get guildSettingsOverviewBrandingTitle => 'Arculat';
@@ -14300,10 +14564,6 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
       'Nem engedi, hogy csoportos beszélgetésekhez adják';
 
   @override
-  String get createDmFailed =>
-      'Nem sikerült létrehozni a beszélgetést. Próbáld újra.';
-
-  @override
   String get dmListMessagesTitle => 'Üzenetek';
 
   @override
@@ -14950,7 +15210,7 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String get forumPostArchived => 'Archived';
 
   @override
-  String get forumPostNewBadge => 'NEW';
+  String get forumPostNewBadge => 'Új';
 
   @override
   String get forumPostStarterDeleted => 'The original message was deleted.';
@@ -14965,8 +15225,8 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new messages',
-      one: '1 new message',
+      other: '$count új üzenet',
+      one: '$count új üzenet',
     );
     return '$_temp0';
   }
@@ -15275,4 +15535,624 @@ class FluxerLocalizationsHu extends FluxerLocalizations {
   String voiceP2pPeerFailedTitle(String name) {
     return 'Cannot connect directly to $name';
   }
+
+  @override
+  String get favoritesRenameCategory => 'Kategória átnevezése';
+
+  @override
+  String get friendAcceptFailedTitle => 'Couldn\'t accept friend request';
+
+  @override
+  String get friendAcceptUnavailable =>
+      'That friend request is no longer available. Refresh and try again.';
+
+  @override
+  String get friendAcceptClaimToAccept =>
+      'Finish signing up to accept friend requests.';
+
+  @override
+  String get friendAcceptFailedMessage =>
+      'Couldn\'t accept the friend request. Try again.';
+
+  @override
+  String get friendCancelFailedTitle => 'Couldn\'t cancel friend request';
+
+  @override
+  String get friendIgnoreFailedTitle => 'Couldn\'t ignore friend request';
+
+  @override
+  String get friendIgnoreFailedMessage =>
+      'Couldn\'t ignore the friend request. Try again.';
+
+  @override
+  String get friendRemoveFailedTitle => 'Couldn\'t remove friend';
+
+  @override
+  String get friendRemoveFailedMessage =>
+      'Couldn\'t remove this friend. Try again.';
+
+  @override
+  String get userBlockFailedTitle => 'Couldn\'t block user';
+
+  @override
+  String get userBlockSystemAccount => 'This account can\'t be blocked.';
+
+  @override
+  String get userBlockFailedMessage => 'Couldn\'t block this user. Try again.';
+
+  @override
+  String get userUnblockFailedTitle => 'Couldn\'t unblock user';
+
+  @override
+  String get userUnblockFailedMessage =>
+      'Couldn\'t unblock this user. Try again.';
+
+  @override
+  String friendCancelRequestConfirmDescription(String userName) {
+    return 'Cancel your friend request to $userName?';
+  }
+
+  @override
+  String get errorSomethingWentWrongTitle => 'Something went wrong';
+
+  @override
+  String get errorUnexpectedTryAgain =>
+      'An unexpected error occurred. Try again.';
+
+  @override
+  String get errorMessagingPausedTitle => 'Messaging is paused';
+
+  @override
+  String get errorMessagingPausedMessage =>
+      'Messaging is paused on your account. Check your email for a quick step to continue.';
+
+  @override
+  String get errorFeatureDisabledTitle => 'Feature temporarily disabled';
+
+  @override
+  String get errorFeatureDisabledMessage =>
+      'This feature is paused. Try again later.';
+
+  @override
+  String get dmErrorStartConversationTitle =>
+      'Couldn\'t start this conversation';
+
+  @override
+  String get dmErrorCannotMessageMessage =>
+      'They might not be accepting messages from you, or you no longer share a community.';
+
+  @override
+  String get dmErrorUnknownUserMessage =>
+      'This user no longer exists. Refresh and try again.';
+
+  @override
+  String get dmErrorClaimMessage =>
+      'You need to claim your account before you can start a direct message.';
+
+  @override
+  String get dmErrorVerifyEmailMessage =>
+      'You need to verify your email address before you can start a direct message.';
+
+  @override
+  String get dmErrorTooManyRecipientsTitle => 'This group has too many people';
+
+  @override
+  String get dmErrorTooManyRecipientsMessage =>
+      'You\'ve added more people than a group DM allows. Remove a few and try again.';
+
+  @override
+  String get dmErrorMaxGroupDmsTitle => 'You\'ve reached the group DM limit';
+
+  @override
+  String get dmErrorMaxGroupDmsMessage =>
+      'You or someone you\'re adding already has the maximum number of group DMs open. Leave one and try again.';
+
+  @override
+  String get groupDmAddFailedTitle => 'Couldn\'t add to group';
+
+  @override
+  String get groupDmInviteFailedTitle => 'Couldn\'t create invite link';
+
+  @override
+  String get dmCloseFailedTitle => 'Couldn\'t close DM';
+
+  @override
+  String get groupDmLeaveFailedTitle => 'Couldn\'t leave group';
+
+  @override
+  String get inviteJoinFailedTitle => 'Couldn\'t join community';
+
+  @override
+  String get inviteErrorPausedMessage =>
+      'Admins paused invites — you can\'t join right now.';
+
+  @override
+  String get inviteErrorAtCapacityTitle => 'Community at capacity';
+
+  @override
+  String get inviteErrorAtCapacityMessage =>
+      'This community has reached its maximum member limit and is not accepting new members at this time.';
+
+  @override
+  String get inviteErrorPresenceTitle => 'Gateway connection required';
+
+  @override
+  String get inviteErrorPresenceMessage =>
+      'Temporary invites need a live connection. Check yours and try again.';
+
+  @override
+  String get inviteErrorBannedTitle => 'You\'re banned';
+
+  @override
+  String get inviteErrorBannedMessage =>
+      'You are banned from this community and cannot join.';
+
+  @override
+  String get inviteErrorIpBannedTitle => 'Your IP is banned';
+
+  @override
+  String get inviteErrorIpBannedMessage =>
+      'Your IP address is banned from this community and you cannot join.';
+
+  @override
+  String get inviteErrorClaimTitle => 'Account verification required';
+
+  @override
+  String get inviteErrorClaimMessage =>
+      'Add an email and password to your account first.';
+
+  @override
+  String get leaveCommunityFailedTitle => 'Failed to leave community';
+
+  @override
+  String get leaveCommunityFailedMessage =>
+      'Couldn\'t leave right now. Try again in a moment.';
+
+  @override
+  String get chatSendFailedTitle => 'Your message didn\'t send';
+
+  @override
+  String get chatSendFailedMessage => 'Try sending your message again.';
+
+  @override
+  String get chatSendTooQuickTitle => 'You\'re sending messages too quickly';
+
+  @override
+  String get chatRateLimitedMessage =>
+      'Slow down — wait a moment before trying again.';
+
+  @override
+  String get chatMatureContentTitle => 'Mature content not allowed';
+
+  @override
+  String get chatMatureContentGuildMessage =>
+      'This channel is not marked for mature content. Mature content can only be sent in channels marked for mature content. Ask a moderator to update this channel if appropriate.';
+
+  @override
+  String chatMatureContentDmMessage(String settingsPath) {
+    return 'You or the person you are messaging has chosen to block sensitive media in direct messages. Each of you can change this in $settingsPath.';
+  }
+
+  @override
+  String get chatMatureContentGroupDmMessage =>
+      'This group is not marked for mature content. The group owner can turn on Mature content in the group settings if everyone in the group is 18 or older.';
+
+  @override
+  String get chatFileTooLargeTitle => 'File size too large';
+
+  @override
+  String chatFileTooLargeMessage(String maxSize) {
+    return 'One or more files you\'re trying to upload exceed the maximum size limit of $maxSize per file.';
+  }
+
+  @override
+  String get chatHeavyTitle => 'Whoa, this is heavy';
+
+  @override
+  String get chatReactionsHeavyMessage =>
+      'This is one heavy message. Some reactions need to be removed before you can add more.';
+
+  @override
+  String get chatReactionTimedOut =>
+      'You can\'t add new reactions while you\'re timed out.';
+
+  @override
+  String chatTooManyAttachmentsMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files',
+      one: '$count file',
+    );
+    return 'You can only upload $_temp0 at a time. Try again with fewer files.';
+  }
+
+  @override
+  String get chatEditTooQuickTitle => 'You\'re editing messages too quickly';
+
+  @override
+  String get chatEditFailedMessage => 'Try editing your message again.';
+
+  @override
+  String get chatDeleteTooQuickTitle => 'You\'re deleting messages too quickly';
+
+  @override
+  String get chatDeleteTooQuickMessage =>
+      'Wait a moment before deleting more messages.';
+
+  @override
+  String get chatDeleteFailedTitle => 'That message couldn\'t be deleted';
+
+  @override
+  String get chatDeleteFailedMessage => 'Try deleting that message again.';
+
+  @override
+  String get chatAttachmentDeleteFailedTitle => 'Couldn\'t delete attachment';
+
+  @override
+  String get chatAttachmentDeleteFailedMessage =>
+      'Try deleting that attachment again.';
+
+  @override
+  String get chatAltTextFailedTitle => 'Couldn\'t update alt text';
+
+  @override
+  String get chatAltTextUnknownMessage => 'This message no longer exists.';
+
+  @override
+  String get chatAltTextNoPermission => 'You can\'t edit this message.';
+
+  @override
+  String get chatAltTextUnavailable =>
+      'Editing is temporarily unavailable. Please try again later.';
+
+  @override
+  String get chatAltTextFailedMessage =>
+      'Couldn\'t update the alt text. Please try again.';
+
+  @override
+  String get chatPinFailedTitle => 'Failed to pin message';
+
+  @override
+  String get chatUnpinFailedTitle => 'Failed to unpin message';
+
+  @override
+  String get chatPinFailedMessage => 'Something went wrong. Try again later.';
+
+  @override
+  String get chatPinBlockedMessage =>
+      'You cannot interact with this user right now.';
+
+  @override
+  String get bookmarkLimitTitle => 'Bookmark limit reached';
+
+  @override
+  String bookmarkLimitMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bookmarks',
+      one: '$count bookmark',
+    );
+    return 'You\'re at $_temp0. Remove one to add another.';
+  }
+
+  @override
+  String get savedMediaLimitTitle => 'Saved media limit reached';
+
+  @override
+  String savedMediaLimitMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count saved media items',
+      one: '$count saved media item',
+    );
+    return 'You\'re at the cap of $_temp0. Remove one to add another.';
+  }
+
+  @override
+  String get errorContentBlockedTitle => 'Content blocked';
+
+  @override
+  String get errorContentBlockedMessage =>
+      'Your action could not be completed because it was flagged by our safety systems. If you believe this is a mistake, please contact support.';
+
+  @override
+  String get errorContentBlockedSelfHostedMessage =>
+      'Your action could not be completed because it was flagged by our safety systems. If you believe this is a mistake, please contact the administrators of this instance.';
+
+  @override
+  String get channelDeletedToast => 'Channel deleted';
+
+  @override
+  String get categoryDeletedToast => 'Category deleted';
+
+  @override
+  String get channelDeleteNoPermissionTitle => 'You can\'t delete this';
+
+  @override
+  String get channelDeleteNoPermissionChannel =>
+      'You don\'t have permission to delete this channel.';
+
+  @override
+  String get channelDeleteNoPermissionCategory =>
+      'You don\'t have permission to delete this category.';
+
+  @override
+  String get channelDeleteAlreadyDeletedTitle => 'Already deleted';
+
+  @override
+  String get channelDeleteAlreadyDeletedChannel =>
+      'This channel no longer exists. It may have already been deleted.';
+
+  @override
+  String get channelDeleteAlreadyDeletedCategory =>
+      'This category no longer exists. It may have already been deleted.';
+
+  @override
+  String get channelDeleteFailedChannelTitle => 'Couldn\'t delete this channel';
+
+  @override
+  String get channelDeleteFailedCategoryTitle =>
+      'Couldn\'t delete this category';
+
+  @override
+  String get channelPermissionsUpdateFailedTitle =>
+      'Couldn\'t update channel permissions';
+
+  @override
+  String get channelSettingsSaveFailedTitle =>
+      'Couldn\'t save channel settings';
+
+  @override
+  String get emojiSlotsFullTitle => 'No emoji slots available';
+
+  @override
+  String get stickerSlotsFullTitle => 'No sticker slots available';
+
+  @override
+  String get emojiSomeFailedMessage =>
+      'Review these files and try again with smaller or simpler images.';
+
+  @override
+  String get emojiNameInvalidCharacters =>
+      'Emoji names can only use letters, numbers and underscores.';
+
+  @override
+  String get emojiErrorGoneTitle => 'This emoji no longer exists';
+
+  @override
+  String get emojiRenameGoneMessage =>
+      'It may have been deleted. The name was reverted to what it was before.';
+
+  @override
+  String get emojiRenameNoPermissionTitle => 'You can\'t rename this emoji';
+
+  @override
+  String get emojiRenameNoPermissionMessage =>
+      'You don\'t have permission to rename this emoji. The name was reverted to what it was before.';
+
+  @override
+  String get emojiRenameRateLimitedMessage =>
+      'Please wait a moment and try renaming again.';
+
+  @override
+  String get emojiRenameFailedMessage =>
+      'The name was reverted to what it was before. Please try again in a moment.';
+
+  @override
+  String get emojiDeleteGoneMessage => 'It looks like it was already deleted.';
+
+  @override
+  String get emojiDeleteNoPermissionTitle => 'You can\'t delete this emoji';
+
+  @override
+  String get emojiDeleteNoPermissionMessage =>
+      'You don\'t have permission to delete this emoji.';
+
+  @override
+  String get emojiDeleteRateLimitedMessage =>
+      'Please wait a moment and try deleting again.';
+
+  @override
+  String get stickerTooLargeTitle => 'Sticker is too large';
+
+  @override
+  String stickerTooLargeMessage(String maxSize) {
+    return 'The upload service rejected this sticker as larger than $maxSize. Try a smaller file, a simpler image, or a shorter animation.';
+  }
+
+  @override
+  String get stickerCreateFailedMessage =>
+      'Something went wrong while preparing this sticker. Try another file or try again in a moment.';
+
+  @override
+  String get stickerUpdateFailedTitle => 'Couldn\'t update this sticker';
+
+  @override
+  String get moderationTimeoutFailed => 'Failed to time out member. Try again.';
+
+  @override
+  String get moderationRemoveTimeoutFailed =>
+      'Failed to remove timeout. Try again.';
+
+  @override
+  String get moderationKickFailed => 'Failed to kick member. Try again.';
+
+  @override
+  String get moderationBanFailed => 'Failed to ban member. Try again.';
+
+  @override
+  String get transferOwnershipFailedTitle => 'Failed to transfer ownership';
+
+  @override
+  String transferOwnershipFailedMessage(String username) {
+    return 'Ownership could not be transferred to $username at this time.';
+  }
+
+  @override
+  String get revokeBanFailedTitle => 'Couldn\'t revoke ban';
+
+  @override
+  String get voiceModerationNoPermissionTitle => 'You can\'t do that';
+
+  @override
+  String get voiceModerationNoPermissionMessage =>
+      'You don\'t have permission to do this to this member.';
+
+  @override
+  String get voiceModerationLeftTitle => 'They left the call';
+
+  @override
+  String get voiceModerationLeftMessage =>
+      'This member isn\'t connected to voice anymore.';
+
+  @override
+  String get voiceModerationUnknownMemberTitle => 'Member not found';
+
+  @override
+  String get voiceModerationUnknownMemberMessage =>
+      'This member is no longer in the community. Refresh and try again.';
+
+  @override
+  String get voiceJoinTimedOut => 'You can\'t join while you\'re timed out.';
+
+  @override
+  String get voiceJoinClaimAccount =>
+      'Claim your account to join this voice channel.';
+
+  @override
+  String get voiceJoinClaimAccountDirectCall =>
+      'Claim your account to start or join 1:1 calls.';
+
+  @override
+  String get voiceJoinUserLimit =>
+      'This voice channel has reached its user limit. Try again later or join a different channel.';
+
+  @override
+  String get voiceJoinConnectionLimit =>
+      'You\'ve reached this voice channel\'s connection limit.';
+
+  @override
+  String get voiceJoinChannelUnavailable =>
+      'This voice channel is no longer available.';
+
+  @override
+  String get avatarUploadFailedTitle => 'Couldn\'t upload avatar';
+
+  @override
+  String get bannerUploadFailedTitle => 'Couldn\'t upload banner';
+
+  @override
+  String get animatedImageUseStatic => 'Upload a static image instead.';
+
+  @override
+  String get passkeyDeleteFailedTitle => 'Couldn\'t delete passkey';
+
+  @override
+  String get premiumPaymentsUnavailableTitle => 'Payments are unavailable';
+
+  @override
+  String get premiumPaymentsUnavailableMessage =>
+      'Payments are temporarily unavailable. Please try again in a moment.';
+
+  @override
+  String get premiumNoSubscriptionTitle => 'No active subscription';
+
+  @override
+  String get premiumNoSubscriptionMessage =>
+      'We couldn\'t find an active subscription on this account. Refresh and try again.';
+
+  @override
+  String get premiumAlreadyCancelingTitle => 'Already set to cancel';
+
+  @override
+  String get premiumAlreadyCancelingMessage =>
+      'Your subscription is already set to cancel at the end of your billing period.';
+
+  @override
+  String get premiumNotCancelingTitle =>
+      'Subscription is not scheduled to cancel';
+
+  @override
+  String get premiumNotCancelingMessage =>
+      'Your subscription isn\'t set to cancel, so there\'s nothing to reactivate.';
+
+  @override
+  String get premiumCancelFailedTitle => 'Couldn\'t cancel your subscription';
+
+  @override
+  String get premiumCancelFailedMessage =>
+      'Something went wrong while canceling your subscription. Please try again in a moment.';
+
+  @override
+  String get premiumReactivateFailedTitle =>
+      'Couldn\'t reactivate your subscription';
+
+  @override
+  String get premiumReactivateFailedMessage =>
+      'Something went wrong while reactivating your subscription. Please try again in a moment.';
+
+  @override
+  String get premiumRefundConfirmTitle => 'Refund your most recent purchase?';
+
+  @override
+  String get premiumRefundConfirmBody =>
+      'This refunds your most recent invoice and cancels any associated subscription. You won\'t be able to self-refund again for 30 days.';
+
+  @override
+  String get premiumRefundConfirm => 'Refund purchase';
+
+  @override
+  String get premiumRefundIssuedToast =>
+      'Refund issued. May take a few business days to appear.';
+
+  @override
+  String get premiumRefundOutsideWindowTitle => 'Outside the refund window';
+
+  @override
+  String get premiumRefundOutsideWindowMessage =>
+      'Your most recent purchase is no longer within the refund window. Contact support for billing issues.';
+
+  @override
+  String get premiumRefundCooldownTitle => 'You have refunded recently';
+
+  @override
+  String get premiumRefundCooldownMessage =>
+      'You\'ve already used a self-serve refund recently. You can refund again once the cooldown ends.';
+
+  @override
+  String get premiumRefundNothingTitle => 'Nothing to refund';
+
+  @override
+  String get premiumRefundNothingMessage =>
+      'We couldn\'t find a recent purchase to refund on this account.';
+
+  @override
+  String get premiumRefundFailedTitle => 'Couldn\'t refund this purchase';
+
+  @override
+  String get premiumRefundFailedMessage =>
+      'Something went wrong while issuing your refund. Contact support if this keeps happening.';
+
+  @override
+  String get premiumVerifyEmailTitle => 'Verify your email first';
+
+  @override
+  String premiumVerifyEmailBody(String productName) {
+    return 'You need to verify your email before you can purchase $productName.';
+  }
+
+  @override
+  String get premiumCheckoutBlockedTitle => 'Checkout unavailable';
+
+  @override
+  String premiumCheckoutBlockedBody(String supportEmail) {
+    return 'Checkout is blocked for this account. Contact $supportEmail if you need help.';
+  }
+
+  @override
+  String get premiumCheckoutBlockedBodySelfHosted =>
+      'Checkout is blocked for this account.';
 }

@@ -217,4 +217,74 @@ void main() {
       );
     });
   });
+  group('PASSIVE_UPDATES voice states', () {
+    test('sends voice states to the passive callback only', () async {
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      final List<List<VoiceState>> bulks = <List<VoiceState>>[];
+      final List<List<VoiceState>> passives = <List<VoiceState>>[];
+      final GatewayEventHandler handler = GatewayEventHandler(
+        database: db,
+        onVoiceStatesBulk: bulks.add,
+        onPassiveVoiceStates: passives.add,
+      );
+
+      await handler.handle(
+        PassiveUpdatesEvent(
+          guildId: 'guild-1',
+          channels: const <String, String>{},
+          voiceStates: <VoiceState>[
+            VoiceState.fromJson(<String, dynamic>{
+              'guild_id': 'guild-1',
+              'channel_id': 'voice-1',
+              'user_id': 'u1',
+              'connection_id': 'conn-1',
+              'session_id': 's1',
+              'member': null,
+              'version': 2,
+            }),
+            VoiceState.fromJson(<String, dynamic>{
+              'guild_id': 'guild-1',
+              'channel_id': null,
+              'user_id': 'u2',
+              'connection_id': 'conn-2',
+              'session_id': 's2',
+              'member': null,
+              'version': 1,
+            }),
+          ],
+        ),
+      );
+      await _waitFor(() => passives.isNotEmpty);
+
+      expect(passives, hasLength(1));
+      expect(
+        passives.single.map((VoiceState state) => state.connectionId).toList(),
+        <String>['conn-1', 'conn-2'],
+      );
+      expect(passives.single.first.channelId, 'voice-1');
+      expect(passives.single.last.channelId, isNull);
+      expect(bulks, isEmpty);
+    });
+
+    test('emits nothing when the payload has no voice_states', () async {
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      final List<List<VoiceState>> passives = <List<VoiceState>>[];
+      final GatewayEventHandler handler = GatewayEventHandler(
+        database: db,
+        onPassiveVoiceStates: passives.add,
+      );
+
+      await handler.handle(
+        const PassiveUpdatesEvent(
+          guildId: 'guild-1',
+          channels: <String, String>{},
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(passives, isEmpty);
+    });
+  });
 }

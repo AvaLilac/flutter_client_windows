@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/accessibility/domain/text_scale.dart';
-import 'package:fluxer_app/features/chat/data/chat_unread_summary.dart';
 import 'package:fluxer_app/features/settings/providers/use_12_hour_time_format_provider.dart';
+import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
+import 'package:fluxer_app/features/ui/ui.dart';
+import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/utils/user_date_formatting.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -16,6 +18,9 @@ class MessageListOverlay extends StatelessWidget {
     required this.unreadSince,
     required this.onJumpToUnread,
     required this.onMarkRead,
+    required this.showLoadErrorBar,
+    required this.loadErrorRetryInFlight,
+    required this.onRetryLoadMessages,
     required this.scaleRatio,
     super.key,
   });
@@ -27,6 +32,9 @@ class MessageListOverlay extends StatelessWidget {
   final DateTime? unreadSince;
   final VoidCallback onJumpToUnread;
   final VoidCallback onMarkRead;
+  final bool showLoadErrorBar;
+  final bool loadErrorRetryInFlight;
+  final VoidCallback onRetryLoadMessages;
   final double scaleRatio;
 
   @override
@@ -35,24 +43,138 @@ class MessageListOverlay extends StatelessWidget {
       fit: StackFit.expand,
       children: <Widget>[
         body,
-        if (showUnreadBar)
+        Positioned(
+          top: 0,
+          left: 8,
+          right: 8,
+          child: AnimatedSwitcher(
+            duration: context.motion.normal,
+            switchInCurve: context.motion.curve,
+            switchOutCurve: context.motion.curve,
+            transitionBuilder: _unreadBarTransition,
+            layoutBuilder: _unreadBarLayout,
+            child: showUnreadBar
+                ? MessageListNewMessagesBar(
+                    key: const ValueKey<String>('message-list-unread-bar'),
+                    count: unreadCount,
+                    isEstimated: isEstimated,
+                    since: unreadSince,
+                    onJumpToUnread: onJumpToUnread,
+                    onMarkRead: onMarkRead,
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ),
+        if (showLoadErrorBar)
           Positioned(
-            top: 8,
             left: 12,
             right: 12,
-            child: MessageListNewMessagesBar(
-              count: unreadCount,
-              isEstimated: isEstimated,
-              since: unreadSince,
-              onJumpToUnread: onJumpToUnread,
-              onMarkRead: onMarkRead,
+            bottom: 8,
+            child: MessageListLoadErrorBar(
+              retryInFlight: loadErrorRetryInFlight,
+              onRetry: onRetryLoadMessages,
             ),
           ),
       ],
     );
     return _ChatTextScale(scaleRatio: scaleRatio, child: scaledBody);
   }
+
+  static Widget _unreadBarTransition(
+    Widget child,
+    Animation<double> animation,
+  ) {
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, -kUnreadBarHiddenOffset),
+          end: Offset.zero,
+        ).animate(animation),
+        child: child,
+      ),
+    );
+  }
+
+  static Widget _unreadBarLayout(
+    Widget? currentChild,
+    List<Widget> previousChildren,
+  ) {
+    return Stack(
+      alignment: Alignment.topCenter,
+      children: <Widget>[...previousChildren, ?currentChild],
+    );
+  }
 }
+
+class MessageListLoadErrorBar extends StatelessWidget {
+  const MessageListLoadErrorBar({
+    required this.retryInFlight,
+    required this.onRetry,
+    super.key,
+  });
+
+  final bool retryInFlight;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final Color danger = context.colors.statusDanger;
+    return Semantics(
+      label: l10n.chatMessagesFailedToLoad,
+      container: true,
+      child: Material(
+        color: Color.alphaBlend(
+          danger.withValues(alpha: 0.12),
+          context.colors.backgroundTextarea,
+        ),
+        elevation: 3,
+        shadowColor: Colors.black.withValues(alpha: 0.18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: BorderSide(
+            color: Color.alphaBlend(
+              danger.withValues(alpha: 0.48),
+              context.colors.backgroundModifierAccent,
+            ),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  l10n.chatMessagesFailedToLoad,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.smallText.copyWith(
+                    color: danger,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FluxerButton.primary(
+                label: l10n.retry,
+                size: FluxerButtonSize.small,
+                fitContent: true,
+                isLoading: retryInFlight,
+                onPressed: retryInFlight ? null : onRetry,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+const double kUnreadBarHiddenOffset = 0.5;
+const double kNewMessagesBarHeight = 32;
+const double kNewMessagesBarMobileHeight = 40;
 
 class MessageListNewMessagesBar extends ConsumerWidget {
   const MessageListNewMessagesBar({
@@ -72,72 +194,102 @@ class MessageListNewMessagesBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final String displayCount = unreadCountLabel(
-      count,
-      isEstimated: isEstimated,
-    );
-    final String messageLabel = count == 1 && !isEstimated
-        ? '1 new message'
-        : '$displayCount new';
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final bool isMobile = isMobileLayout(context);
     final bool use12Hour = ref.watch(use12HourTimeFormatProvider);
     final String locale = Localizations.localeOf(context).toString();
-    final String sinceLabel = since == null
-        ? ''
-        : ' since ${formatUserTime(since!.toLocal(), locale, use12Hour: use12Hour)}';
+    final DateTime now = DateTime.now();
+    final DateTime local = (since ?? now).toLocal();
+    final String compactTime = formatUserCompactDateTime(
+      local,
+      locale,
+      use12Hour: use12Hour,
+    );
+    final String shortTime = DateUtils.isSameDay(local, now)
+        ? formatUserTime(local, locale, use12Hour: use12Hour)
+        : compactTime;
+    final String label = switch ((isEstimated, isMobile)) {
+      (true, true) => l10n.chatNewMessagesBarNewSinceEstimated(
+        count,
+        shortTime,
+      ),
+      (true, false) => l10n.chatNewMessagesBarNewMessagesSinceEstimated(
+        count,
+        compactTime,
+      ),
+      (false, true) => l10n.chatNewMessagesBarNewSince(count, shortTime),
+      (false, false) => l10n.chatNewMessagesBarNewMessagesSince(
+        count,
+        compactTime,
+      ),
+    };
+    final TextStyle textStyle = context.textStyles.smallText.copyWith(
+      color: Colors.white,
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+    );
     return Material(
       color: context.colors.brandPrimary,
-      elevation: 3,
-      shadowColor: Colors.black.withValues(alpha: 0.22),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
       clipBehavior: Clip.antiAlias,
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: <Widget>[
-          InkWell(
-            onTap: onJumpToUnread,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  PhosphorIcon(
-                    PhosphorIconsBold.envelopeOpen,
-                    color: context.colors.textOnBrandPrimary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      '$messageLabel$sinceLabel',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textStyles.smallText.copyWith(
-                        color: context.colors.textOnBrandPrimary,
-                        fontWeight: FontWeight.w700,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: isMobile
+              ? kNewMessagesBarMobileHeight
+              : kNewMessagesBarHeight,
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  label: l10n.chatNewMessagesBarJumpToFirstUnread,
+                  child: InkWell(
+                    onTap: onJumpToUnread,
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textStyle,
+                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: onMarkRead,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 9, 12, 9),
-              child: Text(
-                'Mark Read',
-                maxLines: 2,
-                textAlign: TextAlign.end,
-                style: context.textStyles.smallText.copyWith(
-                  color: context.colors.textOnBrandPrimary,
-                  fontWeight: FontWeight.w800,
                 ),
               ),
-            ),
+              InkWell(
+                onTap: onMarkRead,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: 6,
+                    children: <Widget>[
+                      Text(
+                        isMobile
+                            ? l10n.chatNewMessagesBarMarkRead
+                            : l10n.chatNewMessagesBarMarkAsRead,
+                        maxLines: 1,
+                        style: textStyle.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const PhosphorIcon(
+                        PhosphorIconsBold.check,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

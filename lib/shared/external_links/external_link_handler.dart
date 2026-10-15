@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/core/utils/channel_jump_link.dart';
+import 'package:fluxer_app/features/chat/utils/channel_jump_navigator.dart';
 import 'package:fluxer_app/features/guilds/utils/invite_link_navigator.dart';
 import 'package:fluxer_app/features/settings/providers/default_apps_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
@@ -7,15 +9,27 @@ import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/external_links/external_link_warning_sheet.dart';
 import 'package:fluxer_app/shared/external_links/external_url_launcher.dart';
 
-/// Opens a URL using the app-wide trusted-domain warning flow.
 Future<void> handleExternalLinkTap(
   BuildContext context,
   String url, {
   bool useRootNavigator = false,
   bool skipWarning = false,
+  bool openChannelLinksInApp = true,
 }) async {
   if (isInviteLink(url)) {
     await handleInviteLinkTap(context, url);
+    return;
+  }
+
+  final ChannelJumpLink? jump = openChannelLinksInApp
+      ? parseChannelJumpLink(url.trim())
+      : null;
+  if (jump != null) {
+    await navigateToChannelJumpLink(
+      container: ProviderScope.containerOf(context, listen: false),
+      context: context,
+      link: jump,
+    );
     return;
   }
 

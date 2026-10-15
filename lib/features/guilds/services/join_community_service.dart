@@ -1,6 +1,4 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/api/dio_error_message.dart';
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/core/providers/well_known_provider.dart';
 import 'package:fluxer_app/core/router/navigate_to_content.dart';
@@ -10,6 +8,7 @@ import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_providers.dart';
 import 'package:fluxer_app/features/guilds/utils/invite_code.dart';
 import 'package:fluxer_app/features/guilds/utils/invite_link_parser.dart';
+import 'package:fluxer_app/features/shell/utils/shell_popup_navigation.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_dart/export.dart';
 
@@ -37,29 +36,20 @@ Future<void> joinCommunityViaInvite({
   if (parsedCode == null || parsedCode.isEmpty) {
     throw JoinCommunityException(message: l10n.addGuildInviteInvalid);
   }
-  try {
-    final InviteResponseSchema schema = await client.invites.getInvite(
-      inviteCode: parsedCode,
+  final InviteResponseSchema schema = await client.invites.getInvite(
+    inviteCode: parsedCode,
+  );
+  if (inviteResponseIsGuild(schema)) {
+    await _joinGuildInvite(
+      ref: ref,
+      invite: schema.toGuildInviteResponse(),
+      code: parsedCode,
     );
-    if (inviteResponseIsGuild(schema)) {
-      await _joinGuildInvite(
-        ref: ref,
-        invite: schema.toGuildInviteResponse(),
-        code: parsedCode,
-        l10n: l10n,
-      );
-    } else {
-      await _joinGroupDmInvite(
-        ref: ref,
-        invite: schema.toGroupDmInviteResponse(),
-        code: parsedCode,
-      );
-    }
-  } on JoinCommunityException {
-    rethrow;
-  } on DioException catch (e) {
-    throw JoinCommunityException(
-      message: userFacingErrorMessage(e, l10n.addGuildJoinFailed),
+  } else {
+    await _joinGroupDmInvite(
+      ref: ref,
+      invite: schema.toGroupDmInviteResponse(),
+      code: parsedCode,
     );
   }
 }
@@ -68,7 +58,6 @@ Future<void> _joinGuildInvite({
   required WidgetRef ref,
   required InviteResponseSchemaGuildInviteResponse invite,
   required String code,
-  required FluxerLocalizations l10n,
 }) async {
   final String guildId = invite.guild.id;
   final String channelId = invite.channel.id;
@@ -88,7 +77,7 @@ Future<void> _joinGuildInvite({
           .loadChannels(guildId, guild: stagedGuild);
     }
   }
-  _navigateToContent(
+  _navigateToJoinedContent(
     ref,
     guildInviteNavigationPath(
       guildId: guildId,
@@ -98,7 +87,6 @@ Future<void> _joinGuildInvite({
   );
 }
 
-/// Category and link channels open the community root instead.
 String guildInviteNavigationPath({
   required String guildId,
   required ChannelType channelType,
@@ -118,9 +106,11 @@ Future<void> _joinGroupDmInvite({
 }) async {
   final client = ref.read(fluxerClientProvider);
   await client.invites.acceptInvite(inviteCode: code);
-  _navigateToContent(ref, RoutePaths.dmChannel(invite.channel.id));
+  _navigateToJoinedContent(ref, RoutePaths.dmChannel(invite.channel.id));
 }
 
-void _navigateToContent(WidgetRef ref, String path) {
-  navigateToContentVia(ref, path);
+void _navigateToJoinedContent(WidgetRef ref, String path) {
+  final ProviderContainer container = ref.container;
+  popShellCoveringPages();
+  navigateToContentViaContainer(container, path);
 }

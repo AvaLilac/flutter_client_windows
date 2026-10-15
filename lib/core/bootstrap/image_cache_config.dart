@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:cached_network_image_ce/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart';
 import 'package:fluxer_app/core/platform/fluxer_platform.dart';
 
 const int kDesktopImageCacheMaxBytes = 100 << 20;
 const int kMobileImageCacheMaxBytes = 40 << 20;
+const int kAndroidSkiaResourceCacheMaxBytes = 64 << 20;
 
 const int kNetworkImageDiskCacheMaxObjects = 5000;
 const Duration kNetworkImageDiskCacheStalePeriod = Duration(days: 30);
@@ -16,6 +21,18 @@ void configureFluxerImageCache() {
   CachedNetworkImageProvider.defaultCacheManager = DefaultCacheManager(
     stalePeriod: kNetworkImageDiskCacheStalePeriod,
     maxNrOfCacheObjects: kNetworkImageDiskCacheMaxObjects,
+  );
+}
+
+void configureFluxerGpuResourceCache() {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+    return;
+  }
+  unawaited(
+    SystemChannels.skia.invokeMethod<void>(
+      'Skia.setResourceCacheMaxBytes',
+      kAndroidSkiaResourceCacheMaxBytes,
+    ),
   );
 }
 

@@ -1,5 +1,3 @@
-// Tool script: intentional stdout and no public API docs.
-
 import 'dart:io';
 
 Future<void> main(List<String> args) async {

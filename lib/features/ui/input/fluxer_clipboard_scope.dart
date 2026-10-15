@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/features/ui/input/inline_token_clipboard.dart';
 import 'package:fluxer_app/features/ui/input/inline_token_text_editing_controller.dart';
 import 'package:fluxer_app/features/ui/input/text_editing_shortcuts.dart';
+import 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
+import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 
@@ -144,6 +147,10 @@ class FluxerClipboardScopeState extends State<FluxerClipboardScope> {
     if (shortcut == null) {
       return KeyEventResult.ignored;
     }
+    return handleTextEditingShortcut(shortcut);
+  }
+
+  KeyEventResult handleTextEditingShortcut(TextEditingShortcutKind shortcut) {
     switch (shortcut) {
       case TextEditingShortcutKind.selectAll:
         widget.controller.selection = TextSelection(
@@ -218,8 +225,6 @@ class FluxerClipboardScopeState extends State<FluxerClipboardScope> {
     if (!inserted && widget.onPaste == null && mounted) {
       _showPasteFailedFeedback();
     }
-    // Dismissing the menu before the paste makes Clipboard.getData return
-    // empty on Android, so remove it only once the text landed.
     ContextMenuController.removeAny();
   }
 
@@ -255,9 +260,14 @@ class FluxerClipboardScopeState extends State<FluxerClipboardScope> {
     if (l10n == null) {
       return;
     }
-    ScaffoldMessenger.maybeOf(
-      context,
-    )?.showSnackBar(SnackBar(content: Text(l10n.clipboardPasteFailed)));
+    ProviderScope.containerOf(context, listen: false)
+        .read(toastProvider.notifier)
+        .show(
+          FluxerToast(
+            message: l10n.clipboardPasteFailed,
+            variant: FluxerToastVariant.danger,
+          ),
+        );
   }
 
   List<ContextMenuButtonItem> _composeContextMenuItems(
@@ -320,9 +330,6 @@ class FluxerClipboardScopeState extends State<FluxerClipboardScope> {
     );
   }
 
-  /// Reuses button instances across rebuilds: the Material toolbar resets its
-  /// subtree with a fresh [UniqueKey] when its children are not `listEquals`
-  /// equal, disposing the recognizer that a press in flight is using.
   List<Widget> _toolbarButtons(
     BuildContext context,
     EditableTextState editableTextState,
@@ -348,8 +355,22 @@ class FluxerClipboardScopeState extends State<FluxerClipboardScope> {
     return buttons;
   }
 
+  void _performImeShortcut(TextEditingShortcutIntent intent) {
+    if (handleTextEditingShortcut(intent.kind) == KeyEventResult.handled) {
+      return;
+    }
+    _invokeTextIntent(textEditingIntentFor(intent.kind));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return widget.builder(context, this, _effectiveFocusNode);
+    return Actions(
+      actions: <Type, Action<Intent>>{
+        TextEditingShortcutIntent: CallbackAction<TextEditingShortcutIntent>(
+          onInvoke: _performImeShortcut,
+        ),
+      },
+      child: widget.builder(context, this, _effectiveFocusNode),
+    );
   }
 }

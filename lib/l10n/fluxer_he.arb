@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Banner shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "נסה שוב",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "מחובר",
     "@gatewayConnectedToast": {
         "description": "Banner shown when the gateway connection is restored."
@@ -2073,17 +2077,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "חפש ב-KLIPY",
+    "gifPickerSearchKlipy": "חפש ב-Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "חפש ב-Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "מועדפים",
     "@gifPickerFavorites": {
@@ -3139,10 +3139,6 @@
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
     },
-    "dangerZoneDeleteCancelSubscription": "בטל את מנוי ה-Plutonium הפעיל שלך בהגדרות ה-Plutonium לפני מחיקת חשבונך.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
-    },
     "dangerZoneDeleteCannotDeleteAccount": "לא ניתן למחוק את החשבון",
     "@dangerZoneDeleteCannotDeleteAccount": {
         "description": "Title for the guild ownership warning modal when trying to delete account."
@@ -3537,20 +3533,11 @@
             }
         }
     },
-    "userProfilePlutoniumBadgeTooltip": "Plutonium של {productName}",
-    "@userProfilePlutoniumBadgeTooltip": {
-        "description": "Short badge title in the user profile badges popout. English locales use Title Case for official badge titles; other locales should use natural local capitalization.",
+    "userProfilePremiumSubscriberSinceTooltip": "מנוי ל-{premiumProductFullName} מאז {date}",
+    "@userProfilePremiumSubscriberSinceTooltip": {
+        "description": "Badge label with a date in the user profile badges popout. Preserve {premiumProductFullName} and {date}; they are inserted by code. premiumProductFullName is the instance product name followed by its premium product name, for example Fluxer Plutonium. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
         "placeholders": {
-            "productName": {
-                "type": "String"
-            }
-        }
-    },
-    "userProfilePlutoniumSubscriberSinceTooltip": "{productName} Plutonium מנוי מאז {date}",
-    "@userProfilePlutoniumSubscriberSinceTooltip": {
-        "description": "Badge label with a date in the user profile badges popout. Preserve {date}; it is inserted by code. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
-        "placeholders": {
-            "productName": {
+            "premiumProductFullName": {
                 "type": "String"
             },
             "date": {
@@ -4670,6 +4657,71 @@
     "channelComposerBarrierVerifyEmail": "אימות אימייל",
     "@channelComposerBarrierVerifyEmail": {
         "description": "Action button on the composer barrier for unverified email."
+    },
+    "accountLimitedNotice": "שליחת ההודעות בחשבון שלך מושהית כרגע. באימייל שלך מחכה לך שלב קצר אחד כדי להמשיך.",
+    "@accountLimitedNotice": {
+        "description": "Notice shown in place of the message composer and as a banner at the top of the app when messaging is paused on the current account until the user completes one quick step described in an email. Keep the tone calm and friendly."
+    },
+    "messagingPausedTextDidNotGoThrough": "ה-SMS שלי לא הגיע",
+    "@messagingPausedTextDidNotGoThrough": {
+        "description": "Button shown while messaging is paused on the current account, and the title of the help sheet it opens. The email describing the quick step asks the user to send a text message from their phone. This is for users who could not send that text, and also for users who sent it and nothing happened. The translation should cover both. Also used as the subject of the support email."
+    },
+    "messagingPausedHelpBody": "כתוב ל-{supportEmail} ואדם מהצוות יבדוק את החשבון שלך. אפשר גם להשיב לאימייל ששלחנו לך.",
+    "@messagingPausedHelpBody": {
+        "description": "Body of the help sheet opened from \"My text didn't go through\" while messaging is paused on the account. supportEmail is the support email address. Keep it short, calm and neutral.",
+        "placeholders": {
+            "supportEmail": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLabel": "המדינה שבה אתה נמצא",
+    "@messagingPausedHelpCountryLabel": {
+        "description": "Field label in the help sheet opened from \"My text didn't go through\". The user types the country they are in so support can help."
+    },
+    "messagingPausedHelpCopyDetails": "העתקת פרטים",
+    "@messagingPausedHelpCopyDetails": {
+        "description": "Button in the help sheet opened from \"My text didn't go through\". Copies the account details for a support email to the clipboard."
+    },
+    "messagingPausedHelpEmailSupport": "פנייה לתמיכה באימייל",
+    "@messagingPausedHelpEmailSupport": {
+        "description": "Primary button in the help sheet opened from \"My text didn't go through\". Opens a new email to support with the account details filled in."
+    },
+    "messagingPausedHelpAccountIdLine": "מזהה חשבון: {accountId}",
+    "@messagingPausedHelpAccountIdLine": {
+        "description": "One line of the support email written for the user. accountId is the numeric account ID.",
+        "placeholders": {
+            "accountId": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpUsernameLine": "שם משתמש: {username}",
+    "@messagingPausedHelpUsernameLine": {
+        "description": "One line of the support email written for the user. username is the account username with its tag.",
+        "placeholders": {
+            "username": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpAccountCreatedLine": "החשבון נוצר: {createdAt}",
+    "@messagingPausedHelpAccountCreatedLine": {
+        "description": "One line of the support email written for the user. createdAt is the account creation time as an ISO 8601 UTC timestamp.",
+        "placeholders": {
+            "createdAt": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLine": "מדינה: {country}",
+    "@messagingPausedHelpCountryLine": {
+        "description": "One line of the support email written for the user. country is the country the user typed.",
+        "placeholders": {
+            "country": {
+                "type": "String"
+            }
+        }
     },
     "chatAttachmentTooMany": "יותר מדי קבצים מצורפים (מקסימום {max})",
     "@chatAttachmentTooMany": {
@@ -7040,7 +7092,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "הצג צ'אט עם {count, plural, one {# הודעה שלא נקראה} other {# הודעות שלא נקראו}}",
+    "voiceTextChatShowUnread": "הצג צ'אט עם {count, plural, one {{count} הודעה שלא נקראה} other {{count} הודעות שלא נקראו}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -7256,6 +7308,10 @@
     "chatMessageFailedToSend": "הודעה נכשלה בשליחה",
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
+    },
+    "chatMessageFailedToSendTapForOptions": "הודעה נכשלה בשליחה. הקש לאפשרויות.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
     },
     "chatSendFailureDmRestricted": "ההודעה שלך לא נמסרה. בדרך כלל זה קורה מכיוון שאתה לא חולק קהילה עם הנמען או שהנמען מקבל הודעות ישירות רק מחברים. ייתכן שתצטרך גם להתאים את הגדרות הפרטיות שלך להודעות ישירות ב- {settingsPath}.",
     "@chatSendFailureDmRestricted": {
@@ -7765,7 +7821,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "הכול למעט {count, plural, one {# קהילה} other {# קהילות}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "הכול למעט {count, plural, one {{count} קהילה} other {{count} קהילות}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -7774,7 +7830,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "רק {count, plural, one {# קהילה} other {# קהילות}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "רק {count, plural, one {{count} קהילה} other {{count} קהילות}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -7803,7 +7859,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# שעה} other {# שעות}} ו-{minutes, plural, one {# דקה} other {# דקות}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} שעה} other {{hours} שעות}} ו-{minutes, plural, one {{minutes} דקה} other {{minutes} דקות}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -7815,7 +7871,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# שעה} other {# שעות}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} שעה} other {{hours} שעות}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -7824,7 +7880,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# דקה} other {# דקות}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} דקה} other {{minutes} דקות}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -7833,7 +7889,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# שנייה} other {# שניות}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} שנייה} other {{seconds} שניות}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -7925,10 +7981,6 @@
     "forwardSuccessToast": "ההודעה הועברה",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "העברת ההודעה נכשלה",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "הערות אינן זמינות מכיוון שערוץ נבחר מפעיל מצב איטי.",
     "@forwardCommentSlowmodeDisabled": {
@@ -10649,19 +10701,19 @@
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -12151,11 +12203,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "הזן כתובת URL של מופע (לדוגמה, fluxer.app)",
+    "instanceUrlPlaceholder": "הזן כתובת URL של מופע (לדוגמה, fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "השתמש ב-fluxer.app עבור המופע הרשמי, או בכתובת ה-URL המדויקת של מופע באירוח עצמי.",
+    "instanceUrlHelper": "השתמש ב-fluxer.com עבור המופע הרשמי, או בכתובת ה-URL המדויקת של מופע באירוח עצמי.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },
@@ -12377,11 +12429,11 @@
     },
     "scrollIndicatorNew": "חדש",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "הודעה חדשה",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "הודעות חדשות",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "כיווץ {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -12879,10 +12931,6 @@
     "guildMenuMarkAsRead": "סמן כנקרא",
     "@guildMenuMarkAsRead": {
         "description": "Guild menu action to mark all channels as read."
-    },
-    "guildPeekMoreOptions": "אפשרויות נוספות",
-    "@guildPeekMoreOptions": {
-        "description": "Guild peek menu action to open the full guild options sheet."
     },
     "guildMenuInviteMembers": "הזמנת חברים",
     "@guildMenuInviteMembers": {
@@ -14510,7 +14558,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{הודעה אחת נמחקה.} other{# הודעות נמחקו.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{הודעה אחת נמחקה.} other{{count} הודעות נמחקו.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -14519,7 +14567,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{הוסר חבר אחד.} other{הוסרו # חברים.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{הוסר חבר אחד.} other{הוסרו {count} חברים.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -15199,19 +15247,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -16538,5 +16586,96 @@
     },
     "channelUnsupportedTitle": "סוג ערוץ לא נתמך",
     "channelUnsupportedBody": "גרסה זו של האפליקציה אינה תומכת בסוג ערוץ זה.",
-    "channelDetailsUnsupportedChannel": "ערוץ לא נתמך"
+    "channelDetailsUnsupportedChannel": "ערוץ לא נתמך",
+    "forumPostNewBadge": "חדש",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} הודעה חדשה} other {{count} הודעות חדשות}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "חדש",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {הודעה חדשה אחת} two {{unreadCount} הודעות חדשות} other {{unreadCount} הודעות חדשות}} מאז {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ חדשות מאז {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} הודעה חדשה} other {{unreadCount} הודעות חדשות}} מאז {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ הודעות חדשות מאז {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "סמן כנקרא",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "סמן כנקרא",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "קפיצה להודעה הראשונה שלא נקראה",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "אתה מציג הודעות ישנות יותר",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "קפוץ להודעה האחרונה",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "שנה שם קטגוריה",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

@@ -1,7 +1,8 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart'
-    show FluxerDatabase;
+    show FluxerDatabase, Server, ServersCompanion;
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/features/members/data/member_list_update_batcher.dart';
@@ -74,7 +75,6 @@ void main() {
       expect(listState(container)!.memberCount, 5);
 
       enqueue(container, event(memberCount: 9));
-      // Still the first value: the second event is queued, not applied.
       expect(listState(container)!.memberCount, 5);
 
       await waitForBatchWindow();
@@ -98,8 +98,6 @@ void main() {
   test('merges ops across batched updates instead of dropping them', () async {
     final container = buildContainer();
 
-    // Establish the initial payload with a large list so both row indices below
-    // stay in bounds.
     enqueue(
       container,
       event(groups: const [MemberListGroup(id: 'all', count: 100)]),
@@ -126,7 +124,6 @@ void main() {
     );
     await waitForBatchWindow();
 
-    // Both ops survived the merge: dropping the earlier op would leave one row.
     expect(listState(container)!.rows.length, 2);
     await pumpEventQueue();
   });
@@ -146,6 +143,40 @@ void main() {
     await pumpEventQueue();
   });
 
+  test(
+    'keeps the guild totals when a channel list reports its own counts',
+    () async {
+      final container = buildContainer();
+      final FluxerDatabase database = container.read(fluxerDatabaseProvider);
+      await database.guildDao.upsertServer(
+        ServersCompanion.insert(
+          id: 'g1',
+          name: 'Guild',
+          memberCount: const Value<int>(5000),
+          onlineCount: const Value<int>(1200),
+        ),
+      );
+
+      enqueue(
+        container,
+        event(
+          memberCount: 6,
+          onlineCount: 2,
+          ops: [
+            syncMembers(0, [memberItem('u1', status: 'online')]),
+          ],
+        ),
+      );
+      await pumpEventQueue(times: 50);
+
+      expect(listState(container)!.memberCount, 6);
+      expect(await database.memberDao.getMemberByUserId('u1', 'g1'), isNotNull);
+      final Server? server = await database.guildDao.getServerById('g1');
+      expect(server!.memberCount, 5000);
+      expect(server.onlineCount, 1200);
+    },
+  );
+
   test('applies the local user own presence change immediately', () async {
     final container = buildContainer();
     container
@@ -158,7 +189,6 @@ void main() {
           ],
         );
 
-    // First payload paints the local user as online.
     enqueue(
       container,
       event(
@@ -170,7 +200,6 @@ void main() {
     );
     expect(rowStatus(container, 'me'), 'online');
 
-    // The local user's own status change skips the batch window entirely.
     enqueue(
       container,
       event(

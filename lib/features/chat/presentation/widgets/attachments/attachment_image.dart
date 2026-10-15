@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_thumbhash/flutter_thumbhash.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/chat_fullscreen_video_launch_context.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
@@ -8,6 +7,8 @@ import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_network
 import 'package:fluxer_app/features/chat/presentation/widgets/media/embed_animated_image.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/media_alt_text.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/media_load_error_placeholder.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/media/media_thumb_hash_placeholder.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_double_tap_exemption.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/spoiler_overlay.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/attachment_display_utils.dart';
 import 'package:fluxer_app/features/chat/utils/embeds/embed_animated_image_url.dart';
@@ -22,8 +23,6 @@ import 'package:fluxer_app/material_ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class AttachmentImage extends ConsumerWidget {
-  static const double _defaultAspectRatio = 16 / 9;
-
   final Attachment attachment;
   final MediaDimensionSize dimensionSize;
   final bool revealSpoiler;
@@ -49,15 +48,6 @@ class AttachmentImage extends ConsumerWidget {
     super.key,
   });
 
-  double _resolveAspectRatio() {
-    final int? width = attachment.width;
-    final int? height = attachment.height;
-    if (width != null && height != null && width > 0 && height > 0) {
-      return width / height;
-    }
-    return _defaultAspectRatio;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final HdrDisplayMode hdrDisplayMode = ref.watch(
@@ -65,27 +55,43 @@ class AttachmentImage extends ConsumerWidget {
         (AppearancePreferencesState state) => state.hdrDisplayMode,
       ),
     );
-    final FluxerMediaDimensions dimensions = mediaDimensionsForSize(
-      dimensionSize,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) =>
+          _buildImage(
+            context,
+            hdrDisplayMode: hdrDisplayMode,
+            dimensions: mediaDimensionsWithinWidth(
+              mediaDimensionsForSize(dimensionSize),
+              constraints.maxWidth,
+            ),
+          ),
     );
-    final List<Attachment> gallery = _buildGallery();
+  }
+
+  Widget _buildImage(
+    BuildContext context, {
+    required HdrDisplayMode hdrDisplayMode,
+    required FluxerMediaDimensions dimensions,
+  }) {
     final Size? displaySize = constrainMediaSize(
       dimensions: dimensions,
       width: attachment.width,
       height: attachment.height,
     );
+    if (displaySize == null) {
+      return const SizedBox.shrink();
+    }
+    final List<Attachment> gallery = _buildGallery();
     final bool animate = attachment.isAnimated;
     final String effectiveUrl = attachmentEffectiveUrl(attachment);
     final Widget image = Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 3),
       child: MediaAltText(
         altText: attachment.description,
-        captionWidth: displaySize?.width ?? dimensions.maxWidth,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: dimensions.maxWidth,
-            maxHeight: dimensions.maxHeight,
-          ),
+        captionWidth: displaySize.width,
+        child: SizedBox(
+          width: displaySize.width,
+          height: displaySize.height,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Stack(
@@ -94,56 +100,56 @@ class AttachmentImage extends ConsumerWidget {
                   button: gallery.isNotEmpty,
                   image: true,
                   label: _semanticLabel(context),
-                  child: FluxerGestureDetector(
-                    onTap: gallery.isEmpty
-                        ? null
-                        : () => showAttachmentMediaViewer(
-                            context,
-                            items: gallery
-                                .map(AttachmentMediaViewerItem.fromAttachment)
-                                .toList(),
-                            initialIndex: imageGalleryIndex.clamp(
-                              0,
-                              gallery.length - 1,
-                            ),
-                            channelId: channelId,
-                            onForward: (channelId != null && messageId != null)
-                                ? (int index) => showForwardMediaSheet(
-                                    context,
-                                    sourceChannelId: channelId!,
-                                    sourceMessageId: messageId!,
-                                    attachmentIds: <String>[gallery[index].id],
-                                  )
-                                : null,
-                            actionScope: mediaActionScope,
-                          ),
-                    child: AspectRatio(
-                      aspectRatio: _resolveAspectRatio(),
-                      child: animate
-                          ? EmbedAnimatedImage(
-                              animatedUrl: animatedEmbedImageUrl(effectiveUrl),
-                              staticUrl: staticEmbedImageUrl(effectiveUrl),
-                              visibilityKey:
-                                  '${channelId}_${messageId}_${attachment.id}',
-                              fit: BoxFit.contain,
-                              placeholder: _buildImagePlaceholder(context),
-                              errorPlaceholder:
-                                  const MediaLoadErrorPlaceholder(),
-                            )
-                          : _AttachmentStaticImage(
-                              imageUrl: buildHdrAwareImageUrl(
-                                url: effectiveUrl,
-                                mode: hdrDisplayMode,
-                                contentType: attachment.contentType,
+                  child: MessageDoubleTapExempt(
+                    child: FluxerGestureDetector(
+                      onTap: gallery.isEmpty
+                          ? null
+                          : () => showAttachmentMediaViewer(
+                              context,
+                              items: gallery
+                                  .map(AttachmentMediaViewerItem.fromAttachment)
+                                  .toList(),
+                              initialIndex: imageGalleryIndex.clamp(
+                                0,
+                                gallery.length - 1,
                               ),
-                              filename: attachment.filename,
-                              contentType: attachment.contentType,
-                              displaySize: displaySize,
-                              dimensions: dimensions,
-                              sourceWidth: attachment.width,
-                              sourceHeight: attachment.height,
-                              placeholder: _buildImagePlaceholder(context),
+                              channelId: channelId,
+                              onForward:
+                                  (channelId != null && messageId != null)
+                                  ? (int index) => showForwardMediaSheet(
+                                      context,
+                                      sourceChannelId: channelId!,
+                                      sourceMessageId: messageId!,
+                                      attachmentIds: <String>[
+                                        gallery[index].id,
+                                      ],
+                                    )
+                                  : null,
+                              actionScope: mediaActionScope,
                             ),
+                      child: SizedBox.expand(
+                        child: animate
+                            ? EmbedAnimatedImage(
+                                animatedUrl: animatedEmbedImageUrl(
+                                  effectiveUrl,
+                                ),
+                                staticUrl: staticEmbedImageUrl(effectiveUrl),
+                                placeholder: _buildImagePlaceholder(context),
+                                errorPlaceholder:
+                                    const MediaLoadErrorPlaceholder(),
+                              )
+                            : _AttachmentStaticImage(
+                                imageUrl: buildHdrAwareImageUrl(
+                                  url: effectiveUrl,
+                                  mode: hdrDisplayMode,
+                                  contentType: attachment.contentType,
+                                ),
+                                filename: attachment.filename,
+                                contentType: attachment.contentType,
+                                displaySize: displaySize,
+                                placeholder: _buildImagePlaceholder(context),
+                              ),
+                      ),
                     ),
                   ),
                 ),
@@ -201,20 +207,12 @@ class AttachmentImage extends ConsumerWidget {
   }
 
   Widget _buildImagePlaceholder(BuildContext context) {
-    final Widget child;
-    if (attachment.placeholder != null) {
-      child = Image(
-        image: ThumbHash.fromBase64(attachment.placeholder!).toImage(),
-        fit: BoxFit.contain,
-      );
-    } else {
-      child = const Skeletonizer(
-        child: SizedBox(height: double.maxFinite, width: double.maxFinite),
-      );
-    }
     return ColoredBox(
       color: context.colors.backgroundSecondaryAlt,
-      child: child,
+      child: MediaThumbHashPlaceholder(
+        thumbHash: attachment.placeholder,
+        fallback: const Skeletonizer(child: SizedBox.expand()),
+      ),
     );
   }
 
@@ -235,58 +233,29 @@ class _AttachmentStaticImage extends StatelessWidget {
     required this.filename,
     required this.contentType,
     required this.displaySize,
-    required this.dimensions,
-    required this.sourceWidth,
-    required this.sourceHeight,
     required this.placeholder,
   });
 
   final String imageUrl;
   final String filename;
   final String? contentType;
-  final Size? displaySize;
-  final FluxerMediaDimensions dimensions;
-  final int? sourceWidth;
-  final int? sourceHeight;
+  final Size displaySize;
   final Widget placeholder;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final double devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-        final int? memCacheWidth;
-        final int? memCacheHeight;
-        if (displaySize != null) {
-          memCacheWidth = (displaySize!.width * devicePixelRatio).round();
-          memCacheHeight = (displaySize!.height * devicePixelRatio).round();
-        } else {
-          final ({int? width, int? height}) cache = containDecodeCacheSize(
-            cellWidth: constraints.maxWidth.isFinite
-                ? constraints.maxWidth
-                : dimensions.maxWidth,
-            cellHeight: constraints.maxHeight.isFinite
-                ? constraints.maxHeight
-                : dimensions.maxHeight,
-            devicePixelRatio: devicePixelRatio,
-            sourceWidth: sourceWidth,
-            sourceHeight: sourceHeight,
-          );
-          memCacheWidth = cache.width;
-          memCacheHeight = cache.height;
-        }
-        return ChatNetworkImage(
-          imageUrl: imageUrl,
-          filename: filename,
-          contentType: contentType,
-          width: constraints.maxWidth.isFinite ? constraints.maxWidth : null,
-          height: constraints.maxHeight.isFinite ? constraints.maxHeight : null,
-          memCacheWidth: memCacheWidth,
-          memCacheHeight: memCacheHeight,
-          placeholder: placeholder,
-          errorPlaceholder: const MediaLoadErrorPlaceholder(),
-        );
-      },
+    final double devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    return ChatNetworkImage(
+      imageUrl: imageUrl,
+      filename: filename,
+      contentType: contentType,
+      width: displaySize.width,
+      height: displaySize.height,
+      memCacheWidth: (displaySize.width * devicePixelRatio).round(),
+      memCacheHeight: (displaySize.height * devicePixelRatio).round(),
+      fit: BoxFit.cover,
+      placeholder: placeholder,
+      errorPlaceholder: const MediaLoadErrorPlaceholder(),
     );
   }
 }

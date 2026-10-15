@@ -25,46 +25,83 @@ const Duration _kPostSwitchStartupTimeout = Duration(seconds: 20);
 class AccountManagerState {
   final List<StoredAccount> accounts;
   final bool isSwitching;
+  final bool isSwitchPending;
 
   const AccountManagerState({
     required this.accounts,
     required this.isSwitching,
+    this.isSwitchPending = false,
   });
 
   AccountManagerState copyWith({
     List<StoredAccount>? accounts,
     bool? isSwitching,
+    bool? isSwitchPending,
   }) {
     return AccountManagerState(
       accounts: accounts ?? this.accounts,
       isSwitching: isSwitching ?? this.isSwitching,
+      isSwitchPending: isSwitchPending ?? this.isSwitchPending,
     );
   }
 }
 
 @Riverpod(keepAlive: true)
 class AccountManager extends _$AccountManager {
+  Future<void>? _pendingSwitch;
+  String? _pendingUserId;
+  String? _requestedUserId;
+
   @override
   AccountManagerState build() {
     return const AccountManagerState(accounts: [], isSwitching: false);
   }
 
-  /// Loads stored accounts from the database.
   Future<void> loadAccounts() async {
     final repo = ref.read(authRepositoryProvider);
     final accounts = await repo.getStoredAccounts();
     state = state.copyWith(accounts: accounts);
   }
 
-  /// Switches to a different stored account.
-  ///
-  /// Validates the token with the server first (`GET /users/@me` on that
-  /// account's instance). If the token is expired or invalid, the account is
-  /// marked invalid and a [SessionExpiredFailure] is thrown so the UI can
-  /// prompt re-login.
-  Future<void> switchToAccount(String userId) async {
-    state = state.copyWith(isSwitching: true);
+  Future<void> switchToAccount(
+    String userId, {
+    bool ignoreIfPending = false,
+  }) async {
+    if (_pendingSwitch != null && ignoreIfPending) {
+      return;
+    }
+    _requestedUserId = userId;
+    for (
+      Future<void>? pending = _pendingSwitch;
+      pending != null;
+      pending = _pendingSwitch
+    ) {
+      if (_pendingUserId == userId) {
+        return pending;
+      }
+      try {
+        await pending;
+      } on Object {
+        talker.debug('[AccountManager] Pending switch ended before $userId');
+      }
+      if (_requestedUserId != userId) {
+        throw const AccountSwitchSupersededFailure();
+      }
+    }
+    final Future<void> pending = _switchTo(userId);
+    _pendingSwitch = pending;
+    _pendingUserId = userId;
+    state = state.copyWith(isSwitchPending: true);
+    try {
+      await pending;
+    } finally {
+      _pendingSwitch = null;
+      _pendingUserId = null;
+      state = state.copyWith(isSwitchPending: false);
+    }
+  }
 
+  Future<void> _switchTo(String userId) async {
     try {
       final db = ref.read(fluxerDatabaseProvider);
       final authRepository = ref.read(authRepositoryProvider);
@@ -77,8 +114,6 @@ class AccountManager extends _$AccountManager {
 
       final InstanceConfigSnapshot instanceSnapshot = await authRepository
           .resolveInstanceSnapshotForUser(userId);
-      // Validate on the target host, then mark that session active before
-      // the live instance changes.
       final isValid = await _validateToken(
         session.token,
         baseUrl: instanceSnapshot.apiBaseUrl,
@@ -86,10 +121,10 @@ class AccountManager extends _$AccountManager {
       if (!isValid) {
         await db.authSessionDao.markInvalid(userId);
         await loadAccounts();
-        state = state.copyWith(isSwitching: false);
         throw const SessionExpiredFailure();
       }
 
+      state = state.copyWith(isSwitching: true);
       await db.authSessionDao.touchSession(userId);
       ref.read(activeInstanceProvider.notifier).applySnapshot(instanceSnapshot);
 
@@ -98,12 +133,6 @@ class AccountManager extends _$AccountManager {
         mode: LeavePushAccountMode.switchAccount,
       );
 
-      await db.relationshipDao.clearAll();
-
-      ref.read(syncedPreferencesStoreProvider).reset();
-      ref.read(slowmodeTrackerProvider.notifier).reset();
-
-      // Trigger full app restart with new session.
       ref.invalidate(appStartupProvider);
       await ref
           .read(appStartupProvider.future)
@@ -120,9 +149,6 @@ class AccountManager extends _$AccountManager {
     }
   }
 
-  /// Validates a token with `GET /users/@me`. [baseUrl] defaults to the live
-  /// instance. Returns `false` on 401. Other errors rethrow so a down
-  /// instance does not expire the session.
   Future<bool> _validateToken(String token, {String? baseUrl}) async {
     try {
       final String resolvedBaseUrl = baseUrl ?? ref.read(fluxerBaseUrlProvider);
@@ -139,12 +165,10 @@ class AccountManager extends _$AccountManager {
       if (e.response?.statusCode == 401) {
         return false;
       }
-      // Network errors — don't mark invalid, just fail the switch.
       rethrow;
     }
   }
 
-  /// Signs out an account and navigates to login (which shows account selector).
   Future<void> signOut(String userId) async {
     final repo = ref.read(authRepositoryProvider);
 
@@ -162,14 +186,10 @@ class AccountManager extends _$AccountManager {
       ref.invalidate(instanceSelectorProvider);
     }
 
-    // Always go to login — account selector shows remaining accounts.
     ref.read(fluxerAuthTokenProvider.notifier).setToken(null);
     ref.read(authStateProvider.notifier).setAuthenticated(value: false);
   }
 
-  /// Probes the active session after a fatal gateway close. On a rejected
-  /// token (401) it clears the session, signs out to login (account kept for
-  /// re-login), and returns true. Network failures leave the session intact.
   Future<bool> expireSessionIfInvalid() async {
     final String? token = ref.read(fluxerAuthTokenProvider);
     if (token == null || token.isEmpty) {
@@ -196,15 +216,11 @@ class AccountManager extends _$AccountManager {
     return true;
   }
 
-  /// Removes a non-current stored account (invalidates its server session
-  /// using the account's own token, then deletes locally).
   Future<void> removeAccount(String userId) async {
     final authRepository = ref.read(authRepositoryProvider);
     final session = await authRepository.getSession(userId);
 
     if (session != null) {
-      // Best-effort server logout using the stored account's own token,
-      // matching the web app behavior (skipAuth + account-specific token).
       try {
         final baseUrl = ref.read(fluxerBaseUrlProvider);
         await Dio(

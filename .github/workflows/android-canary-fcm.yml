@@ -87,6 +87,9 @@ jobs:
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
           flutter config --enable-native-assets
 
+      - name: Resolve unifiedpush_linux to the stub
+        run: bash tool/apply_macos_pub_overrides.sh
+
       - name: Get dependencies
         run: flutter pub get
 
@@ -135,11 +138,19 @@ jobs:
             echo "::warning::Neither GOOGLE_SERVICES_JSON_ANDROID_CANARY nor GOOGLE_SERVICES_JSON_ANDROID is set. Existing android/app/google-services.json will be used if present."
           fi
 
+      - name: Write Measure Android config
+        env:
+          MEASURE_RELEASE_CHANNEL: canary
+          MEASURE_ANDROID_API_KEY_CANARY: ${{ secrets.MEASURE_ANDROID_API_KEY_CANARY }}
+          MEASURE_ANDROID_API_KEY: ${{ secrets.MEASURE_ANDROID_API_KEY }}
+          MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
+        run: tool/measure/write_native_measure_config.sh
+
       - name: Build canary split APKs
-        run: flutter build apk --release --split-per-abi --flavor canaryFcm --build-number ${{ steps.android_build_number.outputs.build_number }} --dart-define-from-file=tool/dart_defines/canary.json --dart-define=PUSH_PROVIDER=fcm --dart-define=BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        run: flutter build apk --release --split-per-abi --flavor canaryFcm --build-number ${{ steps.android_build_number.outputs.build_number }} --dart-define-from-file=tool/dart_defines/canary.json --dart-define=PUSH_PROVIDER=fcm --dart-define=BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --dart-define=CANARY_NUMBER=${{ steps.android_build_number.outputs.build_number }}
 
       - name: Build canary combined APK
-        run: flutter build apk --release --flavor canaryFcm --build-number ${{ steps.android_build_number.outputs.build_number }} --dart-define-from-file=tool/dart_defines/canary.json --dart-define=PUSH_PROVIDER=fcm --dart-define=BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        run: flutter build apk --release --flavor canaryFcm --build-number ${{ steps.android_build_number.outputs.build_number }} --dart-define-from-file=tool/dart_defines/canary.json --dart-define=PUSH_PROVIDER=fcm --dart-define=BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --dart-define=CANARY_NUMBER=${{ steps.android_build_number.outputs.build_number }}
 
       - name: Upload canary APK artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f

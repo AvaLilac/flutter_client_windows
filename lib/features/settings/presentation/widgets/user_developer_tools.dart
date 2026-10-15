@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluxer_app/core/premium/app_store_distribution.dart';
 import 'package:fluxer_app/core/providers/gateway_reconnect_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/native_markdown_tester.dart';
@@ -164,6 +166,16 @@ class _UserDeveloperToolsState extends ConsumerState<UserDeveloperTools> {
     FluxerHaptics.stop();
   }
 
+  void _sendTestCrashToMeasure() {
+    _showToast(
+      'Test crash will throw in 2 seconds.',
+      variant: FluxerToastVariant.info,
+    );
+    Future.delayed(const Duration(seconds: 2), () {
+      throw Exception('Test crash from Measure onboarding');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = context.layout;
@@ -222,6 +234,20 @@ class _UserDeveloperToolsState extends ConsumerState<UserDeveloperTools> {
             ],
           ),
           FluxerSettingsSection(
+            sectionId: 'developer-tools-measure-crash',
+            title: 'Measure crash logger',
+            description:
+                'Throws an uncaught exception after a short delay so Measure '
+                'and Talker record it like a real crash.',
+            children: [
+              FluxerButton.primary(
+                onPressed: _sendTestCrashToMeasure,
+                label: 'Send test error to crash logger',
+                fitContent: true,
+              ),
+            ],
+          ),
+          FluxerSettingsSection(
             sectionId: 'developer-tools-reconnect-banner',
             title: 'Gateway reconnect banner',
             description:
@@ -262,6 +288,28 @@ class _UserDeveloperToolsState extends ConsumerState<UserDeveloperTools> {
               ),
             ],
           ),
+          if (Platform.isIOS)
+            FluxerSettingsSection(
+              sectionId: 'developer-tools-sandbox-purchases',
+              title: 'App Store purchases',
+              description:
+                  'Install: ${ref.watch(appStoreDistributionProvider).value?.name ?? AppStoreDistribution.unknown.name}',
+              children: [
+                FluxerSettingsSwitchItem(
+                  label: 'Sandbox purchases in TestFlight',
+                  description:
+                      'Show Plutonium purchases in TestFlight builds to test '
+                      'sandbox purchases. Stays on this device.',
+                  value:
+                      ref.watch(sandboxStorePurchasesProvider).value ?? false,
+                  onChanged: (bool value) => unawaited(
+                    ref
+                        .read(sandboxStorePurchasesProvider.notifier)
+                        .setEnabled(value: value),
+                  ),
+                ),
+              ],
+            ),
           const FluxerSettingsSection(
             sectionId: 'developer-tools-native-markdown',
             title: 'Native markdown parser',

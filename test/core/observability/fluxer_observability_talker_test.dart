@@ -29,7 +29,7 @@ void main() {
     expect(entry.message, 'widgets library: building TestWidget');
   });
 
-  test('recordError logs zone errors in Talker without OpenTelemetry', () {
+  test('recordError logs zone errors in Talker when measure is off', () {
     final Exception error = Exception('zone failure');
     final StackTrace stackTrace = StackTrace.current;
 

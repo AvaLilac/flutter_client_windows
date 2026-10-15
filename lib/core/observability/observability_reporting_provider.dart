@@ -10,7 +10,8 @@ const String _kObservabilityReportingEnabledKey =
     'observability_reporting_enabled';
 
 bool observabilityReportingIsAvailable() {
-  return AppBuildConfig.hasObservabilityConfig;
+  return AppBuildConfig.hasObservabilityConfig &&
+      FluxerObservability.instance.isSdkAvailable;
 }
 
 @Riverpod(keepAlive: true)
@@ -47,11 +48,18 @@ class ObservabilityReporting extends _$ObservabilityReporting {
   }
 
   Future<void> _start() async {
+    if (!FluxerObservability.instance.isSdkAvailable) {
+      state = false;
+      return;
+    }
     try {
       final runtimeInfo = await ref.read(appRuntimeInfoProvider.future);
       await FluxerObservability.instance.start(runtimeInfo: runtimeInfo);
     } on Object {
       await FluxerObservability.instance.start();
+    }
+    if (!FluxerObservability.instance.isEnabled) {
+      state = false;
     }
   }
 }

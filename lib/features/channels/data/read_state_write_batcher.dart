@@ -2,34 +2,109 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/talker.dart';
+import 'package:fluxer_app/features/channels/data/read_state_effective.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 
 const int kReadStateWriteBatchMs = 1000;
 
 const int kReadStateAckBatchMs = 50;
+const int kReadStateMentionBatchMs = 50;
 const int kReadStateUnreadMinIntervalMs = 2000;
 
-/// Batches per-channel unread read-state writes during gateway bursts.
 class ReadStateWriteBatcher {
   ReadStateWriteBatcher({
     required this._database,
     this._window = const Duration(milliseconds: kReadStateWriteBatchMs),
     this._ackWindow = const Duration(milliseconds: kReadStateAckBatchMs),
+    this._mentionWindow = const Duration(
+      milliseconds: kReadStateMentionBatchMs,
+    ),
     this._minIntervalBetweenUnreadFlushes = const Duration(
       milliseconds: kReadStateUnreadMinIntervalMs,
     ),
+    this.onOverlayChanged,
   });
 
   final FluxerDatabase _database;
+  final VoidCallback? onOverlayChanged;
   final Duration _window;
   final Duration _ackWindow;
+  final Duration _mentionWindow;
   final Duration _minIntervalBetweenUnreadFlushes;
   final Map<String, _PendingUnread> _pending = <String, _PendingUnread>{};
   final Map<String, _PendingAck> _pendingAcks = <String, _PendingAck>{};
   final Map<String, Future<void>> _flushing = <String, Future<void>>{};
   final Map<String, DateTime> _lastUnreadFlushAt = <String, DateTime>{};
+  final Map<String, _HeldReadStateOverlay> _heldWhileWriting =
+      <String, _HeldReadStateOverlay>{};
+  bool _disposed = false;
+
+  void _bumpOverlay() {
+    if (_disposed) {
+      return;
+    }
+    onOverlayChanged?.call();
+  }
+
+  Set<String> overlayChannelIds() => <String>{
+    ..._pending.keys,
+    ..._pendingAcks.keys,
+    ..._heldWhileWriting.keys,
+  };
+
+  bool hasOverlay(String channelId) =>
+      _pending.containsKey(channelId) ||
+      _pendingAcks.containsKey(channelId) ||
+      _heldWhileWriting.containsKey(channelId);
+
+  ReadStateEffectiveFields effectiveFields(
+    String channelId,
+    ReadState? persisted,
+  ) {
+    String? lastMessageId = persisted?.lastMessageId;
+    var mentionCount = persisted?.mentionCount ?? 0;
+
+    final _HeldReadStateOverlay? held = _heldWhileWriting[channelId];
+    if (held != null) {
+      lastMessageId = held.lastMessageId ?? lastMessageId;
+      mentionCount = held.mentionCount;
+    }
+
+    final _PendingUnread? pending = _pending[channelId];
+    if (pending != null && pending.intents.isNotEmpty) {
+      final ReadStateEffectiveFields simulated = simulateUnreadIntents(
+        lastMessageId: lastMessageId,
+        mentionCount: mentionCount,
+        isDm: pending.isDm,
+        intents: pending.intents
+            .map(
+              (_UnreadIntent intent) => UnreadIntentFields(
+                messageId: intent.messageId,
+                shouldMention: intent.shouldMention,
+                seedAckCandidate: intent.seedAckCandidate,
+              ),
+            )
+            .toList(),
+      );
+      lastMessageId = simulated.lastMessageId;
+      mentionCount = simulated.mentionCount;
+    }
+
+    final _PendingAck? pendingAck = _pendingAcks[channelId];
+    final String? ackMessageId = pendingAck?.messageId;
+    if (ackMessageId != null) {
+      lastMessageId = ackMessageId;
+      mentionCount = 0;
+    }
+
+    return ReadStateEffectiveFields(
+      lastMessageId: lastMessageId,
+      mentionCount: mentionCount,
+    );
+  }
 
   void enqueueUnread({
     required String channelId,
@@ -42,12 +117,19 @@ class ReadStateWriteBatcher {
       channelId,
       () => _PendingUnread(
         isDm: isDm,
-        timer: Timer(
-          _resolveUnreadDelay(channelId),
-          () => unawaited(flush(channelId)),
+        timer: _scheduleUnreadFlush(
+          channelId,
+          shouldMention ? _mentionWindow : _resolveUnreadDelay(channelId),
         ),
+        urgent: shouldMention,
       ),
     );
+    if (shouldMention && !pending.urgent) {
+      pending.timer.cancel();
+      pending
+        ..timer = _scheduleUnreadFlush(channelId, _mentionWindow)
+        ..urgent = true;
+    }
     pending.intents.add(
       _UnreadIntent(
         messageId: messageId,
@@ -55,7 +137,11 @@ class ReadStateWriteBatcher {
         seedAckCandidate: seedAckCandidate,
       ),
     );
+    _bumpOverlay();
   }
+
+  Timer _scheduleUnreadFlush(String channelId, Duration delay) =>
+      Timer(delay, () => unawaited(flush(channelId)));
 
   Duration _resolveUnreadDelay(String channelId) {
     final DateTime? lastFlush = _lastUnreadFlushAt[channelId];
@@ -94,6 +180,7 @@ class ReadStateWriteBatcher {
     pending
       ..clearSticky = pending.clearSticky || clearSticky
       ..markDmRead = pending.markDmRead || markDmRead;
+    _bumpOverlay();
   }
 
   Future<void> flushAck(String channelId) {
@@ -110,6 +197,12 @@ class ReadStateWriteBatcher {
     if (messageId == null) {
       return Future<void>.value();
     }
+    final _HeldReadStateOverlay held = _HeldReadStateOverlay(
+      lastMessageId: messageId,
+      mentionCount: 0,
+    );
+    _heldWhileWriting[channelId] = held;
+    _bumpOverlay();
     final Future<void> future = _applyAckFlush(
       channelId: channelId,
       messageId: messageId,
@@ -118,7 +211,18 @@ class ReadStateWriteBatcher {
       markDmRead: pending.markDmRead,
     );
     _flushing['ack:$channelId'] = future;
-    return future.whenComplete(() => _flushing.remove('ack:$channelId'));
+    return future.whenComplete(() {
+      unawaited(_flushing.remove('ack:$channelId'));
+      _releaseHeld(channelId, held);
+    });
+  }
+
+  void _releaseHeld(String channelId, _HeldReadStateOverlay held) {
+    if (!identical(_heldWhileWriting[channelId], held)) {
+      return;
+    }
+    _heldWhileWriting.remove(channelId);
+    _bumpOverlay();
   }
 
   void discard(String channelId) {
@@ -126,6 +230,8 @@ class ReadStateWriteBatcher {
     pending?.timer.cancel();
     final _PendingAck? ack = _pendingAcks.remove(channelId);
     ack?.timer.cancel();
+    _heldWhileWriting.remove(channelId);
+    _bumpOverlay();
   }
 
   Future<void> flushAll() async {
@@ -146,26 +252,57 @@ class ReadStateWriteBatcher {
     }
     _pending.clear();
     _pendingAcks.clear();
+    _heldWhileWriting.clear();
+    _bumpOverlay();
   }
 
-  Future<void> dispose() => flushAll();
+  Future<void> dispose() async {
+    _disposed = true;
+    await flushAll();
+  }
 
-  Future<void> flush(String channelId) {
+  Future<void> flush(String channelId) async {
     final Future<void>? inFlight = _flushing[channelId];
     if (inFlight != null) {
       return inFlight;
     }
     final _PendingUnread? pending = _pending.remove(channelId);
     if (pending == null) {
-      return Future<void>.value();
+      return;
     }
     pending.timer.cancel();
     if (pending.intents.isEmpty) {
-      return Future<void>.value();
+      return;
     }
+    final ReadState? persisted = await _database.readStateDao.getReadState(
+      channelId,
+    );
+    final ReadStateEffectiveFields preview = simulateUnreadIntents(
+      lastMessageId: persisted?.lastMessageId,
+      mentionCount: persisted?.mentionCount ?? 0,
+      isDm: pending.isDm,
+      intents: pending.intents
+          .map(
+            (_UnreadIntent intent) => UnreadIntentFields(
+              messageId: intent.messageId,
+              shouldMention: intent.shouldMention,
+              seedAckCandidate: intent.seedAckCandidate,
+            ),
+          )
+          .toList(),
+    );
+    final _HeldReadStateOverlay held = _HeldReadStateOverlay(
+      lastMessageId: preview.lastMessageId,
+      mentionCount: preview.mentionCount,
+    );
+    _heldWhileWriting[channelId] = held;
+    _bumpOverlay();
     final Future<void> future = _applyFlush(channelId, pending);
     _flushing[channelId] = future;
-    return future.whenComplete(() => _flushing.remove(channelId));
+    await future.whenComplete(() {
+      unawaited(_flushing.remove(channelId));
+      _releaseHeld(channelId, held);
+    });
   }
 
   Future<void> _applyFlush(String channelId, _PendingUnread pending) async {
@@ -275,10 +412,15 @@ class ReadStateWriteBatcher {
 }
 
 class _PendingUnread {
-  _PendingUnread({required this.isDm, required this.timer});
+  _PendingUnread({
+    required this.isDm,
+    required this.timer,
+    required this.urgent,
+  });
 
   final bool isDm;
-  final Timer timer;
+  Timer timer;
+  bool urgent;
   final List<_UnreadIntent> intents = <_UnreadIntent>[];
 }
 
@@ -302,4 +444,14 @@ class _PendingAck {
   String? messageId;
   bool clearSticky = false;
   bool markDmRead = false;
+}
+
+class _HeldReadStateOverlay {
+  _HeldReadStateOverlay({
+    required this.lastMessageId,
+    required this.mentionCount,
+  });
+
+  final String? lastMessageId;
+  final int mentionCount;
 }

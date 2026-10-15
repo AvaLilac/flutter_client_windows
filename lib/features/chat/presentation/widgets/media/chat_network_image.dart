@@ -1,5 +1,6 @@
-import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/media/media_thumb_hash_placeholder.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/media/retrying_network_image.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/attachment_display_utils.dart';
 import 'package:fluxer_app/material_ui.dart';
 
@@ -15,8 +16,6 @@ class ChatNetworkImage extends StatelessWidget {
     this.memCacheHeight,
     this.placeholder,
     this.errorPlaceholder = const SizedBox.shrink(),
-    this.fadeInDuration = Duration.zero,
-    this.fadeOutDuration = Duration.zero,
     super.key,
   });
 
@@ -30,11 +29,13 @@ class ChatNetworkImage extends StatelessWidget {
   final int? memCacheHeight;
   final Widget? placeholder;
   final Widget errorPlaceholder;
-  final Duration fadeInDuration;
-  final Duration fadeOutDuration;
 
   @override
   Widget build(BuildContext context) {
+    final Widget? placeholder = this.placeholder;
+    final Widget? boxedPlaceholder = placeholder == null
+        ? null
+        : SizedBox(width: width, height: height, child: placeholder);
     if (isSvgImageMedia(
       url: imageUrl,
       filename: filename,
@@ -45,23 +46,25 @@ class ChatNetworkImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
-        placeholderBuilder: placeholder == null ? null : (_) => placeholder!,
+        placeholderBuilder: boxedPlaceholder == null
+            ? null
+            : (_) => boxedPlaceholder,
         errorBuilder: (_, _, _) => errorPlaceholder,
       );
     }
-    return CachedNetworkImage(
+    return RetryingNetworkImage(
       imageUrl: imageUrl,
       width: width,
       height: height,
       memCacheWidth: memCacheWidth,
       memCacheHeight: memCacheHeight,
       fit: fit,
-      fadeInDuration: fadeInDuration,
-      fadeOutDuration: fadeOutDuration,
-      placeholder: placeholder == null
-          ? null
-          : (BuildContext _, String _) => placeholder!,
-      errorBuilder: (_, _, _) => errorPlaceholder,
+      fadeOutDuration: boxedPlaceholder == null
+          ? Duration.zero
+          : mediaPlaceholderFadeOutOf(context),
+      disablePlaceholderOnCacheHit: boxedPlaceholder == null,
+      placeholder: boxedPlaceholder,
+      errorPlaceholder: errorPlaceholder,
     );
   }
 }

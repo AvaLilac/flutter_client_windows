@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
@@ -15,7 +16,6 @@ import 'package:fluxer_app/features/chat/providers/messages/message_realtime_eve
 import 'package:fluxer_app/features/chat/providers/messages/message_realtime_provider.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'channel_details_providers.g.dart';
@@ -33,7 +33,6 @@ MessageSearchRepository messageSearchRepository(Ref ref) =>
       ref.watch(fluxerClientProvider),
       ref.watch(fluxerDatabaseProvider),
       ref.watch(currentUserIdProvider),
-      threadsGate: ref.watch(threadsGateProvider),
     );
 
 class ChannelPinsState {
@@ -88,7 +87,7 @@ class ChannelPins extends _$ChannelPins {
       return;
     }
     switch (event) {
-      case MessageUpdated(:final event):
+      case MessageUpdated(:final event, :final mentionsCurrentUser):
         if (event.message.channelId != channelId) {
           return;
         }
@@ -101,7 +100,7 @@ class ChannelPins extends _$ChannelPins {
         }
         final Message merged = current.items[idx].message.applyGatewayUpdate(
           event.message,
-          currentUserId: ref.read(currentUserIdProvider),
+          isMentioned: mentionsCurrentUser,
         );
         final List<PinnedMessageEntry> items = List<PinnedMessageEntry>.from(
           current.items,
@@ -248,8 +247,13 @@ class ChannelSearchState {
 
 @riverpod
 class ChannelSearch extends _$ChannelSearch {
+  Timer? _indexingPoll;
+  int _indexingPollCount = 0;
+  int _generation = 0;
+
   @override
   ChannelSearchState build(String channelId, String? guildId) {
+    ref.onDispose(_stopIndexingPoll);
     return ChannelSearchState(
       query: MessageSearchQuery(channelId: channelId, guildId: guildId),
     );
@@ -281,6 +285,8 @@ class ChannelSearch extends _$ChannelSearch {
           chipContentTypes: contentTypes,
           chipFilters: chipFilters,
         );
+    final int generation = ++_generation;
+    _stopIndexingPoll();
     if (!nextQuery.hasSearchTerms) {
       state = ChannelSearchState(query: nextQuery);
       return;
@@ -297,12 +303,12 @@ class ChannelSearch extends _$ChannelSearch {
     try {
       final ({MessageSearchQuery query, MessageSearchPage page})? result =
           await _executeSearch(nextQuery);
-      if (!ref.mounted || result == null) {
+      if (!ref.mounted || result == null || generation != _generation) {
         return;
       }
       _setSearchPage(result.query, result.page);
     } on Exception {
-      if (!ref.mounted) {
+      if (!ref.mounted || generation != _generation) {
         return;
       }
       state = state.copyWith(isSearching: false, errorMessage: 'Search failed');
@@ -314,6 +320,8 @@ class ChannelSearch extends _$ChannelSearch {
     if (!currentQuery.hasSearchTerms || page < 1 || page == currentQuery.page) {
       return;
     }
+    final int generation = ++_generation;
+    _stopIndexingPoll();
     final MessageSearchQuery nextQuery = currentQuery.copyWith(page: page);
     state = state.copyWith(
       query: nextQuery,
@@ -324,12 +332,12 @@ class ChannelSearch extends _$ChannelSearch {
     try {
       final ({MessageSearchQuery query, MessageSearchPage page})? result =
           await _executeSearch(nextQuery);
-      if (!ref.mounted || result == null) {
+      if (!ref.mounted || result == null || generation != _generation) {
         return;
       }
       _setSearchPage(result.query, result.page);
     } on Exception {
-      if (!ref.mounted) {
+      if (!ref.mounted || generation != _generation) {
         return;
       }
       state = state.copyWith(isSearching: false, errorMessage: 'Search failed');
@@ -347,11 +355,12 @@ class ChannelSearch extends _$ChannelSearch {
     final MessageSearchQuery nextQuery = currentQuery.copyWith(
       page: currentQuery.page + 1,
     );
+    final int generation = _generation;
     state = state.copyWith(isLoadingMore: true);
     try {
       final ({MessageSearchQuery query, MessageSearchPage page})? result =
           await _executeSearch(nextQuery);
-      if (!ref.mounted || result == null) {
+      if (!ref.mounted || result == null || generation != _generation) {
         return;
       }
       _setSearchPage(
@@ -360,7 +369,7 @@ class ChannelSearch extends _$ChannelSearch {
         results: [...state.results, ...result.page.results],
       );
     } on Exception {
-      if (!ref.mounted) {
+      if (!ref.mounted || generation != _generation) {
         return;
       }
       state = state.copyWith(
@@ -385,6 +394,47 @@ class ChannelSearch extends _$ChannelSearch {
       indexing: page.indexing,
       errorMessage: null,
     );
+    if (page.indexing) {
+      _scheduleIndexingPoll(query);
+    } else {
+      _stopIndexingPoll();
+    }
+  }
+
+  void _scheduleIndexingPoll(MessageSearchQuery query) {
+    _indexingPoll?.cancel();
+    _indexingPoll = Timer(
+      channelSearchIndexingPollInterval(_indexingPollCount),
+      () => unawaited(_pollIndexing(query)),
+    );
+    _indexingPollCount++;
+  }
+
+  void _stopIndexingPoll() {
+    _indexingPoll?.cancel();
+    _indexingPoll = null;
+    _indexingPollCount = 0;
+  }
+
+  Future<void> _pollIndexing(MessageSearchQuery query) async {
+    _indexingPoll = null;
+    if (!ref.mounted || !identical(state.query, query)) {
+      return;
+    }
+    try {
+      final ({MessageSearchQuery query, MessageSearchPage page})? result =
+          await _executeSearch(query);
+      if (!ref.mounted || result == null || !identical(state.query, query)) {
+        return;
+      }
+      _setSearchPage(result.query, result.page);
+    } on Exception {
+      if (!ref.mounted || !identical(state.query, query)) {
+        return;
+      }
+      _stopIndexingPoll();
+      state = state.copyWith(indexing: false, errorMessage: 'Search failed');
+    }
   }
 
   Future<({MessageSearchQuery query, MessageSearchPage page})?> _executeSearch(
@@ -518,3 +568,9 @@ class ChannelSearch extends _$ChannelSearch {
 }
 
 const Object _unset = Object();
+
+Duration channelSearchIndexingPollInterval(int pollCount) {
+  final double millis =
+      1500 * math.pow(1.25, math.max(0, pollCount)).toDouble();
+  return Duration(milliseconds: math.min(millis, 5000).round());
+}

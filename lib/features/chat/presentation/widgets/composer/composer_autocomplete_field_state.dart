@@ -62,6 +62,7 @@ class ComposerAutocompleteFieldState
   Timer? _debounce;
   String? _panelHeading;
   bool _gifEmpty = false;
+  String? _revealedQueryKey;
 
   final OverlayPortalController _overlayController = OverlayPortalController();
   final ScrollController _scrollController = ScrollController();
@@ -368,8 +369,6 @@ class ComposerAutocompleteFieldState
   }
 
   void _warmCustomEmoji() {
-    // Keep the all-guild custom emoji stream alive (so `_syncEmoji` can read a
-    // loaded value) and re-run autocomplete whenever any guild's emoji change.
     ref.listen<AsyncValue<List<GuildEmojiEntry>>>(
       allGuildEmojisForPickerProvider,
       (_, AsyncValue<List<GuildEmojiEntry>> next) {
@@ -582,11 +581,8 @@ class ComposerAutocompleteFieldState
       if (generation != _syncGeneration || !mounted) {
         return;
       }
-      final bool threads = ref.read(threadsGateProvider).isActive(guildId);
       fallback = <Channel>[
-        for (final db.Channel row in rows)
-          if (threads || !isThreadOnlyChannelType(row.type))
-            Channel.fromRow(row),
+        for (final db.Channel row in rows) Channel.fromRow(row),
       ];
     }
     List<Channel> mentionable = mentionableChannelsForGuild(
@@ -594,27 +590,25 @@ class ComposerAutocompleteFieldState
       currentList: list,
       fallbackChannels: fallback,
     );
-    if (ref.read(threadsGateProvider).isActive(guildId)) {
-      final Set<String> joined = await ref
-          .read(fluxerDatabaseProvider)
-          .threadDao
-          .getJoinedThreadIds();
-      final List<db.Channel> threadRows = await ref
-          .read(fluxerDatabaseProvider)
-          .threadDao
-          .getThreadsForGuild(guildId);
-      if (generation != _syncGeneration || !mounted) {
-        return;
-      }
-      mentionable = <Channel>[
-        ...mentionable,
-        for (final db.Channel row in threadRows)
-          if (row.threadArchived != true &&
-              (joined.contains(row.id) ||
-                  row.type != ChannelType.privateThread.wireValue))
-            Channel.fromRow(row),
-      ];
+    final Set<String> joined = await ref
+        .read(fluxerDatabaseProvider)
+        .threadDao
+        .getJoinedThreadIds();
+    final List<db.Channel> threadRows = await ref
+        .read(fluxerDatabaseProvider)
+        .threadDao
+        .getThreadsForGuild(guildId);
+    if (generation != _syncGeneration || !mounted) {
+      return;
     }
+    mentionable = <Channel>[
+      ...mentionable,
+      for (final db.Channel row in threadRows)
+        if (row.threadArchived != true &&
+            (joined.contains(row.id) ||
+                row.type != ChannelType.privateThread.wireValue))
+          Channel.fromRow(row),
+    ];
     final String q = trigger.matchedText.toLowerCase();
     List<Channel> filtered = mentionable;
     if (q.isNotEmpty) {
@@ -1060,13 +1054,14 @@ class ComposerAutocompleteFieldState
           _channelId,
         ).canUseExternalEmojis;
     final List<Guild> guilds = ref.read(guildListViewModelProvider).guilds;
-    final db.FluxerDatabase database = ref.read(fluxerDatabaseProvider);
 
     final List<GuildEmojiEntry> allCustom = await ref.read(
       allGuildEmojisForPickerProvider.future,
     );
-    final Map<String, double> scores = await database.emojiUsageDao
-        .getFrecencyScores();
+    final Map<String, double> scores = usageScores(
+      await ref.read(expressionUsageProvider(ExpressionUsageKind.emoji).future),
+      DateTime.now().millisecondsSinceEpoch,
+    );
     if (generation != _syncGeneration) {
       return;
     }
@@ -1109,7 +1104,11 @@ class ComposerAutocompleteFieldState
           CustomEmojiResult(:final GuildEmojiEntry entry) => _ComposerRow(
             title: ':${entry.name}:',
             subtitle: guildNameById[entry.guildId],
-            onApply: () => _applyEmoji(name: entry.name, wire: entry.markdown),
+            onApply: () => _applyEmoji(
+              name: entry.name,
+              wire: entry.markdown,
+              usageKey: entry.favoriteKey,
+            ),
             emojiImageUrl: entry.url,
             emojiCacheKey: entry.cacheKeyForSize(kCustomEmojiFetchSize),
           ),
@@ -1119,12 +1118,13 @@ class ComposerAutocompleteFieldState
             onApply: () => _applyEmoji(
               name: entry.primaryName,
               wire: ':${entry.primaryName}:',
+              usageKey: unicodeEmojiFavoriteKey(entry),
             ),
             emojiSurrogates: entry.surrogates,
           ),
         },
     ];
-    _setRows(rows);
+    _setRows(rows, heading: l10n.composerAutocompleteEmojisHeading);
   }
 
   Future<void> _syncCommands(
@@ -1518,6 +1518,9 @@ class ComposerAutocompleteFieldState
     if (!mounted) {
       return;
     }
+    final bool open = next.isNotEmpty || gifEmpty;
+    final String? queryKey = open ? _autocompleteQueryKey() : null;
+    final int previousIndex = _selectedIndex;
     setState(() {
       _rows
         ..clear()
@@ -1532,22 +1535,44 @@ class ComposerAutocompleteFieldState
         _selectedIndex = _firstSelectableRowIndex();
       }
     });
-    if (next.isEmpty && !gifEmpty) {
+    final bool revealSelection =
+        open &&
+        (queryKey != _revealedQueryKey || _selectedIndex != previousIndex);
+    _revealedQueryKey = queryKey;
+    if (!open) {
       _stopMentionAutocompleteWatches();
     }
     if (_usesInStackPanel) {
       _publishPanel();
-      if (next.isNotEmpty || gifEmpty) {
-        _scheduleScrollSelectionIntoView();
-      }
-      return;
-    }
-    if (next.isEmpty && !gifEmpty) {
+    } else if (open) {
+      _showOverlay();
+    } else {
       _hideOverlay();
-      return;
     }
-    _showOverlay();
-    _scheduleScrollSelectionIntoView();
+    if (revealSelection) {
+      _scheduleScrollSelectionIntoView();
+    }
+  }
+
+  String? _autocompleteQueryKey() {
+    final ComposerSlashSession? session = widget.slashSession;
+    if (session != null && session.isActive) {
+      return 'slash:${session.command?.name}:${session.focusedSlotIndex}:'
+          '${session.optionalHintFocused}:${session.focusedSlot?.text}';
+    }
+    final int? caret = _autocompleteCaretIndex(widget.controller.value);
+    if (caret == null) {
+      return null;
+    }
+    final ComposerAutocompleteTrigger? trigger =
+        ComposerAutocompleteTrigger.detectIfAllowed(
+          fullText: widget.controller.text,
+          caretIndex: caret,
+        );
+    if (trigger == null) {
+      return null;
+    }
+    return '${trigger.kind.name}:${trigger.matchStart}:${trigger.matchedText}';
   }
 
   ComposerAutocompletePanelSnapshot _panelSnapshot() {
@@ -1707,6 +1732,12 @@ class ComposerAutocompleteFieldState
   }
 
   void _applyUserMention(Member member) {
+    ref
+        .read(mentionFrecencyProvider.notifier)
+        .record(
+          guildId: ref.read(contextualGuildIdProvider),
+          userId: member.id,
+        );
     final ComposerSlashSession? session = widget.slashSession;
     if (session != null &&
         session.isActive &&
@@ -1853,13 +1884,22 @@ class ComposerAutocompleteFieldState
     _afterApply();
   }
 
-  void _applyEmoji({required String name, required String wire}) {
+  void _applyEmoji({
+    required String name,
+    required String wire,
+    required String usageKey,
+  }) {
     final ComposerAutocompleteTrigger? trigger = _autocompleteTriggerForApply(
       ComposerAutocompleteTriggerKind.emoji,
     );
     if (trigger == null) {
       return;
     }
+    unawaited(
+      ref
+          .read(expressionUsageProvider(ExpressionUsageKind.emoji).notifier)
+          .track(usageKey),
+    );
     final TextEditingController controller = widget.controller;
     if (controller is InlineTokenTextEditingController) {
       controller.replaceRangeWithToken(

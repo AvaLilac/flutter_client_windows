@@ -23,7 +23,6 @@ import 'package:fluxer_app/features/chat/utils/media/media_favorite_state.dart';
 import 'package:fluxer_app/features/chat/utils/media/save_message_media_favorite.dart';
 import 'package:fluxer_app/features/chat/utils/messages/message_action_permissions.dart';
 import 'package:fluxer_app/features/chat/utils/messages/message_link.dart';
-import 'package:fluxer_app/features/settings/providers/advanced_preferences_provider.dart';
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/threads/presentation/create_thread_sheet.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
@@ -139,7 +138,10 @@ Future<void> dispatchMessageAction({
     case MessageAction.reply:
       callbacks.onReply?.call();
     case MessageAction.forward:
-      _runAfterModalSettles(context, () => callbacks.onForward?.call());
+      await handOffFluxerSheet(context);
+      if (context.mounted) {
+        callbacks.onForward?.call();
+      }
     case MessageAction.edit:
       callbacks.onEdit?.call();
     case MessageAction.delete:
@@ -201,7 +203,10 @@ Future<void> dispatchMessageAction({
         );
       }
     case MessageAction.addReaction:
-      callbacks.onAddReaction?.call();
+      await handOffFluxerSheet(context);
+      if (context.mounted) {
+        callbacks.onAddReaction?.call();
+      }
     case MessageAction.markAsUnread:
       callbacks.onMarkAsUnread?.call();
     case MessageAction.suppressEmbeds:
@@ -230,28 +235,37 @@ Future<void> dispatchMessageAction({
     case MessageAction.debugMessage:
       unawaited(showMessageDebugSheet(context, message: message));
     case MessageAction.speak:
+      final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+      final FluxerTtsService tts = ref.read(fluxerTtsServiceProvider.notifier);
+      if (!ref.read(fluxerTtsServiceProvider).isSpeakingMessage(message.id) &&
+          !await tts.isSupported()) {
+        ref
+            .read(toastProvider.notifier)
+            .show(
+              FluxerToast(
+                message: l10n.accessibilityTtsUnsupportedDescription,
+                variant: FluxerToastVariant.warning,
+              ),
+            );
+        return;
+      }
       final AppearancePreferencesState appearance = ref.read(
         appearancePreferencesProvider,
       );
       unawaited(
-        ref
-            .read(fluxerTtsServiceProvider.notifier)
-            .speakMessage(
-              message: message,
-              rate: appearance.ttsRate,
-              locale: formatTtsLocaleTag(ref.read(effectiveAppLocaleProvider)),
-            ),
+        tts.speakMessage(
+          message: message,
+          rate: appearance.ttsRate,
+          locale: formatTtsLocaleTag(ref.read(effectiveAppLocaleProvider)),
+        ),
       );
     case MessageAction.translate:
       unawaited(
         _translateMessage(ref: ref, context: context, message: message),
       );
     case MessageAction.createThread:
-      _runAfterModalSettles(
-        context,
-        () => unawaited(
-          showCreateThreadSheetForMessage(context, ref, message: message),
-        ),
+      unawaited(
+        showCreateThreadSheetForMessage(context, ref, message: message),
       );
   }
 }
@@ -718,14 +732,7 @@ class _MessageBottomSheetBody extends ConsumerWidget {
       attachmentCallbacks: attachmentCallbacks,
     );
     final bool showQuickReactions =
-        !message.hasFailed &&
-        !message.isSending &&
-        permissions.canAddReactions &&
-        ref.watch(
-          advancedPreferencesProvider.select(
-            (state) => state.showMessageActionBarQuickReactions,
-          ),
-        );
+        !message.hasFailed && !message.isSending && permissions.canAddReactions;
 
     return SingleChildScrollView(
       controller: scrollController,

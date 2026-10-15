@@ -13,8 +13,6 @@ import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/utils/emoji_registry.dart';
 import 'package:fluxer_app/shared/utils/emoji_sprite_sheet.dart';
 
-/// Substitutes [raw] through a scratch controller and returns the wire
-/// round-trip of the display text.
 ({String display, String wire, int chips}) _substitute(
   String raw, {
   required bool includePlainShortcodes,
@@ -149,21 +147,28 @@ void main() {
   });
 
   group('chip rendering', () {
-    testWidgets('resolvable unicode chip renders the sprite emoji', (
-      WidgetTester tester,
-    ) async {
-      final ComposerMentionController controller = await _pumpController(
-        tester,
-      );
-      await tester.runAsync(EmojiSpriteSheet.preload);
+    testWidgets(
+      'resolvable unicode chip renders the sprite emoji, showing the glyph until the sheet decodes',
+      (WidgetTester tester) async {
+        final ComposerMentionController controller = await _pumpController(
+          tester,
+        );
 
-      controller.insertEmoji('wave', '\u{1F44B}');
-      await tester.pump();
+        controller.insertEmoji('wave', '\u{1F44B}');
+        await tester.pump();
 
-      expect(find.byType(SpriteEmoji), findsOneWidget);
-      expect(find.text(':wave:'), findsNothing);
-      expect(controller.toWireText().trim(), ':wave:');
-    });
+        expect(find.byType(SpriteEmoji), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(SpriteEmoji),
+            matching: find.text('\u{1F44B}'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text(':wave:'), findsNothing);
+        expect(controller.toWireText().trim(), ':wave:');
+      },
+    );
 
     testWidgets('skin-toned chip targets the diversity sheet', (
       WidgetTester tester,

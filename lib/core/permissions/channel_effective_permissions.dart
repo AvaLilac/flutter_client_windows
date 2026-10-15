@@ -9,14 +9,11 @@ import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
     show isThreadChannelType;
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
-import 'package:fluxer_app/features/guilds/providers/guild_list_view_model.dart';
 import 'package:fluxer_app/features/members/domain/member.dart';
 import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
 import 'package:riverpod/misc.dart' show FutureProviderFamily;
 import 'package:riverpod/riverpod.dart';
 
-/// Result of channel permission resolution. When `shouldCache` is false, `value`
-/// may be 0 because the guild or current user's membership is not loaded yet.
 typedef ChannelPermissionBitsOutcome = ({int value, bool shouldCache});
 
 bool bypassesChannelSlowmode(ChannelPermissionBitsOutcome? outcome) {
@@ -27,16 +24,9 @@ bool bypassesChannelSlowmode(ChannelPermissionBitsOutcome? outcome) {
 }
 
 Future<Guild?> _guildForPermissionResolution({
-  required Ref ref,
   required FluxerDatabase db,
   required String guildId,
 }) async {
-  final List<Guild> guilds = ref.read(guildListViewModelProvider).guilds;
-  for (final Guild g in guilds) {
-    if (g.id == guildId) {
-      return g;
-    }
-  }
   final Server? row = await db.guildDao.getServerById(guildId);
   if (row == null) {
     return null;
@@ -63,7 +53,6 @@ computeEffectiveGuildChannelPermissionBitsOutcome({
   }
   final String guildId = channelRow.guildId;
   final Guild? guild = await _guildForPermissionResolution(
-    ref: ref,
     db: db,
     guildId: guildId,
   );
@@ -107,8 +96,9 @@ computeEffectiveGuildChannelPermissionBitsOutcome({
       .where((r) => memberRoleIds.contains(r.id))
       .map(MemberRole.fromRow)
       .toList();
-  final List<String?> layers = await db.channelDao
-      .getPermissionOverwriteLayersRootToLeaf(channelId);
+  final List<String?> layers = await db.channelDao.getPermissionOverwriteLayers(
+    channelId,
+  );
   if (!ref.mounted) {
     return (value: 0, shouldCache: false);
   }
@@ -127,6 +117,115 @@ computeEffectiveGuildChannelPermissionBitsOutcome({
         : value,
     shouldCache: true,
   );
+}
+
+Future<Map<String, ChannelPermissionBitsOutcome>>
+computeEffectiveGuildChannelPermissionBitsOutcomesForGuild({
+  required Ref ref,
+  required String guildId,
+  Set<String>? onlyChannelIds,
+}) async {
+  const ChannelPermissionBitsOutcome notResolved = (
+    value: 0,
+    shouldCache: false,
+  );
+  final db = ref.read(fluxerDatabaseProvider);
+  final String currentUserId = ref.read(userSettingsViewModelProvider).userId;
+  final List<Channel> channels = await db.channelDao.getChannels(
+    guildId,
+    includeThreads: true,
+  );
+  if (!ref.mounted) {
+    return const <String, ChannelPermissionBitsOutcome>{};
+  }
+  final Map<String, Channel> byId = <String, Channel>{
+    for (final Channel channel in channels) channel.id: channel,
+  };
+  final List<Channel> targets = onlyChannelIds == null
+      ? channels
+      : <Channel>[
+          for (final String id in onlyChannelIds)
+            if (byId[id] case final Channel channel) channel,
+        ];
+  Map<String, ChannelPermissionBitsOutcome> all(
+    ChannelPermissionBitsOutcome outcome,
+  ) => <String, ChannelPermissionBitsOutcome>{
+    for (final Channel channel in targets) channel.id: outcome,
+  };
+  if (targets.isEmpty) {
+    return const <String, ChannelPermissionBitsOutcome>{};
+  }
+  final Guild? guild = await _guildForPermissionResolution(
+    db: db,
+    guildId: guildId,
+  );
+  if (!ref.mounted) {
+    return const <String, ChannelPermissionBitsOutcome>{};
+  }
+  if (guild == null) {
+    return all(notResolved);
+  }
+  if (currentUserId == guild.ownerId) {
+    return all((value: allPermissions, shouldCache: true));
+  }
+  final List<Role> allRoles = await db.roleDao.getRoles(guildId);
+  if (!ref.mounted) {
+    return const <String, ChannelPermissionBitsOutcome>{};
+  }
+  final memberRow = await db.memberDao.getMemberByUserId(
+    currentUserId,
+    guildId,
+  );
+  if (!ref.mounted) {
+    return const <String, ChannelPermissionBitsOutcome>{};
+  }
+  if (memberRow == null) {
+    return all(notResolved);
+  }
+  Role? everyoneRole;
+  for (final Role r in allRoles) {
+    if (r.id == guildId) {
+      everyoneRole = r;
+      break;
+    }
+  }
+  final int everyonePermissions = everyoneRolePermissionsFromString(
+    everyoneRole?.permissions,
+  );
+  final List<String> memberRoleIds = memberRow.roleIdsJson.isNotEmpty
+      ? List<String>.from(jsonDecode(memberRow.roleIdsJson) as List<dynamic>)
+      : <String>[];
+  final List<MemberRole> memberRoles = allRoles
+      .where((r) => memberRoleIds.contains(r.id))
+      .map(MemberRole.fromRow)
+      .toList();
+  return <String, ChannelPermissionBitsOutcome>{
+    for (final Channel channel in targets)
+      channel.id: () {
+        final int value = evaluateChannelEffectivePermissionBits(
+          guildOwnerId: guild.ownerId ?? '',
+          guildId: guildId,
+          currentUserId: currentUserId,
+          everyonePermissions: everyonePermissions,
+          memberRoles: memberRoles,
+          memberRecordPresent: true,
+          overwriteJsonLayersRootToLeaf: _overwriteLayers(channel, byId),
+        );
+        return (
+          value: isThreadChannelType(channel.type)
+              ? threadViewPermissions(value)
+              : value,
+          shouldCache: true,
+        );
+      }(),
+  };
+}
+
+List<String?> _overwriteLayers(Channel channel, Map<String, Channel> byId) {
+  if (!isThreadChannelType(channel.type)) {
+    return <String?>[channel.permissionOverwritesJson];
+  }
+  return <String?>[byId[channel.parentId]?.permissionOverwritesJson];
 }
 
 Future<int> computeEffectiveGuildChannelPermissionBits({
@@ -169,7 +268,6 @@ computeChannelLocalGuildChannelPermissionBitsOutcome({
     return (value: allPermissions, shouldCache: true);
   }
   final Guild? guild = await _guildForPermissionResolution(
-    ref: ref,
     db: db,
     guildId: guildId,
   );
@@ -223,7 +321,6 @@ computeChannelLocalGuildChannelPermissionBitsOutcome({
   if (!ref.mounted) {
     return (value: 0, shouldCache: false);
   }
-  // Only apply this channel's own overwrites, not parent category layers.
   final int value = evaluateChannelEffectivePermissionBits(
     guildOwnerId: guild.ownerId ?? '',
     guildId: guildId,

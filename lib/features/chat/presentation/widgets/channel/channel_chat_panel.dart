@@ -2,13 +2,17 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/channels/providers/channel_typing_provider.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/channel/chat_floating_button.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/composer_autocomplete_field.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/composer_status_row.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/composer/mobile_composer_bar.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/slowmode_indicator.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/typing_indicator_bar.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/wide_composer_layout.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/chat_list_keyboard_dismiss.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_pin.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_unread_review.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/neko_sprite.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/pickers/attachment_panel_content.dart';
@@ -30,6 +34,7 @@ import 'package:fluxer_app/features/settings/providers/appearance_preferences_pr
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/shell/utils/mobile_scaffold_resize_policy.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
+import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 const double _kChannelChatNekoBottom = 0;
@@ -48,7 +53,9 @@ double channelChatJumpToBottomBottomOffset({
     isMobile: isMobile,
   );
   if (!showNeko) {
-    return fadeHeight;
+    return isMobile && !showSlowmode
+        ? kChatFloatingButtonGap - MobileComposerLayout.topInset
+        : fadeHeight;
   }
   final double nekoBottom = showSlowmode
       ? _kChannelChatNekoBottomAboveSlowmode
@@ -82,7 +89,6 @@ Widget _attachmentPanelContent(
   return AttachmentPanelContent(scrollController: scrollController);
 }
 
-/// Shared message list, composer, and overlays for channel chat surfaces.
 class ChannelChatPanel extends ConsumerStatefulWidget {
   const ChannelChatPanel({
     required this.displayChannelId,
@@ -109,6 +115,7 @@ class _ChannelChatPanelState extends ConsumerState<ChannelChatPanel> {
   final ComposerAutocompletePanelHost _composerAutocompletePanelHost =
       ComposerAutocompletePanelHost(null);
   final ScrollController _composerAutocompletePanelScroll = ScrollController();
+  DockedComposerPanel? _dockedPanel;
 
   @override
   void dispose() {
@@ -130,6 +137,7 @@ class _ChannelChatPanelState extends ConsumerState<ChannelChatPanel> {
     required String channelId,
   }) {
     return ChannelChatComposerBoundary(
+      channelId: channelId,
       applyWallpaper: widget.applyWallpaper,
       leadingStatus: const TypingIndicatorBar(),
       trailingStatuses: <Widget>[SlowmodeIndicator(channelId: channelId)],
@@ -167,6 +175,21 @@ class _ChannelChatPanelState extends ConsumerState<ChannelChatPanel> {
       expressionPanelOpen: isExpressionOpen,
       attachmentPanelOpen: isAttachmentOpen,
     );
+    final bool keyboardTakingOverPanel =
+        isMobile &&
+        ref.watch(
+          bottomInputSlotProvider.select(
+            (BottomInputSlotState state) =>
+                state.transition == BottomInputTransition.lockingToKeyboard,
+          ),
+        );
+    final DockedComposerPanel? dockedPanel = resolveDockedComposerPanel(
+      expressionPanelOpen: isExpressionOpen,
+      attachmentPanelOpen: isAttachmentOpen,
+      keyboardTakingOver: keyboardTakingOverPanel,
+      previous: _dockedPanel,
+    );
+    _dockedPanel = dockedPanel;
     final Widget messageList = MessageList(
       key: ValueKey<String>(listChannelId),
       expectedChannelId: listChannelId,
@@ -184,7 +207,7 @@ class _ChannelChatPanelState extends ConsumerState<ChannelChatPanel> {
           builder: (BuildContext context, BoxConstraints constraints) {
             double sheetContentHeight = 0;
             double dragHandleHeight = 0;
-            if (isPanelOpen) {
+            if (dockedPanel != null) {
               final ({
                 double? anchoredKeyboardHeight,
                 double fallbackKeyboardHeight,
@@ -207,9 +230,7 @@ class _ChannelChatPanelState extends ConsumerState<ChannelChatPanel> {
                     anchoredKeyboardHeight: panelMetrics.anchoredKeyboardHeight,
                     fallbackHeight: panelMetrics.fallbackKeyboardHeight,
                   );
-              dragHandleHeight = inlineExpressionPanelDragHandleHeight(
-                bottomSpacing: context.layout.s2,
-              );
+              dragHandleHeight = kFluxerSheetHandleHeight;
               final double reservedHeight = resolvePanelReservedLayoutHeight(
                 slotHeight: slotHeight,
                 netAnchorHeight: panelAnchorHeight,
@@ -268,9 +289,8 @@ class _ChannelChatPanelState extends ConsumerState<ChannelChatPanel> {
                                     left: 0,
                                     right: 0,
                                     bottom: 0,
-                                    height: WideComposerLayout.fadeHeightFor(
-                                      isMobile: isMobile,
-                                    ),
+                                    height: WideComposerLayout
+                                        .statusFadeScrolledHeight,
                                     child: _buildStatusOverlay(
                                       showNeko: showNeko,
                                       showSlowmode: showSlowmode,
@@ -295,27 +315,40 @@ class _ChannelChatPanelState extends ConsumerState<ChannelChatPanel> {
                         ],
                       ),
                     ),
-                    ChatComposerColumn(
-                      autocompletePanelHost: _composerAutocompletePanelHost,
-                      autocompletePanelScrollController:
-                          _composerAutocompletePanelScroll,
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: math.max(
+                          0,
+                          constraints.maxHeight -
+                              WideComposerLayout.statusRowHeight,
+                        ),
+                      ),
+                      child: ChatComposerColumn(
+                        autocompletePanelHost: _composerAutocompletePanelHost,
+                        autocompletePanelScrollController:
+                            _composerAutocompletePanelScroll,
+                      ),
                     ),
                   ],
                 ),
-                if (isPanelOpen)
+                if (dockedPanel != null)
                   Positioned(
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: ChatExpressionExpandableSheet(
-                      collapsedHeight: math.max(
-                        sheetContentHeight,
-                        kExpressionPanelMinContentHeight,
+                    child: IgnorePointer(
+                      ignoring: !isPanelOpen,
+                      child: ChatExpressionExpandableSheet(
+                        collapsedHeight: math.max(
+                          sheetContentHeight,
+                          kExpressionPanelMinContentHeight,
+                        ),
+                        dragHandleHeight: dragHandleHeight,
+                        contentBuilder:
+                            dockedPanel == DockedComposerPanel.attachment
+                            ? _attachmentPanelContent
+                            : null,
                       ),
-                      dragHandleHeight: dragHandleHeight,
-                      contentBuilder: isAttachmentOpen
-                          ? _attachmentPanelContent
-                          : null,
                     ),
                   ),
               ],
@@ -356,16 +389,17 @@ class _ChannelChatScrollOverlay extends ConsumerWidget {
     final bool hasMoreNewerMessages = ref.watch(
       chatViewModelProvider.select((ChatViewState s) => s.hasMoreNewerMessages),
     );
+    final bool messageLoadFailed = ref.watch(
+      chatViewModelProvider.select((ChatViewState s) => s.messageLoadFailed),
+    );
     final bool isSyncingMessages = ref.watch(
       chatViewModelProvider.select((ChatViewState s) => s.isSyncingMessages),
     );
-    final ({String channelId, double distanceFromBottom, double viewportHeight})
-    viewport = ref.watch(
+    final ({String channelId, double distanceFromBottom}) viewport = ref.watch(
       chatReadViewportProvider.select(
         (ChatReadViewportState state) => (
           channelId: state.channelId,
           distanceFromBottom: state.distanceFromBottom,
-          viewportHeight: state.viewportHeight,
         ),
       ),
     );
@@ -378,45 +412,49 @@ class _ChannelChatScrollOverlay extends ConsumerWidget {
           isLoading: isLoading,
           isActiveReadChannel: isActiveReadChannel,
           distanceFromBottom: viewport.distanceFromBottom,
-          viewportHeight: viewport.viewportHeight,
           hasMoreNewerMessages: hasMoreNewerMessages,
+          messageLoadFailed: messageLoadFailed,
         );
     final bool isMobile = isMobileLayout(context);
-    return Positioned(
-      right: 8,
-      bottom: channelChatJumpToBottomBottomOffset(
-        isMobile: isMobile,
-        showNeko: showNeko,
-        showSlowmode: showSlowmode,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+    final double bottom = channelChatJumpToBottomBottomOffset(
+      isMobile: isMobile,
+      showNeko: showNeko,
+      showSlowmode: showSlowmode,
+    );
+    void jumpToPresent() =>
+        ref.read(chatViewModelProvider.notifier).scrollToBottom();
+    final bool showPresentBar =
+        loadMessages && !isMobile && showJumpToBottom && hasMoreNewerMessages;
+    final bool showButton =
+        loadMessages && showJumpToBottom && (isMobile || !hasMoreNewerMessages);
+    return Positioned.fill(
+      child: Stack(
         children: <Widget>[
-          if (onClose != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 5),
-              child: Material(
-                color: context.colors.backgroundPrimary,
-                shape: const CircleBorder(),
-                child: FluxerSheetCloseButton(onTap: onClose!),
-              ),
-            ),
-          if (loadMessages)
-            IgnorePointer(
-              ignoring: !showJumpToBottom,
-              child: Opacity(
-                opacity: showJumpToBottom ? 1 : 0,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: FluxerJumpToBottomButton(
-                    // Never disabled by pagination: this is the only escape hatch
-                    // out of a detached window, and the view model preempts
-                    // in-flight pages rather than refusing the jump.
+          Positioned(
+            right: isMobile ? MobileComposerLayout.sideInset : 8,
+            bottom: isMobile ? bottom : bottom + 10,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              spacing: kChatFloatingButtonGap,
+              children: <Widget>[
+                if (showButton)
+                  ChatJumpToBottomButton(
                     isLoading: isSyncingMessages,
-                    onTap: () => ref
-                        .read(chatViewModelProvider.notifier)
-                        .scrollToBottom(),
+                    onTap: jumpToPresent,
                   ),
+                if (onClose != null) ChatCloseButton(onTap: onClose!),
+              ],
+            ),
+          ),
+          if (showPresentBar)
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: bottom + 10,
+              child: Center(
+                child: ChannelChatJumpToPresentBar(
+                  isLoading: isSyncingMessages,
+                  onJumpToPresent: jumpToPresent,
                 ),
               ),
             ),
@@ -426,8 +464,80 @@ class _ChannelChatScrollOverlay extends ConsumerWidget {
   }
 }
 
-class ChannelChatComposerBoundary extends StatelessWidget {
+class ChannelChatJumpToPresentBar extends StatelessWidget {
+  const ChannelChatJumpToPresentBar({
+    required this.isLoading,
+    required this.onJumpToPresent,
+    super.key,
+  });
+
+  final bool isLoading;
+  final VoidCallback onJumpToPresent;
+
+  @override
+  Widget build(BuildContext context) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final colors = context.colors;
+    final bool isMobile = isMobileLayout(context);
+    return Container(
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: EdgeInsetsDirectional.fromSTEB(isMobile ? 12 : 14, 6, 8, 6),
+      decoration: BoxDecoration(
+        color: Color.lerp(
+          colors.backgroundTextarea,
+          colors.backgroundTertiary,
+          0.1,
+        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: colors.backgroundModifierAccent.withValues(
+            alpha: colors.backgroundModifierAccent.a * 0.8,
+          ),
+        ),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.18),
+            blurRadius: 24,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 8,
+        children: <Widget>[
+          Flexible(
+            child: Text(
+              l10n.chatViewingOlderMessages,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.smallText.copyWith(
+                color: colors.textSecondary,
+                fontSize: isMobile ? 13 : 14,
+                fontWeight: FontWeight.w500,
+                height: 1.25,
+              ),
+            ),
+          ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: FluxerButton.primary(
+              label: l10n.chatJumpToPresent,
+              size: FluxerButtonSize.compact,
+              fitContent: true,
+              isLoading: isLoading,
+              onPressed: onJumpToPresent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ChannelChatComposerBoundary extends ConsumerWidget {
   const ChannelChatComposerBoundary({
+    required this.channelId,
     required this.leadingStatus,
     required this.trailingStatuses,
     this.applyWallpaper = true,
@@ -436,6 +546,7 @@ class ChannelChatComposerBoundary extends StatelessWidget {
     super.key,
   });
 
+  final String channelId;
   final Widget leadingStatus;
   final List<Widget> trailingStatuses;
   final bool applyWallpaper;
@@ -443,20 +554,48 @@ class ChannelChatComposerBoundary extends StatelessWidget {
   final double nekoBottom;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bool isMobile = isMobileLayout(context);
-    final double statusRailPadding =
+    final double statusRailPaddingStart =
         WideComposerLayout.statusRailPaddingInlineFor(isMobile: isMobile);
+    final double statusRailPaddingEnd = isMobile
+        ? MobileComposerLayout.statusTrailingInsetEnd
+        : statusRailPaddingStart;
+    final bool statusVisible =
+        ref
+            .watch(presentableTypingUsersInChannelProvider(channelId))
+            .isNotEmpty ||
+        composerSlowmodeIndicatorVisible(ref, channelId);
+    final bool atBottom = ref.watch(
+      chatReadViewportProvider.select(
+        (ChatReadViewportState state) =>
+            state.channelId != channelId ||
+            state.distanceFromBottom <= kMessageListPinEngageDistance,
+      ),
+    );
+    final double fadeHeight = atBottom
+        ? WideComposerLayout.statusFadeAtBottomHeight
+        : WideComposerLayout.statusFadeScrolledHeight;
+    final double solidFrom = fadeHeight - WideComposerLayout.statusSafeGap;
     return Stack(
       clipBehavior: Clip.none,
       children: <Widget>[
-        if (applyWallpaper)
-          const ChatWallpaperComposerFade()
-        else
-          WideComposerFade(surfaceColor: context.colors.chatBackground),
+        if (statusVisible)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: fadeHeight,
+            child: applyWallpaper
+                ? ChatWallpaperComposerFade(solidFrom: solidFrom)
+                : WideComposerFade(
+                    surfaceColor: context.colors.chatBackground,
+                    solidFrom: solidFrom,
+                  ),
+          ),
         Positioned(
-          left: statusRailPadding,
-          right: statusRailPadding,
+          left: statusRailPaddingStart,
+          right: statusRailPaddingEnd,
           bottom: 0,
           height: WideComposerLayout.statusLineHeight,
           child: Row(
@@ -474,7 +613,9 @@ class ChannelChatComposerBoundary extends StatelessWidget {
         ),
         if (neko != null)
           Positioned(
-            right: statusRailPadding,
+            right: isMobile
+                ? MobileComposerLayout.nekoInsetEnd
+                : statusRailPaddingStart,
             bottom: nekoBottom,
             child: neko!,
           ),

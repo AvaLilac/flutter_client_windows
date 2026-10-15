@@ -1,14 +1,18 @@
+import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:fluxer_app/features/ui/animation/animation_controller_visibility_extension.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 const int kFluxerTypingDotCount = 3;
 const double kFluxerTypingDotSize = 6;
 const double kFluxerTypingDotSpacing = 2;
-const Duration kFluxerTypingDotDuration = Duration(milliseconds: 1400);
 const List<double> kFluxerTypingDotDelays = <double>[0, 0.2 / 1.4, 0.4 / 1.4];
+
+const int kFluxerTypingDotStepsPerCycle = 14;
+const Duration kFluxerTypingDotStepInterval = Duration(milliseconds: 100);
 
 double fluxerTypingDotsWidth({
   double dotSize = kFluxerTypingDotSize,
@@ -21,6 +25,31 @@ double fluxerTypingDotsWidth({
 double fluxerTypingDotWave(double progress, double delay) {
   final double phase = (progress - delay) % 1;
   return (math.cos(phase * 2 * math.pi) + 1) / 2;
+}
+
+class _FluxerTypingDotsClock {
+  _FluxerTypingDotsClock._();
+
+  static final ValueNotifier<int> step = ValueNotifier<int>(0);
+  static int _subscribers = 0;
+  static Timer? _timer;
+
+  static void subscribe(VoidCallback listener) {
+    step.addListener(listener);
+    _subscribers++;
+    _timer ??= Timer.periodic(kFluxerTypingDotStepInterval, (_) {
+      step.value = (step.value + 1) % kFluxerTypingDotStepsPerCycle;
+    });
+  }
+
+  static void unsubscribe(VoidCallback listener) {
+    step.removeListener(listener);
+    _subscribers--;
+    if (_subscribers == 0) {
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
 }
 
 class FluxerTypingDots extends StatefulWidget {
@@ -40,31 +69,47 @@ class FluxerTypingDots extends StatefulWidget {
 }
 
 class _FluxerTypingDotsState extends State<FluxerTypingDots>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  late final AnimationController _controller;
+    with WidgetsBindingObserver {
+  final ValueNotifier<double> _progress = ValueNotifier<double>(0);
+  ValueListenable<TickerModeData>? _tickerMode;
   bool _isVisible = true;
+  bool _animationsEnabled = true;
+  bool _subscribed = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _controller = AnimationController(
-      vsync: this,
-      duration: kFluxerTypingDotDuration,
-    );
-    _controller.syncWithVisibility(isVisible: _isVisible);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ValueListenable<TickerModeData> tickerMode =
+        TickerMode.getValuesNotifier(context);
+    if (!identical(tickerMode, _tickerMode)) {
+      _tickerMode?.removeListener(_syncClock);
+      _tickerMode = tickerMode..addListener(_syncClock);
+    }
+    _animationsEnabled = !MediaQuery.disableAnimationsOf(context);
+    _syncClock();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _controller.dispose();
+    _tickerMode?.removeListener(_syncClock);
+    if (_subscribed) {
+      _subscribed = false;
+      _FluxerTypingDotsClock.unsubscribe(_onStep);
+    }
+    _progress.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    _controller.syncWithVisibility(isVisible: _isVisible);
+    _syncClock();
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
@@ -73,17 +118,41 @@ class _FluxerTypingDotsState extends State<FluxerTypingDots>
       return;
     }
     _isVisible = visible;
-    _controller.syncWithVisibility(isVisible: _isVisible);
+    _syncClock();
+  }
+
+  void _syncClock() {
+    if (!mounted) {
+      return;
+    }
+    final AppLifecycleState? lifecycleState =
+        SchedulerBinding.instance.lifecycleState;
+    final bool isForeground =
+        lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
+    final bool shouldAnimate =
+        _isVisible &&
+        isForeground &&
+        _animationsEnabled &&
+        (_tickerMode?.value.enabled ?? true);
+    if (shouldAnimate == _subscribed) {
+      return;
+    }
+    _subscribed = shouldAnimate;
+    if (shouldAnimate) {
+      _FluxerTypingDotsClock.subscribe(_onStep);
+      _onStep();
+    } else {
+      _FluxerTypingDotsClock.unsubscribe(_onStep);
+    }
+  }
+
+  void _onStep() {
+    _progress.value =
+        _FluxerTypingDotsClock.step.value / kFluxerTypingDotStepsPerCycle;
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool animationsEnabled = !MediaQuery.disableAnimationsOf(context);
-    _controller.syncWithVisibility(
-      isVisible: _isVisible,
-      animationsEnabled: animationsEnabled,
-    );
-
     return VisibilityDetector(
       key: ObjectKey(this),
       onVisibilityChanged: _onVisibilityChanged,
@@ -95,7 +164,7 @@ class _FluxerTypingDotsState extends State<FluxerTypingDots>
         height: widget.dotSize,
         child: CustomPaint(
           painter: FluxerTypingDotsPainter(
-            progress: _controller,
+            progress: _progress,
             color: widget.color,
             dotSize: widget.dotSize,
             dotSpacing: widget.dotSpacing,
@@ -114,7 +183,7 @@ class FluxerTypingDotsPainter extends CustomPainter {
     required this.dotSpacing,
   }) : super(repaint: progress);
 
-  final Animation<double> progress;
+  final ValueListenable<double> progress;
   final Color color;
   final double dotSize;
   final double dotSpacing;

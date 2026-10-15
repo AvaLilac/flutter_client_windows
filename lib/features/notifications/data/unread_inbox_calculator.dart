@@ -7,7 +7,6 @@ import 'package:fluxer_app/features/channels/domain/channel.dart'
         isGuildCategoryChannelType,
         isGuildVoiceChannelType,
         isThreadChannelType,
-        isThreadFeatureChannelType,
         isThreadOnlyChannelType;
 import 'package:fluxer_app/features/forum/domain/forum_channel.dart'
     show forumNewPostsUnreadEnabled;
@@ -59,7 +58,6 @@ class UnreadInboxCalculator {
     required Map<String, bool> collapsedByChannelId,
     String? currentUserId,
     bool unreadBadgeCustomizationEnabled = false,
-    Set<String> threadGuildIds = const <String>{},
   }) async {
     final int nowMs = DateTime.now().millisecondsSinceEpoch;
     final List<UnreadInboxEntry> entries = <UnreadInboxEntry>[];
@@ -122,10 +120,6 @@ class UnreadInboxCalculator {
       if (isGuildCategoryChannelType(channel.type)) {
         continue;
       }
-      if (isThreadFeatureChannelType(channel.type) &&
-          !threadGuildIds.contains(channel.guildId)) {
-        continue;
-      }
       if (!await canReadChannelForUnread(
         database: db,
         channel: channel,
@@ -150,7 +144,8 @@ class UnreadInboxCalculator {
         continue;
       }
 
-      if (unreadSettings.isMuted ||
+      final bool isMuted =
+          unreadSettings.isMuted ||
           (isThread &&
               isThreadMuted(
                 threadId: channel.id,
@@ -158,7 +153,8 @@ class UnreadInboxCalculator {
                 member: joinedThreads[channel.id],
                 guildSettings: guildSettingsByGuild[guildId],
                 now: DateTime.fromMillisecondsSinceEpoch(nowMs),
-              ))) {
+              ));
+      if (isMuted && mentions == 0) {
         continue;
       }
 
@@ -211,7 +207,7 @@ class UnreadInboxCalculator {
           inboxVisibilityLevel != UserNotificationSettings.noMessages;
       final bool hasUnread =
           (allowsMentionUnread && mentions > 0) ||
-          (allowsMessageUnread && hasUnreadMessage);
+          (allowsMessageUnread && !isMuted && hasUnreadMessage);
 
       if (!hasUnread) {
         continue;
@@ -227,6 +223,9 @@ class UnreadInboxCalculator {
           mentionCount: mentions,
           isCollapsed: collapsedByChannelId[channel.id] ?? false,
           recencyComparator: recency,
+          ackMessageId: ackId,
+          lastMessageId: channelLastMsg,
+          isThreadOnly: isThreadOnlyChannelType(channel.type),
         ),
       );
     }
@@ -244,8 +243,10 @@ class UnreadInboxCalculator {
         continue;
       }
       final readState = readStateMap[dm.id];
+      final String? dmLastMessageId =
+          dm.lastMessageId ?? dmLastMessages[dm.id]?.id;
       final unreadCount = dmUnreadCountFromReadState(
-        latestMessageId: dm.lastMessageId ?? dmLastMessages[dm.id]?.id,
+        latestMessageId: dmLastMessageId,
         ackLastMessageId: readState?.lastMessageId,
         fallbackAckMs: snowflakeTimestampMs(dm.id),
         mentionCount: readState?.mentionCount ?? 0,
@@ -265,6 +266,8 @@ class UnreadInboxCalculator {
           mentionCount: unreadCount,
           isCollapsed: collapsedByChannelId[dm.id] ?? false,
           recencyComparator: ms,
+          ackMessageId: readState?.lastMessageId,
+          lastMessageId: dmLastMessageId,
         ),
       );
     }

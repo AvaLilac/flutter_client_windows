@@ -1,23 +1,15 @@
+import 'dart:async';
+
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/features/channels/data/channel_repository.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/domain/channel_move_operation.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_dart/export.dart' hide ChannelType;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'guild_channel_settings_providers.g.dart';
-
-List<Channel> _visibleChannels(
-  List<Channel> channels, {
-  required bool threads,
-}) => threads
-    ? channels
-    : <Channel>[
-        for (final Channel channel in channels)
-          if (!channel.isThreadOnly) channel,
-      ];
 
 @riverpod
 Stream<List<Channel>> guildChannelSettingsChannels(
@@ -25,14 +17,8 @@ Stream<List<Channel>> guildChannelSettingsChannels(
   String guildId,
 ) async* {
   final channelRepository = ref.watch(channelRepositoryProvider);
-  final bool threads = ref.watch(threadChannelsActiveProvider(guildId));
   await channelRepository.getChannels(guildId);
-  yield* channelRepository
-      .watchChannels(guildId)
-      .map(
-        (List<Channel> channels) =>
-            _visibleChannels(channels, threads: threads),
-      );
+  yield* channelRepository.watchChannels(guildId);
 }
 
 @riverpod
@@ -41,15 +27,10 @@ Stream<List<ChannelCategory>> guildChannelSettingsCategories(
   String guildId,
 ) async* {
   final channelRepository = ref.watch(channelRepositoryProvider);
-  final bool threads = ref.watch(threadChannelsActiveProvider(guildId));
   await channelRepository.getChannels(guildId);
   yield* channelRepository
       .watchChannels(guildId)
-      .map(
-        (List<Channel> channels) => groupChannelsIntoCategories(
-          _visibleChannels(channels, threads: threads),
-        ),
-      );
+      .map(groupChannelsIntoCategories);
 }
 
 @riverpod
@@ -83,7 +64,6 @@ class GuildChannelSettingsActions extends _$GuildChannelSettingsActions {
     if (!ref.mounted) {
       return;
     }
-    // Async notifier loading state for void action providers.
     state = const AsyncLoading<void>();
     final AsyncValue<void> result = await AsyncValue.guard(() async {
       await ref
@@ -92,10 +72,13 @@ class GuildChannelSettingsActions extends _$GuildChannelSettingsActions {
           .createGuildChannel(guildId: guildId, body: body);
       await ref.read(channelRepositoryProvider).getChannels(guildId);
     });
+    final Object? error = result.error;
+    if (error != null) {
+      unawaited(showApiErrorFromRoot(ApiErrorAction.generic, error));
+    }
     if (!ref.mounted) {
       return;
     }
-    // Async notifier result state for void action providers.
     state = result;
   }
 

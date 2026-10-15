@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:fluxer_app/core/database/drift_stream_utils.dart';
 
@@ -60,24 +62,22 @@ class ChannelDao extends DatabaseAccessor<FluxerDatabase>
   Future<Channel?> getChannelById(String id) =>
       (select(channels)..where((c) => c.id.equals(id))).getSingleOrNull();
 
-  /// Root category (or channel without parent) first,
-  /// then each child down to [channelId].
-  Future<List<String?>> getPermissionOverwriteLayersRootToLeaf(
-    String channelId,
-  ) async {
-    final List<Channel> bottomUp = <Channel>[];
-    String? currentId = channelId;
-    while (currentId != null) {
-      final Channel? row = await getChannelById(currentId);
-      if (row == null) {
-        break;
-      }
-      bottomUp.add(row);
-      currentId = row.parentId;
+  Future<List<Channel>> getChannelsByIds(List<String> ids) =>
+      (select(channels)..where((c) => c.id.isIn(ids))).get();
+
+  Future<List<String?>> getPermissionOverwriteLayers(String channelId) async {
+    final Channel? row = await getChannelById(channelId);
+    if (row == null) {
+      return const <String?>[];
     }
-    return <String?>[
-      for (final Channel row in bottomUp.reversed) row.permissionOverwritesJson,
-    ];
+    if (!_threadTypes.contains(row.type)) {
+      return <String?>[row.permissionOverwritesJson];
+    }
+    final String? parentId = row.parentId;
+    final Channel? parent = parentId == null
+        ? null
+        : await getChannelById(parentId);
+    return <String?>[parent?.permissionOverwritesJson];
   }
 
   Stream<Channel?> watchChannelById(String id) =>
@@ -106,19 +106,6 @@ class ChannelDao extends DatabaseAccessor<FluxerDatabase>
     });
   }
 
-  /// Bulk upsert with optional authoritative lastMessageId handling.
-  ///
-  /// When [authoritativeTails] is true (READY path), each present
-  /// `lastMessageId` is taken as-is: the gateway snapshot is server truth at
-  /// connect time. Non-typing gateway events are strictly serialized
-  /// (GatewayEventDispatcher._drain), so READY finishes before any queued
-  /// MESSAGE_CREATE and a genuinely newer tail re-advances via its own event.
-  /// Absent `lastMessageId` leaves the local column untouched.
-  ///
-  /// When false, present tails are max-merged against the existing row
-  /// (CHANNEL_UPDATE-style race protection for non-READY callers).
-  ///
-  /// Fold-forward: duplicate channel ids in one call see earlier decisions.
   Future<void> upsertChannelsMerged(
     List<ChannelsCompanion> channelList, {
     bool authoritativeTails = false,
@@ -134,7 +121,6 @@ class ChannelDao extends DatabaseAccessor<FluxerDatabase>
           (ChannelsCompanion channel) => channel.lastMessageId.present,
         );
     if (needsExisting) {
-      // Full table is small (~payload-sized) and avoids bind-limit chunking.
       for (final Channel row in await select(channels).get()) {
         existingLastById[row.id] = row.lastMessageId;
       }
@@ -176,9 +162,6 @@ class ChannelDao extends DatabaseAccessor<FluxerDatabase>
         ChannelsCompanion(lastMessageId: Value(messageId)),
       );
 
-  /// Advances the tail pointer without notifying drift streams; readers must
-  /// use `ChannelLastMessageIndex`. Never moves the pointer back: rewinds go
-  /// through [setLastMessageId].
   Future<void> advanceLastMessageIdSilently(
     String channelId,
     String messageId,
@@ -203,8 +186,6 @@ class ChannelDao extends DatabaseAccessor<FluxerDatabase>
     );
   }
 
-  /// Max-snowflake merge for single-row CHANNEL_UPDATE-style upserts.
-  /// Incoming null/empty preserves existing; otherwise keep the newer id.
   String? mergeLastMessageIdValues({
     required String? existing,
     required String? incomingLastMessageId,
@@ -227,6 +208,61 @@ class ChannelDao extends DatabaseAccessor<FluxerDatabase>
 
   Future<void> deleteChannel(String id) =>
       (delete(channels)..where((c) => c.id.equals(id))).go();
+
+  Future<List<String>> deleteGuildChannelsNotIn(
+    Map<String, Set<String>> keepIdsByGuildId,
+  ) async {
+    if (keepIdsByGuildId.isEmpty) {
+      return const <String>[];
+    }
+    final List<String> staleIds = <String>[
+      for (final Channel row
+          in await (select(channels)..where(
+                (c) =>
+                    c.guildId.isIn(keepIdsByGuildId.keys) &
+                    c.type.isNotIn(_threadTypes),
+              ))
+              .get())
+        if (!(keepIdsByGuildId[row.guildId]?.contains(row.id) ?? true)) row.id,
+    ];
+    if (staleIds.isNotEmpty) {
+      await (delete(channels)..where((c) => c.id.isIn(staleIds))).go();
+    }
+    return staleIds;
+  }
+
+  Future<void> removeRoleOverwrites(String guildId, String roleId) async {
+    final List<Channel> rows =
+        await (select(channels)..where(
+              (c) =>
+                  c.guildId.equals(guildId) &
+                  c.permissionOverwritesJson.contains(jsonEncode(roleId)),
+            ))
+            .get();
+    for (final Channel row in rows) {
+      final Object? decoded = jsonDecode(row.permissionOverwritesJson ?? '[]');
+      if (decoded is! List) {
+        continue;
+      }
+      final List<Object?> kept = <Object?>[
+        for (final Object? overwrite in decoded)
+          if (overwrite is! Map ||
+              overwrite['id'] != roleId ||
+              overwrite['type'] != 0)
+            overwrite,
+      ];
+      if (kept.length == decoded.length) {
+        continue;
+      }
+      await (update(channels)..where((c) => c.id.equals(row.id))).write(
+        ChannelsCompanion(
+          permissionOverwritesJson: Value<String?>(
+            kept.isEmpty ? null : jsonEncode(kept),
+          ),
+        ),
+      );
+    }
+  }
 
   Future<void> deleteChannelsForGuild(String guildId) =>
       (delete(channels)..where((c) => c.guildId.equals(guildId))).go();

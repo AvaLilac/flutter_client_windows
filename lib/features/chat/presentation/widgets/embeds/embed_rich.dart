@@ -7,6 +7,8 @@ import 'package:fluxer_app/features/chat/presentation/widgets/embeds/embed_share
 import 'package:fluxer_app/features/chat/presentation/widgets/embeds/embed_youtube.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_inline_video_player.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_network_image.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/media/media_thumb_hash_placeholder.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_double_tap_exemption.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_markdown.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/wallpaper/chat_wallpaper_text_theme.dart';
 import 'package:fluxer_app/features/chat/utils/embeds/embed_gallery_utils.dart';
@@ -18,7 +20,6 @@ import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_markdown/fluxer_markdown.dart';
 
-/// A rich embed card
 class EmbedRich extends StatelessWidget {
   final Embed embed;
   final EmbedGalleryIndex galleryIndex;
@@ -77,10 +78,10 @@ class EmbedRich extends StatelessWidget {
                 actionScope: videoActionScope,
               )
             : null;
-        final bool hasImage = embed.image != null;
+        final bool hasImage = isValidEmbedMedia(embed.image);
         final bool hasThumbnail =
             !hasVideo &&
-            embed.thumbnail != null &&
+            isValidEmbedMedia(embed.thumbnail) &&
             embed.type != EmbedType.image &&
             embed.type != EmbedType.gifv;
         final EmbedGalleryDisplay gallery = galleryIndex.resolveDisplay(
@@ -110,11 +111,9 @@ class EmbedRich extends StatelessWidget {
                       if (embed.providerName != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 4),
-                          child: EmbedInlineText(
-                            text: embed.providerName!,
-                            style: context.textStyles.embedFooter.copyWith(
-                              fontSize: 12,
-                            ),
+                          child: EmbedProvider(
+                            name: embed.providerName!,
+                            url: embed.providerUrl,
                           ),
                         ),
                       if (embed.author != null)
@@ -169,7 +168,6 @@ class EmbedRich extends StatelessWidget {
                               source: videoLaunchContext!.source,
                               launchContext: videoLaunchContext,
                               dimensionSize: dimensionSize,
-                              posterFit: BoxFit.contain,
                             ),
                           ),
                         )
@@ -186,8 +184,7 @@ class EmbedRich extends StatelessWidget {
                             messageId: messageId,
                           ),
                         )
-                      else if (embed.image != null &&
-                          !shouldRenderInlineThumbnail)
+                      else if (hasImage && !shouldRenderInlineThumbnail)
                         Padding(
                           padding: const EdgeInsets.only(top: 4, bottom: 4),
                           child: _EmbedMediaImage(
@@ -214,30 +211,36 @@ class EmbedRich extends StatelessWidget {
                 ),
                 if (shouldRenderInlineThumbnail) ...[
                   const SizedBox(width: 12),
-                  FluxerGestureDetector(
-                    onTap: canOpenEmbedMediaViewer(embed.thumbnail!)
-                        ? () => openEmbedMediaViewer(
-                            context,
-                            media: embed.thumbnail!,
-                            title: embed.title,
-                            embedPageUrl: embed.url,
-                            embedIndex: embedIndex,
-                            channelId: channelId,
-                            messageId: messageId,
-                            actionScope: videoActionScope,
-                          )
-                        : null,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: ChatNetworkImage(
-                        imageUrl: embedMediaEffectiveUrl(embed.thumbnail!),
-                        contentType: embed.thumbnail!.contentType,
-                        width: 72,
-                        height: 72,
-                        memCacheWidth:
-                            (72 * MediaQuery.devicePixelRatioOf(context))
-                                .round(),
-                        fit: BoxFit.cover,
+                  MessageDoubleTapExempt(
+                    child: FluxerGestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: canOpenEmbedMediaViewer(embed.thumbnail!)
+                          ? () => openEmbedMediaViewer(
+                              context,
+                              media: embed.thumbnail!,
+                              title: embed.title,
+                              embedPageUrl: embed.url,
+                              embedIndex: embedIndex,
+                              channelId: channelId,
+                              messageId: messageId,
+                              actionScope: videoActionScope,
+                            )
+                          : null,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: ChatNetworkImage(
+                          imageUrl: embedMediaEffectiveUrl(embed.thumbnail!),
+                          contentType: embed.thumbnail!.contentType,
+                          width: 72,
+                          height: 72,
+                          memCacheWidth:
+                              (72 * MediaQuery.devicePixelRatioOf(context))
+                                  .round(),
+                          fit: BoxFit.cover,
+                          placeholder: MediaThumbHashPlaceholder(
+                            thumbHash: embed.thumbnail!.placeholder,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -264,7 +267,6 @@ class _EmbedFields extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // inline fields: up to 3 per row; block fields always start a new row
     final rows = <List<EmbedField>>[];
     var current = <EmbedField>[];
 
@@ -378,74 +380,65 @@ class _EmbedMediaImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dimensions = mediaDimensionsForSize(dimensionSize);
-    final displaySize = constrainMediaSize(
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) =>
+          _buildMedia(
+            context,
+            mediaDimensionsWithinWidth(
+              mediaDimensionsForSize(dimensionSize),
+              constraints.maxWidth,
+            ),
+          ),
+    );
+  }
+
+  Widget _buildMedia(BuildContext context, FluxerMediaDimensions dimensions) {
+    final Size size = constrainMediaSize(
       dimensions: dimensions,
       width: media.width,
       height: media.height,
+    )!;
+    final ({int? width, int? height}) cache = coverDecodeCacheSize(
+      cellWidth: size.width,
+      cellHeight: size.height,
+      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      sourceWidth: media.width,
+      sourceHeight: media.height,
     );
-    final double dpr = MediaQuery.devicePixelRatioOf(context);
-    final Widget image;
-    if (displaySize != null) {
-      final ({int? width, int? height}) cache = coverDecodeCacheSize(
-        cellWidth: displaySize.width,
-        cellHeight: displaySize.height,
-        devicePixelRatio: dpr,
-        sourceWidth: media.width,
-        sourceHeight: media.height,
-      );
-      image = ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: SizedBox(
-          width: displaySize.width,
-          height: displaySize.height,
-          child: ChatNetworkImage(
-            imageUrl: embedMediaEffectiveUrl(media),
-            contentType: media.contentType,
-            width: displaySize.width,
-            height: displaySize.height,
-            memCacheWidth: cache.width,
-            memCacheHeight: cache.height,
-            fit: BoxFit.cover,
-          ),
+    final Widget image = ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: SizedBox(
+        width: size.width,
+        height: size.height,
+        child: ChatNetworkImage(
+          imageUrl: embedMediaEffectiveUrl(media),
+          contentType: media.contentType,
+          width: size.width,
+          height: size.height,
+          memCacheWidth: cache.width,
+          memCacheHeight: cache.height,
+          fit: BoxFit.cover,
+          placeholder: MediaThumbHashPlaceholder(thumbHash: media.placeholder),
         ),
-      );
-    } else {
-      final ({int? width, int? height}) cache = containDecodeCacheSize(
-        cellWidth: dimensions.maxWidth,
-        cellHeight: kEmbedMediaFallbackHeight,
-        devicePixelRatio: dpr,
-        sourceWidth: media.width,
-        sourceHeight: media.height,
-      );
-      image = ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: SizedBox(
-          width: dimensions.maxWidth,
-          height: kEmbedMediaFallbackHeight,
-          child: ChatNetworkImage(
-            imageUrl: embedMediaEffectiveUrl(media),
-            contentType: media.contentType,
-            memCacheWidth: cache.width,
-            memCacheHeight: cache.height,
-          ),
-        ),
-      );
-    }
-    return FluxerGestureDetector(
-      onTap: canOpenEmbedMediaViewer(media)
-          ? () => openEmbedMediaViewer(
-              context,
-              media: media,
-              title: title,
-              embedPageUrl: embedPageUrl,
-              embedIndex: embedIndex,
-              channelId: channelId,
-              messageId: messageId,
-              actionScope: actionScope,
-            )
-          : null,
-      child: image,
+      ),
+    );
+    return MessageDoubleTapExempt(
+      child: FluxerGestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: canOpenEmbedMediaViewer(media)
+            ? () => openEmbedMediaViewer(
+                context,
+                media: media,
+                title: title,
+                embedPageUrl: embedPageUrl,
+                embedIndex: embedIndex,
+                channelId: channelId,
+                messageId: messageId,
+                actionScope: actionScope,
+              )
+            : null,
+        child: image,
+      ),
     );
   }
 }

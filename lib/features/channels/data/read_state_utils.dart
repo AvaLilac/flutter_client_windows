@@ -1,3 +1,4 @@
+import 'package:fluxer_app/core/database/daos/message_dao.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/shared/utils/snowflake_time.dart';
 
@@ -9,10 +10,6 @@ int compareSnowflakeIds(String? a, String? b) {
   return ai.compareTo(bi);
 }
 
-/// Mirrors the web's `compareReadStateVersions` (read_states/shared.ts).
-/// Read-state versions are numeric strings; non-numeric values are treated as
-/// incomparable (returns 0). Comparison is by numeric magnitude: shorter
-/// normalized string is smaller, otherwise lexicographic.
 int compareReadStateVersions(String? a, String? b) {
   final left = _normalizeReadStateVersion(a);
   final right = _normalizeReadStateVersion(b);
@@ -73,7 +70,7 @@ Future<({String? id, bool existsInCache})> resolveLatestMessageIdForChannel(
   var channelLastExists = false;
   if (channelLastMessageId != null && channelLastMessageId.isNotEmpty) {
     channelLastExists =
-        await db.messageDao.getMessage(channelLastMessageId) != null;
+        await db.messageDao.getMessage(channelId, channelLastMessageId) != null;
   }
   final id = resolveLatestMessageId(
     channelLastMessageId: channelLastMessageId,
@@ -81,6 +78,53 @@ Future<({String? id, bool existsInCache})> resolveLatestMessageIdForChannel(
     channelLastMessageExistsInCache: channelLastExists,
   );
   return (id: id, existsInCache: channelLastExists);
+}
+
+typedef ChannelLatestMessageResolution = ({String? id, bool existsInCache});
+
+Future<Map<String, ChannelLatestMessageResolution>>
+resolveLatestMessageIdsForChannelsBulk(
+  FluxerDatabase db,
+  Iterable<Channel> channels,
+) async {
+  final List<Channel> channelList = channels.toList();
+  if (channelList.isEmpty) {
+    return const <String, ChannelLatestMessageResolution>{};
+  }
+  final Map<String, Message> lastByChannel = await db.messageDao
+      .getLastMessageForChannels(channelList.map((Channel c) => c.id).toList());
+  final Set<MessageKey> pointersToVerify = <MessageKey>{};
+  for (final Channel channel in channelList) {
+    final String? pointer = channel.lastMessageId;
+    if (pointer == null || pointer.isEmpty) {
+      continue;
+    }
+    final String? cachedId = lastByChannel[channel.id]?.id;
+    if (cachedId != pointer) {
+      pointersToVerify.add((channelId: channel.id, id: pointer));
+    }
+  }
+  final Set<MessageKey> existingPointers = await db.messageDao
+      .getExistingMessageKeys(pointersToVerify);
+  final Map<String, ChannelLatestMessageResolution> out =
+      <String, ChannelLatestMessageResolution>{};
+  for (final Channel channel in channelList) {
+    final String? pointer = channel.lastMessageId;
+    var existsInCache = false;
+    if (pointer != null && pointer.isNotEmpty) {
+      final String? cachedId = lastByChannel[channel.id]?.id;
+      existsInCache =
+          pointer == cachedId ||
+          existingPointers.contains((channelId: channel.id, id: pointer));
+    }
+    final String? id = resolveLatestMessageId(
+      channelLastMessageId: pointer,
+      cachedLastMessageId: lastByChannel[channel.id]?.id,
+      channelLastMessageExistsInCache: existsInCache,
+    );
+    out[channel.id] = (id: id, existsInCache: existsInCache);
+  }
+  return out;
 }
 
 String? resolveLatestMessageIdForUnread({
@@ -94,17 +138,18 @@ String? resolveLatestMessageIdForUnread({
     if (channelLastMessageId != null &&
         channelLastMessageId.isNotEmpty &&
         compareSnowflakeIds(strictLatestMessageId, channelLastMessageId) < 0) {
-      final ackCaughtUpWithCache =
-          ackLastMessageId == null ||
-          ackLastMessageId.isEmpty ||
-          compareSnowflakeIds(ackLastMessageId, strictLatestMessageId) >= 0;
-      final ackBehindPointer =
+      final bool ackBehindPointer =
           ackLastMessageId == null ||
           ackLastMessageId.isEmpty ||
           compareSnowflakeIds(ackLastMessageId, channelLastMessageId) < 0;
-      if ((channelLastMessageExistsInCache || ackCaughtUpWithCache) &&
-          ackBehindPointer) {
-        return channelLastMessageId;
+      if (ackBehindPointer) {
+        final bool ackCaughtCache =
+            ackLastMessageId != null &&
+            ackLastMessageId.isNotEmpty &&
+            compareSnowflakeIds(ackLastMessageId, strictLatestMessageId) >= 0;
+        if (ackCaughtCache || channelLastMessageExistsInCache) {
+          return channelLastMessageId;
+        }
       }
     }
     return strictLatestMessageId;
@@ -236,10 +281,6 @@ String? oldestUnreadMessageId({
   return null;
 }
 
-/// True if the DM-relevant read-state fields (ack id + mention count) differ
-/// between two channelId->ReadState snapshots. Used to skip recomputes that
-/// Drift's table-level stream invalidation fires when no relevant read state
-/// actually changed.
 bool dmReadStatesChanged(
   Map<String, ReadState> previous,
   Map<String, ReadState> next,

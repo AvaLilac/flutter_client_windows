@@ -7,7 +7,6 @@ import 'package:fluxer_app/core/database/tables/thread_members.dart';
 part 'thread_dao.g.dart';
 
 const List<int> _threadTypes = <int>[10, 11, 12];
-const List<int> _threadOnlyTypes = <int>[15, 16];
 const Duration threadArchivedRetention = Duration(days: 7);
 
 @DriftAccessor(tables: [Channels, ThreadMembers])
@@ -46,6 +45,9 @@ class ThreadDao extends DatabaseAccessor<FluxerDatabase> with _$ThreadDaoMixin {
   Future<ThreadMember?> getMember(String threadId) => (select(
     threadMembers,
   )..where((m) => m.threadId.equals(threadId))).getSingleOrNull();
+
+  Future<List<ThreadMember>> getMembersFor(List<String> threadIds) =>
+      (select(threadMembers)..where((m) => m.threadId.isIn(threadIds))).get();
 
   Stream<ThreadMember?> watchMember(String threadId) =>
       (select(threadMembers)..where((m) => m.threadId.equals(threadId)))
@@ -116,14 +118,29 @@ class ThreadDao extends DatabaseAccessor<FluxerDatabase> with _$ThreadDaoMixin {
     required List<String>? parentIds,
     required List<ChannelsCompanion> threads,
     required List<ThreadMembersCompanion> members,
+    Set<String> keepIds = const <String>{},
   }) => transaction(() async {
+    final Set<String> listedIds = <String>{
+      for (final ChannelsCompanion thread in threads) thread.id.value,
+    };
     await pruneActiveThreads(
       guildId: guildId,
       parentIds: parentIds,
-      keepIds: <String>{
-        for (final ChannelsCompanion thread in threads) thread.id.value,
-      },
+      keepIds: <String>{...listedIds, ...keepIds},
     );
+    final Set<String> memberIds = <String>{
+      for (final ThreadMembersCompanion member in members)
+        member.threadId.value,
+    };
+    final List<String> leftIds = <String>[
+      for (final String id in listedIds)
+        if (!memberIds.contains(id)) id,
+    ];
+    if (leftIds.isNotEmpty) {
+      await (delete(
+        threadMembers,
+      )..where((m) => m.threadId.isIn(leftIds))).go();
+    }
     await batch((Batch b) {
       for (final ChannelsCompanion thread in threads) {
         b.insert(channels, thread, onConflict: DoUpdate((_) => thread));
@@ -148,13 +165,9 @@ class ThreadDao extends DatabaseAccessor<FluxerDatabase> with _$ThreadDaoMixin {
                     c.parentId.isIn(parentIds),
               ))
               .get();
-    final Set<String> joined = await getJoinedThreadIds();
     final List<String> dropIds = <String>[
       for (final Channel row in existing)
-        if (!keepIds.contains(row.id) &&
-            !joined.contains(row.id) &&
-            row.threadArchived != true)
-          row.id,
+        if (!keepIds.contains(row.id) && row.threadArchived != true) row.id,
     ];
     await _deleteThreadRows(dropIds);
   });
@@ -185,39 +198,6 @@ class ThreadDao extends DatabaseAccessor<FluxerDatabase> with _$ThreadDaoMixin {
         await _deleteThreadRows(ids);
         return ids;
       });
-
-  Future<List<String>> purgeGuild(String guildId) => transaction(() async {
-    final $MessagesTable messages = attachedDatabase.messages;
-    await (delete(messages)..where(
-          (m) =>
-              m.type.equals(18) &
-              m.channelId.isInQuery(
-                selectOnly(channels)
-                  ..addColumns(<Expression<Object>>[channels.id])
-                  ..where(channels.guildId.equals(guildId)),
-              ),
-        ))
-        .go();
-    final List<String> ids = <String>[
-      for (final Channel row in await getThreadsForGuild(guildId)) row.id,
-    ];
-    await _deleteThreadRows(ids);
-    await (delete(threadMembers)..where((m) => m.guildId.equals(guildId))).go();
-    final List<String> forumIds = <String>[
-      for (final Channel row
-          in await (select(channels)..where(
-                (c) =>
-                    c.guildId.equals(guildId) & c.type.isIn(_threadOnlyTypes),
-              ))
-              .get())
-        row.id,
-    ];
-    if (forumIds.isNotEmpty) {
-      await (delete(channels)..where((c) => c.id.isIn(forumIds))).go();
-      await attachedDatabase.readStateDao.markThreadReadStates(forumIds);
-    }
-    return <String>[...ids, ...forumIds];
-  });
 
   Future<List<String>> pruneArchived({required DateTime now}) =>
       transaction(() async {

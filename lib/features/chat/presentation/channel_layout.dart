@@ -12,7 +12,6 @@ import 'package:fluxer_app/features/chat/presentation/widgets/channel/channel_de
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/channel_header.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/channel/search/channel_search_results_panel.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/wallpaper/chat_wallpaper_text_theme.dart';
-import 'package:fluxer_app/features/chat/providers/channel/channel_details_drawer_provider.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_details_providers.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_header_search_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/bottom_input_slot_provider.dart';
@@ -23,7 +22,7 @@ import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/presentation/widgets/guild_unavailable_screen.dart';
 import 'package:fluxer_app/features/guilds/presentation/widgets/staff_only_guild_nagbar.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_availability_provider.dart';
-import 'package:fluxer_app/features/guilds/providers/guild_providers.dart';
+import 'package:fluxer_app/features/guilds/providers/route_guild_provider.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_outage_availability.dart';
 import 'package:fluxer_app/features/mature_content/presentation/widgets/mature_content_channel_gate.dart';
 import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
@@ -40,8 +39,6 @@ import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/utils/chat_context_utils.dart';
 
-/// Wrapper screen for the chat area content.
-/// Takes guildId and channelId from go_router params.
 class ChannelLayout extends ConsumerStatefulWidget {
   final String guildId;
   final String channelId;
@@ -72,7 +69,6 @@ class _ChannelLayoutState extends ConsumerState<ChannelLayout> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.guildId != widget.guildId ||
         oldWidget.channelId != widget.channelId) {
-      ref.read(channelDetailsDrawerProvider.notifier).close();
       WidgetsBinding.instance.addPostFrameCallback((_) => _syncSearchContext());
     }
   }
@@ -94,7 +90,7 @@ class _ChannelLayoutState extends ConsumerState<ChannelLayout> {
       guildAvailabilityProvider,
     );
     final AsyncValue<Guild?> guildAsync = ref.watch(
-      guildStreamByIdProvider(widget.guildId),
+      routeGuildProvider(widget.guildId),
     );
     final Guild? guild = guildAsync.value;
     final bool guildOutageUnavailable = isGuildOutageUnavailable(
@@ -174,8 +170,6 @@ class _ChannelLayoutState extends ConsumerState<ChannelLayout> {
       if (previous == next) {
         return;
       }
-      // A route listener can fire while the scope is flushing mid-build, and a
-      // provider write there throws: bind the pair after the frame instead.
       WidgetsBinding.instance.addPostFrameCallback((_) => _syncSearchContext());
     }
 
@@ -203,7 +197,7 @@ class _ChannelLayoutState extends ConsumerState<ChannelLayout> {
             child: const SizedBox.shrink(),
           )
         : channel != null && channel.isThreadOnly
-        ? ForumChannelView(guildId: widget.guildId, channelId: widget.channelId)
+        ? ForumChannelView(channelId: widget.channelId)
         : isVoiceChannel
         ? VoiceChannelPageView(
             guildId: widget.guildId,
@@ -321,7 +315,9 @@ class _ChannelLayoutState extends ConsumerState<ChannelLayout> {
                   );
                 },
               ),
-              const Positioned.fill(child: ChannelDetailsDrawerOverlay()),
+              Positioned.fill(
+                child: ChannelDetailsDrawerOverlay(channelId: widget.channelId),
+              ),
             ],
           ),
         ),

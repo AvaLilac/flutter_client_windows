@@ -12,18 +12,15 @@ part 'unread_dm_provider.g.dart';
 class UnreadDmState {
   final List<DmChannel> channels;
   final Set<String> unreadChannelIds;
-  final Set<String> pendingRemovalIds;
+  final bool loaded;
 
   const UnreadDmState({
     this.channels = const [],
     this.unreadChannelIds = const {},
-    this.pendingRemovalIds = const {},
+    this.loaded = false,
   });
 
   bool hasUnread(String channelId) => unreadChannelIds.contains(channelId);
-
-  bool isPendingRemoval(String channelId) =>
-      pendingRemovalIds.contains(channelId);
 
   int mentionCountFor(String channelId) {
     for (final channel in channels) {
@@ -35,10 +32,6 @@ class UnreadDmState {
   }
 }
 
-/// Value-equal token capturing only the navbar-rail DM membership and identity
-/// (id, type, name) of the unread-DM list — NOT mention/unread counts. The guild
-/// navbar watches this via `.select` so it rebuilds only when a DM enters/leaves
-/// the rail or its displayed identity changes, not on every read-state reconcile.
 String dmNavbarMembershipToken(UnreadDmState state) {
   final buffer = StringBuffer();
   for (final channel in state.channels) {
@@ -55,11 +48,11 @@ String dmNavbarMembershipToken(UnreadDmState state) {
 
 @Riverpod(keepAlive: true)
 class UnreadDmChannels extends _$UnreadDmChannels {
-  final _removalTimers = <String, Timer>{};
   StreamSubscription<List<DmChannel>>? _dmSubscription;
   StreamSubscription<List<ReadState>>? _readStateSubscription;
   List<DmChannel> _latestRows = const [];
   Map<String, ReadState> _dmReadStateSnapshot = const {};
+  int _reconcileGeneration = 0;
 
   @override
   UnreadDmState build() {
@@ -68,6 +61,7 @@ class UnreadDmChannels extends _$UnreadDmChannels {
 
     unawaited(_dmSubscription?.cancel());
     unawaited(_readStateSubscription?.cancel());
+    _reconcileGeneration++;
     _dmReadStateSnapshot = const {};
     _dmSubscription = db.dmChannelDao.watchDmChannels().listen(
       (rows) => unawaited(_reconcile(rows)),
@@ -86,12 +80,9 @@ class UnreadDmChannels extends _$UnreadDmChannels {
     });
 
     ref.onDispose(() {
+      _reconcileGeneration++;
       unawaited(_dmSubscription?.cancel());
       unawaited(_readStateSubscription?.cancel());
-      for (final timer in _removalTimers.values) {
-        timer.cancel();
-      }
-      _removalTimers.clear();
     });
 
     return const UnreadDmState();
@@ -111,27 +102,24 @@ class UnreadDmChannels extends _$UnreadDmChannels {
       ..sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
   }
 
-  List<DmChannel> _orderChannels({
-    required Map<String, DmChannel> merged,
-    required Set<String> previousIds,
-    required Set<String> addedIds,
-  }) {
-    final visible = merged.values
-        .where((channel) => !_shouldExcludeChannel(channel))
-        .toList();
-    if (addedIds.isEmpty && visible.length == previousIds.length) {
+  List<DmChannel> _orderChannels(Map<String, DmChannel> unread) {
+    final bool hasAdditions = unread.keys.any(
+      (id) => !state.channels.any((channel) => channel.id == id),
+    );
+    if (!hasAdditions) {
       return state.channels
-          .where((channel) => merged.containsKey(channel.id))
-          .map((channel) => merged[channel.id]!)
+          .where((channel) => unread.containsKey(channel.id))
+          .map((channel) => unread[channel.id]!)
           .toList();
     }
-    return _sortChannels(visible);
+    return _sortChannels(unread.values.toList());
   }
 
   Future<void> _reconcile([List<DmChannel>? rows]) async {
     if (rows != null) {
       _latestRows = rows;
     }
+    final int generation = ++_reconcileGeneration;
     final db = ref.read(fluxerDatabaseProvider);
     final channelIds = _latestRows.map((row) => row.id).toList();
     final lastMessages = await db.messageDao.getLastMessageForChannels(
@@ -140,6 +128,9 @@ class UnreadDmChannels extends _$UnreadDmChannels {
     final readStates = channelIds.isEmpty
         ? <ReadState>[]
         : await db.readStateDao.watchReadStatesForChannels(channelIds).first;
+    if (generation != _reconcileGeneration) {
+      return;
+    }
     final readStateMap = {for (final rs in readStates) rs.channelId: rs};
     _dmReadStateSnapshot = readStateMap;
     final allChannels = _latestRows.map((channel) {
@@ -172,53 +163,10 @@ class UnreadDmChannels extends _$UnreadDmChannels {
         )
         .map((entry) => entry.channel)
         .toList();
-    final unreadIds = unreadChannels.map((c) => c.id).toSet();
-    final currentIds = state.channels.map((c) => c.id).toSet();
-    final pendingRemovalIds = {...state.pendingRemovalIds};
-
-    for (final id in currentIds) {
-      if (!unreadIds.contains(id)) {
-        if (!_removalTimers.containsKey(id)) {
-          pendingRemovalIds.add(id);
-          _removalTimers[id] = Timer(const Duration(milliseconds: 750), () {
-            _removalTimers.remove(id);
-            state = UnreadDmState(
-              channels: state.channels.where((c) => c.id != id).toList(),
-              unreadChannelIds: {...state.unreadChannelIds}..remove(id),
-              pendingRemovalIds: {...state.pendingRemovalIds}..remove(id),
-            );
-          });
-        }
-      }
-    }
-
-    for (final channel in unreadChannels) {
-      _removalTimers[channel.id]?.cancel();
-      _removalTimers.remove(channel.id);
-      pendingRemovalIds.remove(channel.id);
-    }
-
-    final merged = <String, DmChannel>{};
-    for (final c in state.channels) {
-      if (!_shouldExcludeChannel(c)) {
-        merged[c.id] = c;
-      }
-    }
-    for (final c in unreadChannels) {
-      merged[c.id] = c;
-    }
-
-    final addedIds = merged.keys.toSet().difference(currentIds);
-    final newChannels = _orderChannels(
-      merged: merged,
-      previousIds: currentIds,
-      addedIds: addedIds,
-    );
-
     state = UnreadDmState(
-      channels: newChannels,
-      unreadChannelIds: unreadIds,
-      pendingRemovalIds: pendingRemovalIds,
+      channels: _orderChannels({for (final c in unreadChannels) c.id: c}),
+      unreadChannelIds: unreadChannels.map((c) => c.id).toSet(),
+      loaded: true,
     );
   }
 }

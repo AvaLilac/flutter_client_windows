@@ -1,25 +1,24 @@
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 
-/// Snapshot of the metadata rendered above a mention card: channel name,
-/// optional guild line, channel-type icon hint, and the rounded server-icon
-/// avatar inputs.
 class MentionHeader {
   const MentionHeader({
     required this.primary,
     required this.secondaryLine,
     required this.guildChannelVisualType,
     required this.isDm,
+    required this.isGroupDm,
     required this.guildIconUrl,
     required this.guildIconName,
     required this.isGuildUnavailable,
   });
 
-  factory MentionHeader.dm({required String title}) {
+  factory MentionHeader.dm({required String title, bool isGroup = false}) {
     return MentionHeader(
       primary: title,
       secondaryLine: '',
       guildChannelVisualType: ChannelType.guildText,
       isDm: true,
+      isGroupDm: isGroup,
       guildIconUrl: null,
       guildIconName: title,
       isGuildUnavailable: false,
@@ -39,6 +38,7 @@ class MentionHeader {
       secondaryLine: secondaryLine,
       guildChannelVisualType: visual,
       isDm: false,
+      isGroupDm: false,
       guildIconUrl: iconUrl,
       guildIconName: iconName,
       isGuildUnavailable: isUnavailable,
@@ -49,13 +49,12 @@ class MentionHeader {
   final String secondaryLine;
   final ChannelType guildChannelVisualType;
   final bool isDm;
+  final bool isGroupDm;
   final String? guildIconUrl;
   final String guildIconName;
   final bool isGuildUnavailable;
 }
 
-/// Result returned by header loaders: the [header] for rendering and the guild
-/// id used to resolve role colors in the inline preview (empty string for DMs).
 class MentionHeaderResult {
   const MentionHeaderResult({
     required this.header,

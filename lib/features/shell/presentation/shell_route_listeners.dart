@@ -26,12 +26,11 @@ import 'package:fluxer_app/core/share/pending_share_provider.dart';
 import 'package:fluxer_app/core/share/shared_media_payload.dart';
 import 'package:fluxer_app/features/channels/providers/channel_list_view_model.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/share_media_sheet.dart';
-import 'package:fluxer_app/features/guilds/providers/guild_availability_provider.dart';
-import 'package:fluxer_app/features/guilds/providers/guild_list_view_model.dart';
+import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_sync_provider.dart';
-import 'package:fluxer_app/features/guilds/utils/guild_outage_availability.dart';
 import 'package:fluxer_app/features/members/providers/member_list_desired_ranges_provider.dart';
 import 'package:fluxer_app/features/members/providers/member_list_viewport_provider.dart';
+import 'package:fluxer_app/features/notifications/providers/notification_stream_providers.dart';
 import 'package:fluxer_app/features/quick_switcher/presentation/sheets/quick_switcher_bottom_sheet.dart';
 import 'package:fluxer_app/features/quick_switcher/providers/quick_switcher_provider.dart';
 import 'package:fluxer_app/features/shell/navigation/drawer_navigation_coordinator.dart';
@@ -53,6 +52,9 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
   @override
   void initState() {
     super.initState();
+    ref
+      ..read(notificationMentionFeedStreamProvider)
+      ..read(dmViewModelProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -255,6 +257,7 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
     required String? previous,
     required String? next,
   }) {
+    final bool available = next != null && _loadActiveGuildChannels(next);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -263,27 +266,23 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
       if (previous != null && previous != activeGuildId) {
         unawaited(evictInactiveGuildPermissionState(ref.container, previous));
       }
-      if (next == null || activeGuildId != next) {
+      if (!available || activeGuildId != next) {
         return;
       }
-      _applyActiveGuildEffects(next);
+      ref.read(guildSyncProvider.notifier).syncIfNeeded(next);
     });
   }
 
   void _applyActiveGuildEffects(String guildId) {
-    final guilds = ref.read(guildListViewModelProvider).guilds;
-    final guild = guilds.where((g) => g.id == guildId).firstOrNull;
-    if (isGuildOutageUnavailable(
-      guildId: guildId,
-      trackedUnavailableGuildIds: ref.read(guildAvailabilityProvider),
-      guild: guild,
-    )) {
-      return;
+    if (_loadActiveGuildChannels(guildId)) {
+      ref.read(guildSyncProvider.notifier).syncIfNeeded(guildId);
     }
-    ref
+  }
+
+  bool _loadActiveGuildChannels(String guildId) {
+    return ref
         .read(channelListViewModelProvider.notifier)
-        .loadChannels(guildId, guild: guild);
-    ref.read(guildSyncProvider.notifier).syncIfNeeded(guildId);
+        .loadActiveGuild(guildId);
   }
 
   void _scheduleDistributorPicker() {

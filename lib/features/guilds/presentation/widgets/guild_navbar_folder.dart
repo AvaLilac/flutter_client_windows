@@ -2,14 +2,12 @@ part of 'guild_navbar.dart';
 
 class _GuildFolderWidget extends ConsumerStatefulWidget {
   final GuildNavbarFolder folder;
-  final String? activeGuildId;
   final int unavailableCount;
   final GlobalKey<_GuildListItemState> Function(String guildId)
   resolveGuildItemKey;
 
   const _GuildFolderWidget({
     required this.folder,
-    required this.activeGuildId,
     required this.unavailableCount,
     required this.resolveGuildItemKey,
     super.key,
@@ -30,14 +28,13 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
       folderExpandedStateProvider.select((s) => s.contains(folder.id)),
     );
     final DragState dragState = ref.watch(guildDragProvider);
-    final bool useLongPressDrag = isTouchPrimaryInput(ref);
+    final bool useTouchDrag = isTouchPrimaryInput(ref);
     final bool collapseWhileDragging = dragState.shouldCollapseDragSource(
       itemId: folder.id.toString(),
-      useLongPressDrag: useLongPressDrag,
+      useTouchDrag: useTouchDrag,
     );
     final bool visuallyExpanded = isExpanded && !collapseWhileDragging;
 
-    // Aggregate unread/mention/voice across all guilds in folder.
     var anyUnread = false;
     var totalMentions = 0;
     var folderVoiceActivity = VoiceActivityType.none;
@@ -68,33 +65,33 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
         : context.colors.brandPrimary;
 
     final folderSurface = Color.lerp(
-      context.colors.backgroundSecondary,
+      context.colors.serverSidebarBackground,
       folderAccent,
       isDark ? 0.2 : 0.15,
     )!;
 
-    // Stack: background panel behind header + animated guild list.
-    // Background spans from header through guild items when expanded.
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        vertical: GuildNavbarIconShape.itemSpacing / 2,
+      ),
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.topCenter,
         children: [
-          // Background panel (behind everything, spans full height).
           if (visuallyExpanded)
             Positioned.fill(
               child: Center(
                 child: Container(
-                  width: 48,
+                  width: GuildNavbarIconShape.size,
                   decoration: BoxDecoration(
                     color: folderSurface,
-                    borderRadius: BorderRadius.circular(48 * 0.3),
+                    borderRadius: BorderRadius.circular(
+                      GuildNavbarIconShape.activeRadius,
+                    ),
                   ),
                 ),
               ),
             ),
-          // Content column: header + animated guild list.
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -128,10 +125,8 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
                   totalMentions: totalMentions,
                   folderVoiceActivity: folderVoiceActivity,
                   isExpanded: visuallyExpanded,
-                  guildUnreadReady: guildUnreadReady,
                 ),
               ),
-              // Animated expand/collapse of guild items.
               AnimatedSize(
                 duration: context.motion.panel,
                 curve: const Cubic(0.25, 0.1, 0.25, 1),
@@ -147,7 +142,7 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
                           ],
                         ),
                       )
-                    : const SizedBox(width: 72),
+                    : const SizedBox(width: kGuildNavbarWidth),
               ),
             ],
           ),
@@ -164,13 +159,12 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
     required int totalMentions,
     required VoiceActivityType folderVoiceActivity,
     required bool isExpanded,
-    required bool guildUnreadReady,
   }) {
     final folder = widget.folder;
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     final String folderName = folder.name ?? _derivedFolderName;
     return SizedBox(
-      width: 72,
+      width: kGuildNavbarWidth,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
@@ -181,24 +175,12 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
               top: 0,
               bottom: 0,
               child: Center(
-                child: AnimatedContainer(
-                  duration: guildUnreadReady
-                      ? context.motion.panel
-                      : Duration.zero,
-                  curve: const Cubic(0.25, 0.1, 0.25, 1),
-                  width: 4,
+                child: GuildNavbarPill(
                   height: _isHovered
-                      ? 20
+                      ? GuildNavbarPill.hoverHeight
                       : anyUnread
-                      ? 8
+                      ? GuildNavbarPill.unreadHeight
                       : 0,
-                  decoration: BoxDecoration(
-                    color: context.colors.textPrimary,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(999),
-                      bottomRight: Radius.circular(999),
-                    ),
-                  ),
                 ),
               ),
             ),
@@ -239,9 +221,8 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
                           ),
                         );
                       },
-                      child: SizedBox(
-                        width: 48,
-                        height: 48,
+                      child: SizedBox.square(
+                        dimension: GuildNavbarIconShape.size,
                         child: isExpanded
                             ? Center(
                                 child: PhosphorIcon(
@@ -251,15 +232,13 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
                                 ),
                               )
                             : Center(
-                                child: AnimatedContainer(
-                                  duration: context.motion.hover,
-                                  curve: Curves.easeOut,
-                                  width: 48,
-                                  height: 48,
+                                child: Container(
+                                  width: GuildNavbarIconShape.size,
+                                  height: GuildNavbarIconShape.size,
                                   decoration: BoxDecoration(
                                     color: folderSurface,
                                     borderRadius: BorderRadius.circular(
-                                      48 * 0.3,
+                                      GuildNavbarIconShape.activeRadius,
                                     ),
                                   ),
                                   child: _buildFolderContent(
@@ -275,11 +254,13 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
               ),
               if (!isExpanded && totalMentions > 0)
                 Positioned(
-                  bottom: -4,
-                  right: -4,
-                  child: FluxerBadge.count(
-                    count: totalMentions,
-                    cutoutColor: context.colors.backgroundSecondary,
+                  bottom: GuildNavbarPill.badgeInset,
+                  right: GuildNavbarPill.badgeInset,
+                  child: FluxerBadgeEntrance(
+                    child: FluxerBadge.count(
+                      count: totalMentions,
+                      cutoutColor: context.colors.serverSidebarBackground,
+                    ),
                   ),
                 ),
               if (!isExpanded && folderVoiceActivity != VoiceActivityType.none)
@@ -307,7 +288,6 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
       );
     }
 
-    // 2x2 mini guild icon grid.
     final gridGuilds = folder.guilds.take(4).toList();
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -341,15 +321,7 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
                           )
                         : ColoredBox(
                             color: context.colors.serverIconBackground,
-                            child: Center(
-                              child: Text(
-                                abbreviateGuildName(guild.name, maxLength: 2),
-                                style: context.textStyles.smallText.copyWith(
-                                  fontSize: 8,
-                                  color: context.colors.textPrimary,
-                                ),
-                              ),
-                            ),
+                            child: FluxerGuildAcronym(name: guild.name),
                           ),
                   ),
                 ),
@@ -382,8 +354,9 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
         );
         final GlobalKey<_GuildListItemState> itemKey = widget
             .resolveGuildItemKey(guild.id);
-        final bool hasUnread =
-            !guild.unavailable && (unread?.hasUnread ?? false);
+        final bool isSelected = ref.watch(
+          activeGuildIdProvider.select((String? id) => id == guild.id),
+        );
         return GuildDragWrapper(
           itemId: guild.id,
           isFolder: false,
@@ -396,7 +369,7 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
           peekMenu: buildGuildPeekMenuConfig(
             context,
             guild: guild,
-            hasUnread: hasUnread,
+            hasUnread: !guild.unavailable && (unread?.hasUnread ?? false),
             onAction:
                 (BuildContext actionContext, GuildIconPeekAction action) async {
                   await itemKey.currentState?.handlePeekAction(
@@ -409,7 +382,7 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
             key: itemKey,
             label: guild.name,
             guild: guild,
-            isSelected: guild.id == widget.activeGuildId,
+            isSelected: isSelected,
             permissions: permissions,
             isOwner: guild.ownerId == currentUserId,
             iconUrl: guild.iconUrl,
@@ -426,7 +399,12 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
             developerMode: developerMode,
             enableLongPressMenu: !isMobileLayout(context),
             onTap: () {
-              DrawerNavigationCoordinator.selectGuild(ref.container, guild.id);
+              unawaited(
+                DrawerNavigationCoordinator.selectGuild(
+                  ref.container,
+                  guild.id,
+                ),
+              );
             },
             onMenuOpened: () {
               ref.read(guildSyncProvider.notifier).syncIfNeeded(guild.id);
@@ -440,9 +418,6 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
                   guild.id,
                   ref.read(fluxerDatabaseProvider),
                   ref.read(fluxerClientProvider),
-                  threadsActive: ref
-                      .read(threadsGateProvider)
-                      .isActive(guild.id),
                 ),
               );
             },
@@ -581,7 +556,6 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
             onGetGuildChannels: () => getGuildChannelsForSettings(
               db: ref.read(fluxerDatabaseProvider),
               guildId: guild.id,
-              threadsActive: ref.read(threadsGateProvider).isActive(guild.id),
             ),
             onUpdateChannelOverride:
                 (channelId, messageNotifications, {required muted}) {
@@ -654,7 +628,6 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
       db: ref.read(fluxerDatabaseProvider),
       client: ref.read(fluxerClientProvider),
       userId: userId,
-      threadGuildIds: ref.read(threadsGateProvider).activeGuildIds,
     );
   }
 
@@ -800,7 +773,6 @@ Widget _buildGuildMenuActionItem({
           guild.id,
           ref.read(fluxerDatabaseProvider),
           ref.read(fluxerClientProvider),
-          threadsActive: ref.read(threadsGateProvider).isActive(guild.id),
         ),
       );
     },
@@ -933,7 +905,6 @@ Widget _buildGuildMenuActionItem({
     onGetGuildChannels: () => getGuildChannelsForSettings(
       db: ref.read(fluxerDatabaseProvider),
       guildId: guild.id,
-      threadsActive: ref.read(threadsGateProvider).isActive(guild.id),
     ),
     onUpdateChannelOverride:
         (String channelId, int messageNotifications, {required bool muted}) {

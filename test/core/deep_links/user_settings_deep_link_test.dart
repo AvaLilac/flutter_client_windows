@@ -112,6 +112,28 @@ void main() {
         ),
       );
     });
+
+    testWidgets('plutonium tab uses instance premium page label', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: fluxerLocalizationsDelegates,
+          supportedLocales: FluxerLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) {
+              final label = userSettingsDeepLinkTabLabel(
+                FluxerLocalizations.of(context),
+                parseUserSettingsDeepLink(uri('/settings/user?tab=plutonium'))!,
+                premiumProductName: 'Nitro',
+              );
+              expect(label, 'Nitro page');
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+    });
   });
 
   group('buildUserSettingsDeepLink', () {

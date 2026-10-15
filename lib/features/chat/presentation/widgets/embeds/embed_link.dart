@@ -3,17 +3,18 @@ import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/embeds/embed_gallery_media.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/embeds/embed_shared.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_network_image.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/media/media_thumb_hash_placeholder.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_markdown.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/wallpaper/chat_wallpaper_text_theme.dart';
 import 'package:fluxer_app/features/chat/utils/embeds/embed_gallery_utils.dart';
 import 'package:fluxer_app/features/chat/utils/embeds/embed_media_viewer_utils.dart';
+import 'package:fluxer_app/features/chat/utils/embeds/embed_youtube_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/media_dimension_utils.dart';
 import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_markdown/fluxer_markdown.dart';
 
-/// A link preview card.
 class EmbedLink extends StatelessWidget {
   final Embed embed;
   final EmbedGalleryIndex galleryIndex;
@@ -69,11 +70,9 @@ class EmbedLink extends StatelessWidget {
                 if (embed.providerName != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
-                    child: EmbedInlineText(
-                      text: embed.providerName!,
-                      style: context.textStyles.embedFooter.copyWith(
-                        fontSize: 12,
-                      ),
+                    child: EmbedProvider(
+                      name: embed.providerName!,
+                      url: embed.providerUrl,
                     ),
                   ),
                 if (embed.author != null)
@@ -111,10 +110,11 @@ class EmbedLink extends StatelessWidget {
                       messageId: messageId,
                     ),
                   )
-                else if (embed.thumbnail != null)
+                else if (isValidEmbedMedia(embed.thumbnail))
                   Padding(
                     padding: const EdgeInsets.only(top: 4, bottom: 4),
                     child: FluxerGestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: canOpenEmbedMediaViewer(embed.thumbnail!)
                           ? () => openEmbedMediaViewer(
                               context,
@@ -128,14 +128,19 @@ class EmbedLink extends StatelessWidget {
                           : null,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(4),
-                        // Reserve the extent from metadata, capped by the layout
-                        // dimensions (fixed fallback when absent), so the load
-                        // never shifts the chat and portrait sources cannot
-                        // reserve unbounded height.
-                        child: _thumbnailBox(
-                          context: context,
-                          thumbnail: embed.thumbnail!,
-                          dimensions: dimensions,
+                        child: LayoutBuilder(
+                          builder:
+                              (
+                                BuildContext context,
+                                BoxConstraints constraints,
+                              ) => _thumbnailBox(
+                                context: context,
+                                thumbnail: embed.thumbnail!,
+                                dimensions: mediaDimensionsWithinWidth(
+                                  dimensions,
+                                  constraints.maxWidth,
+                                ),
+                              ),
                         ),
                       ),
                     ),
@@ -161,18 +166,15 @@ class EmbedLink extends StatelessWidget {
     required EmbedMedia thumbnail,
     required FluxerMediaDimensions dimensions,
   }) {
-    final Size? displaySize = constrainMediaSize(
+    final Size displaySize = constrainMediaSize(
       dimensions: dimensions,
       width: thumbnail.width,
       height: thumbnail.height,
-    );
-    final double dpr = MediaQuery.devicePixelRatioOf(context);
-    final double cellWidth = displaySize?.width ?? dimensions.maxWidth;
-    final double cellHeight = displaySize?.height ?? kEmbedMediaFallbackHeight;
+    )!;
     final ({int? width, int? height}) cache = coverDecodeCacheSize(
-      cellWidth: cellWidth,
-      cellHeight: cellHeight,
-      devicePixelRatio: dpr,
+      cellWidth: displaySize.width,
+      cellHeight: displaySize.height,
+      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
       sourceWidth: thumbnail.width,
       sourceHeight: thumbnail.height,
     );
@@ -183,17 +185,11 @@ class EmbedLink extends StatelessWidget {
       fit: BoxFit.cover,
       memCacheWidth: cache.width,
       memCacheHeight: cache.height,
+      placeholder: MediaThumbHashPlaceholder(thumbHash: thumbnail.placeholder),
     );
-    if (displaySize != null) {
-      return SizedBox(
-        width: displaySize.width,
-        height: displaySize.height,
-        child: image,
-      );
-    }
     return SizedBox(
-      width: double.infinity,
-      height: kEmbedMediaFallbackHeight,
+      width: displaySize.width,
+      height: displaySize.height,
       child: image,
     );
   }

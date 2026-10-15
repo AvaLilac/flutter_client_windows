@@ -1,6 +1,9 @@
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fluxer_app/core/database/fluxer_database.dart'
+    show ChannelsCompanion, FluxerDatabase, ServersCompanion;
+import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme.dart';
@@ -16,9 +19,11 @@ import 'package:fluxer_app/features/chat/utils/media/save_message_media_favorite
 import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/media_viewer/attachment_media_viewer.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_dart/export.dart' show MessageReferenceType;
 import 'package:fluxer_markdown/fluxer_markdown.dart';
 import 'package:riverpod/src/framework.dart' show Override;
 
+import '../../../../../helpers/open_test_database.dart';
 import '../../../../../helpers/test_l10n.dart';
 import '../../../../../helpers/wide_layout_test_sizes.dart';
 
@@ -75,6 +80,7 @@ void main() {
             type: EmbedType.image,
             image: EmbedMedia(
               url: 'https://cdn.example/embed-0.png',
+              proxyUrl: 'https://media.example/embed-0.png',
               width: 400,
               height: 300,
             ),
@@ -83,6 +89,7 @@ void main() {
             type: EmbedType.image,
             image: EmbedMedia(
               url: 'https://cdn.example/embed-1.png',
+              proxyUrl: 'https://media.example/embed-1.png',
               width: 400,
               height: 300,
             ),
@@ -154,6 +161,7 @@ void main() {
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
+            fluxerDatabaseProvider.overrideWithValue(openTestDatabase()),
             favoriteMemesProvider.overrideWith((ref) => Stream.value(const [])),
           ],
           child: _content(
@@ -174,6 +182,7 @@ void main() {
 
       expect(find.byType(AttachmentMediaViewerShell), findsOneWidget);
       expect(find.byType(SavedMediaFavoriteToolbarButton), findsOneWidget);
+      await releaseTestWidgetTree(tester);
     },
   );
 
@@ -193,6 +202,67 @@ void main() {
 
     expect(find.byType(MessageStickerImage), findsOneWidget);
     expect(find.bySemanticsLabel('wave'), findsOneWidget);
+  });
+
+  testWidgets('reserves the source chip height while the source loads', (
+    tester,
+  ) async {
+    final FluxerDatabase db = openTestDatabase();
+    await db.guildDao.upsertServer(
+      ServersCompanion.insert(id: 'guild-src', name: 'Source community'),
+    );
+    await db.channelDao.upsertChannel(
+      ChannelsCompanion.insert(
+        id: 'channel-src',
+        guildId: 'guild-src',
+        name: 'source',
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildTestApp(
+        overrides: [fluxerDatabaseProvider.overrideWithValue(db)],
+        child: ForwardedMessageContent(
+          message: Message(
+            id: _messageId,
+            channelId: _channelId,
+            authorId: 'user-1',
+            authorName: 'User',
+            content: '',
+            timestamp: DateTime(2026, 5, 9),
+            messageReference: const MessageReference(
+              channelId: 'channel-src',
+              messageId: 'message-src',
+              guildId: 'guild-src',
+              type: MessageReferenceType.forward,
+            ),
+          ),
+          snapshot: MessageSnapshot(
+            timestamp: DateTime(2026, 5, 9),
+            content: 'hello',
+          ),
+          renderEmbeds: false,
+          inlineAttachmentMedia: true,
+          revealSpoilers: false,
+          chatPreferences: const ChatPreferencesState(),
+          spoilerSyncController: FluxerSpoilerSyncController(),
+        ),
+      ),
+    );
+
+    expect(find.text('Source community'), findsNothing);
+    final double loading = tester
+        .getSize(find.byType(ForwardedMessageContent))
+        .height;
+
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Source community'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(ForwardedMessageContent)).height,
+      loading,
+    );
   });
 }
 

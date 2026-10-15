@@ -5,7 +5,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:fluxer_app/core/database/fluxer_database.dart' hide Channel;
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
-    show isThreadChannelType, isThreadOnlyChannelType;
+    show isThreadChannelType;
 import 'package:fluxer_app/features/guilds/presentation/widgets/guild_menu_data.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_notification_resolution.dart';
 import 'package:fluxer_dart/export.dart';
@@ -15,32 +15,23 @@ export 'package:fluxer_app/features/guilds/utils/guild_notification_resolution.d
 Future<void> markGuildAsRead(
   String guildId,
   FluxerDatabase db,
-  FluxerClient client, {
-  bool threadsActive = false,
-}) async {
-  var channels = await db.channelDao.getChannels(
-    guildId,
-    includeThreads: threadsActive,
-  );
-  if (!threadsActive) {
-    channels = channels.where((c) => !isThreadOnlyChannelType(c.type)).toList();
-  }
+  FluxerClient client,
+) async {
+  var channels = await db.channelDao.getChannels(guildId, includeThreads: true);
   final channelIds = channels.map((c) => c.id).toList();
   final readStates = await db.readStateDao
       .watchReadStatesForChannels(channelIds)
       .first;
   final readStateMap = {for (final rs in readStates) rs.channelId: rs};
-  if (threadsActive) {
-    final Set<String> joinedThreadIds = await db.threadDao.getJoinedThreadIds();
-    channels = channels
-        .where(
-          (c) =>
-              !isThreadChannelType(c.type) ||
-              joinedThreadIds.contains(c.id) ||
-              (readStateMap[c.id]?.mentionCount ?? 0) > 0,
-        )
-        .toList();
-  }
+  final Set<String> joinedThreadIds = await db.threadDao.getJoinedThreadIds();
+  channels = channels
+      .where(
+        (c) =>
+            !isThreadChannelType(c.type) ||
+            joinedThreadIds.contains(c.id) ||
+            (readStateMap[c.id]?.mentionCount ?? 0) > 0,
+      )
+      .toList();
 
   final ackEntries = <ReadStateAckBulkRequestReadStates>[];
   for (final channel in channels) {
@@ -213,11 +204,9 @@ Future<
 getGuildChannelsForSettings({
   required FluxerDatabase db,
   required String guildId,
-  bool threadsActive = false,
 }) async {
   final channels = await db.channelDao.getChannels(guildId);
   return channels
-      .where((c) => threadsActive || !isThreadOnlyChannelType(c.type))
       .map(
         (c) => (
           id: c.id,
@@ -261,9 +250,7 @@ Future<void> updateGuildNotificationSetting({
 
     if (muted != null) {
       data['muted'] = muted;
-      if (!muted) {
-        data.remove('mute_config');
-      }
+      data.remove('mute_config');
     }
     if (messageNotifications != null) {
       data['message_notifications'] = messageNotifications.json;
@@ -306,6 +293,9 @@ Future<void> updateGuildNotificationSetting({
           guildId: guildId,
           body: UserGuildSettingsUpdateRequest(
             muted: pending.muted,
+            muteConfig: pending.muted == null
+                ? const JsonNullable.undefined()
+                : const JsonNullable.of(null),
             messageNotifications: pending.messageNotifications == null
                 ? null
                 : UserNotificationSettingsInput.fromJson(
@@ -358,12 +348,18 @@ Future<void> updateGuildUserSettings(
     case GuildAction.unmute:
       currentData['muted'] = false;
       currentData.remove('mute_config');
-      request = UserGuildSettingsUpdateRequest(muted: false);
+      request = UserGuildSettingsUpdateRequest(
+        muted: false,
+        muteConfig: const JsonNullable.of(null),
+      );
 
     case GuildAction.muteForever:
       currentData['muted'] = true;
       currentData.remove('mute_config');
-      request = UserGuildSettingsUpdateRequest(muted: true);
+      request = UserGuildSettingsUpdateRequest(
+        muted: true,
+        muteConfig: const JsonNullable.of(null),
+      );
 
     case GuildAction.mute15Min:
     case GuildAction.mute30Min:
@@ -473,7 +469,10 @@ Future<void> muteGuildForDuration({
   if (durationMs == null) {
     currentData['muted'] = true;
     currentData.remove('mute_config');
-    request = UserGuildSettingsUpdateRequest(muted: true);
+    request = UserGuildSettingsUpdateRequest(
+      muted: true,
+      muteConfig: const JsonNullable.of(null),
+    );
   } else {
     final endTime = DateTime.now().add(Duration(milliseconds: durationMs));
     final endTimeIso = endTime.toUtc().toIso8601String();
@@ -527,7 +526,10 @@ Future<void> unmuteGuild({
   unawaited(
     client.users.updateGuildSettingsForUser(
       guildId: guildId,
-      body: UserGuildSettingsUpdateRequest(muted: false),
+      body: UserGuildSettingsUpdateRequest(
+        muted: false,
+        muteConfig: const JsonNullable.of(null),
+      ),
     ),
   );
 }

@@ -24,6 +24,13 @@ jobs:
       - name: Sync submodules
         run: git submodule update --init --recursive
 
+      - name: Fetch shared canary build number
+        id: canary_build_number
+        env:
+          BUILD_SERVICE_TOKEN: ${{ secrets.BUILD_SERVICE_TOKEN }}
+          BUILD_SERVICE_URL: ${{ secrets.BUILD_SERVICE_URL }}
+        run: bash .github/scripts/fetch_build_service_number.sh android
+
       - name: Set up Flutter
         # Temp use while waiting for a pr: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         uses: axi92/flutter-action@72633a794ba0b23276fa4fc465a6cacb758a90c5
@@ -192,10 +199,23 @@ jobs:
           bundle config set path 'vendor/bundle'
           bundle install --jobs 4 --retry 3
 
+      - name: Write Measure native config
+        env:
+          MEASURE_RELEASE_CHANNEL: canary
+          MEASURE_IOS_API_KEY_CANARY: ${{ secrets.MEASURE_IOS_API_KEY_CANARY }}
+          MEASURE_IOS_API_KEY: ${{ secrets.MEASURE_IOS_API_KEY }}
+          MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
+        run: tool/measure/write_native_measure_config.sh
+
       - name: Build and upload with Fastlane
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+          CANARY_NUMBER: ${{ steps.canary_build_number.outputs.build_number }}
+          MEASURE_IOS_API_KEY_CANARY: ${{ secrets.MEASURE_IOS_API_KEY_CANARY }}
+          MEASURE_IOS_API_KEY: ${{ secrets.MEASURE_IOS_API_KEY }}
+          MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
+          MEASURE_RELEASE_CHANNEL: canary
         run: bundle exec fastlane ios testflight_canary

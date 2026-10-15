@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/pickers/picker_search_input.dart';
 import 'package:fluxer_app/features/members/presentation/widgets/member_list_shared_widgets.dart';
 import 'package:fluxer_app/features/settings/domain/guild/guild_ban_entry.dart';
 import 'package:fluxer_app/features/settings/domain/guild/guild_bans_state.dart';
@@ -13,13 +14,13 @@ import 'package:fluxer_app/features/settings/presentation/widgets/wide_settings_
 import 'package:fluxer_app/features/settings/providers/guild/guild_bans_provider.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/action_menu/fluxer_action_menu.dart';
-import 'package:fluxer_app/features/ui/input/fluxer_input.dart';
 import 'package:fluxer_app/features/ui/modal/fluxer_modal.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
 import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/display_name.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -168,14 +169,9 @@ class _GuildBansWidgetState extends ConsumerState<GuildBansWidget> {
             ),
           ),
           SizedBox(height: context.layout.s4),
-          FluxerInput(
+          PickerSearchInput.inline(
             controller: _searchController,
-            hint: l10n.guildSettingsBansSearchHint,
-            prefixIcon: PhosphorIcon(
-              PhosphorIconsBold.magnifyingGlass,
-              size: 18,
-              color: context.colors.textPrimaryMuted,
-            ),
+            hintText: l10n.guildSettingsBansSearchHint,
             onChanged: (String value) {
               ref
                   .read(guildBansProvider(widget.guildId).notifier)
@@ -278,13 +274,11 @@ class _GuildBansWidgetState extends ConsumerState<GuildBansWidget> {
               message: l10n.guildSettingsRevokeBanSuccess(displayName),
             ),
           );
-    } on Object {
+    } on Object catch (error) {
       if (!context.mounted) {
         return;
       }
-      ref
-          .read(toastProvider.notifier)
-          .show(FluxerToast(message: l10n.guildSettingsRevokeBanError));
+      await showApiError(context, ApiErrorAction.revokeBan, error);
     }
   }
 }

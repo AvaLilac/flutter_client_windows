@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fluxer_app/core/audio/enums/fluxer_sfx_clip.dart';
+import 'package:fluxer_app/core/audio/fluxer_sfx.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/providers/fluxer_sfx_provider.dart';
@@ -26,6 +28,25 @@ class _TestSoundPreferences extends SoundPreferences {
   SoundPreferencesState build() {
     return const SoundPreferencesState();
   }
+}
+
+class _RecordingSfx implements FluxerSFX {
+  final List<FluxerSfxClip> played = <FluxerSfxClip>[];
+
+  @override
+  Future<void> playOneShot(
+    FluxerSfxClip clip, {
+    double volume = 0.4,
+    bool ignoreRingerPolicy = false,
+  }) async {
+    played.add(clip);
+  }
+
+  @override
+  Future<void> dispose() async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 MessageCreateEvent _createEvent(String id) {
@@ -62,14 +83,14 @@ void main() {
   test(
     'message sfx binding survives a database cancellation mid-event',
     () async {
-      // Drift's isolate protocol completes pending requests with
-      // [CancellationException] when the connection closes mid-event.
       final FluxerDatabase db = FluxerDatabase.forTesting(
         LazyDatabase(() => throw const CancellationException()),
       );
+      final _RecordingSfx sfx = _RecordingSfx();
       final container = ProviderContainer(
         overrides: [
           fluxerDatabaseProvider.overrideWithValue(db),
+          fluxerSfxProvider.overrideWithValue(sfx),
           notificationPreferencesProvider.overrideWith(
             _TestNotificationPreferences.new,
           ),
@@ -84,8 +105,10 @@ void main() {
           .read(messageRealtimeBusProvider)
           .emit(testMessageCreated(_createEvent('1')));
 
-      // Without the guard this fails as an unhandled asynchronous error.
       await pumpEventQueue();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(sfx.played, <FluxerSfxClip>[FluxerSfxClip.message]);
     },
   );
 }

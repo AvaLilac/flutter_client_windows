@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Спробувати ще раз",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Підключено",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1511,7 +1515,7 @@
     "@emojiSearchEmpty": {
         "description": "Emoji picker empty search state."
     },
-    "emojiAutocompleteDefaultLabel": "Стандартний емодзі",
+    "emojiAutocompleteDefaultLabel": "Стандартний емоджі",
     "@emojiAutocompleteDefaultLabel": {
         "description": "Short right-side label in the chat composer emoji autocomplete shown for built-in (unicode) emoji; custom emoji show their guild name instead. Keep it concise."
     },
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Пошук KLIPY",
+    "gifPickerSearchKlipy": "Пошук Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Пошук Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Вибране",
     "@gifPickerFavorites": {
@@ -1973,7 +1973,7 @@
     "@aboutMeLabel": {
         "description": "Label for the bio text area."
     },
-    "aboutMeHelperText": "Можна використовувати посилання, емодзі та Markdown.",
+    "aboutMeHelperText": "Можна використовувати посилання, емоджі та Markdown.",
     "@aboutMeHelperText": {
         "description": "Helper text below the bio text area."
     },
@@ -2591,10 +2591,6 @@
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
     },
-    "dangerZoneDeleteCancelSubscription": "Скасуйте свою активну підписку Plutonium у налаштуваннях Plutonium перед видаленням облікового запису.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
-    },
     "dangerZoneDeleteCannotDeleteAccount": "Неможливо видалити обліковий запис",
     "@dangerZoneDeleteCannotDeleteAccount": {
         "description": "Title for the guild ownership warning modal when trying to delete account."
@@ -2918,20 +2914,11 @@
             }
         }
     },
-    "userProfilePlutoniumBadgeTooltip": "{productName} Plutonium",
-    "@userProfilePlutoniumBadgeTooltip": {
-        "description": "Short badge title in the user profile badges popout. English locales use Title Case for official badge titles; other locales should use natural local capitalization.",
+    "userProfilePremiumSubscriberSinceTooltip": "Підписник {premiumProductFullName} з {date}",
+    "@userProfilePremiumSubscriberSinceTooltip": {
+        "description": "Badge label with a date in the user profile badges popout. Preserve {premiumProductFullName} and {date}; they are inserted by code. premiumProductFullName is the instance product name followed by its premium product name, for example Fluxer Plutonium. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
         "placeholders": {
-            "productName": {
-                "type": "String"
-            }
-        }
-    },
-    "userProfilePlutoniumSubscriberSinceTooltip": "Підписник {productName} Plutonium з {date}",
-    "@userProfilePlutoniumSubscriberSinceTooltip": {
-        "description": "Badge label with a date in the user profile badges popout. Preserve {date}; it is inserted by code. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
-        "placeholders": {
-            "productName": {
+            "premiumProductFullName": {
                 "type": "String"
             },
             "date": {
@@ -3822,6 +3809,71 @@
     "channelComposerBarrierVerifyEmail": "Підтвердити електронну пошту",
     "@channelComposerBarrierVerifyEmail": {
         "description": "Action button on the composer barrier for unverified email."
+    },
+    "accountLimitedNotice": "Надсилання повідомлень у вашому обліковому записі на паузі. Загляньте в електронну пошту: щоб продовжити, потрібен лише один швидкий крок.",
+    "@accountLimitedNotice": {
+        "description": "Notice shown in place of the message composer and as a banner at the top of the app when messaging is paused on the current account until the user completes one quick step described in an email. Keep the tone calm and friendly."
+    },
+    "messagingPausedTextDidNotGoThrough": "Моє SMS не дійшло",
+    "@messagingPausedTextDidNotGoThrough": {
+        "description": "Button shown while messaging is paused on the current account, and the title of the help sheet it opens. The email describing the quick step asks the user to send a text message from their phone. This is for users who could not send that text, and also for users who sent it and nothing happened. The translation should cover both. Also used as the subject of the support email."
+    },
+    "messagingPausedHelpBody": "Напишіть на {supportEmail}, і працівник перевірить ваш обліковий запис. Також можна відповісти на лист, який ми вам надіслали.",
+    "@messagingPausedHelpBody": {
+        "description": "Body of the help sheet opened from \"My text didn't go through\" while messaging is paused on the account. supportEmail is the support email address. Keep it short, calm and neutral.",
+        "placeholders": {
+            "supportEmail": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLabel": "Країна, де ви перебуваєте",
+    "@messagingPausedHelpCountryLabel": {
+        "description": "Field label in the help sheet opened from \"My text didn't go through\". The user types the country they are in so support can help."
+    },
+    "messagingPausedHelpCopyDetails": "Копіювати дані",
+    "@messagingPausedHelpCopyDetails": {
+        "description": "Button in the help sheet opened from \"My text didn't go through\". Copies the account details for a support email to the clipboard."
+    },
+    "messagingPausedHelpEmailSupport": "Написати в підтримку",
+    "@messagingPausedHelpEmailSupport": {
+        "description": "Primary button in the help sheet opened from \"My text didn't go through\". Opens a new email to support with the account details filled in."
+    },
+    "messagingPausedHelpAccountIdLine": "ID облікового запису: {accountId}",
+    "@messagingPausedHelpAccountIdLine": {
+        "description": "One line of the support email written for the user. accountId is the numeric account ID.",
+        "placeholders": {
+            "accountId": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpUsernameLine": "Ім'я користувача: {username}",
+    "@messagingPausedHelpUsernameLine": {
+        "description": "One line of the support email written for the user. username is the account username with its tag.",
+        "placeholders": {
+            "username": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpAccountCreatedLine": "Обліковий запис створено: {createdAt}",
+    "@messagingPausedHelpAccountCreatedLine": {
+        "description": "One line of the support email written for the user. createdAt is the account creation time as an ISO 8601 UTC timestamp.",
+        "placeholders": {
+            "createdAt": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLine": "Країна: {country}",
+    "@messagingPausedHelpCountryLine": {
+        "description": "One line of the support email written for the user. country is the country the user typed.",
+        "placeholders": {
+            "country": {
+                "type": "String"
+            }
+        }
     },
     "chatAttachmentTooMany": "Занадто багато вкладень (макс. {max})",
     "@chatAttachmentTooMany": {
@@ -4836,7 +4888,7 @@
     "@messagesMediaAutocompleteSectionDescription": {
         "description": "Section description for expression autocomplete settings."
     },
-    "messagesMediaAutocompleteDefaultEmojisLabel": "Показувати стандартні емодзі в автозаповненні виразів",
+    "messagesMediaAutocompleteDefaultEmojisLabel": "Показувати стандартні емоджі в автозаповненні виразів",
     "@messagesMediaAutocompleteDefaultEmojisLabel": {
         "description": "Toggle label for default emojis in expression autocomplete."
     },
@@ -5138,7 +5190,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Показати чат з {count, plural, one {# непрочитаним повідомленням} other{# непрочитаними повідомленнями}}",
+    "voiceTextChatShowUnread": "Показати чат з {count, plural, one {{count} непрочитаним повідомленням} other{{count} непрочитаними повідомленнями}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5407,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "Не вдалося надіслати повідомлення. Торкніться, щоб вибрати параметри.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "Ваше повідомлення не могло бути доставлено. Зазвичай це відбувається тому, що ви не маєте спільної спільноти з одержувачем або одержувач приймає прямі повідомлення лише від друзів. Можливо, вам також доведеться налаштувати власні параметри конфіденційності прямих повідомлень у розділі {settingsPath}.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5519,6 @@
     "forwardSuccessToast": "Повідомлення переслано",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "Не вдалося переслати повідомлення",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Коментарі недоступні, оскільки в вибраному каналі увімкнено повільний режим.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6126,19 +6178,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "ВАШ ОБЛІКОВИЙ ЗАПИС",
+    "userSettingsGroupYourAccount": "Ваш обліковий запис",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6466,11 +6518,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Введіть URL екземпляра (наприклад, fluxer.app)",
+    "instanceUrlPlaceholder": "Введіть URL екземпляра (наприклад, fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Використовуйте fluxer.app для офіційного екземпляра або точну URL-адресу самостійно розміщеного екземпляра.",
+    "instanceUrlHelper": "Використовуйте fluxer.com для офіційного екземпляра або точну URL-адресу самостійно розміщеного екземпляра.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },
@@ -6690,13 +6742,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "НОВЕ",
+    "scrollIndicatorNew": "Нове",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "НОВЕ ПОВІДОМЛЕННЯ",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Нові повідомлення",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Згорнути {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -6985,10 +7037,6 @@
     "guildMenuMarkAsRead": "Позначити як прочитане",
     "@guildMenuMarkAsRead": {
         "description": "Guild menu action to mark all channels as read."
-    },
-    "guildPeekMoreOptions": "Більше опцій",
-    "@guildPeekMoreOptions": {
-        "description": "Guild peek menu action to open the full guild options sheet."
     },
     "guildMenuInviteMembers": "Запросити учасників",
     "@guildMenuInviteMembers": {
@@ -8119,7 +8167,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Видалено # повідомлення.} other{Видалено # повідомлень.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Видалено {count} повідомлення.} other{Видалено {count} повідомлень.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8176,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Видалено # учасника.} other{Видалено # учасників.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Видалено {count} учасника.} other{Видалено {count} учасників.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8333,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -9680,11 +9728,11 @@
     "@permissionChangeOwnNicknameDescription": {
         "description": "Permission description."
     },
-    "permissionCreateEmojiStickersDescription": "Завантажувати нові емодзі та стікери, а також керувати власними творіннями.",
+    "permissionCreateEmojiStickersDescription": "Завантажувати нові емоджі та стікери, а також керувати власними творіннями.",
     "@permissionCreateEmojiStickersDescription": {
         "description": "Permission description."
     },
-    "permissionManageEmojiStickers": "Керувати емодзі та стікерами",
+    "permissionManageEmojiStickers": "Керувати емоджі та стікерами",
     "@permissionManageEmojiStickers": {
         "description": "Permission name."
     },
@@ -12184,7 +12232,7 @@
     "@emojiInfoCustomInviteRequiredDescription": {
         "description": "Emoji info sheet description when the user is not in the source community."
     },
-    "emojiInfoFromHeader": "Цей емодзі з",
+    "emojiInfoFromHeader": "Цей емоджі з",
     "@emojiInfoFromHeader": {
         "description": "Section header above the source community in the emoji info sheet."
     },
@@ -12247,7 +12295,7 @@
             }
         }
     },
-    "relativeTimeInDays": "{count, plural, =1{за 1 день} other{за # днів}}",
+    "relativeTimeInDays": "{count, plural, =1{за 1 день} other{за {count} днів}}",
     "@relativeTimeInDays": {
         "description": "Relative time in future days.",
         "placeholders": {
@@ -13711,7 +13759,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Усі, крім {count, plural, one {# спільноти} few {# спільнот} many {# спільнот} other {# спільнот}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Усі, крім {count, plural, one {{count} спільноти} few {{count} спільнот} many {{count} спільнот} other {{count} спільнот}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13720,7 +13768,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Лише {count, plural, one {# спільнота} few {# спільноти} many {# спільнот} other {# спільноти}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Лише {count, plural, one {{count} спільнота} few {{count} спільноти} many {{count} спільнот} other {{count} спільноти}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13749,7 +13797,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# година} few {# години} many {# годин} other {# годин}} і {minutes, plural, one {# хвилина} few {# хвилини} many {# хвилин} other {# хвилин}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} година} few {{hours} години} many {{hours} годин} other {{hours} годин}} і {minutes, plural, one {{minutes} хвилина} few {{minutes} хвилини} many {{minutes} хвилин} other {{minutes} хвилин}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13761,7 +13809,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# година} few {# години} many {# годин} other {# години}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} година} few {{hours} години} many {{hours} годин} other {{hours} години}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13770,7 +13818,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# хвилина} few {# хвилини} many {# хвилин} other {# хвилини}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} хвилина} few {{minutes} хвилини} many {{minutes} хвилин} other {{minutes} хвилини}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13779,7 +13827,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# секунда} few {# секунди} many {# секунд} other {# секунди}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} секунда} few {{seconds} секунди} many {{seconds} секунд} other {{seconds} секунди}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14485,7 +14533,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -14689,8 +14737,8 @@
     "storePlutoniumMonthSuffix": "/міс.",
     "storePlutoniumYearSuffix": "/рік",
     "storePlutoniumPriceOr": "або",
-    "storePlutoniumEmojiTitle": "Ваші емодзі всюди",
-    "storePlutoniumEmojiBody": "Додавайте власні емодзі та стікери з будь-яких спільнот до кожного чату та спільноти, в яких ви перебуваєте.",
+    "storePlutoniumEmojiTitle": "Ваші емоджі всюди",
+    "storePlutoniumEmojiBody": "Додавайте власні емоджі та стікери з будь-яких спільнот до кожного чату та спільноти, в яких ви перебуваєте.",
     "storePlutoniumProfileTitle": "Профіль, що виділяється",
     "storePlutoniumProfileBody": "Отримайте анімований аватар і банер, значок підписника, бажаний чотиризначний тег після імені користувача*, а також окремий профіль для кожної спільноти.",
     "storePlutoniumFilesTitle": "Надсилайте файли розміром до 500 МБ",
@@ -14708,8 +14756,8 @@
     "storePlutoniumCompareBookmarks": "Повідомлення, які можна додати до закладок",
     "storePlutoniumCompareUpload": "Найбільший файл, який ви можете завантажити",
     "storePlutoniumCompareSavedMedia": "Медіафайли, які можна зберегти на потім",
-    "storePlutoniumCompareAnimatedEmoji": "Використовуйте анімовані емодзі в повідомленнях",
-    "storePlutoniumCompareCustomEmoji": "Використовуйте власні емодзі та стікери в будь-якій спільноті",
+    "storePlutoniumCompareAnimatedEmoji": "Використовуйте анімовані емоджі в повідомленнях",
+    "storePlutoniumCompareCustomEmoji": "Використовуйте власні емоджі та стікери в будь-якій спільноті",
     "storePlutoniumCompareVideo": "Якість відеодзвінків і демонстрації екрана",
     "storePlutoniumCompareAvatar": "Анімований аватар і банер профілю",
     "storePlutoniumCompareEarlyAccess": "Ранній доступ до нових функцій",
@@ -14721,7 +14769,7 @@
     "storePlutoniumDonatePrompt": "Хочете просто підтримати розробку Fluxer з відкритим кодом? ",
     "storePlutoniumDonateLink": "Зробити пожертву.",
     "storePlutoniumHighlightsLead": "Підписка фінансує Fluxer і розблоковує",
-    "storePlutoniumHighlightEmoji": "Власні емодзі та стікери в будь-якому чаті",
+    "storePlutoniumHighlightEmoji": "Власні емоджі та стікери в будь-якому чаті",
     "storePlutoniumHighlightProfile": "Анімований профіль, значок і вибраний 4-значний номер",
     "storePlutoniumHighlightFiles": "Завантаження до 500 МБ",
     "storePlutoniumHighlightMessages": "Надсилайте повідомлення до 4000 символів",
@@ -14924,7 +14972,7 @@
     "advancedSettingShowOnlyMoreButtonLabel": "Показувати лише кнопку \"Більше\"",
     "advancedSettingShowQuickReactionsLabel": "Показувати швидкі реакції",
     "advancedSettingEnableShiftToExpandLabel": "Увімкнути Shift для розгортання",
-    "advancedSettingShowDefaultEmojisAutocompleteLabel": "Показувати стандартні емодзі в автозаповненні виразів",
+    "advancedSettingShowDefaultEmojisAutocompleteLabel": "Показувати стандартні емоджі в автозаповненні виразів",
     "advancedSettingShowCustomEmojisAutocompleteLabel": "Показувати власні емоджі в автозаповненні виразів",
     "advancedSettingShowStickersAutocompleteLabel": "Показувати стікери в автозаповненні виразів",
     "advancedSettingShowSavedMediaAutocompleteLabel": "Показувати збережені медіа в автозаповненні виразів",
@@ -14972,7 +15020,7 @@
     "advancedSettingDefaultReverseImageSearchLabel": "Зворотний пошук зображень за замовчуванням",
     "advancedSettingDefaultReverseImageSearchDescription": "Виберіть сервіс зворотного пошуку зображень, який використовуватиметься за замовчуванням під час пошуку зображення.",
     "advancedSettingBuiltInReverseImageSearchLabel": "Вбудований зворотний пошук зображень",
-    "advancedSettingBuiltInReverseImageSearchDescription": "Увімкніть або вимкніть вбудовані сервіси зворотного пошуку зображень. Увімкнені сервіси з'являються в контекстному меню зображень, аватарів, банерів, стікерів та емодзі.",
+    "advancedSettingBuiltInReverseImageSearchDescription": "Увімкніть або вимкніть вбудовані сервіси зворотного пошуку зображень. Увімкнені сервіси з'являються в контекстному меню зображень, аватарів, банерів, стікерів та емоджі.",
     "advancedSettingCustomReverseImageSearchLabel": "Власний зворотний пошук зображень",
     "advancedSettingCustomReverseImageSearchDescription": "Додайте власні пошукові системи для зворотного пошуку зображень із шаблоном URL. Використовуйте '{url}' як заповнювач для URL зображення.",
     "advancedSettingAddReverseImageSearchLabel": "Додати зворотний пошук зображень",
@@ -15673,7 +15721,7 @@
     "guildSettingsEmojiLoadFailed": "Не вдалося завантажити емоджі. Спробуйте пізніше.",
     "guildSettingsEmojiSearchEmpty": "Не знайдено емоджі, що відповідають вашому пошуку.",
     "guildSettingsEmojiSlotsFull": "Ви досягли максимальної кількості емоджі. Видаліть деякі наявні емоджі, щоб звільнити місце.",
-    "guildSettingsEmojiUploadRequirements": "Назви емодзі мають містити щонайменше 2 символи та можуть складатися з літер, цифр і підкреслень. Розмір емодзі має бути меншим за {maxSize}. Статичні зображення автоматично змінюються до розміру 128x128 пікселів і стискаються. Анімовані емодзі та SVG мають одразу відповідати обмеженню.",
+    "guildSettingsEmojiUploadRequirements": "Назви емоджі мають містити щонайменше 2 символи та можуть складатися з літер, цифр і підкреслень. Розмір емоджі має бути меншим за {maxSize}. Статичні зображення автоматично змінюються до розміру 128x128 пікселів і стискаються. Анімовані емоджі та SVG мають одразу відповідати обмеженню.",
     "@guildSettingsEmojiUploadRequirements": {
         "placeholders": {
             "maxSize": {
@@ -16292,7 +16340,7 @@
     "@doubleTapReactionEditTitle": {
         "description": "Title of the double-tap default emoji picker sheet."
     },
-    "doubleTapReactionEditSubtitle": "Виберіть емодзі для подвійного дотику",
+    "doubleTapReactionEditSubtitle": "Виберіть емоджі для подвійного дотику",
     "@doubleTapReactionEditSubtitle": {
         "description": "Subtitle of the double-tap default emoji picker sheet."
     },
@@ -16513,5 +16561,96 @@
     },
     "channelUnsupportedTitle": "Непідтримуваний тип каналу",
     "channelUnsupportedBody": "Ця версія програми не підтримує цей тип каналу.",
-    "channelDetailsUnsupportedChannel": "Непідтримуваний канал"
+    "channelDetailsUnsupportedChannel": "Непідтримуваний канал",
+    "forumPostNewBadge": "Нове",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} нове повідомлення} other {{count} нових повідомлень}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Нове",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} нове} few {{unreadCount} нові} many {{unreadCount} нових} other {{unreadCount} нового}} з {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ нових з {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} нове повідомлення} few {{unreadCount} нові повідомлення} many {{unreadCount} нових повідомлень} other {{unreadCount} нових повідомлень}} з {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ нових повідомлень з {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Позначити прочитаним",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Позначити як прочитане",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Перейти до першого непрочитаного повідомлення",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Ви переглядаєте старіші повідомлення",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Перейти до останніх повідомлень",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Перейменувати категорію",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

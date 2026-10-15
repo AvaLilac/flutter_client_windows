@@ -5,15 +5,15 @@ import 'package:flutter/widgets.dart';
 import 'package:fluxer_app/core/theme/fluxer_motion_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 
-const Curve kHorizontalSwipeCurve = Curves.fastEaseInToSlowEaseOut;
+const Curve kHorizontalSwipeCurve = FluxerMotionTheme.standardPushCurve;
 
-const Duration kHorizontalSwipeRevealDuration = FluxerMotionTheme.slowDuration;
+const Duration kHorizontalSwipeRevealDuration = FluxerMotionTheme.popDuration;
 
 Duration horizontalSwipeRevealDuration(BuildContext context) =>
-    context.motion.slow;
+    context.motion.pop;
 
 Duration horizontalSwipeSnapBackDuration(BuildContext context) =>
-    context.motion.panel;
+    context.motion.push;
 
 const double kHorizontalSwipeFlingVelocity = 1;
 const double kDrawerSwipeFlingVelocityPxPerSecond = 600;
@@ -31,9 +31,6 @@ double horizontalSwipeCompletionThreshold() {
 const double kBackSwipeEdgeMinWidthMaterial = 32;
 const double kBackSwipeEdgeMinWidthCupertino = 20;
 
-/// Width from [Directionality] start (including safe area) reserved for
-/// shell horizontal back / drawer gestures so inner detectors (e.g.
-/// swipe-to-reply) do not win the gesture arena on that strip.
 double leadingEdgeHorizontalSwipeReserveWidth(BuildContext context) {
   final EdgeInsets padding = MediaQuery.paddingOf(context);
   final bool isRtl = Directionality.of(context) == TextDirection.rtl;

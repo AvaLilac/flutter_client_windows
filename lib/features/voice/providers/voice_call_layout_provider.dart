@@ -2,13 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'voice_call_layout_provider.g.dart';
 
-enum VoiceCallLayoutMode {
-  /// All tiles share a responsive grid
-  grid,
-
-  /// One large tile with the rest in a film mode
-  focus,
-}
+enum VoiceCallLayoutMode { grid, focus }
 
 class VoiceCallLayoutState {
   const VoiceCallLayoutState({
@@ -37,7 +31,6 @@ class VoiceCallLayoutState {
   }
 }
 
-/// Grid vs focus layout for the active voice call
 @Riverpod(keepAlive: true)
 class VoiceCallLayout extends _$VoiceCallLayout {
   @override

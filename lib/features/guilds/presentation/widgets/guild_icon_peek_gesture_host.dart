@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/features/guilds/presentation/widgets/guild_icon_peek_menu.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_drag_provider.dart';
 import 'package:fluxer_app/features/ui/action_menu/context_menu_widgets.dart';
+import 'package:fluxer_app/features/ui/action_menu/sidebar_peek_menu_panel.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_sheet_motion.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/utils/fluxer_haptics.dart';
 
@@ -28,10 +30,13 @@ class GuildIconPeekGestureHost extends ConsumerStatefulWidget {
 }
 
 class _GuildIconPeekGestureHostState
-    extends ConsumerState<GuildIconPeekGestureHost> {
+    extends ConsumerState<GuildIconPeekGestureHost>
+    with SingleTickerProviderStateMixin {
   final LayerLink _layerLink = LayerLink();
+  final GlobalKey _anchorKey = GlobalKey();
   Timer? _holdTimer;
   OverlayEntry? _peekOverlay;
+  late final AnimationController _scrimController;
   Offset? _pointerDownPosition;
   int? _activePointer;
   bool _suppressPeekForSession = false;
@@ -39,9 +44,19 @@ class _GuildIconPeekGestureHostState
   bool _selectingPeekItem = false;
 
   @override
+  void initState() {
+    super.initState();
+    _scrimController = AnimationController(
+      vsync: this,
+      duration: kFluxerSheetScrimOpenDuration,
+    );
+  }
+
+  @override
   void dispose() {
     _holdTimer?.cancel();
     _removePeekOverlay();
+    _scrimController.dispose();
     super.dispose();
   }
 
@@ -50,6 +65,7 @@ class _GuildIconPeekGestureHostState
     _peekOverlay = null;
     _peekVisible = false;
     _selectingPeekItem = false;
+    _scrimController.reset();
   }
 
   Widget _buildPeekMenuOverlay() {
@@ -57,18 +73,25 @@ class _GuildIconPeekGestureHostState
       clipBehavior: Clip.none,
       children: [
         Positioned.fill(
+          child: FadeTransition(
+            opacity: CurvedAnimation(
+              parent: _scrimController,
+              curve: Curves.easeOut,
+            ),
+            child: const ColoredBox(color: kFluxerSheetScrimColor),
+          ),
+        ),
+        Positioned.fill(
           child: Listener(
             behavior: HitTestBehavior.translucent,
             onPointerDown: _handleOverlayPointerDown,
-            child: const ColoredBox(color: Colors.transparent),
+            child: const SizedBox.expand(),
           ),
         ),
-        CompositedTransformFollower(
+        SidebarPeekMenuFollower(
           link: _layerLink,
-          targetAnchor: Alignment.centerRight,
-          followerAnchor: Alignment.centerLeft,
-          offset: const Offset(8, 0),
-          showWhenUnlinked: false,
+          anchorKey: _anchorKey,
+          estimatedMenuHeight: widget.content.estimateMenuHeight(context),
           child: ContextMenuEntranceAnimationHost(
             alignment: Alignment.centerLeft,
             child: widget.content.buildPanel(
@@ -121,6 +144,7 @@ class _GuildIconPeekGestureHostState
           Positioned.fill(child: _buildPeekMenuOverlay()),
     );
     Overlay.of(context, rootOverlay: true).insert(_peekOverlay!);
+    _scrimController.forward(from: 0);
     setState(() => _peekVisible = true);
     if (playHaptic) {
       widget.onPeekOpened?.call();
@@ -238,6 +262,7 @@ class _GuildIconPeekGestureHostState
     });
 
     return CompositedTransformTarget(
+      key: _anchorKey,
       link: _layerLink,
       child: Listener(
         behavior: HitTestBehavior.translucent,

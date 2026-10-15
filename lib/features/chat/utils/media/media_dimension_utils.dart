@@ -29,13 +29,21 @@ FluxerMediaDimensions mediaDimensionsForSize(MediaDimensionSize size) {
   };
 }
 
-/// Reserved height for embed media whose intrinsic dimensions are unknown:
-/// the box must exist before bytes arrive and must not change when they do,
-/// or late-loading images shift the chat under the reader.
-const double kEmbedMediaFallbackHeight = 200;
+FluxerMediaDimensions mediaDimensionsWithinWidth(
+  FluxerMediaDimensions dimensions,
+  double availableWidth,
+) {
+  if (!availableWidth.isFinite ||
+      availableWidth <= 0 ||
+      availableWidth >= dimensions.maxWidth) {
+    return dimensions;
+  }
+  return FluxerMediaDimensions(
+    maxWidth: availableWidth,
+    maxHeight: dimensions.maxHeight,
+  );
+}
 
-/// Animated WebP cannot be resized by Flutter's decoder, so proxy requests
-/// cap at 2x. Extra pixels on 3x screens do not pay off for GIF content.
 const double kAnimatedImageMaxDevicePixelRatio = 2;
 
 double animatedImagePixelRatio(double devicePixelRatio) {
@@ -67,10 +75,6 @@ Size? constrainMediaSize({
   return Size(sourceWidth * scale, sourceHeight * scale);
 }
 
-/// Decode-cache size for a `BoxFit.cover` image in a [cellWidth] x [cellHeight]
-/// cell. Caps one axis so the decode keeps the source aspect ratio. Passing
-/// both axes triggers `ResizeImagePolicy.exact`, which stretches the bitmap to
-/// the cell shape.
 ({int? width, int? height}) coverDecodeCacheSize({
   required double cellWidth,
   required double cellHeight,
@@ -86,8 +90,6 @@ Size? constrainMediaSize({
   fitsInside: false,
 );
 
-/// Decode-cache size for a `BoxFit.contain` image. Like [coverDecodeCacheSize]
-/// but caps the opposite (fitting) axis.
 ({int? width, int? height}) containDecodeCacheSize({
   required double cellWidth,
   required double cellHeight,
@@ -124,10 +126,8 @@ Size? constrainMediaSize({
       sourceHeight > 0) {
     final bool sourceWiderThanCell =
         sourceWidth / sourceHeight > cellWidth / cellHeight;
-    // cover caps the overflowing axis, contain the fitting one.
     capHeight = fitsInside ? !sourceWiderThanCell : sourceWiderThanCell;
   } else {
-    // Unknown ratio: cap the larger cell axis.
     capHeight = cellHeight >= cellWidth;
   }
   if (capHeight) {

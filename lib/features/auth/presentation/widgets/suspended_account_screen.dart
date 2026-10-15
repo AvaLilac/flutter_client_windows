@@ -77,7 +77,6 @@ class _SuspendedAccountScreenState
           _BanInfoCard(status: status),
           SizedBox(height: layout.s4),
 
-          // Deletion warning
           if (status.deletionScheduledAt != null) ...[
             _WarningBanner(
               message: l10n.suspendedDeletionWarning(
@@ -87,13 +86,11 @@ class _SuspendedAccountScreenState
             SizedBox(height: layout.s4),
           ],
 
-          // Error message
           if (banViewState.error != null) ...[
             _ErrorBanner(message: banViewState.error!),
             SizedBox(height: layout.s4),
           ],
 
-          // Appeal section
           if (status.isAppealAccepted)
             _AppealAcceptedSection(onSignIn: widget.onBack)
           else ...[
@@ -116,7 +113,6 @@ class _SuspendedAccountScreenState
 
             SizedBox(height: layout.s4),
 
-            // Actions
             FluxerButton.secondary(
               onPressed: banViewState.recheckCooldown > 0
                   ? null
@@ -142,10 +138,6 @@ class _SuspendedAccountScreenState
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }
-
-// ---------------------------------------------------------------------------
-// Ban info card
-// ---------------------------------------------------------------------------
 
 class _BanInfoCard extends StatelessWidget {
   const _BanInfoCard({required this.status});
@@ -218,10 +210,6 @@ class _BanInfoCard extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Info row
-// ---------------------------------------------------------------------------
-
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.label, required this.value});
 
@@ -248,10 +236,6 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Appeal form
-// ---------------------------------------------------------------------------
 
 class _AppealForm extends StatelessWidget {
   const _AppealForm({
@@ -307,10 +291,6 @@ class _AppealForm extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Appeal status display
-// ---------------------------------------------------------------------------
 
 class _AppealStatusSection extends StatelessWidget {
   const _AppealStatusSection({required this.appeal});
@@ -407,10 +387,6 @@ class _AppealStatusSection extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Appeal accepted section
-// ---------------------------------------------------------------------------
-
 class _AppealAcceptedSection extends StatelessWidget {
   const _AppealAcceptedSection({required this.onSignIn});
 
@@ -467,10 +443,6 @@ class _AppealAcceptedSection extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Banners
-// ---------------------------------------------------------------------------
 
 class _WarningBanner extends StatelessWidget {
   const _WarningBanner({required this.message});

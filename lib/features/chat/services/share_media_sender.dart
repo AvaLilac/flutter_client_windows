@@ -4,6 +4,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/talker.dart';
+import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_providers.dart';
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_immunity_provider.dart';
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_tracker.dart';
@@ -12,7 +13,6 @@ import 'package:fluxer_app/features/chat/utils/composer/composer_upload_file.dar
 import 'package:fluxer_app/features/chat/utils/composer/slowmode_utils.dart';
 import 'package:fluxer_app/features/chat/utils/messages/client_nonce.dart';
 
-/// Sends shared media to selected channels using the existing upload pipeline.
 class ShareMediaSender {
   const ShareMediaSender({required this.ref});
 
@@ -39,14 +39,12 @@ class ShareMediaSender {
       if (!await _canSendToChannel(channelId)) {
         continue;
       }
-      final bool sent = await _sendToChannel(
+      if (await _sendToChannel(
         channelId: channelId,
         uploadFiles: uploadFiles,
         outgoingText: outgoingText,
-      );
-      if (sent) {
+      )) {
         successCount++;
-        await _recordSendIfNeeded(channelId);
       }
     }
 
@@ -66,8 +64,9 @@ class ShareMediaSender {
       if (!await _canSendToChannel(channelId)) {
         continue;
       }
+      final DateTime sendStartedAt = DateTime.now();
       try {
-        await ref
+        final Message sent = await ref
             .read(messageRepositoryProvider)
             .sendMessage(
               channelId: channelId,
@@ -75,7 +74,7 @@ class ShareMediaSender {
               clientNonce: clientNonceGenerator.next(),
             );
         successCount++;
-        await _recordSendIfNeeded(channelId);
+        await _recordSendIfNeeded(channelId, sent.timestamp, sendStartedAt);
       } on Object catch (error, stackTrace) {
         _handleSendError(channelId, error, stackTrace);
       }
@@ -102,11 +101,20 @@ class ShareMediaSender {
     );
   }
 
-  Future<void> _recordSendIfNeeded(String channelId) async {
+  Future<void> _recordSendIfNeeded(
+    String channelId,
+    DateTime serverSentAt,
+    DateTime sendStartedAt,
+  ) async {
     if (await ref.read(isSlowmodeImmuneProvider(channelId).future)) {
       return;
     }
-    ref.read(slowmodeTrackerProvider.notifier).recordSend(channelId);
+    ref
+        .read(slowmodeTrackerProvider.notifier)
+        .updateSendTimestamp(
+          channelId,
+          serverSentAt.isAfter(sendStartedAt) ? serverSentAt : sendStartedAt,
+        );
   }
 
   void _handleSendError(String channelId, Object error, StackTrace stackTrace) {
@@ -135,7 +143,6 @@ class ShareMediaSender {
     try {
       final validation = await uploadNotifier.addFiles(uploadFiles);
       if (!validation.isValid) {
-        uploadNotifier.clearComposerAttachments();
         return false;
       }
 
@@ -150,7 +157,8 @@ class ShareMediaSender {
         favoriteMemePayload: false,
       );
 
-      await ref
+      final DateTime sendStartedAt = DateTime.now();
+      final Message sent = await ref
           .read(messageRepositoryProvider)
           .sendMessage(
             channelId: channelId,
@@ -161,6 +169,7 @@ class ShareMediaSender {
           );
 
       uploadNotifier.removeMessageUpload(clientNonce);
+      await _recordSendIfNeeded(channelId, sent.timestamp, sendStartedAt);
       return true;
     } on Object catch (error, stackTrace) {
       if (clientNonce != null) {

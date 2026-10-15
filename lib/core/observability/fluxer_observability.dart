@@ -1,16 +1,20 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:fluxer_app/core/api/fluxer_client_properties.dart';
 import 'package:fluxer_app/core/build/app_build_config.dart';
+import 'package:fluxer_app/core/build/app_build_environment.dart';
+import 'package:fluxer_app/core/database/drift_stream_utils.dart';
 import 'package:fluxer_app/core/observability/error_log_rate_limiter.dart';
+import 'package:fluxer_app/core/observability/measure_log_redaction.dart';
+import 'package:fluxer_app/core/observability/measure_version_metadata.dart';
 import 'package:fluxer_app/core/providers/app_runtime_info.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/voice/utils/voice_lifecycle_breadcrumb.dart';
-import 'package:opentelemetry/api.dart' as otel;
-import 'package:opentelemetry/sdk.dart' as otel_sdk;
+import 'package:measure_flutter/measure_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _kObservabilitySessionActiveKey = 'observability_session_active';
@@ -20,60 +24,84 @@ class FluxerObservability {
 
   static final FluxerObservability instance = FluxerObservability._();
 
-  otel_sdk.TracerProviderBase? _provider;
-  otel.Tracer? _tracer;
-  otel.W3CTraceContextPropagator? _propagator;
   RawReceivePort? _isolateErrorPort;
   bool _runtimeObserversStarted = false;
   bool _sessionStarted = false;
   bool _enabled = false;
+  Future<void>? _measureInitFuture;
+  bool _measureInitialized = false;
+  bool _platformErrorHandlerChained = false;
+  bool _globalErrorHandlersInstalled = false;
+  bool _measureOnlyFlutterErrorReport = false;
   final ErrorLogRateLimiter _errorLogRateLimiter = ErrorLogRateLimiter();
 
-  bool get isEnabled => _enabled && _tracer != null;
+  bool get isEnabled => _enabled;
+
+  bool get isSdkAvailable => _measureInitialized;
+
+  bool get _shouldSendErrorsToMeasure => isEnabled && _measureInitialized;
+
+  Future<void> prepare() async {
+    if (!AppBuildConfig.hasObservabilityConfig) {
+      return;
+    }
+    await _ensureMeasureInitialized();
+    if (!_measureInitialized) {
+      talker.warning('[Measure] SDK failed to initialize');
+    }
+  }
 
   Future<void> start({AppRuntimeInfo? runtimeInfo}) async {
     if (!AppBuildConfig.hasObservabilityConfig) {
       return;
     }
+    await _ensureMeasureInitialized();
+    if (!_measureInitialized) {
+      talker.warning('[Measure] Cannot start before SDK init');
+      return;
+    }
+    await Measure.instance.start();
     _enabled = true;
-    _ensureInitialized(runtimeInfo: runtimeInfo);
+    talker.info('[Measure] Started');
     _startRuntimeObservers();
-    await _markSessionStarted();
+    await _markSessionStarted(runtimeInfo: runtimeInfo);
   }
 
   Future<void> stop() async {
     _enabled = false;
-    _provider?.forceFlush();
+    if (_measureInitialized) {
+      await Measure.instance.stop();
+    }
   }
 
-  void forceFlush() {
-    _provider?.forceFlush();
-  }
+  void forceFlush() {}
 
-  otel.Span? startSpan(
+  Span? startSpan(
     String name, {
-    otel.SpanKind kind = otel.SpanKind.internal,
-    List<otel.Attribute> attributes = const <otel.Attribute>[],
+    Map<String, AttributeValue> attributes = const <String, AttributeValue>{},
   }) {
     if (!isEnabled) {
       return null;
     }
-    return _tracer!.startSpan(name, kind: kind, attributes: attributes);
+    final Span span = Measure.instance.startSpan(name);
+    if (attributes.isNotEmpty) {
+      span.setAttributes(attributes);
+    }
+    return span;
   }
 
   Future<T> traceAsync<T>(
     String name,
     Future<T> Function() body, {
-    otel.SpanKind kind = otel.SpanKind.internal,
-    List<otel.Attribute> attributes = const <otel.Attribute>[],
+    Map<String, AttributeValue> attributes = const <String, AttributeValue>{},
   }) async {
-    final otel.Span? span = startSpan(name, kind: kind, attributes: attributes);
+    final Span? span = startSpan(name, attributes: attributes);
     if (span == null) {
       return body();
     }
     try {
       final T result = await body();
-      span.setStatus(otel.StatusCode.ok);
+      span.setStatus(SpanStatus.ok);
       return result;
     } on Object catch (error, stackTrace) {
       _recordExceptionOnSpan(span, error, stackTrace);
@@ -86,16 +114,15 @@ class FluxerObservability {
   T traceSync<T>(
     String name,
     T Function() body, {
-    otel.SpanKind kind = otel.SpanKind.internal,
-    List<otel.Attribute> attributes = const <otel.Attribute>[],
+    Map<String, AttributeValue> attributes = const <String, AttributeValue>{},
   }) {
-    final otel.Span? span = startSpan(name, kind: kind, attributes: attributes);
+    final Span? span = startSpan(name, attributes: attributes);
     if (span == null) {
       return body();
     }
     try {
       final T result = body();
-      span.setStatus(otel.StatusCode.ok);
+      span.setStatus(SpanStatus.ok);
       return result;
     } on Object catch (error, stackTrace) {
       _recordExceptionOnSpan(span, error, stackTrace);
@@ -105,19 +132,31 @@ class FluxerObservability {
     }
   }
 
-  void injectTraceHeaders(Map<String, dynamic> headers, otel.Span span) {
-    if (!isEnabled) {
+  void injectTraceHeaders(Map<String, dynamic> headers, Span span) {
+    if (!isEnabled || span.hasEnded()) {
       return;
     }
-    _propagator?.inject(
-      otel.contextWithSpan(otel.Context.current, span),
-      headers,
-      const _DioHeaderSetter(),
-    );
+    headers[Measure.instance.getTraceParentHeaderKey()] = Measure.instance
+        .getTraceParentHeaderValue(span);
+  }
+
+  void installGlobalErrorHandlers() {
+    if (_globalErrorHandlersInstalled) {
+      return;
+    }
+    _globalErrorHandlersInstalled = true;
+    FlutterError.onError = (FlutterErrorDetails details) {
+      if (_measureOnlyFlutterErrorReport) {
+        return;
+      }
+      FlutterError.presentError(details);
+      recordFlutterError(details);
+    };
+    PlatformDispatcher.instance.onError = _handlePlatformDispatcherError;
   }
 
   void recordFlutterError(FlutterErrorDetails details) {
-    recordError(
+    _logErrorToTalker(
       details.exception,
       stackTrace: details.stack,
       source: details.library ?? 'flutter',
@@ -125,7 +164,101 @@ class FluxerObservability {
     );
   }
 
+  void reportUncaughtError(
+    Object error,
+    StackTrace stackTrace, {
+    required String library,
+  }) {
+    final FlutterErrorDetails details = FlutterErrorDetails(
+      exception: error,
+      stack: stackTrace,
+      library: library,
+    );
+    recordFlutterError(details);
+    if (!_shouldSendErrorsToMeasure) {
+      return;
+    }
+    _forwardUncaughtToMeasureSdk(details);
+  }
+
   void recordError(
+    Object error, {
+    required String source,
+    StackTrace? stackTrace,
+    String? context,
+  }) {
+    _logErrorToTalker(
+      error,
+      stackTrace: stackTrace,
+      source: source,
+      context: context,
+    );
+    if (!_shouldSendErrorsToMeasure) {
+      return;
+    }
+    final String trimmedContext = context?.trim() ?? '';
+    final Map<String, AttributeValue> attributes = <String, AttributeValue>{
+      'exception.source': StringAttr(source),
+      if (trimmedContext.isNotEmpty)
+        'exception.context': StringAttr(
+          redactDomainsForMeasure(trimmedContext),
+        ),
+    };
+    final StackTrace effectiveStack = stackTrace ?? StackTrace.current;
+    unawaited(
+      Measure.instance.trackHandledError(
+        sanitizeErrorForMeasure(error),
+        sanitizeStackTraceForMeasure(effectiveStack),
+        attributes: attributes,
+      ),
+    );
+  }
+
+  void recordLifecycleState(AppLifecycleState state) {
+    if (!isEnabled) {
+      return;
+    }
+    final Span? span = startSpan(
+      'app.lifecycle',
+      attributes: <String, AttributeValue>{
+        'app.lifecycle.state': StringAttr(state.name),
+      },
+    );
+    span?.end();
+    if (state == AppLifecycleState.detached) {
+      unawaited(_markSessionCleanExit());
+    }
+  }
+
+  Future<void> _ensureMeasureInitialized() async {
+    if (_measureInitialized) {
+      return;
+    }
+    _measureInitFuture ??= Measure.instance.init(
+      () {},
+      config: const MeasureConfig(autoStart: false, enableLogging: kDebugMode),
+    );
+    await _measureInitFuture;
+    _chainMeasurePlatformErrorHandler();
+    _measureInitialized = Measure.instance.isInitialized;
+  }
+
+  bool _handlePlatformDispatcherError(Object error, StackTrace stack) {
+    if (isDriftCancellation(error)) {
+      return true;
+    }
+    reportUncaughtError(error, stack, library: 'platform_dispatcher');
+    forceFlush();
+    return false;
+  }
+
+  void _forwardUncaughtToMeasureSdk(FlutterErrorDetails details) {
+    _measureOnlyFlutterErrorReport = true;
+    FlutterError.reportError(details);
+    _measureOnlyFlutterErrorReport = false;
+  }
+
+  void _logErrorToTalker(
     Object error, {
     required String source,
     StackTrace? stackTrace,
@@ -144,65 +277,35 @@ class FluxerObservability {
       stackTrace,
       trimmedContext.isEmpty ? source : '$source: $trimmedContext',
     );
-    final otel.Span? span = startSpan(
-      'flutter.error',
-      attributes: <otel.Attribute>[
-        otel.Attribute.fromString('exception.source', source),
-        if (trimmedContext.isNotEmpty)
-          otel.Attribute.fromString('exception.context', trimmedContext),
-      ],
-    );
-    if (span == null) {
+  }
+
+  void _chainMeasurePlatformErrorHandler() {
+    if (_platformErrorHandlerChained) {
       return;
     }
-    _recordExceptionOnSpan(span, error, stackTrace ?? StackTrace.current);
-    span.end();
+    _platformErrorHandlerChained = true;
+    PlatformDispatcher.instance.onError = _handlePlatformDispatcherError;
   }
 
-  void recordLifecycleState(AppLifecycleState state) {
-    final otel.Span? span = startSpan(
-      'app.lifecycle',
-      attributes: <otel.Attribute>[
-        otel.Attribute.fromString('app.lifecycle.state', state.name),
-      ],
-    );
-    span?.end();
-    if (state == AppLifecycleState.detached) {
-      unawaited(_markSessionCleanExit());
-    }
-  }
-
-  void _ensureInitialized({AppRuntimeInfo? runtimeInfo}) {
-    if (_tracer != null) {
-      return;
-    }
-    final Uri endpoint = Uri.parse(AppBuildConfig.signozOtlpTracesEndpoint);
-    final otel_sdk.CollectorExporter exporter = otel_sdk.CollectorExporter(
-      endpoint,
-    );
-    final otel_sdk.BatchSpanProcessor processor = otel_sdk.BatchSpanProcessor(
-      exporter,
-    );
-    final otel_sdk.TracerProviderBase provider = otel_sdk.TracerProviderBase(
-      processors: <otel_sdk.SpanProcessor>[processor],
-      resource: otel_sdk.Resource(_buildResourceAttributes(runtimeInfo)),
-    );
-    _provider = provider;
-    _propagator = otel.W3CTraceContextPropagator();
-    _tracer = provider.getTracer('fluxer-flutter', version: '1.0.0');
-  }
-
-  void _recordExceptionOnSpan(
-    otel.Span span,
-    Object error,
-    StackTrace stackTrace,
-  ) {
+  void _recordExceptionOnSpan(Span span, Object error, StackTrace stackTrace) {
     span
-      ..recordException(error, escaped: true, stackTrace: stackTrace)
-      ..setStatus(otel.StatusCode.error, error.toString());
+      ..setStatus(SpanStatus.error)
+      ..setAttributeString(
+        'exception.message',
+        redactDomainsForMeasure(error.toString()),
+      );
+    if (!_shouldSendErrorsToMeasure) {
+      return;
+    }
+    unawaited(
+      Measure.instance.trackHandledError(
+        sanitizeErrorForMeasure(error),
+        sanitizeStackTraceForMeasure(stackTrace),
+      ),
+    );
   }
 
-  Future<void> _markSessionStarted() async {
+  Future<void> _markSessionStarted({AppRuntimeInfo? runtimeInfo}) async {
     if (_sessionStarted) {
       return;
     }
@@ -216,29 +319,62 @@ class FluxerObservability {
       if (previousSessionWasActive) {
         final Map<String, String>? voiceBreadcrumb =
             await readVoiceLifecycleBreadcrumb();
-        final List<otel.Attribute> attributes = <otel.Attribute>[
-          otel.Attribute.fromBoolean('app.crash.detected', true),
-        ];
+        final AttributeBuilder attributes = AttributeBuilder().add(
+          'app.crash.detected',
+          true,
+        );
         if (voiceBreadcrumb != null) {
           for (final MapEntry<String, String> entry
               in voiceBreadcrumb.entries) {
-            attributes.add(otel.Attribute.fromString(entry.key, entry.value));
+            attributes.add(entry.key, redactDomainsForMeasure(entry.value));
           }
         }
-        final otel.Span? span = startSpan(
-          'app.previous_session_unclean_exit',
-          attributes: attributes,
+        Measure.instance.trackEvent(
+          name: 'app.previous_session_unclean_exit',
+          attributes: attributes.build(),
         );
-        span?.setStatus(
-          otel.StatusCode.error,
-          'Previous app session did not exit cleanly',
-        );
-        span?.end();
         await clearVoiceLifecycleBreadcrumb();
       }
-    } on Object {
-      // Session crash detection should never block app startup.
+      _trackSessionContext(runtimeInfo);
+    } on Object {}
+  }
+
+  void _trackSessionContext(AppRuntimeInfo? runtimeInfo) {
+    if (!isEnabled) {
+      return;
     }
+    final AppBuildEnvironment environment =
+        runtimeInfo?.environment ?? AppBuildConfig.environment;
+    final String releaseChannel = mapAppBuildEnvironmentToReleaseChannel(
+      environment,
+    );
+    final AttributeBuilder attributes = AttributeBuilder().add(
+      'deployment.environment',
+      releaseChannel,
+    );
+    final MeasureVersionMetadata? versionMetadata =
+        resolveMeasureVersionMetadata(
+          environment: environment,
+          releaseVersion: runtimeInfo?.releaseVersion,
+          platformBuildNumber: runtimeInfo?.buildNumber,
+        );
+    final String? packageName = normalizeOptionalString(
+      runtimeInfo?.packageName,
+    );
+    if (versionMetadata != null) {
+      attributes.add('service.version', versionMetadata.serviceVersion);
+      final String? buildNumber = versionMetadata.buildNumber;
+      if (buildNumber != null) {
+        attributes.add('app.build_number', buildNumber);
+      }
+    }
+    if (packageName != null) {
+      attributes.add('app.package_name', packageName);
+    }
+    Measure.instance.trackEvent(
+      name: 'app.observability_session_started',
+      attributes: attributes.build(),
+    );
   }
 
   Future<void> _markSessionCleanExit() async {
@@ -246,9 +382,7 @@ class FluxerObservability {
       final SharedPreferences preferences =
           await SharedPreferences.getInstance();
       await preferences.setBool(_kObservabilitySessionActiveKey, false);
-    } on Object {
-      // Best-effort shutdown marker only.
-    }
+    } on Object {}
   }
 
   void _startRuntimeObservers() {
@@ -267,12 +401,11 @@ class FluxerObservability {
     }
     final RawReceivePort port = RawReceivePort((dynamic message) {
       final _IsolateError isolateError = _parseIsolateError(message);
-      recordError(
+      reportUncaughtError(
         isolateError.error,
-        source: 'isolate',
-        stackTrace: isolateError.stackTrace,
+        isolateError.stackTrace ?? StackTrace.current,
+        library: 'isolate',
       );
-      forceFlush();
     });
     _isolateErrorPort = port;
     Isolate.current.addErrorListener(port.sendPort);
@@ -307,24 +440,20 @@ class FluxerObservability {
       if (!slowBuild && !slowRaster && !janky) {
         continue;
       }
-      final otel.Span? span = startSpan(
+      final Span? span = startSpan(
         'flutter.frame',
-        attributes: <otel.Attribute>[
-          otel.Attribute.fromInt('frame.total_us', total.inMicroseconds),
-          otel.Attribute.fromInt('frame.build_us', build.inMicroseconds),
-          otel.Attribute.fromInt('frame.raster_us', raster.inMicroseconds),
-          otel.Attribute.fromInt(
-            'frame.vsync_overhead_us',
+        attributes: <String, AttributeValue>{
+          'frame.total_us': IntAttr(total.inMicroseconds),
+          'frame.build_us': IntAttr(build.inMicroseconds),
+          'frame.raster_us': IntAttr(raster.inMicroseconds),
+          'frame.vsync_overhead_us': IntAttr(
             timing.vsyncOverhead.inMicroseconds,
           ),
-          otel.Attribute.fromBoolean('frame.slow_build', slowBuild),
-          otel.Attribute.fromBoolean('frame.slow_raster', slowRaster),
-          otel.Attribute.fromBoolean('frame.janky', janky),
-          otel.Attribute.fromString(
-            'frame.performance_class',
-            _framePerformanceClass(total),
-          ),
-        ],
+          'frame.slow_build': BooleanAttr(slowBuild),
+          'frame.slow_raster': BooleanAttr(slowRaster),
+          'frame.janky': BooleanAttr(janky),
+          'frame.performance_class': StringAttr(_framePerformanceClass(total)),
+        },
       );
       span?.end();
     }
@@ -339,45 +468,6 @@ class FluxerObservability {
     }
     return 'slow';
   }
-
-  List<otel.Attribute> _buildResourceAttributes(AppRuntimeInfo? runtimeInfo) {
-    final String releaseChannel = mapAppBuildEnvironmentToReleaseChannel(
-      runtimeInfo?.environment ?? AppBuildConfig.environment,
-    );
-    final String? releaseVersion = normalizeOptionalString(
-      runtimeInfo?.releaseVersion,
-    );
-    final String? buildNumber = normalizeOptionalString(
-      runtimeInfo?.buildNumber,
-    );
-    final String? packageName = normalizeOptionalString(
-      runtimeInfo?.packageName,
-    );
-    final List<otel.Attribute> attributes = <otel.Attribute>[
-      otel.Attribute.fromString('service.name', 'fluxer-flutter'),
-      otel.Attribute.fromString('service.namespace', 'fluxer'),
-      otel.Attribute.fromString('deployment.environment', releaseChannel),
-      otel.Attribute.fromString('deployment.environment.name', releaseChannel),
-      otel.Attribute.fromString('telemetry.sdk.language', 'dart'),
-      otel.Attribute.fromString('telemetry.distro.name', 'fluxer'),
-    ];
-    if (releaseVersion != null) {
-      attributes.add(
-        otel.Attribute.fromString('service.version', releaseVersion),
-      );
-    }
-    if (buildNumber != null) {
-      attributes.add(
-        otel.Attribute.fromString('app.build_number', buildNumber),
-      );
-    }
-    if (packageName != null) {
-      attributes.add(
-        otel.Attribute.fromString('app.package_name', packageName),
-      );
-    }
-    return attributes;
-  }
 }
 
 class _IsolateError {
@@ -391,14 +481,5 @@ class _FluxerAppLifecycleObserver extends WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     FluxerObservability.instance.recordLifecycleState(state);
-  }
-}
-
-class _DioHeaderSetter implements otel.TextMapSetter<Map<String, dynamic>> {
-  const _DioHeaderSetter();
-
-  @override
-  void set(Map<String, dynamic> carrier, String key, String value) {
-    carrier[key] = value;
   }
 }

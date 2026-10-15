@@ -50,6 +50,7 @@ abstract final class FluxerMediaUrl {
     required String? hash,
     int size = MediaProxySizes.avatarDefault,
     bool animated = false,
+    String? mediaBaseUrl,
   }) {
     if (hash == null || hash.isEmpty) {
       return null;
@@ -58,12 +59,14 @@ abstract final class FluxerMediaUrl {
       return _url(
         path: 'avatars/$userId/$hash.gif',
         query: <String, String>{'animated': 'true', 'size': '$size'},
+        baseUrl: mediaBaseUrl,
       );
     }
     final String normalizedHash = normalizeMediaHash(hash);
     return _url(
       path: 'avatars/$userId/$normalizedHash.webp',
       query: <String, String>{'size': '$size'},
+      baseUrl: mediaBaseUrl,
     );
   }
 
@@ -163,12 +166,11 @@ abstract final class FluxerMediaUrl {
     bool animated = false,
     int? size,
   }) {
-    // Animated renditions must stay lossless: the proxy's lossy re-encode
-    // returns VP8+ALPH that Flutter's codec cannot decode (#776).
     final Map<String, String> query = <String, String>{};
     if (animated) {
       query['animated'] = 'true';
     }
+    // Lossy animated emoji come back as VP8+ALPH, which Flutter cannot decode: https://feedback.fluxer.com/p/2156
     query['quality'] = 'lossless';
     if (size != null) {
       query['size'] = '$size';
@@ -220,13 +222,15 @@ abstract final class FluxerMediaUrl {
   static String _url({
     required String path,
     Map<String, String> query = const <String, String>{},
+    String? baseUrl,
   }) {
+    final String base = baseUrl ?? fluxerMediaCdn;
     if (query.isEmpty) {
-      return '$fluxerMediaCdn/$path';
+      return '$base/$path';
     }
     final String queryString = query.entries
         .map((MapEntry<String, String> entry) => '${entry.key}=${entry.value}')
         .join('&');
-    return '$fluxerMediaCdn/$path?$queryString';
+    return '$base/$path?$queryString';
   }
 }

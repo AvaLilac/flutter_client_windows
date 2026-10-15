@@ -24,13 +24,9 @@ const int messageFlagSourceMessageDeleted = 1 << 3;
 const int messageFlagSuppressNotifications = 1 << 12;
 const int messageFlagHasThread = 1 << 5;
 const int messageFlagFailedToMentionSomeRolesInThread = 1 << 8;
-const int messageFlagCompactAttachments = 1 << 17;
 const int attachmentFlagIsSpoiler = 1 << 3;
 const int attachmentFlagContainsExplicitMedia = 1 << 4;
 
-/// Message wire-type constants (mirrors the server's
-/// `MessageTypes` enum). Use these everywhere instead of
-/// hardcoding the int value.
 const int messageTypeDefault = 0;
 const int messageTypeRecipientAdd = 1;
 const int messageTypeRecipientRemove = 2;
@@ -253,8 +249,6 @@ class Embed {
     return image != null || thumbnail != null || video != null;
   }
 
-  /// Human-readable text of this embed, top to bottom as rendered, one part
-  /// per line. Empty when the embed is media-only.
   String get copyableText {
     final List<String> parts = <String>[
       ?providerName,
@@ -515,6 +509,8 @@ class Attachment {
   }
 
   bool get isPreviewMedia => isImage || isVideo;
+  bool get hasRenderableDimensions => (width ?? 0) > 0 && (height ?? 0) > 0;
+  bool get isInlineMedia => isPreviewMedia && hasRenderableDimensions;
   bool get isSavableMedia => isImage || isVideo || isAudio;
   bool get isSpoiler => (flags & attachmentFlagIsSpoiler) != 0;
   bool get isMatureMedia =>
@@ -543,9 +539,6 @@ class MessageSticker {
 
   String urlForSize(int size) =>
       FluxerMediaUrl.sticker(id: id, animated: animated, size: size);
-
-  String cacheKeyForSize(int size) =>
-      'message_sticker_${id}_${animated ? 'a' : 's'}_$size';
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -599,7 +592,6 @@ class Reaction {
 
   bool get isCustom => emojiId != null;
 
-  /// Encoded emoji param for the reaction API.
   String get apiParam => isCustom ? '$emoji:$emojiId' : emoji;
 }
 
@@ -616,10 +608,18 @@ class MessageReference {
     this.guildId,
   });
 
-  // The regenerated SDK emits a distinct message-reference type per parent
-  // schema (message, pinned message, search result). Their shapes are
-  // identical, so each call site uses its own thin adapter.
   factory MessageReference.fromSdk(MessageResponseSchemaMessageReference sdk) {
+    return MessageReference(
+      channelId: sdk.channelId,
+      messageId: sdk.messageId ?? '',
+      guildId: sdk.guildId,
+      type: sdk.type,
+    );
+  }
+
+  factory MessageReference.fromReferencedSdk(
+    MessageResponseSchemaReferencedMessageMessageReference sdk,
+  ) {
     return MessageReference(
       channelId: sdk.channelId,
       messageId: sdk.messageId ?? '',
@@ -824,9 +824,6 @@ class MessageSnapshot {
     'stickers': stickers.map((s) => s.toJson()).toList(),
     'flags': flags,
   };
-
-  bool get hasCompactAttachments =>
-      (flags & messageFlagCompactAttachments) != 0;
 }
 
 class MessageCall {
@@ -1103,6 +1100,13 @@ class Message {
           sdk.attachments?.map(Attachment.fromSdk).toList() ?? const [],
       stickers: sdk.stickers?.map(MessageSticker.fromSdk).toList() ?? const [],
       reactions: sdk.reactions?.map(Reaction.fromSdk).toList() ?? const [],
+      replyToId: sdk.messageReference?.messageId,
+      messageReference: sdk.messageReference != null
+          ? MessageReference.fromReferencedSdk(sdk.messageReference!)
+          : null,
+      messageSnapshots:
+          sdk.messageSnapshots?.map(MessageSnapshot.fromSdk).toList() ??
+          const [],
       isPinned: sdk.pinned,
       isMentioned: isMentioned,
       mentionEveryone: mentionMetadata.mentionEveryone,
@@ -1112,6 +1116,7 @@ class Message {
       mentionChannels: parseMessageChannelMentions(sdk.mentionChannels),
       type: sdk.type.json ?? 0,
       flags: sdk.flags,
+      clientNonce: sdk.nonce,
       call: messageCallFromReferencedSdk(sdk.call),
       threadJson: _encodeThread(sdk.thread),
     );
@@ -1318,8 +1323,6 @@ class Message {
     return copyWith(translation: snapshot.translation);
   }
 
-  /// Whether [other] renders identically, so the merge can reuse this instance
-  /// and preserve the row's tile cache.
   bool isRenderEquivalent(Message other) {
     if (identical(this, other)) {
       return true;
@@ -1510,7 +1513,7 @@ class Message {
     Object? webhookId = _unset,
     String? content,
     DateTime? timestamp,
-    DateTime? editedTimestamp,
+    Object? editedTimestamp = _unset,
     List<Embed>? embeds,
     List<Attachment>? attachments,
     List<MessageSticker>? stickers,
@@ -1549,7 +1552,9 @@ class Message {
       webhookId: webhookId == _unset ? this.webhookId : webhookId as String?,
       content: content ?? this.content,
       timestamp: timestamp ?? this.timestamp,
-      editedTimestamp: editedTimestamp ?? this.editedTimestamp,
+      editedTimestamp: editedTimestamp == _unset
+          ? this.editedTimestamp
+          : editedTimestamp as DateTime?,
       embeds: embeds ?? this.embeds,
       attachments: attachments ?? this.attachments,
       stickers: stickers ?? this.stickers,
@@ -1583,12 +1588,11 @@ class Message {
     );
   }
 
-  /// Merges a gateway `MESSAGE_UPDATE` payload into this message.
   Message applyGatewayUpdate(
     MessageResponseSchema sdk, {
-    String? currentUserId,
+    required bool isMentioned,
   }) {
-    final Message incoming = Message.fromSdk(sdk, currentUserId: currentUserId);
+    final Message incoming = Message.fromSdk(sdk);
     final bool contentChanged = incoming.content != content;
     return copyWith(
       authorId: incoming.authorId,
@@ -1601,28 +1605,19 @@ class Message {
       webhookId: incoming.webhookId,
       content: incoming.content,
       editedTimestamp: incoming.editedTimestamp ?? editedTimestamp,
-      embeds: incoming.embeds.isNotEmpty ? incoming.embeds : embeds,
-      attachments: incoming.attachments.isNotEmpty
-          ? incoming.attachments
-          : attachments,
-      stickers: incoming.stickers.isNotEmpty ? incoming.stickers : stickers,
-      reactions: incoming.reactions.isNotEmpty ? incoming.reactions : reactions,
+      embeds: incoming.embeds,
+      attachments: incoming.attachments,
+      stickers: incoming.stickers,
       replyToId: incoming.replyToId ?? replyToId,
       messageReference: incoming.messageReference ?? messageReference,
-      messageSnapshots: incoming.messageSnapshots.isNotEmpty
-          ? incoming.messageSnapshots
-          : messageSnapshots,
+      messageSnapshots: incoming.messageSnapshots,
       isPinned: incoming.isPinned,
-      isMentioned: incoming.isMentioned,
+      isMentioned: isMentioned,
       mentionEveryone: incoming.mentionEveryone,
       mentionedUserIds: incoming.mentionedUserIds,
       mentionRoles: incoming.mentionRoles,
-      supplementalUserIds: incoming.supplementalUserIds.isNotEmpty
-          ? incoming.supplementalUserIds
-          : supplementalUserIds,
-      mentionChannels: incoming.mentionChannels.isNotEmpty
-          ? incoming.mentionChannels
-          : mentionChannels,
+      supplementalUserIds: incoming.supplementalUserIds,
+      mentionChannels: incoming.mentionChannels,
       type: incoming.type,
       flags: incoming.flags,
       call: incoming.call ?? call,
@@ -1633,7 +1628,9 @@ class Message {
 
   bool get hasStickers => stickers.isNotEmpty;
   bool get isReply =>
-      replyToId != null && !(messageReference?.isForward ?? false);
+      replyToId != null &&
+      !(messageReference?.isForward ?? false) &&
+      !isCrosspostCopy;
 
   String get displayedContent {
     final MessageTranslation? current = translation;
@@ -1653,7 +1650,8 @@ class Message {
   bool get hasMentionsForGrouping =>
       mentionEveryone || mentionRoles.isNotEmpty || mentionedUserIds.isNotEmpty;
 
-  String? get replyParentMessageId => replyToId ?? messageReference?.messageId;
+  String? get replyParentMessageId =>
+      isCrosspostCopy ? null : replyToId ?? messageReference?.messageId;
 
   String get replyParentChannelId {
     final String? refChannelId = messageReference?.channelId;
@@ -1664,14 +1662,50 @@ class Message {
   }
 
   bool get hasForwardSnapshots => messageSnapshots.isNotEmpty;
+
+  MessageSnapshot toForwardSnapshot({
+    List<String>? attachmentIds,
+    List<int>? embedIndices,
+  }) {
+    final MessageSnapshot source = messageSnapshots.isNotEmpty
+        ? messageSnapshots.first
+        : MessageSnapshot(
+            content: content,
+            timestamp: timestamp,
+            editedTimestamp: editedTimestamp,
+            mentions: mentionedUserIds,
+            mentionRoles: mentionRoles,
+            mentionChannels: mentionChannels,
+            embeds: embeds,
+            attachments: attachments,
+            stickers: stickers,
+            flags: flags,
+          );
+    final List<String> selectedAttachments = attachmentIds ?? const <String>[];
+    final List<int> selectedEmbeds = embedIndices ?? const <int>[];
+    if (selectedAttachments.isEmpty && selectedEmbeds.isEmpty) {
+      return source;
+    }
+    return MessageSnapshot(
+      timestamp: source.timestamp,
+      flags: source.flags,
+      attachments: <Attachment>[
+        for (final Attachment attachment in source.attachments)
+          if (selectedAttachments.contains(attachment.id)) attachment,
+      ],
+      embeds: <Embed>[
+        for (final int index in selectedEmbeds)
+          if (index >= 0 && index < source.embeds.length) source.embeds[index],
+      ],
+    );
+  }
+
   bool get suppressEmbeds => (flags & messageFlagSuppressEmbeds) != 0;
   bool get isCrossposted => (flags & messageFlagCrossposted) != 0;
   bool get isCrosspostCopy => (flags & messageFlagIsCrosspost) != 0;
   bool get isCrosspostSourceDeleted =>
       isCrosspostCopy && (flags & messageFlagSourceMessageDeleted) != 0;
 
-  /// Text of every rendered embed, embeds separated by a blank line. Empty
-  /// when embeds are suppressed or carry no text.
   String get embedsCopyableText {
     if (suppressEmbeds) {
       return '';
@@ -1681,9 +1715,6 @@ class Message {
         .where((String text) => text.isNotEmpty)
         .join('\n\n');
   }
-
-  bool get hasCompactAttachments =>
-      (flags & messageFlagCompactAttachments) != 0;
 
   bool shouldHideContent({required bool renderEmbeds}) {
     if (!renderEmbeds || suppressEmbeds || embeds.isEmpty) {
@@ -1700,7 +1731,7 @@ class Message {
   }
 
   static final RegExp _invitesRegExp = RegExp(
-    r'(?:https?://)?(?:fluxer\.gg/(?!invite/)([a-zA-Z0-9\-]{2,32})|(?:web\.)?fluxer\.app/invite/([a-zA-Z0-9\-]{2,32}))(?![a-zA-Z0-9\-])', // .com (soon)
+    r'(?:https?://)?(?:fluxer\.gg/(?!invite/)([a-zA-Z0-9\-]{2,32})|(?:web\.)?fluxer\.app/invite/([a-zA-Z0-9\-]{2,32}))(?![a-zA-Z0-9\-])',
   );
 
   List<String> get invites {
@@ -1731,21 +1762,13 @@ class Message {
   bool get isEdited => editedTimestamp != null;
   bool get isSystemMessage => !isUserMessage;
 
-  /// Whether this message is a generic user-authored message
-  /// (default text, reply, or client-system marker). Mirrors the
-  /// web app's `isUserMessage()` predicate.
   bool get isUserMessage =>
       type == messageTypeDefault ||
       type == messageTypeReply ||
       type == messageTypeClientSystem;
 
-  /// `type == 99` is the client-side-only system marker used for
-  /// inline call/system status entries — interactive message
-  /// actions (reply, forward, etc.) are not applicable.
   bool get isClientSystemMessage => type == messageTypeClientSystem;
 
-  /// Whether interactive message actions (reply, forward, add reaction,
-  /// bookmark, suppress embeds) should be offered for this message.
   bool get supportsInteractiveActions => !isClientSystemMessage;
 
   bool get isSending => deliveryState == MessageDeliveryState.sending;
@@ -1769,9 +1792,6 @@ class Message {
 
   bool get isWebhookMessage => webhookId != null && webhookId!.isNotEmpty;
 
-  /// Wire-shaped snapshot of this message suitable for the developer
-  /// debug viewer. Mirrors the field set the web client surfaces via
-  /// `message.toJSON()`; not stable across versions.
   Map<String, dynamic> toJson() => {
     'id': id,
     'channel_id': channelId,

@@ -81,7 +81,6 @@ void main() {
     expect(after.map((m) => m.id).toList(), ['100']);
   });
 
-  // An unsent row's id is a client nonce, always past the server tail (#474).
   test('deleteServerMessagesBetween drops sent rows inside the bound and '
       'keeps unsent, newer and other-channel ones', () async {
     final db = await seed([idA, idB, idC, idD]);
@@ -105,11 +104,11 @@ void main() {
       upToId: idC,
     );
 
-    expect(await db.messageDao.getMessage(idA), isNotNull);
-    expect(await db.messageDao.getMessage(idB), isNotNull);
-    expect(await db.messageDao.getMessage(idC), isNull);
-    expect(await db.messageDao.getMessage(idD), isNotNull);
-    expect(await db.messageDao.getMessage(pendingId), isNotNull);
+    expect(await db.messageDao.getMessage('ch', idA), isNotNull);
+    expect(await db.messageDao.getMessage('ch', idB), isNotNull);
+    expect(await db.messageDao.getMessage('ch', idC), isNull);
+    expect(await db.messageDao.getMessage('ch', idD), isNotNull);
+    expect(await db.messageDao.getMessage('ch', pendingId), isNotNull);
     expect(await db.messageDao.getMessages('other-ch'), hasLength(1));
   });
 
@@ -125,8 +124,8 @@ void main() {
       upToId: '100',
     );
 
-    expect(await db.messageDao.getMessage('99'), isNotNull);
-    expect(await db.messageDao.getMessage('100'), isNull);
+    expect(await db.messageDao.getMessage('ch', '99'), isNotNull);
+    expect(await db.messageDao.getMessage('ch', '100'), isNull);
   });
 
   test('newestServerMessageId ignores unsent rows', () async {
@@ -143,30 +142,26 @@ void main() {
     expect(await db.messageDao.newestServerMessageId('other-ch'), null);
   });
 
-  test(
-    'watchLastMessage emits the newest row and re-emits on insert',
-    () async {
-      final db = await seed([idA, idB]);
+  test('getLastMessageIds matches getLastMessage per channel', () async {
+    final db = await seed([idA, idB]);
+    final DateTime tied = DateTime.utc(2026, 5, 10, 11);
+    await db.messageDao.upsertMessage(_msgAt(idC, tied).toCompanion());
 
-      final emissions = <String?>[];
-      final sub = db.messageDao
-          .watchLastMessage('ch')
-          .listen((m) => emissions.add(m?.id));
-      addTearDown(sub.cancel);
+    final Map<String, String> ids = await db.messageDao.getLastMessageIds(
+      <String>['ch', 'empty-ch'],
+    );
 
-      await pumpEventQueue();
-      expect(emissions.last, idB);
-
-      await db.messageDao.upsertMessage(_msg(idC).toCompanion());
-      await pumpEventQueue();
-      expect(emissions.last, idC);
-    },
-  );
+    expect(ids, <String, String>{
+      'ch': (await db.messageDao.getLastMessage('ch'))!.id,
+    });
+    expect(ids['ch'], idC);
+  });
 
   test('saveTranslation persists on the message row', () async {
     final db = openTestDatabase();
     await db.messageDao.upsertMessage(_msg(idA).toCompanion());
     await db.messageDao.saveTranslation(
+      channelId: 'ch',
       messageId: idA,
       translation: const MessageTranslation(
         translatedContent: 'Hello world',
@@ -176,7 +171,7 @@ void main() {
       ),
     );
 
-    final stored = await db.messageDao.getMessage(idA);
+    final stored = await db.messageDao.getMessage('ch', idA);
     final Message parsed = Message.fromRow(stored!);
     expect(parsed.translation?.translatedContent, 'Hello world');
     expect(parsed.translation?.sourceLanguageCode, 'de');
@@ -187,6 +182,7 @@ void main() {
     final Message original = _msg(idA);
     await db.messageDao.upsertMessage(original.toCompanion());
     await db.messageDao.saveTranslation(
+      channelId: 'ch',
       messageId: idA,
       translation: const MessageTranslation(
         translatedContent: 'Hello world',
@@ -201,7 +197,7 @@ void main() {
     );
 
     final Message parsed = Message.fromRow(
-      (await db.messageDao.getMessage(idA))!,
+      (await db.messageDao.getMessage('ch', idA))!,
     );
     expect(parsed.content, 'edited');
     expect(parsed.translation, isNull);
@@ -212,6 +208,7 @@ void main() {
     final Message original = _msg(idA);
     await db.messageDao.upsertMessage(original.toCompanion());
     await db.messageDao.saveTranslation(
+      channelId: 'ch',
       messageId: idA,
       translation: const MessageTranslation(
         translatedContent: 'Hello world',
@@ -224,7 +221,7 @@ void main() {
     await db.messageDao.upsertMessage(original.toCompanion());
 
     final Message parsed = Message.fromRow(
-      (await db.messageDao.getMessage(idA))!,
+      (await db.messageDao.getMessage('ch', idA))!,
     );
     expect(parsed.translation?.translatedContent, 'Hello world');
   });
@@ -239,8 +236,110 @@ void main() {
     );
 
     final Message parsed = Message.fromRow(
-      (await db.messageDao.getMessage(idA))!,
+      (await db.messageDao.getMessage('ch', idA))!,
     );
     expect(parsed.clientNonce, 'nonce-1');
+  });
+
+  test(
+    'watchServerMessageCountAfter counts sent rows after the cursor',
+    () async {
+      final db = await seed([idA, idB, idC]);
+      await db.messageDao.upsertMessage(
+        _msg(idD, deliveryState: MessageDeliveryState.sending).toCompanion(),
+      );
+      await db.messageDao.upsertMessage(
+        Message(
+          id: _snowflakeForUtc(DateTime.utc(2026, 5, 10, 14)),
+          channelId: 'other',
+          authorId: 'author',
+          authorName: 'Author',
+          content: 'body',
+          timestamp: DateTime.utc(2026, 5, 10, 14),
+        ).toCompanion(),
+      );
+
+      expect(
+        await db.messageDao.watchServerMessageCountAfter('ch', idA).first,
+        2,
+      );
+      expect(
+        await db.messageDao.watchServerMessageCountAfter('ch', idC).first,
+        0,
+      );
+    },
+  );
+
+  group('a thread starter shares its source message id', () {
+    final String sourceId = _snowflakeForUtc(DateTime.utc(2026, 10, 14, 12));
+    final Message source = _msg(sourceId).copyWith(content: 'source');
+    final Message starter = Message(
+      id: sourceId,
+      channelId: sourceId,
+      authorId: 'author',
+      authorName: 'Author',
+      content: '',
+      timestamp: source.timestamp,
+      type: messageTypeThreadStarterMessage,
+    );
+
+    Future<FluxerDatabase> seedBoth() async {
+      final db = openTestDatabase();
+      await db.messageDao.upsertMessage(source.toCompanion());
+      await db.messageDao.upsertMessages(<MessagesCompanion>[
+        starter.toCompanion(),
+      ]);
+      return db;
+    }
+
+    test('storing the starter keeps the source row in its channel', () async {
+      final db = await seedBoth();
+
+      final parentRows = await db.messageDao.getMessages('ch');
+      expect(parentRows.map((row) => row.content), <String>['source']);
+      expect(
+        (await db.messageDao.getMessage('ch', sourceId))?.content,
+        'source',
+      );
+      final threadRows = await db.messageDao.getMessages(sourceId);
+      expect(threadRows.map((row) => row.type), <int>[
+        messageTypeThreadStarterMessage,
+      ]);
+    });
+
+    test('channel scoped writes leave the twin row alone', () async {
+      final db = await seedBoth();
+
+      await db.messageDao.updateReactions(sourceId, sourceId, '[{"x":1}]');
+      await db.messageDao.saveTranslation(
+        channelId: sourceId,
+        messageId: sourceId,
+        translation: null,
+      );
+      await db.messageDao.deleteMessagesForChannel(sourceId);
+
+      final row = await db.messageDao.getMessage('ch', sourceId);
+      expect(row?.content, 'source');
+      expect(row?.reactionsJson, '[]');
+      expect(await db.messageDao.getMessage(sourceId, sourceId), isNull);
+    });
+
+    test('deleting by id only touches the named channel', () async {
+      final db = await seedBoth();
+
+      await db.messageDao.deleteMessages('ch', <String>[sourceId]);
+
+      expect(await db.messageDao.getMessage('ch', sourceId), isNull);
+      expect(await db.messageDao.getMessage(sourceId, sourceId), isNotNull);
+    });
+
+    test('per channel trimming keeps both rows', () async {
+      final db = await seedBoth();
+
+      await db.messageDao.keepNewestMessagesPerChannel(1);
+
+      expect(await db.messageDao.getMessage('ch', sourceId), isNotNull);
+      expect(await db.messageDao.getMessage(sourceId, sourceId), isNotNull);
+    });
   });
 }

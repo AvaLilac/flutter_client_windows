@@ -22,6 +22,7 @@ enum ChannelMenuAction {
   mute,
   notificationSettings,
   editChannel,
+  moveToCategory,
   duplicateChannel,
   debugChannel,
   resetMatureContentAgree,
@@ -56,6 +57,7 @@ class ChannelMenuState {
     required this.isTextChannel,
     required this.isVoiceChannel,
     required this.isLinkChannel,
+    required this.isThreadOnlyChannel,
     required this.showOpenChat,
     required this.showStartP2pCall,
     required this.showMarkAsRead,
@@ -69,6 +71,7 @@ class ChannelMenuState {
     required this.isMuted,
     required this.showNotificationSettings,
     required this.showEditChannel,
+    required this.showMoveToCategory,
     required this.showDuplicateChannel,
     required this.showDebugChannel,
     required this.showResetMatureContent,
@@ -82,6 +85,7 @@ class ChannelMenuState {
   final bool isTextChannel;
   final bool isVoiceChannel;
   final bool isLinkChannel;
+  final bool isThreadOnlyChannel;
   final bool showOpenChat;
   final bool showStartP2pCall;
   final bool showMarkAsRead;
@@ -95,6 +99,7 @@ class ChannelMenuState {
   final bool isMuted;
   final bool showNotificationSettings;
   final bool showEditChannel;
+  final bool showMoveToCategory;
   final bool showDuplicateChannel;
   final bool showDebugChannel;
   final bool showResetMatureContent;
@@ -126,7 +131,9 @@ ChannelMenuState resolveChannelMenuState({
   final bool isTextChannel = isAnnouncementConvertibleChannel(channel.type);
   final bool isVoiceChannel = channel.type == ChannelType.guildVoice;
   final bool isLinkChannel = channel.type == ChannelType.guildLink;
-  final bool isGuildChannel = isTextChannel || isVoiceChannel || isLinkChannel;
+  final bool isThreadOnlyChannel = channel.isThreadOnly;
+  final bool isGuildChannel =
+      isTextChannel || isVoiceChannel || isLinkChannel || isThreadOnlyChannel;
   final int bits = permissionBits ?? 0;
   final bool canManageChannels = hasPermission(bits, Permission.manageChannels);
   final bool canUpdateRtcRegion =
@@ -150,11 +157,12 @@ ChannelMenuState resolveChannelMenuState({
   final bool showOpenChat =
       isVoiceChannel && !voiceChannelJoinRequiresDoubleClick;
   final bool canOpenLink = isLinkChannel && (channel.url?.isNotEmpty ?? false);
-  final bool showMute = isTextChannel || isVoiceChannel;
+  final bool showMute = isTextChannel || isVoiceChannel || isThreadOnlyChannel;
   return ChannelMenuState(
     isTextChannel: isTextChannel,
     isVoiceChannel: isVoiceChannel,
     isLinkChannel: isLinkChannel,
+    isThreadOnlyChannel: isThreadOnlyChannel,
     showOpenChat: showOpenChat,
     showStartP2pCall:
         isVoiceChannel &&
@@ -162,9 +170,9 @@ ChannelMenuState resolveChannelMenuState({
         !channel.rtcP2p &&
         hasPermission(bits, Permission.connect),
     showMarkAsRead: isGuildChannel && hasUnread,
-    showFavorites: showFavorites,
+    showFavorites: showFavorites && !isThreadOnlyChannel,
     isFavorite: isFavorite,
-    canInvite: inviteCapability.canInvite,
+    canInvite: inviteCapability.canInvite && !isThreadOnlyChannel,
     useVanityInvite: inviteCapability.useVanityUrl,
     vanityUrlCode: inviteCapability.vanityUrlCode,
     canOpenLink: canOpenLink,
@@ -174,6 +182,7 @@ ChannelMenuState resolveChannelMenuState({
     mutedHint: mutedHint,
     showNotificationSettings: isGuildChannel,
     showEditChannel: canEditChannel && !nsfwBlockedForMinor,
+    showMoveToCategory: canManageChannels,
     showDuplicateChannel: canManageChannels && !nsfwBlockedForMinor,
     showDebugChannel: developerMode,
     showResetMatureContent: developerMode && hasAgreedToMatureContent,
@@ -187,7 +196,10 @@ List<ChannelMenuGroup> buildChannelMenuGroups({
   required FluxerLocalizations l10n,
   required ChannelMenuState state,
 }) {
-  if (!state.isTextChannel && !state.isVoiceChannel && !state.isLinkChannel) {
+  if (!state.isTextChannel &&
+      !state.isVoiceChannel &&
+      !state.isLinkChannel &&
+      !state.isThreadOnlyChannel) {
     return const <ChannelMenuGroup>[];
   }
   final List<ChannelMenuGroup> groups = <ChannelMenuGroup>[];
@@ -306,7 +318,9 @@ List<ChannelMenuGroup> buildChannelMenuGroups({
     );
   }
   groups.add(notificationItems);
-  if (state.showEditChannel || state.showDuplicateChannel) {
+  if (state.showEditChannel ||
+      state.showMoveToCategory ||
+      state.showDuplicateChannel) {
     final List<ChannelMenuEntry> manageItems = <ChannelMenuEntry>[];
     if (state.showEditChannel) {
       manageItems.add(
@@ -314,6 +328,15 @@ List<ChannelMenuGroup> buildChannelMenuGroups({
           label: l10n.channelDetailsEditChannel,
           icon: PhosphorIconsFill.pencilSimple,
           action: ChannelMenuAction.editChannel,
+        ),
+      );
+    }
+    if (state.showMoveToCategory) {
+      manageItems.add(
+        ChannelMenuEntry(
+          label: l10n.channelMenuMoveToCategory,
+          icon: PhosphorIconsFill.folderSimple,
+          action: ChannelMenuAction.moveToCategory,
         ),
       );
     }
@@ -410,7 +433,12 @@ Widget channelMenuGroupsToBottomSheetContent({
     controller: scrollController,
     padding: FluxerBottomSheet.scrollViewPadding(
       context,
-      padding: EdgeInsets.fromLTRB(layout.s4, 0, layout.s4, layout.s4),
+      padding: EdgeInsets.fromLTRB(
+        layout.s4,
+        0,
+        layout.s4,
+        FluxerBottomSheet.bottomGapOf(context),
+      ),
     ),
     children: [FluxerBottomSheetGroupColumn(children: menuGroups)],
   );

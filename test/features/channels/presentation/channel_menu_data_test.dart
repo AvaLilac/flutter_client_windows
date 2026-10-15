@@ -138,6 +138,50 @@ void main() {
       },
     );
 
+    test('offers move to category only with manage channels', () {
+      ChannelMenuState stateFor(int bits) => resolveChannelMenuState(
+        channel: textChannel,
+        guild: guild,
+        parentCategory: null,
+        permissionBits: bits,
+        hasUnread: false,
+        showFavorites: false,
+        isFavorite: false,
+        isMuted: false,
+        developerMode: false,
+        nsfwAllowed: true,
+        hasAgreedToMatureContent: false,
+        voiceChannelJoinRequiresDoubleClick: false,
+      );
+      final ChannelMenuState manager = stateFor(
+        Permission.manageChannels.value,
+      );
+      expect(manager.showMoveToCategory, isTrue);
+      final List<ChannelMenuGroup> groups = buildChannelMenuGroups(
+        l10n: l10n,
+        state: manager,
+      );
+      final List<ChannelMenuAction> actions = _flattenChannelMenuActions(
+        groups,
+      );
+      expect(
+        actions.indexOf(ChannelMenuAction.moveToCategory),
+        actions.indexOf(ChannelMenuAction.editChannel) + 1,
+      );
+      expect(_flattenChannelMenuLabels(groups), contains('Move to category'));
+
+      final ChannelMenuState member = stateFor(
+        Permission.viewChannel.value | Permission.manageRoles.value,
+      );
+      expect(member.showMoveToCategory, isFalse);
+      expect(
+        _flattenChannelMenuActions(
+          buildChannelMenuGroups(l10n: l10n, state: member),
+        ),
+        isNot(contains(ChannelMenuAction.moveToCategory)),
+      );
+    });
+
     test('blocks edit and duplicate for minors on NSFW channels', () {
       final Channel nsfwChannel = Channel(
         id: 'nsfw-1',
@@ -344,5 +388,51 @@ void main() {
         contains(ChannelMenuAction.resetMatureContentAgree),
       );
     });
+  });
+
+  group('thread-only channel menu', () {
+    for (final ChannelType type in <ChannelType>[
+      ChannelType.guildForum,
+      ChannelType.guildMedia,
+    ]) {
+      test('${type.name} long-press menu matches web', () {
+        final Channel channel = Channel(
+          id: 'forum-1',
+          guildId: guild.id,
+          name: 'forum',
+          type: type,
+        );
+        final ChannelMenuState state = resolveChannelMenuState(
+          channel: channel,
+          guild: guild,
+          parentCategory: null,
+          permissionBits:
+              Permission.manageChannels.value |
+              Permission.createInstantInvite.value,
+          hasUnread: true,
+          showFavorites: true,
+          isFavorite: false,
+          isMuted: false,
+          developerMode: false,
+          nsfwAllowed: true,
+          hasAgreedToMatureContent: false,
+          voiceChannelJoinRequiresDoubleClick: false,
+        );
+        final List<ChannelMenuAction> actions = _flattenChannelMenuActions(
+          buildChannelMenuGroups(l10n: l10n, state: state),
+        );
+        expect(actions, <ChannelMenuAction>[
+          ChannelMenuAction.markAsRead,
+          ChannelMenuAction.copyLink,
+          ChannelMenuAction.mute,
+          ChannelMenuAction.notificationSettings,
+          ChannelMenuAction.editChannel,
+          ChannelMenuAction.moveToCategory,
+          ChannelMenuAction.duplicateChannel,
+          ChannelMenuAction.copyChannelId,
+          ChannelMenuAction.deleteChannel,
+        ]);
+      });
+    }
   });
 }

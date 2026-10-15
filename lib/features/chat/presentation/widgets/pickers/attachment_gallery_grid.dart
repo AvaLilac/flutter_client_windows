@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/data/attachment_gallery_source.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/gallery_attachment_selection.dart';
+import 'package:fluxer_app/features/ui/selected_check/fluxer_selected_check.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
@@ -35,12 +36,7 @@ class AttachmentGalleryGrid extends StatelessWidget {
     final int extra = isLoadingMore ? 1 : 0;
     return GridView.builder(
       controller: scrollController,
-      padding: EdgeInsets.fromLTRB(
-        layout.s1_5,
-        0,
-        layout.s1_5,
-        layout.s20 + layout.s2,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: layout.s1_5),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
         mainAxisSpacing: layout.s1,
@@ -213,19 +209,6 @@ class _SelectionMark extends StatelessWidget {
         ),
       );
     }
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: context.colors.accentPrimary,
-      ),
-      alignment: Alignment.center,
-      child: const PhosphorIcon(
-        PhosphorIconsBold.check,
-        size: 14,
-        color: Colors.white,
-      ),
-    );
+    return const FluxerSelectedCheck();
   }
 }

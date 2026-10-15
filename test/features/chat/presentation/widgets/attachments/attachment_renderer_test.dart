@@ -23,10 +23,15 @@ import 'package:fluxer_app/features/chat/utils/attachments/voice_message_constan
 import 'package:fluxer_app/features/chat/utils/attachments/voice_message_waveform.dart';
 import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/media_viewer/attachment_media_viewer.dart';
+import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_markdown/fluxer_markdown.dart';
 
 import '../../../../../helpers/test_l10n.dart';
+
+Finder _mediaTapTarget(Finder image) => find
+    .ancestor(of: image, matching: find.byType(FluxerGestureDetector))
+    .first;
 
 void main() {
   testWidgets('renders image attachment inline when enabled', (tester) async {
@@ -224,6 +229,39 @@ void main() {
     expect(spoilerOverlay.initiallyRevealed, isFalse);
   });
 
+  testWidgets('renders a short wide image inline instead of as a file', (
+    tester,
+  ) async {
+    final Attachment attachment = Attachment.fromJson(<String, dynamic>{
+      'id': '1560002449727561730',
+      'filename': 'image.png',
+      'title': 'image.png',
+      'description': null,
+      'content_type': 'image/png',
+      'size': 6825,
+      'url':
+          'https://fluxerusercontent.com/attachments/1516372227916824576/1560002449727561730/image.png',
+      'width': 605,
+      'height': 31,
+      'placeholder': 'UigGA4CLaGZvdYd3iX+T+Dc=',
+      'flags': 0,
+      'nsfw': false,
+      'expires_at': '2029-10-13T18:52:49.892Z',
+    });
+    await tester.pumpWidget(
+      _buildTestApp(
+        child: AttachmentListRenderer(
+          attachments: <Attachment>[attachment],
+          inlineAttachmentMedia: true,
+          dimensionSize: MediaDimensionSize.small,
+          revealSpoilers: false,
+        ),
+      ),
+    );
+    expect(find.byType(AttachmentImage), findsOneWidget);
+    expect(find.byType(AttachmentFile), findsNothing);
+  });
+
   testWidgets('renders image grid when there are multiple inline images', (
     tester,
   ) async {
@@ -286,7 +324,7 @@ void main() {
       expect(find.byType(AttachmentMediaGrid), findsOneWidget);
       await tester.tap(find.text('SPOILER'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(CachedNetworkImage).at(1));
+      await tester.tap(_mediaTapTarget(find.byType(CachedNetworkImage).at(1)));
       await tester.pump();
       expect(find.byType(AttachmentMediaViewerShell), findsOneWidget);
     },

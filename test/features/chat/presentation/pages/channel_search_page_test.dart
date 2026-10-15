@@ -10,11 +10,14 @@ import 'package:fluxer_app/core/theme/themes/dark.dart';
 import 'package:fluxer_app/features/chat/data/message_search_repository.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/channel_details_sheet.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/channel/search/channel_search_field.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/channel/search/channel_search_suggestions.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_details_providers.dart';
 import 'package:fluxer_app/features/members/providers/member_list_subscription_provider.dart';
 import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:riverpod/src/framework.dart' show Override;
 
 import '../../../../helpers/instance_runtime_config_override.dart';
@@ -45,9 +48,10 @@ class _SeededSearch extends ChannelSearch {
         for (int i = 0; i < 3; i += 1)
           MessageSearchResultEntry(
             guildId: guildId,
+            channelName: i == 0 ? 'general' : null,
             message: Message(
               id: '100000000000000000$i',
-              channelId: channelId,
+              channelId: i == 0 ? 'chan_2' : channelId,
               authorId: '1000000000000000009',
               authorName: 'Author',
               content: 'hello $i',
@@ -130,17 +134,15 @@ void main() {
     await _openPage(tester, container);
 
     expect(find.byType(ChannelSearchPage), findsOneWidget);
-    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(find.byType(FluxerDraggableScrollableSheet), findsNothing);
     expect(find.byType(FluxerBottomSheetDragHandle), findsNothing);
 
     final FluxerLocalizations l10n = FluxerLocalizations.of(
       tester.element(find.byType(ChannelSearchPage)),
     );
-    expect(
-      find.widgetWithText(AppBar, l10n.channelDetailsSearchTitle),
-      findsOneWidget,
-    );
-    expect(find.text(l10n.channelDetailsSearchEmptyTitle), findsOneWidget);
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.byType(ChannelSearchField), findsOneWidget);
+    expect(find.text(l10n.channelHeaderSearchFiltersTitle), findsOneWidget);
   });
 
   testWidgets('search back button pops the page', (tester) async {
@@ -170,6 +172,50 @@ void main() {
 
     expect(find.byType(MessagePreviewTile), findsWidgets);
     expect(find.byType(ListView), findsWidgets);
-    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(find.byType(FluxerDraggableScrollableSheet), findsNothing);
+  });
+
+  testWidgets('search result labels name only results from other channels', (
+    tester,
+  ) async {
+    final FluxerDatabase database = openTestDatabase();
+    final ProviderContainer container = _container(database, seedSearch: true);
+    addTearDown(container.dispose);
+
+    await _openPage(tester, container);
+
+    final List<String?> labels = tester
+        .widgetList<MessagePreviewTile>(find.byType(MessagePreviewTile))
+        .map((MessagePreviewTile tile) => tile.label)
+        .toList();
+    expect(labels, <String?>['#general', null, null]);
+  });
+
+  testWidgets('filter rows inset their icon and modifier evenly', (
+    tester,
+  ) async {
+    final FluxerDatabase database = openTestDatabase();
+    final ProviderContainer container = _container(database);
+    addTearDown(container.dispose);
+
+    await _openPage(tester, container);
+
+    final double width = tester.getSize(find.byType(ChannelSearchPage)).width;
+    final Finder rows = find.byWidgetPredicate(
+      (Widget widget) => widget is ChannelSearchSuggestionRow,
+    );
+    expect(rows, findsWidgets);
+    for (final Element row in rows.evaluate()) {
+      final Finder rowFinder = find.byWidget(row.widget);
+      final Rect icon = tester.getRect(
+        find
+            .descendant(of: rowFinder, matching: find.byType(PhosphorIcon))
+            .first,
+      );
+      final Rect modifier = tester.getRect(
+        find.descendant(of: rowFinder, matching: find.byType(Text)).last,
+      );
+      expect(width - modifier.right, moreOrLessEquals(icon.left));
+    }
   });
 }

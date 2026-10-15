@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/audio/app_media_audio_session.dart';
+import 'package:fluxer_app/core/audio/chat_attachment/chat_attachment_audio_session.dart';
 import 'package:fluxer_app/core/audio/enums/fluxer_sfx_clip.dart';
 import 'package:fluxer_app/core/audio/fluxer_sfx.dart';
 import 'package:mockito/annotations.dart';
@@ -37,7 +39,7 @@ void main() {
   });
 
   group('audioContextForSfxClip', () {
-    test('notification clips use ambient or ringtone context', () {
+    test('message clips use the notification context', () {
       expect(
         audioContextForSfxClip(
           FluxerSfxClip.message,
@@ -67,6 +69,26 @@ void main() {
           isIncomingRingLoop: false,
         ),
         kSessionFeedbackSfxContext,
+      );
+    });
+  });
+
+  group('android audio attributes', () {
+    test('message sounds mix with other media as notifications', () {
+      final AudioContextAndroid android = kNotificationSfxContext.android;
+      expect(android.usageType, AndroidUsageType.notification);
+      expect(android.contentType, AndroidContentType.sonification);
+      expect(android.audioFocus, AndroidAudioFocus.none);
+    });
+
+    test('only the incoming ring loop plays as a ringtone', () {
+      expect(
+        kIncomingRingLoopContext.android.usageType,
+        AndroidUsageType.notificationRingtone,
+      );
+      expect(
+        kSessionFeedbackSfxContext.android.usageType,
+        isNot(AndroidUsageType.notificationRingtone),
       );
     });
   });
@@ -188,6 +210,64 @@ void main() {
         mockOneShotPlayer.setAudioContext(kAppMediaAudioContext),
       ).called(1);
       verify(mockLoopPlayer.setAudioContext(kAppMediaAudioContext)).called(1);
+    });
+  });
+
+  group('Android voice call audio route', () {
+    setUp(() {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      ChatAttachmentAudioSession.instance.resetForTest();
+      for (final MockAudioPlayer player in <MockAudioPlayer>[
+        mockOneShotPlayer,
+        mockLoopPlayer,
+      ]) {
+        when(player.setAudioContext(any)).thenAnswer((_) async {
+          return;
+        });
+        when(player.setReleaseMode(any)).thenAnswer((_) async {
+          return;
+        });
+        when(player.stop()).thenAnswer((_) async {
+          return;
+        });
+        when(player.setVolume(any)).thenAnswer((_) async {
+          return;
+        });
+        when(player.play(any)).thenAnswer((_) async {
+          return;
+        });
+      }
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      ChatAttachmentAudioSession.instance.resetForTest();
+    });
+
+    test('sounds during a call leave the audio mode and route alone', () async {
+      await ChatAttachmentAudioSession.instance.clearForVoiceCall();
+
+      await sfx.playOneShot(FluxerSfxClip.userJoin);
+      await sfx.playOneShot(FluxerSfxClip.message);
+      await sfx.startLoop(FluxerSfxClip.incomingRing);
+      await sfx.stopLoop();
+
+      verifyNever(mockOneShotPlayer.setAudioContext(any));
+      verifyNever(mockLoopPlayer.setAudioContext(any));
+      verify(mockOneShotPlayer.play(any)).called(2);
+      verify(mockLoopPlayer.play(any)).called(1);
+    });
+
+    test('the sound context applies again once the call ends', () async {
+      await ChatAttachmentAudioSession.instance.clearForVoiceCall();
+      await sfx.playOneShot(FluxerSfxClip.message);
+      ChatAttachmentAudioSession.instance.restoreAfterVoiceCall();
+
+      await sfx.playOneShot(FluxerSfxClip.message);
+
+      verify(
+        mockOneShotPlayer.setAudioContext(kNotificationSfxContext),
+      ).called(1);
     });
   });
 

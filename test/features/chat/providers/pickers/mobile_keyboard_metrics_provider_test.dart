@@ -34,7 +34,6 @@ void main() {
         );
         await Future<void>.value();
 
-        // Android native includes systemBars; viewInsets is IME-only.
         notifier
           ..debugApplyNativeMetrics(
             keyboardHeight: 336,
@@ -75,14 +74,12 @@ void main() {
       );
       await Future<void>.value();
 
-      // Stale viewInsets frame arrives first (partial open).
       notifier.syncViewInsets(180, safeAreaBottom: 34);
       expect(
         container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
         180,
       );
 
-      // Native gross height must not replace a live viewInsets sample.
       notifier.debugApplyNativeMetrics(
         keyboardHeight: 336,
         isKeyboardVisible: true,
@@ -105,7 +102,7 @@ void main() {
     });
 
     test(
-      'native full height followed by hidden viewInsets keeps IME height until both clear',
+      'hidden viewInsets closes the keyboard while native still reports it',
       () async {
         final ProviderContainer container = ProviderContainer();
         addTearDown(container.dispose);
@@ -134,12 +131,10 @@ void main() {
           302,
         );
 
-        // viewInsets dropped first. Keep IME-only native height until the
-        // plugin also reports hidden.
         notifier.syncViewInsets(0, safeAreaBottom: 34);
         expect(
           container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
-          302,
+          0,
         );
 
         notifier.debugApplyNativeMetrics(
@@ -155,7 +150,7 @@ void main() {
       },
     );
 
-    test('stale native height drops after viewInsets closes', () async {
+    test('stale native height drops as soon as viewInsets closes', () async {
       final ProviderContainer container = ProviderContainer();
       addTearDown(container.dispose);
       container.listen(
@@ -174,14 +169,6 @@ void main() {
             )
             ..syncViewInsets(302, safeAreaBottom: 0)
             ..syncViewInsets(0, safeAreaBottom: 0);
-      expect(
-        container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
-        302,
-      );
-
-      await Future<void>.delayed(kUnmeasuredKeyboardReservationTimeout);
-      await Future<void>.value();
-
       expect(
         container.read(mobileKeyboardMetricsProvider).liveKeyboardHeight,
         0,
@@ -255,15 +242,33 @@ void main() {
   });
 
   group('unmeasured keyboard reservation', () {
+    test('android never reserves an unmeasured keyboard', () async {
+      final ProviderContainer container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.listen(mobileKeyboardMetricsProvider, (_, _) {});
+      await Future<void>.value();
+
+      container.read(mobileKeyboardMetricsProvider.notifier)
+        ..updateLayout(screenHeight: 800, isPortrait: true, isIos: false)
+        ..reserveUnmeasuredKeyboard();
+
+      expect(
+        container
+            .read(mobileKeyboardMetricsProvider)
+            .unmeasuredKeyboardReserved,
+        isFalse,
+      );
+    });
+
     test('reserve sets flag when live height is zero', () async {
       final ProviderContainer container = ProviderContainer();
       addTearDown(container.dispose);
       container.listen(mobileKeyboardMetricsProvider, (_, _) {});
       await Future<void>.value();
 
-      container
-          .read(mobileKeyboardMetricsProvider.notifier)
-          .reserveUnmeasuredKeyboard();
+      container.read(mobileKeyboardMetricsProvider.notifier)
+        ..updateLayout(screenHeight: 800, isPortrait: true, isIos: true)
+        ..reserveUnmeasuredKeyboard();
 
       expect(
         container
@@ -305,9 +310,9 @@ void main() {
       container.listen(mobileKeyboardMetricsProvider, (_, _) {});
       await Future<void>.value();
 
-      container
-          .read(mobileKeyboardMetricsProvider.notifier)
-          .reserveUnmeasuredKeyboard();
+      container.read(mobileKeyboardMetricsProvider.notifier)
+        ..updateLayout(screenHeight: 800, isPortrait: true, isIos: true)
+        ..reserveUnmeasuredKeyboard();
       expect(
         container
             .read(mobileKeyboardMetricsProvider)

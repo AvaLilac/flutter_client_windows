@@ -1,3 +1,4 @@
+import 'package:fluxer_app/features/settings/presentation/widgets/plutonium/store/plutonium_store_style.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 const double _kWaveWidth = 1200;
@@ -78,18 +79,42 @@ class PremiumStoreWaves extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color color = PremiumStoreStyle.of(context).wave;
     return IgnorePointer(
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (BuildContext context, Widget? child) {
-            final double offset = controller.hasClients ? controller.offset : 0;
-            return CustomPaint(
-              painter: _PageWavesPainter(offset: offset),
-              child: child,
+      child: ClipRect(
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final Size tile = Size(
+              constraints.maxWidth,
+              constraints.maxHeight + _kWaveHeight,
+            );
+            return RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: controller,
+                builder: (BuildContext context, Widget? child) {
+                  final double offset = controller.hasClients
+                      ? controller.offset
+                      : 0;
+                  final double shift = (offset * _kParallax) % _kWaveHeight;
+                  return Transform.translate(
+                    offset: Offset(0, -shift),
+                    child: child,
+                  );
+                },
+                child: OverflowBox(
+                  alignment: Alignment.topCenter,
+                  minHeight: tile.height,
+                  maxHeight: tile.height,
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      size: tile,
+                      painter: _PageWavesPainter(color: color),
+                    ),
+                  ),
+                ),
+              ),
             );
           },
-          child: const SizedBox.expand(),
         ),
       ),
     );
@@ -104,9 +129,9 @@ class _WavePath {
 }
 
 class _PageWavesPainter extends CustomPainter {
-  _PageWavesPainter({required this.offset});
+  _PageWavesPainter({required this.color});
 
-  final double offset;
+  final Color color;
 
   static final List<Path> _paths = _buildPaths();
 
@@ -151,10 +176,8 @@ class _PageWavesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double shift = (offset * _kParallax) % _kWaveHeight;
     final int columns = (size.width / _kWaveWidth).ceil() + 1;
-    final int rows = (size.height / _kWaveHeight).ceil() + 2;
-    final double startY = -_kWaveHeight - shift;
+    final int rows = (size.height / _kWaveHeight).ceil();
     const double startX = -_kWaveWidth;
 
     final Paint paint = Paint()
@@ -168,14 +191,12 @@ class _PageWavesPainter extends CustomPainter {
     for (int row = 0; row < rows; row++) {
       for (int column = 0; column < columns; column++) {
         final double dx = startX + column * _kWaveWidth;
-        final double dy = startY + row * _kWaveHeight;
+        final double dy = row * _kWaveHeight;
         canvas
           ..save()
           ..translate(dx, dy);
         for (int p = 0; p < _paths.length; p++) {
-          paint.color = const Color(
-            0xFFFFFFFF,
-          ).withValues(alpha: _wavePaths[p].opacity * 0.075);
+          paint.color = color.withValues(alpha: _wavePaths[p].opacity * 0.075);
           canvas.drawPath(_paths[p], paint);
         }
         canvas.restore();
@@ -187,5 +208,5 @@ class _PageWavesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PageWavesPainter oldDelegate) =>
-      oldDelegate.offset != offset;
+      oldDelegate.color != color;
 }

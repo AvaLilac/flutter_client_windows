@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
@@ -246,6 +247,20 @@ List<GuildSidebarEntry> flattenGuildSidebarEntries({
   return entries;
 }
 
+bool _isFirstLoad(AsyncValue<Object?> value) {
+  return !value.hasValue && !value.hasError;
+}
+
+@riverpod
+class GuildSidebarWaitExpired extends _$GuildSidebarWaitExpired {
+  @override
+  bool build(String guildId) {
+    final Timer timer = Timer(kGuildUnreadPrimeLimit, () => state = true);
+    ref.onDispose(timer.cancel);
+    return false;
+  }
+}
+
 @riverpod
 List<GuildSidebarEntry> guildSidebarEntries(Ref ref) {
   final String? guildId = ref.watch(activeGuildIdProvider);
@@ -258,13 +273,26 @@ List<GuildSidebarEntry> guildSidebarEntries(Ref ref) {
   if (guild == null || guildId == null || guild.id != guildId) {
     return const <GuildSidebarEntry>[];
   }
-  final bool hideMutedChannels =
-      ref.watch(guildMuteProvider(guildId)).value?.hideMutedChannels ?? false;
-  final Set<String> mutedSet =
-      ref.watch(mutedChannelIdsProvider(guildId)).value ?? const <String>{};
-  final Set<String> collapsed =
-      ref.watch(guildCollapsedCategoriesProvider(guild.id)).value ??
-      const <String>{};
+  final AsyncValue<GuildMuteState> guildMute = ref.watch(
+    guildMuteProvider(guildId),
+  );
+  final AsyncValue<Set<String>> muted = ref.watch(
+    mutedChannelIdsProvider(guildId),
+  );
+  final AsyncValue<Set<String>> collapsedCategories = ref.watch(
+    guildCollapsedCategoriesProvider(guild.id),
+  );
+  final bool waitExpired = ref.watch(guildSidebarWaitExpiredProvider(guildId));
+  if (!waitExpired &&
+      (_isFirstLoad(guildMute) ||
+          _isFirstLoad(muted) ||
+          _isFirstLoad(collapsedCategories) ||
+          !ref.watch(guildChannelUnreadKnownProvider(guildId)))) {
+    return const <GuildSidebarEntry>[];
+  }
+  final bool hideMutedChannels = guildMute.value?.hideMutedChannels ?? false;
+  final Set<String> mutedSet = muted.value ?? const <String>{};
+  final Set<String> collapsed = collapsedCategories.value ?? const <String>{};
   final Map<String, List<Channel>> threadsByParent = ref.watch(
     sidebarThreadsByParentProvider(guildId),
   );

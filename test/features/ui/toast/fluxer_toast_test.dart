@@ -46,7 +46,6 @@ void main() {
 
       expect(find.text('Test notification'), findsOneWidget);
 
-      // Advance past toast duration to clear pending timer.
       await tester.pump(const Duration(seconds: 5));
       await tester.pump();
     });
@@ -64,11 +63,39 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Tap me away'), findsOneWidget);
 
-      // Toast dismisses on tap (GestureDetector.onTap -> dismiss).
       await tester.tap(find.text('Tap me away'));
       await tester.pumpAndSettle();
 
       expect(find.text('Tap me away'), findsNothing);
+    });
+
+    testWidgets('tapping the action runs it and dismisses the toast', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTestApp(const SizedBox.shrink()));
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FluxerToastOverlay)),
+      );
+      int pressed = 0;
+      container
+          .read(toastProvider.notifier)
+          .show(
+            FluxerToast(
+              message: 'Failed',
+              action: FluxerToastAction(
+                label: 'Undo',
+                onPressed: () => pressed++,
+              ),
+            ),
+          );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+
+      expect(pressed, 1);
+      expect(find.text('Failed'), findsNothing);
     });
 
     testWidgets('auto-dismisses after duration', (tester) async {

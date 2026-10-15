@@ -6,6 +6,21 @@ void main() {
     test('pauseAll does not throw when no players are registered', () async {
       await MediaKitPlayerLifecycleCoordinator.instance.pauseAll();
     });
+
+    test('createPlayer initializes media_kit before constructing a Player '
+        '(libmpv is no longer loaded at launch)', () {
+      var initializerCalls = 0;
+      final MediaKitPlayerLifecycleCoordinator coordinator =
+          MediaKitPlayerLifecycleCoordinator(
+            ensureInitialized: () {
+              initializerCalls++;
+              throw _InitializerReached();
+            },
+          );
+
+      expect(coordinator.createPlayer, throwsA(isA<_InitializerReached>()));
+      expect(initializerCalls, 1);
+    });
   });
 
   group('MediaKitForegroundResumeController', () {
@@ -64,3 +79,5 @@ void main() {
     });
   });
 }
+
+class _InitializerReached implements Exception {}

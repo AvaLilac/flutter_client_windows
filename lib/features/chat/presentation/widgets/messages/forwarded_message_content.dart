@@ -27,9 +27,9 @@ import 'package:fluxer_app/features/dm/providers/dm_providers.dart';
 import 'package:fluxer_app/features/dm/utils/group_dm_display_name.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
+import 'package:fluxer_app/features/ui/avatar/fluxer_guild_acronym.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/utils/display_name.dart';
-import 'package:fluxer_app/shared/utils/guild_name_abbreviation.dart';
 import 'package:fluxer_markdown/fluxer_markdown.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -57,9 +57,7 @@ class ForwardedMessageContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final attachmentSize = snapshot.hasCompactAttachments
-        ? MediaDimensionSize.small
-        : chatPreferences.attachmentMediaDimensionSize;
+    final attachmentSize = chatPreferences.attachmentMediaDimensionSize;
     final String snapshotScope = forwardedSnapshotScope(message.id);
 
     return Padding(
@@ -161,11 +159,7 @@ class ForwardedMessageContent extends ConsumerWidget {
                       runSpacing: 8,
                       children: [
                         for (final MessageSticker sticker in snapshot.stickers)
-                          MessageStickerImage(
-                            sticker: sticker,
-                            visibilityKey:
-                                '${message.channelId}_${message.id}_forward_${sticker.id}',
-                          ),
+                          MessageStickerImage(sticker: sticker),
                       ],
                     ),
                   ),
@@ -400,51 +394,66 @@ class _ForwardedSourceButtonState
       builder: (context, snapshot) {
         final data = snapshot.data;
         if (data == null) {
-          return const SizedBox.shrink();
+          if (snapshot.connectionState == ConnectionState.done) {
+            return const SizedBox.shrink();
+          }
+          return Visibility(
+            visible: false,
+            maintainSize: true,
+            maintainAnimation: true,
+            maintainState: true,
+            child: _chip(const SizedBox(height: 16), null),
+          );
         }
+        return _chip(
+          Flexible(child: _ForwardedSourceInfo(data: data)),
+          () => _jumpToOriginal(data),
+        );
+      },
+    );
+  }
 
-        return ChatSurfaceTheme(
-          builder: (BuildContext context) {
-            return Align(
-              alignment: Alignment.centerLeft,
-              child: Material(
-                color: context.colors.backgroundSecondary,
+  Widget _chip(Widget info, VoidCallback? onTap) {
+    return ChatSurfaceTheme(
+      builder: (BuildContext context) {
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Material(
+            color: context.colors.backgroundSecondary,
+            borderRadius: BorderRadius.circular(6),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(6),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: context.colors.backgroundModifierAccent,
-                    ),
+                border: Border.all(
+                  color: context.colors.backgroundModifierAccent,
+                ),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: onTap,
+                hoverColor: context.colors.backgroundSecondaryAlt,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
                   ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(6),
-                    onTap: () => _jumpToOriginal(data),
-                    hoverColor: context.colors.backgroundSecondaryAlt,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Forwarded from',
+                        style: context.textStyles.timestamp.copyWith(
+                          color: context.colors.textPrimaryMuted,
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Forwarded from',
-                            style: context.textStyles.timestamp.copyWith(
-                              color: context.colors.textPrimaryMuted,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(child: _ForwardedSourceInfo(data: data)),
-                        ],
-                      ),
-                    ),
+                      const SizedBox(width: 6),
+                      info,
+                    ],
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );
@@ -600,8 +609,6 @@ class _GuildSourceIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (guild.iconUrl == null) {
-      final initials = abbreviateGuildName(guild.name);
-      final initialsLength = guildNameInitialsLength(guild.name);
       return Container(
         width: 16,
         height: 16,
@@ -609,15 +616,8 @@ class _GuildSourceIcon extends StatelessWidget {
           color: context.colors.backgroundSecondaryAlt,
           borderRadius: BorderRadius.circular(4),
         ),
-        alignment: Alignment.center,
-        child: Text(
-          initials,
-          style: context.textStyles.smallText.copyWith(
-            fontSize: _forwardedGuildInitialsFontSize(initialsLength),
-            fontWeight: FontWeight.w700,
-            color: context.colors.textPrimary,
-          ),
-        ),
+        clipBehavior: Clip.antiAlias,
+        child: FluxerGuildAcronym(name: guild.name),
       );
     }
 
@@ -635,16 +635,6 @@ class _GuildSourceIcon extends StatelessWidget {
       ),
     );
   }
-}
-
-double _forwardedGuildInitialsFontSize(int initialsLength) {
-  if (initialsLength <= 2) {
-    return 10;
-  }
-  if (initialsLength <= kGuildIconInitialsMaxLength) {
-    return 8;
-  }
-  return 6.5;
 }
 
 enum _ForwardedSourceKind { guildChannel, dm, groupDm }

@@ -21,7 +21,6 @@ bool _isRemoteUserTyping({
   return expiresAt != null && expiresAt.isAfter(now);
 }
 
-/// Whether [userId] is remotely typing in [channelId].
 @riverpod
 bool isUserTypingInChannel(Ref ref, String channelId, String userId) {
   final String? currentUserId = ref.watch(currentUserIdProvider);
@@ -36,13 +35,11 @@ bool isUserTypingInChannel(Ref ref, String channelId, String userId) {
   );
 }
 
-/// Whether [userId] is typing in [channelId] for member list avatars.
 @riverpod
 bool memberListUserIsTyping(Ref ref, String channelId, String userId) {
   return ref.watch(isUserTypingInChannelProvider(channelId, userId));
 }
 
-/// Whether a DM conversation avatar should show the typing badge.
 @riverpod
 bool dmAvatarIsTyping(Ref ref, DmConversation dm) {
   if (dm.isGroup) {
@@ -56,7 +53,6 @@ bool dmAvatarIsTyping(Ref ref, DmConversation dm) {
   return ref.watch(isUserTypingInChannelProvider(dm.id, dm.recipientId));
 }
 
-/// Whether a remote user is typing in [channelId].
 @riverpod
 bool channelHasTyping(Ref ref, String channelId) {
   final String? currentUserId = ref.watch(currentUserIdProvider);
@@ -75,7 +71,6 @@ bool channelHasTyping(Ref ref, String channelId) {
   return false;
 }
 
-/// Remote users typing in [channelId].
 @riverpod
 List<String> typingUsersInChannel(Ref ref, String channelId) {
   final String? currentUserId = ref.watch(currentUserIdProvider);
@@ -92,7 +87,6 @@ List<String> typingUsersInChannel(Ref ref, String channelId) {
   ];
 }
 
-/// Remote users typing in [channelId], excluding blocked users.
 @riverpod
 List<String> presentableTypingUsersInChannel(Ref ref, String channelId) {
   final List<String> userIds = ref.watch(
@@ -113,7 +107,6 @@ List<String> presentableTypingUsersInChannel(Ref ref, String channelId) {
 
 const Duration _kSidebarTypingRecentWindow = Duration(seconds: 5);
 
-/// Whether a remote user is typing in [channelId] within the last 5 seconds.
 @riverpod
 bool channelHasRecentTyping(Ref ref, String channelId) {
   final String? currentUserId = ref.watch(currentUserIdProvider);

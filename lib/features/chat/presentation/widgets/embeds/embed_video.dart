@@ -1,6 +1,7 @@
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/chat_fullscreen_video_launch_context.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
+import 'package:fluxer_app/features/chat/presentation/widgets/embeds/embed_image.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/embeds/embed_shared.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/embeds/embed_youtube.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_inline_video_player.dart';
@@ -11,7 +12,6 @@ import 'package:fluxer_app/features/mature_content/presentation/widgets/mature_m
 import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
 import 'package:fluxer_app/material_ui.dart';
 
-/// A video embed
 class EmbedVideo extends StatelessWidget {
   final Embed embed;
   final MediaDimensionSize dimensionSize;
@@ -50,13 +50,24 @@ class EmbedVideo extends StatelessWidget {
               )
             : null;
         final ChatFullscreenVideoLaunchContext? launchContext =
-            youtubeLaunchContext == null
+            youtubeLaunchContext == null && isValidEmbedMedia(embed.video)
             ? ChatFullscreenVideoLaunchContext.fromEmbed(
                 embed: embed,
                 embedIndex: embedIndex,
                 actionScope: videoActionScope,
               )
             : null;
+        if (isMediaOnly &&
+            youtubeLaunchContext == null &&
+            launchContext == null) {
+          return EmbedImage(
+            embed: embed,
+            dimensionSize: dimensionSize,
+            channelId: channelId,
+            embedIndex: embedIndex,
+            mediaActionScope: videoActionScope,
+          );
+        }
         final double mediaRadius = isMediaOnly ? 8 : 4;
         final Widget player = youtubeLaunchContext != null
             ? EmbedYouTube(
@@ -70,7 +81,6 @@ class EmbedVideo extends StatelessWidget {
                 source: launchContext.source,
                 launchContext: launchContext,
                 dimensionSize: dimensionSize,
-                posterFit: isMediaOnly ? BoxFit.cover : BoxFit.contain,
               );
         final Widget media = MatureMediaOverlay(
           channelId: channelId,
@@ -115,11 +125,9 @@ class EmbedVideo extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (embed.providerName != null)
-                        EmbedInlineText(
-                          text: embed.providerName!,
-                          style: context.textStyles.embedFooter.copyWith(
-                            fontSize: 12,
-                          ),
+                        EmbedProvider(
+                          name: embed.providerName!,
+                          url: embed.providerUrl,
                         ),
                       if (embed.author != null)
                         Padding(

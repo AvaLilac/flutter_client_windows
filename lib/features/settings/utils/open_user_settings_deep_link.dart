@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/deep_links/user_settings_deep_link.dart';
+import 'package:fluxer_app/core/instance/instance_constants.dart';
+import 'package:fluxer_app/features/settings/domain/user_settings_section.dart';
 import 'package:fluxer_app/features/settings/presentation/user_settings_modal.dart';
 import 'package:fluxer_app/features/settings/presentation/user_settings_nav.dart';
 import 'package:fluxer_app/features/settings/utils/user_settings_field_registry.dart';
+import 'package:fluxer_app/features/settings/utils/user_settings_nav_l10n.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
@@ -27,6 +30,7 @@ UserSettingsDeepLinkPresentation buildUserSettingsDeepLinkPresentation({
   required FluxerLocalizations l10n,
   required UserSettingsDeepLinkTarget target,
   bool showBilling = false,
+  String premiumProductName = InstanceConstants.defaultPremiumProductName,
 }) {
   final String? scrollFieldId = target.tab == null
       ? null
@@ -52,7 +56,11 @@ UserSettingsDeepLinkPresentation buildUserSettingsDeepLinkPresentation({
             PhosphorIconsFill.gear;
 
   return UserSettingsDeepLinkPresentation(
-    tabLabel: userSettingsDeepLinkTabLabel(l10n, target),
+    tabLabel: userSettingsDeepLinkTabLabel(
+      l10n,
+      target,
+      premiumProductName: premiumProductName,
+    ),
     tabIcon: tabIcon,
     scrollFieldId: scrollFieldId,
     fieldLabel: fieldLabel,
@@ -115,14 +123,22 @@ Future<void> _openUserSettingsDeepLink(
 
 String userSettingsDeepLinkTabLabel(
   FluxerLocalizations l10n,
-  UserSettingsDeepLinkTarget target,
-) {
+  UserSettingsDeepLinkTarget target, {
+  String premiumProductName = InstanceConstants.defaultPremiumProductName,
+}) {
   if (target.tab == null) {
     return l10n.userAreaUserSettings;
+  }
+  if (target.section == UserSettingsSection.fluxerPlutonium ||
+      target.tab == 'plutonium') {
+    return l10n.userSettingsJumpLinkPremiumPage(premiumProductName);
   }
   if (target.section == null &&
       !isUserSettingsDeepLinkTabSupported(target.tab!)) {
     return l10n.userAreaUserSettings;
+  }
+  if (target.section != null) {
+    return userSettingsSectionLabel(l10n, target.section!);
   }
   return userSettingsTabLabel(l10n, target.tab!);
 }

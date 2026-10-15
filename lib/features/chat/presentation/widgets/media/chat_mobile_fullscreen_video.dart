@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
@@ -11,6 +12,8 @@ import 'package:fluxer_app/features/chat/presentation/sheets/mobile_media_option
 import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_video_playback_failure_overlay.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_youtube_webview.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/attachment_display_utils.dart';
+import 'package:fluxer_app/features/chat/utils/media/chat_video_controller_config.dart';
+import 'package:fluxer_app/features/chat/utils/media/chat_video_decoder_log.dart';
 import 'package:fluxer_app/features/chat/utils/media/chat_video_hdr_player_config.dart';
 import 'package:fluxer_app/features/chat/utils/media/chat_video_playback_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/favorite_media_utils.dart';
@@ -24,6 +27,7 @@ import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/utils/fluxer_haptics.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart' as mkv;
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -39,29 +43,83 @@ Future<void> showChatMobileFullscreenVideo(
     context,
   ).read(shellManualGestureBlockProvider.notifier)..setBlocked(value: true);
   try {
-    await showGeneralDialog<void>(
-      context: context,
-      barrierLabel: FluxerLocalizations.of(context).mediaViewerImagePreview,
-      barrierColor: Colors.transparent,
-      pageBuilder: (_, _, _) {
-        if (launchContext.isYouTubeEmbed) {
+    final String barrierLabel = FluxerLocalizations.of(
+      context,
+    ).mediaViewerImagePreview;
+    if (launchContext.isYouTubeEmbed) {
+      await showGeneralDialog<void>(
+        context: context,
+        barrierLabel: barrierLabel,
+        barrierColor: Colors.transparent,
+        pageBuilder: (_, _, _) {
           return _ChatMobileFullscreenYouTubePage(launchContext: launchContext);
-        }
-        return _ChatMobileFullscreenVideoPage(launchContext: launchContext);
-      },
-      transitionBuilder: (_, animation, _, child) {
-        return FadeTransition(opacity: animation, child: child);
+        },
+        transitionBuilder: _fadeTransition,
+      );
+      return;
+    }
+    late final _ChatFullscreenVideoRoute route;
+    route = _ChatFullscreenVideoRoute(
+      barrierLabel: barrierLabel,
+      pageBuilder: (_, _, _) {
+        return _ChatMobileFullscreenVideoPage(
+          launchContext: launchContext,
+          onRevealRoutesBelowChanged: (bool reveal) {
+            route.revealsRoutesBelow = reveal;
+          },
+        );
       },
     );
+    await Navigator.of(context, rootNavigator: true).push<void>(route);
   } finally {
     shellGestureBlock.setBlocked(value: false);
   }
 }
 
+Widget _fadeTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  return FadeTransition(opacity: animation, child: child);
+}
+
+class _ChatFullscreenVideoRoute extends RawDialogRoute<void> {
+  _ChatFullscreenVideoRoute({
+    required super.pageBuilder,
+    required String super.barrierLabel,
+  }) : super(
+         barrierColor: Colors.transparent,
+         transitionBuilder: _fadeTransition,
+       );
+
+  bool _revealsRoutesBelow = false;
+
+  bool get revealsRoutesBelow => _revealsRoutesBelow;
+
+  set revealsRoutesBelow(bool value) {
+    if (_revealsRoutesBelow == value) {
+      return;
+    }
+    _revealsRoutesBelow = value;
+    if (overlayEntries.isNotEmpty && (animation?.isCompleted ?? false)) {
+      overlayEntries.first.opaque = opaque;
+    }
+  }
+
+  @override
+  bool get opaque => !_revealsRoutesBelow;
+}
+
 class _ChatMobileFullscreenVideoPage extends ConsumerStatefulWidget {
-  const _ChatMobileFullscreenVideoPage({required this.launchContext});
+  const _ChatMobileFullscreenVideoPage({
+    required this.launchContext,
+    required this.onRevealRoutesBelowChanged,
+  });
 
   final ChatFullscreenVideoLaunchContext launchContext;
+  final ValueChanged<bool> onRevealRoutesBelowChanged;
 
   @override
   ConsumerState<_ChatMobileFullscreenVideoPage> createState() =>
@@ -83,12 +141,16 @@ class _ChatMobileFullscreenVideoPageState
   bool _playbackFailed = false;
   bool _hasAttemptedPlayback = false;
   bool _isPlaying = false;
-  bool _isBuffering = false;
+  final ValueNotifier<bool> _isBuffering = ValueNotifier<bool>(false);
   bool _hudVisible = true;
   final MediaKitForegroundResumeController _foregroundResume =
       MediaKitForegroundResumeController();
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
+  final ValueNotifier<Duration> _position = ValueNotifier<Duration>(
+    Duration.zero,
+  );
+  final ValueNotifier<Duration> _duration = ValueNotifier<Duration>(
+    Duration.zero,
+  );
   bool _isMuted = false;
   Timer? _hudHideTimer;
   double _dismissProgress = 0;
@@ -133,7 +195,13 @@ class _ChatMobileFullscreenVideoPageState
           .createPlayer();
       _player = player;
       unawaited(player.setVolume(kMediaKitMaxVolume));
-      _controller = mkv.VideoController(player);
+      _controller = mkv.VideoController(
+        player,
+        configuration: chatVideoControllerConfiguration(),
+      );
+      unawaited(
+        logChatVideoDecoder(player, surface: ChatVideoSurface.fullscreen),
+      );
       unawaited(
         applyChatVideoHdrProperties(
           player,
@@ -160,9 +228,7 @@ class _ChatMobileFullscreenVideoPageState
         if (!mounted || _playbackFailed) {
           return;
         }
-        setState(() {
-          _isBuffering = buffering;
-        });
+        _isBuffering.value = buffering;
       });
       _positionSubscription = player.stream.position.listen((
         Duration position,
@@ -170,9 +236,7 @@ class _ChatMobileFullscreenVideoPageState
         if (!mounted || _playbackFailed) {
           return;
         }
-        setState(() {
-          _position = position;
-        });
+        _position.value = position;
       });
       _durationSubscription = player.stream.duration.listen((
         Duration duration,
@@ -180,9 +244,7 @@ class _ChatMobileFullscreenVideoPageState
         if (!mounted || _playbackFailed) {
           return;
         }
-        setState(() {
-          _duration = duration;
-        });
+        _duration.value = duration;
       });
       _errorSubscription = player.stream.error.listen((String error) {
         if (!mounted || !_hasAttemptedPlayback || _playbackFailed) {
@@ -202,6 +264,9 @@ class _ChatMobileFullscreenVideoPageState
   void dispose() {
     _hudHideTimer?.cancel();
     unawaited(_disposePlayer());
+    _isBuffering.dispose();
+    _position.dispose();
+    _duration.dispose();
     super.dispose();
   }
 
@@ -233,9 +298,9 @@ class _ChatMobileFullscreenVideoPageState
       _playbackFailed = true;
       _isOpening = false;
       _isPlaying = false;
-      _isBuffering = false;
       _hudVisible = true;
     });
+    _isBuffering.value = false;
     await _playingSubscription?.cancel();
     await _bufferingSubscription?.cancel();
     await _positionSubscription?.cancel();
@@ -351,12 +416,12 @@ class _ChatMobileFullscreenVideoPageState
     BuildContext sliderContext,
   ) async {
     final RenderObject? renderObject = sliderContext.findRenderObject();
-    if (renderObject is! RenderBox || _duration <= Duration.zero) {
+    if (renderObject is! RenderBox || _duration.value <= Duration.zero) {
       return;
     }
     final Offset local = renderObject.globalToLocal(Offset(globalDx, 0));
     final double relative = (local.dx / renderObject.size.width).clamp(0, 1);
-    final int targetMs = (_duration.inMilliseconds * relative).round();
+    final int targetMs = (_duration.value.inMilliseconds * relative).round();
     await _player?.seek(Duration(milliseconds: targetMs));
     if (_isPlaying) {
       _scheduleHudHide();
@@ -371,9 +436,15 @@ class _ChatMobileFullscreenVideoPageState
     if (_dismissProgress == progress) {
       return;
     }
+    widget.onRevealRoutesBelowChanged(progress > 0);
     setState(() {
       _dismissProgress = progress;
     });
+  }
+
+  void _handleLongPress() {
+    FluxerHaptics.medium();
+    unawaited(_openOptions());
   }
 
   Future<void> _openOptions() async {
@@ -438,74 +509,86 @@ class _ChatMobileFullscreenVideoPageState
           MediaViewerDismissible(
             onDismissProgress: _handleDismissProgress,
             onClose: _executeClose,
-            child: Stack(
-              fit: StackFit.expand,
-              clipBehavior: Clip.none,
-              children: <Widget>[
-                if (controller != null && !_playbackFailed && !_isOpening)
-                  Positioned.fill(
-                    child: mkv.Video(controller: controller, controls: null),
-                  ),
-                if ((_isOpening || controller == null) && !_playbackFailed)
-                  const IgnorePointer(
-                    child: ColoredBox(
-                      color: Colors.black,
-                      child: Center(child: FluxerLoadingSpinner()),
+            child: FluxerGestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onLongPress: showOptionsButton ? _handleLongPress : null,
+              child: Stack(
+                fit: StackFit.expand,
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  if (controller != null && !_playbackFailed && !_isOpening)
+                    Positioned.fill(
+                      child: mkv.Video(controller: controller, controls: null),
                     ),
-                  ),
-                if (_isBuffering && !_isOpening && !_playbackFailed)
-                  IgnorePointer(
-                    child: ColoredBox(
-                      color: Colors.black.withValues(alpha: 0.22),
-                      child: const Center(child: FluxerLoadingSpinner()),
+                  if ((_isOpening || controller == null) && !_playbackFailed)
+                    const IgnorePointer(
+                      child: ColoredBox(
+                        color: Colors.black,
+                        child: Center(child: FluxerLoadingSpinner()),
+                      ),
                     ),
-                  ),
-                if (controller != null && !_playbackFailed && !_isOpening)
-                  Positioned.fill(
-                    child: _hudVisible
-                        ? FluxerGestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onTap: _toggleHudVisibility,
-                            child: const SizedBox.expand(),
-                          )
-                        : Semantics(
-                            label: l10n.chatAttachmentVideoToggleControls,
-                            button: true,
-                            child: FluxerGestureDetector(
+                  if (!_isOpening && !_playbackFailed)
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _isBuffering,
+                      builder: (BuildContext context, bool isBuffering, _) {
+                        if (!isBuffering) {
+                          return const SizedBox.shrink();
+                        }
+                        return IgnorePointer(
+                          child: ColoredBox(
+                            color: Colors.black.withValues(alpha: 0.22),
+                            child: const Center(child: FluxerLoadingSpinner()),
+                          ),
+                        );
+                      },
+                    ),
+                  if (controller != null && !_playbackFailed && !_isOpening)
+                    Positioned.fill(
+                      child: _hudVisible
+                          ? FluxerGestureDetector(
                               behavior: HitTestBehavior.translucent,
                               onTap: _toggleHudVisibility,
                               child: const SizedBox.expand(),
+                            )
+                          : Semantics(
+                              label: l10n.chatAttachmentVideoToggleControls,
+                              button: true,
+                              child: FluxerGestureDetector(
+                                behavior: HitTestBehavior.translucent,
+                                onTap: _toggleHudVisibility,
+                                child: const SizedBox.expand(),
+                              ),
                             ),
-                          ),
-                  ),
-                if (_hudVisible && !_playbackFailed)
-                  Opacity(
-                    opacity: chromeOpacity,
-                    child: _MobileVideoHud(
-                      l10n: l10n,
-                      onClose: _executeClose,
-                      onOpenOptions: showOptionsButton ? _openOptions : null,
-                      favoriteButton: _buildFavoriteButton(),
-                      isMuted: _isMuted,
-                      onMute: _toggleMute,
-                      isPlaying: _isPlaying,
-                      onPlayPause: _togglePlayPause,
-                      position: _position,
-                      duration: _duration,
-                      onSeekFromGlobalDx: _seekFromGlobalDx,
                     ),
-                  ),
-                if (_playbackFailed)
-                  Opacity(
-                    opacity: chromeOpacity,
-                    child: ChatVideoPlaybackFailureOverlay(
-                      fallbackUrl: _source.fallbackUrl,
-                      useRootNavigator: true,
-                      onClose: _executeClose,
-                      onOpenOptions: showOptionsButton ? _openOptions : null,
+                  if (_hudVisible && !_playbackFailed)
+                    Opacity(
+                      opacity: chromeOpacity,
+                      child: _MobileVideoHud(
+                        l10n: l10n,
+                        onClose: _executeClose,
+                        onOpenOptions: showOptionsButton ? _openOptions : null,
+                        favoriteButton: _buildFavoriteButton(),
+                        isMuted: _isMuted,
+                        onMute: _toggleMute,
+                        isPlaying: _isPlaying,
+                        onPlayPause: _togglePlayPause,
+                        position: _position,
+                        duration: _duration,
+                        onSeekFromGlobalDx: _seekFromGlobalDx,
+                      ),
                     ),
-                  ),
-              ],
+                  if (_playbackFailed)
+                    Opacity(
+                      opacity: chromeOpacity,
+                      child: ChatVideoPlaybackFailureOverlay(
+                        fallbackUrl: _source.fallbackUrl,
+                        useRootNavigator: true,
+                        onClose: _executeClose,
+                        onOpenOptions: showOptionsButton ? _openOptions : null,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ],
@@ -716,16 +799,13 @@ class _MobileVideoHud extends StatelessWidget {
   final Future<void> Function() onMute;
   final bool isPlaying;
   final Future<void> Function() onPlayPause;
-  final Duration position;
-  final Duration duration;
+  final ValueListenable<Duration> position;
+  final ValueListenable<Duration> duration;
   final Future<void> Function(double globalDx, BuildContext sliderContext)
   onSeekFromGlobalDx;
 
   @override
   Widget build(BuildContext context) {
-    final double progress = duration.inMilliseconds <= 0
-        ? 0
-        : (position.inMilliseconds / duration.inMilliseconds).clamp(0, 1);
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
@@ -839,69 +919,10 @@ class _MobileVideoHud extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Builder(
-                              builder: (BuildContext sliderContext) {
-                                return Semantics(
-                                  label: l10n.chatAttachmentVideoProgress,
-                                  value: '${(progress * 100).round()}%',
-                                  slider: true,
-                                  child: FluxerGestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTapDown: (TapDownDetails details) {
-                                      unawaited(
-                                        onSeekFromGlobalDx(
-                                          details.globalPosition.dx,
-                                          sliderContext,
-                                        ),
-                                      );
-                                    },
-                                    onHorizontalDragUpdate:
-                                        (DragUpdateDetails details) {
-                                          unawaited(
-                                            onSeekFromGlobalDx(
-                                              details.globalPosition.dx,
-                                              sliderContext,
-                                            ),
-                                          );
-                                        },
-                                    child: SizedBox(
-                                      height: 24,
-                                      child: Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            2,
-                                          ),
-                                          child: LinearProgressIndicator(
-                                            value: progress,
-                                            minHeight: 4,
-                                            backgroundColor: Colors.white
-                                                .withValues(alpha: 0.3),
-                                            valueColor:
-                                                const AlwaysStoppedAnimation<
-                                                  Color
-                                                >(Colors.white),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            formatAttachmentElapsedTotalMmSs(
-                              elapsed: position,
-                              total: duration,
-                            ),
-                            style: context.textStyles.timestamp.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                              fontFeatures: const <FontFeature>[
-                                FontFeature.tabularFigures(),
-                              ],
+                            child: MobileVideoHudProgress(
+                              position: position,
+                              duration: duration,
+                              onSeekFromGlobalDx: onSeekFromGlobalDx,
                             ),
                           ),
                         ],
@@ -914,6 +935,97 @@ class _MobileVideoHud extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class MobileVideoHudProgress extends StatelessWidget {
+  const MobileVideoHudProgress({
+    required this.position,
+    required this.duration,
+    required this.onSeekFromGlobalDx,
+    super.key,
+  });
+
+  final ValueListenable<Duration> position;
+  final ValueListenable<Duration> duration;
+  final Future<void> Function(double globalDx, BuildContext sliderContext)
+  onSeekFromGlobalDx;
+
+  @override
+  Widget build(BuildContext context) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge(<Listenable>[position, duration]),
+      builder: (BuildContext context, _) {
+        final Duration elapsed = position.value;
+        final Duration total = duration.value;
+        final double progress = total.inMilliseconds <= 0
+            ? 0
+            : (elapsed.inMilliseconds / total.inMilliseconds).clamp(0, 1);
+        return Row(
+          children: <Widget>[
+            Expanded(
+              child: Builder(
+                builder: (BuildContext sliderContext) {
+                  return Semantics(
+                    label: l10n.chatAttachmentVideoProgress,
+                    value: '${(progress * 100).round()}%',
+                    slider: true,
+                    child: FluxerGestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: (TapDownDetails details) {
+                        unawaited(
+                          onSeekFromGlobalDx(
+                            details.globalPosition.dx,
+                            sliderContext,
+                          ),
+                        );
+                      },
+                      onHorizontalDragUpdate: (DragUpdateDetails details) {
+                        unawaited(
+                          onSeekFromGlobalDx(
+                            details.globalPosition.dx,
+                            sliderContext,
+                          ),
+                        );
+                      },
+                      child: SizedBox(
+                        height: 24,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 4,
+                              backgroundColor: Colors.white.withValues(
+                                alpha: 0.3,
+                              ),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              formatAttachmentElapsedTotalMmSs(elapsed: elapsed, total: total),
+              style: context.textStyles.timestamp.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

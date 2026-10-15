@@ -6,9 +6,6 @@ import 'package:fluxer_app/features/threads/presentation/thread_welcome_section.
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 
-/// Start-of-channel welcome for guild text/voice channels, mirroring the web
-/// client's `ChannelWelcomeSection`. Shown at the top of fully-loaded history
-/// and as the empty state.
 class ChannelWelcomeSection extends StatelessWidget {
   const ChannelWelcomeSection({
     required this.channel,
@@ -51,15 +48,19 @@ class ChannelWelcomeSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            l10n.channelWelcomeHeading(displayName),
-            style: context.textStyles.heading.copyWith(fontSize: 24),
+          ClipRect(
+            child: Text(
+              l10n.channelWelcomeHeading(displayName),
+              style: context.textStyles.heading.copyWith(fontSize: 24),
+            ),
           ),
           const SizedBox(height: 4),
-          Text(
-            l10n.channelWelcomeDescription(displayName),
-            style: context.textStyles.bodyMedium.copyWith(
-              color: context.colors.textPrimaryMuted,
+          ClipRect(
+            child: Text(
+              l10n.channelWelcomeDescription(displayName),
+              style: context.textStyles.bodyMedium.copyWith(
+                color: context.colors.textPrimaryMuted,
+              ),
             ),
           ),
         ],

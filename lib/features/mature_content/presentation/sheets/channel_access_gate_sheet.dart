@@ -9,7 +9,6 @@ import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 
-/// Returns `true` when the user may continue into the channel.
 Future<bool> showChannelAccessGateSheet({
   required BuildContext context,
   required ProviderContainer container,
@@ -57,6 +56,7 @@ Future<bool> showChannelAccessGateSheet({
       return Padding(
         padding: EdgeInsets.fromLTRB(layout.s4, 0, layout.s4, layout.s4),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(

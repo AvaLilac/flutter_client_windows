@@ -187,12 +187,24 @@ jobs:
           bundle config set path 'vendor/bundle'
           bundle install --jobs 4 --retry 3
 
+      - name: Write Measure native config
+        env:
+          MEASURE_RELEASE_CHANNEL: stable
+          MEASURE_IOS_API_KEY_STABLE: ${{ secrets.MEASURE_IOS_API_KEY_STABLE }}
+          MEASURE_IOS_API_KEY: ${{ secrets.MEASURE_IOS_API_KEY }}
+          MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
+        run: tool/measure/write_native_measure_config.sh
+
       - name: Build and upload with Fastlane
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+          MEASURE_IOS_API_KEY_STABLE: ${{ secrets.MEASURE_IOS_API_KEY_STABLE }}
+          MEASURE_IOS_API_KEY: ${{ secrets.MEASURE_IOS_API_KEY }}
+          MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
+          MEASURE_RELEASE_CHANNEL: stable
         run: bundle exec fastlane ios stable_release
       - name: Cleanup temporary keychain
         if: always()

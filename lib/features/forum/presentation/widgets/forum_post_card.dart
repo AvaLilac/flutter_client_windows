@@ -2,6 +2,7 @@ import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
 import 'package:fluxer_app/core/theme/fluxer_color_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/core/theme/reaction_chip_colors.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
@@ -14,6 +15,7 @@ import 'package:fluxer_app/features/ui/avatar/fluxer_avatar.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/utils/locale_upper_case.dart';
 import 'package:fluxer_app/shared/utils/relative_time.dart';
 import 'package:fluxer_dart/export.dart' hide ChannelType;
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -314,16 +316,18 @@ class _ForumPostTitle extends StatelessWidget {
         ],
         if (data.isNew) ...<Widget>[
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
             decoration: BoxDecoration(
-              color: colors.brandPrimary,
+              color: colors.statusDanger,
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              l10n.forumPostNewBadge,
+              localeUpperCase(context, l10n.forumPostNewBadge),
               style: context.textStyles.smallText.copyWith(
                 color: colors.textOnBrandPrimary,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
+                height: 18 / 11,
               ),
             ),
           ),
@@ -438,7 +442,7 @@ class _ForumPostMeta extends StatelessWidget {
                   color: Theme.of(context).brightness == Brightness.light
                       ? colors.brandPrimary
                       : colors.brandPrimaryLight,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 )
               : style,
         ),
@@ -488,6 +492,10 @@ class _DefaultReactionButton extends StatelessWidget {
     final colors = context.colors;
     final Color cardBackground = forumPostCardBackgroundColor(colors);
     final bool light = Theme.of(context).brightness == Brightness.light;
+    final SelectedReactionChipColors selected = selectedReactionChipColors(
+      context,
+      surface: cardBackground,
+    );
     return Padding(
       padding: EdgeInsets.only(left: context.layout.s2),
       child: FluxerTappable(
@@ -498,14 +506,14 @@ class _DefaultReactionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           decoration: BoxDecoration(
             color: me
-                ? Color.lerp(cardBackground, colors.brandPrimary, 0.36)
+                ? selected.background
                 : light
                 ? Color.lerp(cardBackground, colors.brandPrimaryLight, 0.06)
                 : colors.backgroundPrimary,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: me
-                  ? colors.brandPrimary
+                  ? selected.border
                   : light
                   ? Color.lerp(cardBackground, colors.brandPrimaryLight, 0.10)!
                   : Colors.transparent,
@@ -524,11 +532,7 @@ class _DefaultReactionButton extends StatelessWidget {
                 Text(
                   '$count',
                   style: context.textStyles.smallText.copyWith(
-                    color: !me
-                        ? colors.textTertiary
-                        : light
-                        ? colors.brandPrimary
-                        : colors.textOnBrandPrimary,
+                    color: me ? selected.foreground : colors.textTertiary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

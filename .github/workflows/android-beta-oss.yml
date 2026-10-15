@@ -90,6 +90,9 @@ jobs:
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
           flutter config --enable-native-assets
 
+      - name: Resolve unifiedpush_linux to the stub
+        run: bash tool/apply_macos_pub_overrides.sh
+
       - name: Get dependencies
         run: flutter pub get
 
@@ -123,6 +126,14 @@ jobs:
           fi
           mkdir -p android/app/src/main/assets
           printf '%s\n' "$ANDROID_ADI_REGISTRATION_SNIPPET" > android/app/src/main/assets/adi-registration.properties
+
+      - name: Write Measure Android config
+        env:
+          MEASURE_RELEASE_CHANNEL: beta
+          MEASURE_ANDROID_API_KEY_STABLE: ${{ secrets.MEASURE_ANDROID_API_KEY_STABLE }}
+          MEASURE_ANDROID_API_KEY: ${{ secrets.MEASURE_ANDROID_API_KEY }}
+          MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
+        run: tool/measure/write_native_measure_config.sh
 
       - name: Build beta OSS split APKs
         run: flutter build apk --release --split-per-abi --flavor betaUnifiedpush --build-name ${{ steps.beta_version_name.outputs.version_name }} --build-number ${{ steps.android_build_number.outputs.build_number }} --dart-define-from-file=tool/dart_defines/beta.json --dart-define=PUSH_PROVIDER=unifiedpush --dart-define=BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --dart-define=BETA_NUMBER=${{ steps.beta_version_name.outputs.beta_number }}

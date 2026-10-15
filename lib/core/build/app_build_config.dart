@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:fluxer_app/core/build/app_build_environment.dart';
 import 'package:fluxer_app/core/build/push_provider_kind.dart';
 
@@ -25,9 +26,8 @@ class AppBuildConfig {
   // ignore: do_not_use_environment -- compile-time build flavor config
   static const String _betaNumberValue = String.fromEnvironment('BETA_NUMBER');
   // ignore: do_not_use_environment -- compile-time build flavor config
-  static const String _signozOtlpTracesEndpointValue = String.fromEnvironment(
-    'SIGNOZ_OTLP_TRACES_ENDPOINT',
-    defaultValue: 'https://sgnz-otlp.fluxer.tools/v1/traces',
+  static const String _canaryNumberValue = String.fromEnvironment(
+    'CANARY_NUMBER',
   );
   static AppBuildEnvironment get environment {
     switch (_environmentValue) {
@@ -88,7 +88,24 @@ class AppBuildConfig {
     return int.tryParse(trimmed);
   }
 
-  static String get signozOtlpTracesEndpoint =>
-      _signozOtlpTracesEndpointValue.trim();
-  static bool get hasObservabilityConfig => signozOtlpTracesEndpoint.isNotEmpty;
+  static int? get canaryNumber {
+    final String trimmed = _canaryNumberValue.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    return int.tryParse(trimmed);
+  }
+
+  static bool get hasObservabilityConfig {
+    if (kIsWeb) {
+      return false;
+    }
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.android => true,
+      TargetPlatform.fuchsia ||
+      TargetPlatform.linux ||
+      TargetPlatform.macOS ||
+      TargetPlatform.windows => false,
+    };
+  }
 }

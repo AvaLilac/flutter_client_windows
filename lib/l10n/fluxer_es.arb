@@ -11,6 +11,10 @@
     "@gatewayReconnectingToast": {
         "description": "Toast shown when the gateway connection is lost and reconnecting."
     },
+    "gatewayReconnectTryAgain": "Volver a intentar",
+    "@gatewayReconnectTryAgain": {
+        "description": "Screen reader hint on the reconnecting banner. Tapping the banner retries the connection right away."
+    },
     "gatewayConnectedToast": "Conectado",
     "@gatewayConnectedToast": {
         "description": "Toast shown when the gateway connection is restored."
@@ -1539,17 +1543,13 @@
     "@gifPickerSearch": {
         "description": "Generic GIF picker search placeholder while provider configuration loads."
     },
-    "gifPickerSearchKlipy": "Buscar en KLIPY",
+    "gifPickerSearchKlipy": "Buscar en Klipy",
     "@gifPickerSearchKlipy": {
-        "description": "GIF picker search placeholder for KLIPY."
+        "description": "GIF picker search placeholder for Klipy."
     },
     "gifPickerSearchTenor": "Buscar en Tenor",
     "@gifPickerSearchTenor": {
         "description": "GIF picker search placeholder for Tenor."
-    },
-    "gifPickerPoweredByKlipy": "KLIPY",
-    "@gifPickerPoweredByKlipy": {
-        "description": "Short powered-by KLIPY label in the GIF picker search field."
     },
     "gifPickerFavorites": "Favoritos",
     "@gifPickerFavorites": {
@@ -2591,10 +2591,6 @@
     "@dangerZoneDeleteDescription": {
         "description": "Description for account delete."
     },
-    "dangerZoneDeleteCancelSubscription": "Cancela tu suscripción activa de Plutonium en la configuración de Plutonium antes de eliminar tu cuenta.",
-    "@dangerZoneDeleteCancelSubscription": {
-        "description": "Warning about active subscription before deletion."
-    },
     "dangerZoneDeleteCannotDeleteAccount": "No se puede eliminar la cuenta",
     "@dangerZoneDeleteCannotDeleteAccount": {
         "description": "Title for the guild ownership warning modal when trying to delete account."
@@ -2685,7 +2681,7 @@
     "@invalidCode": {
         "description": "Error message when a verification code is invalid."
     },
-    "relativeTimeYears": "{count, plural, =1{hace 1 año} other{hace # años}}",
+    "relativeTimeYears": "{count, plural, =1{hace 1 año} other{hace {count} años}}",
     "@relativeTimeYears": {
         "description": "Relative time in years.",
         "placeholders": {
@@ -2694,7 +2690,7 @@
             }
         }
     },
-    "relativeTimeMonths": "{count, plural, =1{hace 1 mes} other{hace # meses}}",
+    "relativeTimeMonths": "{count, plural, =1{hace 1 mes} other{hace {count} meses}}",
     "@relativeTimeMonths": {
         "description": "Relative time in months.",
         "placeholders": {
@@ -2703,7 +2699,7 @@
             }
         }
     },
-    "relativeTimeDays": "{count, plural, =1{hace 1 día} other{hace # días}}",
+    "relativeTimeDays": "{count, plural, =1{hace 1 día} other{hace {count} días}}",
     "@relativeTimeDays": {
         "description": "Relative time in days.",
         "placeholders": {
@@ -2712,7 +2708,7 @@
             }
         }
     },
-    "relativeTimeHours": "{count, plural, =1{hace 1 hora} other{hace # horas}}",
+    "relativeTimeHours": "{count, plural, =1{hace 1 hora} other{hace {count} horas}}",
     "@relativeTimeHours": {
         "description": "Relative time in hours.",
         "placeholders": {
@@ -2721,7 +2717,7 @@
             }
         }
     },
-    "relativeTimeMinutes": "{count, plural, =1{hace 1 minuto} other{hace # minutos}}",
+    "relativeTimeMinutes": "{count, plural, =1{hace 1 minuto} other{hace {count} minutos}}",
     "@relativeTimeMinutes": {
         "description": "Relative time in minutes.",
         "placeholders": {
@@ -2918,20 +2914,11 @@
             }
         }
     },
-    "userProfilePlutoniumBadgeTooltip": "{productName} Plutonium",
-    "@userProfilePlutoniumBadgeTooltip": {
-        "description": "Short badge title in the user profile badges popout. English locales use Title Case for official badge titles; other locales should use natural local capitalization.",
+    "userProfilePremiumSubscriberSinceTooltip": "Suscriptor de {premiumProductFullName} desde {date}",
+    "@userProfilePremiumSubscriberSinceTooltip": {
+        "description": "Badge label with a date in the user profile badges popout. Preserve {premiumProductFullName} and {date}; they are inserted by code. premiumProductFullName is the instance product name followed by its premium product name, for example Fluxer Plutonium. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
         "placeholders": {
-            "productName": {
-                "type": "String"
-            }
-        }
-    },
-    "userProfilePlutoniumSubscriberSinceTooltip": "Suscriptor de {productName} Plutonium desde {date}",
-    "@userProfilePlutoniumSubscriberSinceTooltip": {
-        "description": "Badge label with a date in the user profile badges popout. Preserve {date}; it is inserted by code. In English, keep \"subscriber since\" lowercase. Other locales should use natural local capitalization.",
-        "placeholders": {
-            "productName": {
+            "premiumProductFullName": {
                 "type": "String"
             },
             "date": {
@@ -3822,6 +3809,71 @@
     "channelComposerBarrierVerifyEmail": "Verificar correo electrónico",
     "@channelComposerBarrierVerifyEmail": {
         "description": "Action button on the composer barrier for unverified email."
+    },
+    "accountLimitedNotice": "El envío de mensajes está en pausa en tu cuenta. Revisa tu correo electrónico para completar un paso rápido y continuar.",
+    "@accountLimitedNotice": {
+        "description": "Notice shown in place of the message composer and as a banner at the top of the app when messaging is paused on the current account until the user completes one quick step described in an email. Keep the tone calm and friendly."
+    },
+    "messagingPausedTextDidNotGoThrough": "Mi SMS no ha llegado",
+    "@messagingPausedTextDidNotGoThrough": {
+        "description": "Button shown while messaging is paused on the current account, and the title of the help sheet it opens. The email describing the quick step asks the user to send a text message from their phone. This is for users who could not send that text, and also for users who sent it and nothing happened. The translation should cover both. Also used as the subject of the support email."
+    },
+    "messagingPausedHelpBody": "Escribe a {supportEmail} y una persona revisará tu cuenta. También puedes responder al correo que te enviamos.",
+    "@messagingPausedHelpBody": {
+        "description": "Body of the help sheet opened from \"My text didn't go through\" while messaging is paused on the account. supportEmail is the support email address. Keep it short, calm and neutral.",
+        "placeholders": {
+            "supportEmail": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLabel": "País donde estás",
+    "@messagingPausedHelpCountryLabel": {
+        "description": "Field label in the help sheet opened from \"My text didn't go through\". The user types the country they are in so support can help."
+    },
+    "messagingPausedHelpCopyDetails": "Copiar datos",
+    "@messagingPausedHelpCopyDetails": {
+        "description": "Button in the help sheet opened from \"My text didn't go through\". Copies the account details for a support email to the clipboard."
+    },
+    "messagingPausedHelpEmailSupport": "Escribir a soporte",
+    "@messagingPausedHelpEmailSupport": {
+        "description": "Primary button in the help sheet opened from \"My text didn't go through\". Opens a new email to support with the account details filled in."
+    },
+    "messagingPausedHelpAccountIdLine": "ID de la cuenta: {accountId}",
+    "@messagingPausedHelpAccountIdLine": {
+        "description": "One line of the support email written for the user. accountId is the numeric account ID.",
+        "placeholders": {
+            "accountId": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpUsernameLine": "Nombre de usuario: {username}",
+    "@messagingPausedHelpUsernameLine": {
+        "description": "One line of the support email written for the user. username is the account username with its tag.",
+        "placeholders": {
+            "username": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpAccountCreatedLine": "Cuenta creada: {createdAt}",
+    "@messagingPausedHelpAccountCreatedLine": {
+        "description": "One line of the support email written for the user. createdAt is the account creation time as an ISO 8601 UTC timestamp.",
+        "placeholders": {
+            "createdAt": {
+                "type": "String"
+            }
+        }
+    },
+    "messagingPausedHelpCountryLine": "País: {country}",
+    "@messagingPausedHelpCountryLine": {
+        "description": "One line of the support email written for the user. country is the country the user typed.",
+        "placeholders": {
+            "country": {
+                "type": "String"
+            }
+        }
     },
     "chatAttachmentTooMany": "Demasiados archivos adjuntos (máx. {max})",
     "@chatAttachmentTooMany": {
@@ -5138,7 +5190,7 @@
     "@voiceTextChatShow": {
         "description": "Accessibility label for opening voice channel text chat."
     },
-    "voiceTextChatShowUnread": "Mostrar chat con {count, plural, one {1 mensaje sin leer} other {# mensajes sin leer}}",
+    "voiceTextChatShowUnread": "Mostrar chat con {count, plural, one {1 mensaje sin leer} other {{count} mensajes sin leer}}",
     "@voiceTextChatShowUnread": {
         "description": "Accessibility label when voice channel text chat has unread messages.",
         "placeholders": {
@@ -5355,6 +5407,10 @@
     "@chatMessageFailedToSend": {
         "description": "Status label shown under a failed outgoing chat message."
     },
+    "chatMessageFailedToSendTapForOptions": "No se pudo enviar el mensaje. Toca para ver las opciones.",
+    "@chatMessageFailedToSendTapForOptions": {
+        "description": "Status label shown under a failed outgoing chat message on touch layouts, where tapping the message opens Retry and Delete."
+    },
     "chatSendFailureDmRestricted": "No se ha podido entregar tu mensaje. Normalmente esto se debe a que no compartes una comunidad con el destinatario o este solo acepta mensajes directos de amigos. Es posible que también necesites ajustar tu propia configuración de privacidad de mensajes directos en {settingsPath}.",
     "@chatSendFailureDmRestricted": {
         "description": "Fluxerbot system message when a DM cannot be delivered due to privacy restrictions.",
@@ -5463,10 +5519,6 @@
     "forwardSuccessToast": "Mensaje reenviado",
     "@forwardSuccessToast": {
         "description": "Toast shown after a message is successfully forwarded."
-    },
-    "forwardFailed": "No se pudo reenviar el mensaje",
-    "@forwardFailed": {
-        "description": "Toast shown when forwarding a message fails."
     },
     "forwardCommentSlowmodeDisabled": "Los comentarios no están disponibles porque un canal seleccionado tiene el modo lento activado.",
     "@forwardCommentSlowmodeDisabled": {
@@ -6126,19 +6178,19 @@
     "@purgePersonalNotesFailed": {
         "description": "Toast or error title when the purge personal notes API call fails."
     },
-    "userSettingsGroupYourAccount": "TU CUENTA",
+    "userSettingsGroupYourAccount": "Tu cuenta",
     "@userSettingsGroupYourAccount": {
         "description": "Section heading for account-related items in user settings navigation."
     },
-    "userSettingsGroupApplication": "APPLICATION",
+    "userSettingsGroupApplication": "Application",
     "@userSettingsGroupApplication": {
         "description": "Section heading for app preference items in user settings navigation."
     },
-    "userSettingsGroupDeveloper": "DEVELOPER",
+    "userSettingsGroupDeveloper": "Developer",
     "@userSettingsGroupDeveloper": {
         "description": "Section heading for developer items in user settings navigation."
     },
-    "userSettingsGroupStaffOnly": "STAFF-ONLY",
+    "userSettingsGroupStaffOnly": "Staff-only",
     "@userSettingsGroupStaffOnly": {
         "description": "Section heading for staff-only items in user settings navigation."
     },
@@ -6466,11 +6518,11 @@
     "@instanceUrlLabel": {
         "description": "Label for the self-hosted instance URL input on the login screen."
     },
-    "instanceUrlPlaceholder": "Introduce la URL de la instancia (p. ej., fluxer.app)",
+    "instanceUrlPlaceholder": "Introduce la URL de la instancia (p. ej., fluxer.com)",
     "@instanceUrlPlaceholder": {
         "description": "Placeholder for the self-hosted instance URL input."
     },
-    "instanceUrlHelper": "Usa fluxer.app para la instancia oficial o la URL exacta de una instancia autohospedada.",
+    "instanceUrlHelper": "Usa fluxer.com para la instancia oficial o la URL exacta de una instancia autohospedada.",
     "@instanceUrlHelper": {
         "description": "Helper text explaining official vs self-hosted instance URLs."
     },
@@ -6690,13 +6742,13 @@
     "@guildNavbarHelp": {
         "description": "Label for the help button in the guild navbar."
     },
-    "scrollIndicatorNew": "NUEVO",
+    "scrollIndicatorNew": "Nuevo",
     "@scrollIndicatorNew": {
-        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar."
+        "description": "Scroll pill shown when unread guilds are off-screen in the guild navbar. Rendered in uppercase."
     },
-    "scrollIndicatorNewMessage": "NUEVO MENSAJE",
-    "@scrollIndicatorNewMessage": {
-        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar."
+    "scrollIndicatorNewMessages": "Mensajes nuevos",
+    "@scrollIndicatorNewMessages": {
+        "description": "Scroll pill shown when unread channels are off-screen in the channel sidebar. Rendered in uppercase."
     },
     "guildNavbarCollapseFolder": "Contraer {folderName}",
     "@guildNavbarCollapseFolder": {
@@ -6985,10 +7037,6 @@
     "guildMenuMarkAsRead": "Marcar como leído",
     "@guildMenuMarkAsRead": {
         "description": "Guild menu action to mark all channels as read."
-    },
-    "guildPeekMoreOptions": "Más opciones",
-    "@guildPeekMoreOptions": {
-        "description": "Guild peek menu action to open the full guild options sheet."
     },
     "guildMenuInviteMembers": "Invitar a miembros",
     "@guildMenuInviteMembers": {
@@ -8119,7 +8167,7 @@
             }
         }
     },
-    "auditLogOptionDeletedMessages": "{count, plural, =1{Se eliminó # mensaje.} other{Se eliminaron # mensajes.}}",
+    "auditLogOptionDeletedMessages": "{count, plural, =1{Se eliminó {count} mensaje.} other{Se eliminaron {count} mensajes.}}",
     "@auditLogOptionDeletedMessages": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8128,7 +8176,7 @@
             }
         }
     },
-    "auditLogOptionRemovedMembers": "{count, plural, =1{Se eliminó # miembro.} other{Se eliminaron # miembros.}}",
+    "auditLogOptionRemovedMembers": "{count, plural, =1{Se eliminó {count} miembro.} other{Se eliminaron {count} miembros.}}",
     "@auditLogOptionRemovedMembers": {
         "description": "Audit log option detail sentence.",
         "placeholders": {
@@ -8285,19 +8333,19 @@
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
     },
-    "guildSettingsCategoryExpressions": "EXPRESSIONS",
+    "guildSettingsCategoryExpressions": "Expressions",
     "@guildSettingsCategoryExpressions": {
         "description": "Sidebar category for emoji and stickers."
     },
-    "guildSettingsCategoryCommunity": "COMMUNITY",
+    "guildSettingsCategoryCommunity": "Community",
     "@guildSettingsCategoryCommunity": {
         "description": "Sidebar category for discovery and vanity URL."
     },
-    "guildSettingsCategoryIntegrations": "INTEGRATIONS",
+    "guildSettingsCategoryIntegrations": "Integrations",
     "@guildSettingsCategoryIntegrations": {
         "description": "Sidebar category for webhooks."
     },
-    "guildSettingsCategoryPeople": "PEOPLE",
+    "guildSettingsCategoryPeople": "People",
     "@guildSettingsCategoryPeople": {
         "description": "Sidebar category for members, invites, and bans."
     },
@@ -11930,7 +11978,7 @@
     "@networkErrorMessage": {
         "description": "Generic message shown when a network request fails."
     },
-    "relativeTimeWeeks": "{count, plural, =1{hace 1 semana} other{hace # semanas}}",
+    "relativeTimeWeeks": "{count, plural, =1{hace 1 semana} other{hace {count} semanas}}",
     "@relativeTimeWeeks": {
         "description": "Relative time in weeks.",
         "placeholders": {
@@ -13630,7 +13678,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildExclude": "Todas excepto {count, plural, one {# comunidad} other {# comunidades}}",
+    "privacyDashboardDataRequestSummaryGuildExclude": "Todas excepto {count, plural, one {{count} comunidad} other {{count} comunidades}}",
     "@privacyDashboardDataRequestSummaryGuildExclude": {
         "description": "Summary value when community filter is in exclude mode.",
         "placeholders": {
@@ -13639,7 +13687,7 @@
             }
         }
     },
-    "privacyDashboardDataRequestSummaryGuildInclude": "Solo {count, plural, one {# comunidad} other {# comunidades}}",
+    "privacyDashboardDataRequestSummaryGuildInclude": "Solo {count, plural, one {{count} comunidad} other {{count} comunidades}}",
     "@privacyDashboardDataRequestSummaryGuildInclude": {
         "description": "Summary value when community filter is in include-only mode.",
         "placeholders": {
@@ -13668,7 +13716,7 @@
     "@privacyDashboardDataRequestSummaryCommunitiesIncluded": {
         "description": "Summary chip for communities."
     },
-    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {# hora} other {# horas}} y {minutes, plural, one {# minuto} other {# minutos}}",
+    "privacyDashboardDurationHoursMinutes": "{hours, plural, one {{hours} hora} other {{hours} horas}} y {minutes, plural, one {{minutes} minuto} other {{minutes} minutos}}",
     "@privacyDashboardDurationHoursMinutes": {
         "description": "Duration label with hours and minutes.",
         "placeholders": {
@@ -13680,7 +13728,7 @@
             }
         }
     },
-    "privacyDashboardDurationHours": "{hours, plural, one {# hora} other {# horas}}",
+    "privacyDashboardDurationHours": "{hours, plural, one {{hours} hora} other {{hours} horas}}",
     "@privacyDashboardDurationHours": {
         "description": "Duration label with hours only.",
         "placeholders": {
@@ -13689,7 +13737,7 @@
             }
         }
     },
-    "privacyDashboardDurationMinutes": "{minutes, plural, one {# minuto} other {# minutos}}",
+    "privacyDashboardDurationMinutes": "{minutes, plural, one {{minutes} minuto} other {{minutes} minutos}}",
     "@privacyDashboardDurationMinutes": {
         "description": "Duration label with minutes only.",
         "placeholders": {
@@ -13698,7 +13746,7 @@
             }
         }
     },
-    "privacyDashboardDurationSeconds": "{seconds, plural, one {# segundo} other {# segundos}}",
+    "privacyDashboardDurationSeconds": "{seconds, plural, one {{seconds} segundo} other {{seconds} segundos}}",
     "@privacyDashboardDurationSeconds": {
         "description": "Duration label with seconds only.",
         "placeholders": {
@@ -14480,7 +14528,7 @@
     "@messageAccessibilityEmptySummary": {
         "description": "Screen reader summary fallback for a message without visible text."
     },
-    "userSettingsGroupBilling": "BILLING",
+    "userSettingsGroupBilling": "Billing",
     "@userSettingsGroupBilling": {
         "description": "Section heading for billing items in user settings navigation."
     },
@@ -15633,7 +15681,7 @@
     "@guildMembersJoinedJustNow": {
         "description": "Relative join time on the community members page."
     },
-    "guildMembersJoinedMinutesAgo": "{count, plural, one {Hace 1 minuto} other {Hace # minutos}}",
+    "guildMembersJoinedMinutesAgo": "{count, plural, one {Hace 1 minuto} other {Hace {count} minutos}}",
     "@guildMembersJoinedMinutesAgo": {
         "description": "Relative join time on the community members page.",
         "placeholders": {
@@ -15642,7 +15690,7 @@
             }
         }
     },
-    "guildMembersJoinedHoursAgo": "{count, plural, one {Hace 1 hora} other {Hace # horas}}",
+    "guildMembersJoinedHoursAgo": "{count, plural, one {Hace 1 hora} other {Hace {count} horas}}",
     "@guildMembersJoinedHoursAgo": {
         "description": "Relative join time on the community members page.",
         "placeholders": {
@@ -16512,5 +16560,96 @@
     },
     "channelUnsupportedTitle": "Tipo de canal no compatible",
     "channelUnsupportedBody": "Esta versión de la aplicación no es compatible con este tipo de canal.",
-    "channelDetailsUnsupportedChannel": "Canal no compatible"
+    "channelDetailsUnsupportedChannel": "Canal no compatible",
+    "forumPostNewBadge": "Nuevo",
+    "@forumPostNewBadge": {
+        "description": "Forum and media channel UI."
+    },
+    "forumPostNewMessages": "{count, plural, one {{count} mensaje nuevo} other {{count} mensajes nuevos}}",
+    "@forumPostNewMessages": {
+        "description": "Forum and media channel UI.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "chatUnreadDividerNew": "Nuevo",
+    "@chatUnreadDividerNew": {
+        "description": "Badge on the unread divider line in the message list. Rendered in uppercase."
+    },
+    "chatNewMessagesBarNewSince": "{unreadCount, plural, one {{unreadCount} nuevo} many {{unreadCount} nuevos} other {{unreadCount} nuevos}} desde {shortTime}",
+    "@chatNewMessagesBarNewSince": {
+        "description": "Compact new messages bar label. shortTime is the time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewSinceEstimated": "{unreadCount}+ nuevos desde {shortTime}",
+    "@chatNewMessagesBarNewSinceEstimated": {
+        "description": "Compact new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "shortTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSince": "{unreadCount, plural, one {{unreadCount} mensaje nuevo} other {{unreadCount} mensajes nuevos}} desde {compactTime}",
+    "@chatNewMessagesBarNewMessagesSince": {
+        "description": "Wide new messages bar label. compactTime is the date and time of the oldest unread message.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarNewMessagesSinceEstimated": "{unreadCount}+ mensajes nuevos desde {compactTime}",
+    "@chatNewMessagesBarNewMessagesSinceEstimated": {
+        "description": "Wide new messages bar label when the unread count is a lower bound.",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int",
+                "format": "decimalPattern"
+            },
+            "compactTime": {
+                "type": "String"
+            }
+        }
+    },
+    "chatNewMessagesBarMarkRead": "Marcar como leído",
+    "@chatNewMessagesBarMarkRead": {
+        "description": "Compact new messages bar action."
+    },
+    "chatNewMessagesBarMarkAsRead": "Marcar como leído",
+    "@chatNewMessagesBarMarkAsRead": {
+        "description": "Wide new messages bar action."
+    },
+    "chatNewMessagesBarJumpToFirstUnread": "Ir al primer mensaje no leído",
+    "@chatNewMessagesBarJumpToFirstUnread": {
+        "description": "Accessible label for the new messages bar text button."
+    },
+    "chatViewingOlderMessages": "Estás viendo mensajes antiguos",
+    "@chatViewingOlderMessages": {
+        "description": "Bottom bar text shown while the message list is detached from the present."
+    },
+    "chatJumpToPresent": "Ir a lo más reciente",
+    "@chatJumpToPresent": {
+        "description": "Bottom bar action that returns the message list to the newest messages."
+    },
+    "favoritesRenameCategory": "Renombrar categoría",
+    "@favoritesRenameCategory": {
+        "description": "Favorites category context menu action and sheet title for renaming a favorites category."
+    }
 }

@@ -3,12 +3,15 @@ package com.fluxer
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.KeyEvent
 import com.hiennv.flutter_callkit_incoming.CallkitEventCallback
 import com.hiennv.flutter_callkit_incoming.FlutterCallkitIncomingPlugin
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : AudioServiceActivity() {
+    private val imeEditingShortcutBridge = ImeEditingShortcutBridge()
+
     private val callkitEventCallback = object : CallkitEventCallback {
         override fun onCallEvent(
             event: CallkitEventCallback.CallEvent,
@@ -36,6 +39,15 @@ class MainActivity : AudioServiceActivity() {
         super.onDestroy()
     }
 
+    override fun popSystemNavigator(): Boolean = moveTaskToBack(true)
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (imeEditingShortcutBridge.dispatch(event)) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         BrowserLaunchBridge(applicationContext).register(flutterEngine)
@@ -44,6 +56,8 @@ class MainActivity : AudioServiceActivity() {
         NotificationReplyBridge(applicationContext).register(flutterEngine)
         VoiceSpeakerRouteBridge(applicationContext).register(flutterEngine)
         AppRestartBridge(this).register(flutterEngine)
+        UploadKeepAliveBridge(applicationContext).register(flutterEngine)
+        imeEditingShortcutBridge.register(flutterEngine)
     }
 
     private fun deferOAuthDeepLinkToBrowser(intent: Intent?): Boolean {

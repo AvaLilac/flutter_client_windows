@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluxer_app/core/api/api_exception.dart';
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/experiments/experiments_provider.dart';
@@ -10,6 +11,7 @@ import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/router/navigate_to_content.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
+import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/mature_content/utils/channel_gate_navigator.dart';
 import 'package:fluxer_app/features/settings/providers/voice_prompts_preferences_provider.dart';
@@ -136,13 +138,8 @@ Future<void> executeDeclineIncomingVoiceCall(
       channelId: channelId,
       body: const CallRingBodySchema(),
     );
-  } on Object {
-    if (!ctx.mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(content: Text(l10n.incomingVoiceRingingUpdateFailed)),
-    );
+  } on Object catch (error) {
+    _handleStopRingingFailure(ctx.mounted ? ctx : null, l10n, error);
   }
 }
 
@@ -165,13 +162,8 @@ Future<void> executeIgnoreIncomingVoiceCall(
       channelId: channelId,
       body: CallRingBodySchema(recipients: [uid]),
     );
-  } on Object {
-    if (!ctx.mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(content: Text(l10n.incomingVoiceRingingUpdateFailed)),
-    );
+  } on Object catch (error) {
+    _handleStopRingingFailure(ctx.mounted ? ctx : null, l10n, error);
   }
 }
 
@@ -205,15 +197,12 @@ Future<void> executeDeclineIncomingVoiceCallFromCallKit(
       channelId: channelId,
       body: const CallRingBodySchema(),
     );
-  } on Object {
+  } on Object catch (error) {
     final BuildContext? ctx = rootNavigatorKey.currentContext;
     if (ctx == null || !ctx.mounted) {
       return;
     }
-    final FluxerLocalizations l10n = FluxerLocalizations.of(ctx);
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(content: Text(l10n.incomingVoiceRingingUpdateFailed)),
-    );
+    _handleStopRingingFailure(ctx, FluxerLocalizations.of(ctx), error);
   }
 }
 
@@ -223,15 +212,12 @@ Future<void> executeIgnoreIncomingVoiceCallFromCallKit(
 ) async {
   try {
     await executeIgnoreIncomingVoiceCallCore(ref, channelId);
-  } on Object {
+  } on Object catch (error) {
     final BuildContext? ctx = rootNavigatorKey.currentContext;
     if (ctx == null || !ctx.mounted) {
       return;
     }
-    final FluxerLocalizations l10n = FluxerLocalizations.of(ctx);
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(content: Text(l10n.incomingVoiceRingingUpdateFailed)),
-    );
+    _handleStopRingingFailure(ctx, FluxerLocalizations.of(ctx), error);
   }
 }
 
@@ -368,4 +354,35 @@ Future<void> executeIgnoreIncomingVoiceCallCore(
     channelId: channelId,
     body: CallRingBodySchema(recipients: [uid]),
   );
+}
+
+bool _isBenignStopRingingError(Object error) {
+  final String? code = ApiException.from(error).code;
+  return code == 'NO_ACTIVE_CALL' || code == 'UNKNOWN_CHANNEL';
+}
+
+void _handleStopRingingFailure(
+  BuildContext? ctx,
+  FluxerLocalizations l10n,
+  Object error,
+) {
+  if (_isBenignStopRingingError(error)) {
+    talker.warning('[Voice] stop ringing: $error');
+    return;
+  }
+  if (ctx == null || !ctx.mounted) {
+    return;
+  }
+  _showRingingUpdateFailed(ctx, l10n);
+}
+
+void _showRingingUpdateFailed(BuildContext context, FluxerLocalizations l10n) {
+  ProviderScope.containerOf(context, listen: false)
+      .read(toastProvider.notifier)
+      .show(
+        FluxerToast(
+          message: l10n.incomingVoiceRingingUpdateFailed,
+          variant: FluxerToastVariant.danger,
+        ),
+      );
 }

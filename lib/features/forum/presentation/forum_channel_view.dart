@@ -23,7 +23,6 @@ import 'package:fluxer_app/features/forum/providers/forum_first_messages_provide
 import 'package:fluxer_app/features/forum/providers/forum_post_unreads_provider.dart';
 import 'package:fluxer_app/features/forum/providers/forum_posts_provider.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
-import 'package:fluxer_app/features/threads/providers/thread_guild_gate_provider.dart';
 import 'package:fluxer_app/features/threads/providers/thread_ui_providers.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
@@ -34,13 +33,8 @@ import 'package:fluxer_dart/gateway.dart' show GatewayState;
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class ForumChannelView extends ConsumerStatefulWidget {
-  const ForumChannelView({
-    required this.guildId,
-    required this.channelId,
-    super.key,
-  });
+  const ForumChannelView({required this.channelId, super.key});
 
-  final String guildId;
   final String channelId;
 
   @override
@@ -105,7 +99,7 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
   }
 
   Future<void> _begin() async {
-    if (!mounted || !ref.read(threadsGateProvider).isActive(widget.guildId)) {
+    if (!mounted) {
       return;
     }
     final String forumId = widget.channelId;
@@ -153,19 +147,10 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<bool>(threadChannelsActiveProvider(widget.guildId), (
-      bool? previous,
-      bool next,
-    ) {
-      if (next && previous != true && !_snapshotTaken) {
-        unawaited(_begin());
-      }
-    });
-    final bool active = ref.watch(threadChannelsActiveProvider(widget.guildId));
     final Channel? forum = ref
         .watch(channelByIdProvider(widget.channelId))
         .value;
-    if (!active || forum == null || !forum.isThreadOnly) {
+    if (forum == null || !forum.isThreadOnly) {
       return const SizedBox.shrink();
     }
     ref.listen<AsyncValue<UnreadState>>(channelUnreadProvider(forum.id), (
@@ -216,7 +201,7 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
           )
         : buildForumPostList(
             forumId: forum.id,
-            active: stored.where((Channel post) => !isPostArchived(post)),
+            known: stored,
             extra: <Channel>[
               for (final String id in list.ids)
                 if (byId[id] case final Channel post) post,
@@ -289,6 +274,8 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
                   onToggle: controller.toggleTag,
                 ),
               ),
+            if (handheldLayout && tags.isEmpty)
+              SliverToBoxAdapter(child: SizedBox(height: context.layout.s2)),
             if (list.indexing)
               SliverToBoxAdapter(
                 child: _ForumNotice(
@@ -363,6 +350,7 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
             SliverToBoxAdapter(
               child: _ForumListFooter(
                 list: list,
+                requestable: canRequestForumPosts(actor),
                 onRetry: () => controller.retry(kind),
               ),
             ),
@@ -570,15 +558,20 @@ class _ForumEmptyState extends StatelessWidget {
 }
 
 class _ForumListFooter extends StatelessWidget {
-  const _ForumListFooter({required this.list, required this.onRetry});
+  const _ForumListFooter({
+    required this.list,
+    required this.requestable,
+    required this.onRetry,
+  });
 
   final ForumListState list;
+  final bool requestable;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
-    if (list.loading || (!list.loaded && !list.failed)) {
+    if (list.loading || (requestable && !list.loaded && !list.failed)) {
       return Padding(
         padding: EdgeInsets.all(context.layout.s4),
         child: const Center(

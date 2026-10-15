@@ -20,6 +20,7 @@ class InstanceRuntimeConfig {
     required this.registrationClosed,
     required this.adminRegistrationUrlsEnabled,
     required this.collectDateOfBirth,
+    this.premiumEnabled = false,
     this.usernameSignIn = false,
     this.uniqueUsernames = false,
     this.guildCreateAccess = true,
@@ -30,15 +31,18 @@ class InstanceRuntimeConfig {
     this.themeColorHex,
     this.gifDisplayName,
     this.singleCommunityGuildId,
+    this.premiumProductName = InstanceConstants.defaultPremiumProductName,
   });
 
   final String productName;
+  final String premiumProductName;
   final String? iconUrl;
   final String? symbolUrl;
   final String? logoUrl;
   final String? wordmarkUrl;
   final String? themeColorHex;
   final bool selfHosted;
+  final bool premiumEnabled;
   final bool stripeEnabled;
   final bool emailsEnabled;
   final bool voiceEnabled;
@@ -82,6 +86,7 @@ class InstanceRuntimeConfig {
     }
     final InstanceBrandingSchema branding = response.appPublic.branding;
     final String productName = branding.productName.trim();
+    final String premiumProductName = branding.premiumProductName.trim();
     final String gifName = response.gif.displayName.trim();
     final String? singleCommunityGuildId = response
         .community
@@ -96,12 +101,16 @@ class InstanceRuntimeConfig {
       productName: productName.isEmpty
           ? InstanceConstants.defaultProductName
           : productName,
+      premiumProductName: premiumProductName.isEmpty
+          ? InstanceConstants.defaultPremiumProductName
+          : premiumProductName,
       iconUrl: _nonEmpty(branding.iconUrl),
       symbolUrl: _nonEmpty(branding.symbolUrl),
       logoUrl: _nonEmpty(branding.logoUrl),
       wordmarkUrl: _nonEmpty(branding.wordmarkUrl),
       themeColorHex: _nonEmpty(branding.themeColor),
       selfHosted: response.features.selfHosted,
+      premiumEnabled: response.features.premiumEnabled,
       stripeEnabled: response.features.stripeEnabled,
       emailsEnabled: response.features.emailsEnabled,
       voiceEnabled: response.features.voiceEnabled,
@@ -128,6 +137,8 @@ class InstanceRuntimeConfig {
   String? get compactMarkUrl =>
       _nonEmpty(symbolUrl) ?? _nonEmpty(iconUrl) ?? _nonEmpty(logoUrl);
 
+  bool get showsPremiumFeatures => !selfHosted || premiumEnabled;
+
   bool get giftsEnabled => !selfHosted || stripeEnabled;
 
   bool isStockCommunityGuild(String guildId) {
@@ -151,12 +162,14 @@ class InstanceRuntimeConfig {
   bool operator ==(Object other) {
     return other is InstanceRuntimeConfig &&
         other.productName == productName &&
+        other.premiumProductName == premiumProductName &&
         other.iconUrl == iconUrl &&
         other.symbolUrl == symbolUrl &&
         other.logoUrl == logoUrl &&
         other.wordmarkUrl == wordmarkUrl &&
         other.themeColorHex == themeColorHex &&
         other.selfHosted == selfHosted &&
+        other.premiumEnabled == premiumEnabled &&
         other.stripeEnabled == stripeEnabled &&
         other.emailsEnabled == emailsEnabled &&
         other.voiceEnabled == voiceEnabled &&
@@ -179,12 +192,14 @@ class InstanceRuntimeConfig {
   @override
   int get hashCode => Object.hashAll(<Object?>[
     productName,
+    premiumProductName,
     iconUrl,
     symbolUrl,
     logoUrl,
     wordmarkUrl,
     themeColorHex,
     selfHosted,
+    premiumEnabled,
     stripeEnabled,
     emailsEnabled,
     voiceEnabled,
