@@ -363,6 +363,14 @@ String _scopeKeyForEditorMode(FluxerThemeMode mode) {
   };
 }
 
+Set<String> _scopeKeysAffectingMode(FluxerThemeMode mode) {
+  return <String>{
+    'root',
+    if (mode != FluxerThemeMode.light) 'dark',
+    _scopeKeyForEditorMode(mode),
+  };
+}
+
 FluxerColorTheme baseColorThemeForMode(
   FluxerThemeMode mode, {
   double saturationFactor = 1,
@@ -392,7 +400,7 @@ Color defaultThemeColorForProperty(
     mode,
     saturationFactor: saturationFactor,
   );
-  return readThemeColorProperty(base, propertyName) ?? base.textPrimary;
+  return readThemeColorProperty(base, propertyName);
 }
 
 Color effectiveThemeColorForProperty({
@@ -401,19 +409,13 @@ Color effectiveThemeColorForProperty({
   required FluxerThemeMode editingMode,
   double saturationFactor = 1,
 }) {
-  final FluxerColorTheme base = baseColorThemeForMode(
-    editingMode,
-    saturationFactor: saturationFactor,
-  );
   final FluxerColorTheme themed = applyCustomThemeCss(
-    base,
+    baseColorThemeForMode(editingMode, saturationFactor: saturationFactor),
     css: customThemeCss,
     saturationFactor: saturationFactor,
     mode: editingMode,
   );
-  return readThemeColorProperty(themed, propertyName) ??
-      readThemeColorProperty(base, propertyName) ??
-      base.textPrimary;
+  return readThemeColorProperty(themed, propertyName);
 }
 
 bool isThemeColorOverriddenForMode({
@@ -427,8 +429,9 @@ bool isThemeColorOverriddenForMode({
   }
   final Map<String, Map<String, String>> scoped =
       extractScopedThemeVariableOverrides(normalized);
-  final String scopeKey = _scopeKeyForEditorMode(editingMode);
-  return scoped[scopeKey]?.containsKey(cssVariable) ?? false;
+  return _scopeKeysAffectingMode(
+    editingMode,
+  ).any((String key) => scoped[key]?.containsKey(cssVariable) ?? false);
 }
 
 String _formatScopedCss(Map<String, Map<String, String>> scoped) {
@@ -490,10 +493,11 @@ String clearScopedThemeColor({
   }
   final Map<String, Map<String, String>> scoped =
       extractScopedThemeVariableOverrides(normalized);
-  final String scopeKey = _scopeKeyForEditorMode(editingMode);
-  scoped[scopeKey]?.remove(cssVariable);
-  if (scoped[scopeKey]?.isEmpty ?? false) {
-    scoped.remove(scopeKey);
+  for (final String scopeKey in _scopeKeysAffectingMode(editingMode)) {
+    scoped[scopeKey]?.remove(cssVariable);
+    if (scoped[scopeKey]?.isEmpty ?? false) {
+      scoped.remove(scopeKey);
+    }
   }
   final String built = _formatScopedCss(scoped);
   return built.isEmpty ? '' : built;
@@ -534,8 +538,9 @@ bool hasThemeColorOverridesForMode({
   }
   final Map<String, Map<String, String>> scoped =
       extractScopedThemeVariableOverrides(normalized);
-  final String scopeKey = _scopeKeyForEditorMode(editingMode);
-  return scoped[scopeKey]?.isNotEmpty ?? false;
+  return _scopeKeysAffectingMode(
+    editingMode,
+  ).any((String key) => scoped[key]?.isNotEmpty ?? false);
 }
 
 String clearAllScopedThemeColorsForMode({
@@ -547,8 +552,9 @@ String clearAllScopedThemeColorsForMode({
     return '';
   }
   final Map<String, Map<String, String>> scoped =
-      extractScopedThemeVariableOverrides(normalized)
-        ..remove(_scopeKeyForEditorMode(editingMode));
+      extractScopedThemeVariableOverrides(normalized)..removeWhere(
+        (String key, _) => _scopeKeysAffectingMode(editingMode).contains(key),
+      );
   final String built = _formatScopedCss(scoped);
   return built.isEmpty ? '' : built;
 }
