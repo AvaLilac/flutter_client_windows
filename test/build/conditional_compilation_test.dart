@@ -73,6 +73,12 @@ void main() {
         content,
         contains('com.google.firebase.messaging.default_notification_icon'),
       );
+      expect(
+        content,
+        contains(
+          'com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver',
+        ),
+      );
     });
 
     test('pubspec includes store billing in the default git tree', () {
