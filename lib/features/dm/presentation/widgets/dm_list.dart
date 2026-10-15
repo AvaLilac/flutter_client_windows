@@ -1013,6 +1013,20 @@ class _DMListState extends ConsumerState<DMList> {
     );
   }
 
+  Future<void> _runRelationshipAction(
+    ApiErrorAction errorAction,
+    Future<void> Function() call,
+  ) async {
+    try {
+      await call();
+    } on Object catch (e) {
+      if (!mounted) {
+        return;
+      }
+      await showApiError(context, errorAction, e);
+    }
+  }
+
   Future<void> _sendCommunityInvite(
     DmConversation convo,
     _InviteCandidate candidate,
@@ -1136,19 +1150,7 @@ class _DMListState extends ConsumerState<DMList> {
           if (!context.mounted) {
             return;
           }
-          if (!r.ok && !r.microphoneDenied && !r.cameraDenied) {
-            final FluxerLocalizations l10n = FluxerLocalizations.of(context);
-            final String? snackMessage = r.notEligible
-                ? l10n.directVoiceCallNotEligible
-                : r.joinAttemptFailed
-                ? l10n.voiceJoinCallFailed
-                : null;
-            if (snackMessage != null) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(snackMessage)));
-            }
-          }
+          await explainDirectCallFailure(context, r);
         }());
       case _DmAction.addNote:
         unawaited(
@@ -1254,21 +1256,12 @@ class _DMListState extends ConsumerState<DMList> {
           isDanger: true,
           onConfirm: () {
             unawaited(
-              ref
-                  .read(friendRepositoryProvider)
-                  .removeRelationship(convo.recipientId)
-                  .catchError((_) {
-                    if (mounted) {
-                      ref
-                          .read(toastProvider.notifier)
-                          .show(
-                            FluxerToast(
-                              message: l10n.dmRemoveFriendFailed,
-                              variant: FluxerToastVariant.danger,
-                            ),
-                          );
-                    }
-                  }),
+              _runRelationshipAction(
+                ApiErrorAction.removeFriend,
+                () => ref
+                    .read(friendRepositoryProvider)
+                    .removeRelationship(convo.recipientId),
+              ),
             );
           },
         );
@@ -1293,51 +1286,22 @@ class _DMListState extends ConsumerState<DMList> {
           if (!mounted) {
             break;
           }
-          await showApiError(
-            this.context,
-            ref,
-            ApiErrorAction.sendFriendRequest,
-            e,
-          );
+          await showApiError(this.context, ApiErrorAction.sendFriendRequest, e);
         }
       case _DmAction.acceptFriendRequest:
-        final l10n = FluxerLocalizations.of(context);
-        try {
-          await ref
+        await _runRelationshipAction(
+          ApiErrorAction.acceptFriendRequest,
+          () => ref
               .read(friendRepositoryProvider)
-              .acceptFriendRequest(convo.recipientId);
-        } on Object catch (_) {
-          if (!mounted) {
-            break;
-          }
-          ref
-              .read(toastProvider.notifier)
-              .show(
-                FluxerToast(
-                  message: l10n.dmAcceptFriendRequestFailed,
-                  variant: FluxerToastVariant.danger,
-                ),
-              );
-        }
+              .acceptFriendRequest(convo.recipientId),
+        );
       case _DmAction.ignoreFriendRequest:
-        final l10n = FluxerLocalizations.of(context);
-        try {
-          await ref
+        await _runRelationshipAction(
+          ApiErrorAction.ignoreFriendRequest,
+          () => ref
               .read(friendRepositoryProvider)
-              .removeRelationship(convo.recipientId);
-        } on Object catch (_) {
-          if (!mounted) {
-            break;
-          }
-          ref
-              .read(toastProvider.notifier)
-              .show(
-                FluxerToast(
-                  message: l10n.dmIgnoreFriendRequestFailed,
-                  variant: FluxerToastVariant.danger,
-                ),
-              );
-        }
+              .removeRelationship(convo.recipientId),
+        );
       case _DmAction.block:
         if (!mounted) {
           break;
@@ -1353,43 +1317,38 @@ class _DMListState extends ConsumerState<DMList> {
           isDanger: true,
           onConfirm: () {
             unawaited(
-              ref
-                  .read(friendRepositoryProvider)
-                  .blockUser(convo.recipientId)
-                  .catchError((_) {
-                    if (mounted) {
-                      ref
-                          .read(toastProvider.notifier)
-                          .show(
-                            FluxerToast(
-                              message: l10n.dmBlockFailed,
-                              variant: FluxerToastVariant.danger,
-                            ),
-                          );
-                    }
-                  }),
+              _runRelationshipAction(
+                ApiErrorAction.blockUser,
+                () => ref
+                    .read(friendRepositoryProvider)
+                    .blockUser(convo.recipientId),
+              ),
             );
           },
         );
       case _DmAction.unblock:
-        final l10n = FluxerLocalizations.of(context);
-        try {
-          await ref
-              .read(friendRepositoryProvider)
-              .removeRelationship(convo.recipientId);
-        } on Object catch (_) {
-          if (!mounted) {
-            break;
-          }
-          ref
-              .read(toastProvider.notifier)
-              .show(
-                FluxerToast(
-                  message: l10n.dmUnblockFailed,
-                  variant: FluxerToastVariant.danger,
-                ),
-              );
+        if (!mounted) {
+          break;
         }
+        final l10n = FluxerLocalizations.of(context);
+        await FluxerConfirmModal.show(
+          context,
+          title: l10n.userProfileUnblockConfirmTitle,
+          description: l10n.userProfileUnblockConfirmDescription(
+            convo.displayNameWith(rel?.nickname),
+          ),
+          confirmLabel: l10n.dmUnblock,
+          onConfirm: () {
+            unawaited(
+              _runRelationshipAction(
+                ApiErrorAction.unblockUser,
+                () => ref
+                    .read(friendRepositoryProvider)
+                    .removeRelationship(convo.recipientId),
+              ),
+            );
+          },
+        );
       case _DmAction.deleteMyMessages:
         unawaited(
           confirmAndDeleteMyMessagesInChannel(
@@ -1404,17 +1363,20 @@ class _DMListState extends ConsumerState<DMList> {
           break;
         }
         final l10n = FluxerLocalizations.of(context);
+        final String closeName = convo.displayNameWith(rel?.nickname);
         final confirmed = await FluxerConfirmModal.show(
           context,
-          title: l10n.dmCloseDmConfirmTitle,
-          description: l10n.dmCloseDmConfirmDescription(
-            convo.displayNameWith(rel?.nickname),
-          ),
-          confirmLabel: l10n.dmCloseDm,
+          title: convo.isGroup ? l10n.dmLeaveGroup : l10n.dmCloseDmConfirmTitle,
+          description: convo.isGroup
+              ? l10n.channelDetailsLeaveGroupDescription(closeName)
+              : l10n.dmCloseDmConfirmDescription(closeName),
+          confirmLabel: convo.isGroup ? l10n.dmLeaveGroup : l10n.dmCloseDm,
           isDanger: true,
           onConfirm: () {
             unawaited(
-              ref.read(dmViewModelProvider.notifier).closeDmChannel(convo.id),
+              ref
+                  .read(dmViewModelProvider.notifier)
+                  .closeDmChannel(convo.id, isGroup: convo.isGroup),
             );
           },
         );

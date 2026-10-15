@@ -150,14 +150,9 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
       navigateToContent(context, RoutePaths.dmChannel(channelId));
     } on Object catch (err, st) {
       talker.error('[UserProfileSheet] Failed to open DM: $err', err, st);
-      ref
-          .read(toastProvider.notifier)
-          .show(
-            FluxerToast(
-              message: l10n.userProfileFailedOpenDm,
-              variant: FluxerToastVariant.danger,
-            ),
-          );
+      if (mounted) {
+        await showApiError(context, ApiErrorAction.openDm, err);
+      }
     }
   }
 
@@ -180,13 +175,21 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
         return;
       }
     }
+    final String channelId;
     try {
-      final String channelId = await ref
+      channelId = await ref
           .read(dmRepositoryProvider)
           .ensureDmChannel(peerUserId);
-      if (!mounted) {
-        return;
+    } on Object catch (err) {
+      if (mounted) {
+        await showApiError(context, ApiErrorAction.openDm, err);
       }
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    try {
       final String? selfId = ref.read(currentUserIdProvider);
       final List<String> ringTargets = <String>[
         peerUserId,
@@ -201,28 +204,16 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
       if (!mounted) {
         return;
       }
-      if (!result.ok && !result.microphoneDenied && !result.cameraDenied) {
-        final String? snackMessage = result.notEligible
-            ? l10n.directVoiceCallNotEligible
-            : result.joinAttemptFailed
-            ? l10n.voiceJoinCallFailed
-            : null;
-        if (snackMessage != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(snackMessage)));
-        }
-      }
+      await explainDirectCallFailure(context, result);
     } on Object catch (err, st) {
       talker.error('[UserProfileSheet] Failed to start call: $err', err, st);
-      ref
-          .read(toastProvider.notifier)
-          .show(
-            FluxerToast(
-              message: l10n.userProfileFailedOpenDm,
-              variant: FluxerToastVariant.danger,
-            ),
-          );
+      if (mounted) {
+        await showErrorDialog(
+          context,
+          title: l10n.voiceJoinFailedTitle,
+          body: l10n.voiceJoinCallFailed,
+        );
+      }
     }
   }
 
@@ -250,13 +241,12 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
 
   Future<void> _handleRelationshipAction({
     required Future<void> Function() repoCall,
-    ApiErrorAction? errorAction,
+    required ApiErrorAction errorAction,
     String? confirmTitle,
     String? confirmDescription,
     String? confirmPrimary,
     FluxerButtonVariant? confirmVariant,
   }) async {
-    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     if (confirmTitle != null) {
       final bool ok = await UserProfileConfirmationSheet.show(
         context,
@@ -280,18 +270,7 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
       if (!mounted) {
         return;
       }
-      if (errorAction != null) {
-        await showApiError(context, ref, errorAction, err);
-        return;
-      }
-      ref
-          .read(toastProvider.notifier)
-          .show(
-            FluxerToast(
-              message: l10n.userProfileActionFailed,
-              variant: FluxerToastVariant.danger,
-            ),
-          );
+      await showApiError(context, errorAction, err);
     }
   }
 
@@ -451,6 +430,7 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
                               repoCall: () => ref
                                   .read(friendRepositoryProvider)
                                   .removeRelationship(userId),
+                              errorAction: ApiErrorAction.unblockUser,
                               confirmTitle: FluxerLocalizations.of(
                                 context,
                               ).userProfileUnblockConfirmTitle,
@@ -466,6 +446,7 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
                               repoCall: () => ref
                                   .read(friendRepositoryProvider)
                                   .removeRelationship(userId),
+                              errorAction: ApiErrorAction.removeFriend,
                               confirmTitle: FluxerLocalizations.of(
                                 context,
                               ).userProfileRemoveFriendConfirmTitle,
@@ -484,11 +465,13 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
                               repoCall: () => ref
                                   .read(friendRepositoryProvider)
                                   .acceptFriendRequest(userId),
+                              errorAction: ApiErrorAction.acceptFriendRequest,
                             ),
                             onCancelRequest: () => _handleRelationshipAction(
                               repoCall: () => ref
                                   .read(friendRepositoryProvider)
                                   .removeRelationship(userId),
+                              errorAction: ApiErrorAction.cancelFriendRequest,
                             ),
                             onSendFriendRequest: () =>
                                 _handleRelationshipAction(

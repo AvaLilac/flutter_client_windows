@@ -55,11 +55,13 @@ import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_indicator_s
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_rate_limited_alert_provider.dart';
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_tracker.dart';
 import 'package:fluxer_app/features/chat/providers/upload/cloud_upload_controller.dart';
+import 'package:fluxer_app/features/chat/providers/upload/user_upload_limits_provider.dart';
 import 'package:fluxer_app/features/chat/services/composer_keyboard_session.dart';
 import 'package:fluxer_app/features/chat/services/composer_mention_controller.dart';
 import 'package:fluxer_app/features/chat/services/composer_slash_session.dart';
 import 'package:fluxer_app/features/chat/services/composer_text_session.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/attachment_native_pickers.dart';
+import 'package:fluxer_app/features/chat/utils/attachments/file_upload_constants.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/file_upload_validation_l10n.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/file_upload_validator.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/paste_text_attachment.dart';
@@ -93,6 +95,7 @@ import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
+import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/chat_context_utils.dart';
 import 'package:fluxer_app/shared/utils/emoji_registry.dart';
 import 'package:fluxer_app/shared/utils/fluxer_haptics.dart';
@@ -590,18 +593,11 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
     }
     try {
       await ref.read(friendRepositoryProvider).removeRelationship(userId);
-    } on Object catch (_) {
-      if (!mounted) {
+    } on Object catch (e) {
+      if (!context.mounted) {
         return;
       }
-      ref
-          .read(toastProvider.notifier)
-          .show(
-            FluxerToast(
-              message: l10n.dmUnblockFailed,
-              variant: FluxerToastVariant.danger,
-            ),
-          );
+      await showApiError(context, ApiErrorAction.unblockUser, e);
     }
   }
 
@@ -2528,17 +2524,15 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
     if (!mounted) {
       return;
     }
-    final String? message = fileUploadValidationMessage(
+    final FileUploadValidationCopy? copy = fileUploadValidationCopy(
       FluxerLocalizations.of(context),
       result,
+      maxAttachments: kMaxAttachmentsPerMessage,
+      maxFileBytes: ref.read(maxAttachmentFileBytesProvider),
     );
-    if (message == null) {
+    if (copy == null) {
       return;
     }
-    ref
-        .read(toastProvider.notifier)
-        .show(
-          FluxerToast(message: message, variant: FluxerToastVariant.warning),
-        );
+    unawaited(showErrorDialog(context, title: copy.title, body: copy.body));
   }
 }

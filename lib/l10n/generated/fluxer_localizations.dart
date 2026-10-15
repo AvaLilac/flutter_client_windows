@@ -482,12 +482,6 @@ abstract class FluxerLocalizations {
   /// **'Enable notifications'**
   String get nagbarEnableNotifications;
 
-  /// Toast when opening the billing portal from a nagbar fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn\'t open the billing portal. Please try again in a moment.'**
-  String get nagbarBillingPortalFailed;
-
   /// Greeting on the login screen; usable wherever returning users are welcomed.
   ///
   /// In en, this message translates to:
@@ -1721,13 +1715,13 @@ abstract class FluxerLocalizations {
   /// Title when an invite link is expired or invalid.
   ///
   /// In en, this message translates to:
-  /// **'Invite invalid'**
+  /// **'Invite not found'**
   String get inviteAcceptNotFoundTitle;
 
   /// Description when an invite link is expired or invalid.
   ///
   /// In en, this message translates to:
-  /// **'This invite may be expired or invalid.'**
+  /// **'This invite may have expired or been deleted.'**
   String get inviteAcceptNotFoundDescription;
 
   /// Title when a deep link or route cannot be opened in the app.
@@ -1967,7 +1961,7 @@ abstract class FluxerLocalizations {
   /// Generic gift redeem error modal title.
   ///
   /// In en, this message translates to:
-  /// **'Failed to redeem gift'**
+  /// **'Couldn\'t redeem gift'**
   String get giftRedeemFailedTitle;
 
   /// Generic gift redeem error modal body.
@@ -2575,36 +2569,6 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Friend request sent'**
   String get dmFriendRequestSentToast;
-
-  /// Toast message when accepting a friend request fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to accept friend request'**
-  String get dmAcceptFriendRequestFailed;
-
-  /// Toast message when removing a friend fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to remove friend'**
-  String get dmRemoveFriendFailed;
-
-  /// Toast message when blocking a user fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to block user'**
-  String get dmBlockFailed;
-
-  /// Toast message when unblocking a user fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to unblock user'**
-  String get dmUnblockFailed;
-
-  /// Toast message when ignoring a friend request fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to ignore friend request'**
-  String get dmIgnoreFriendRequestFailed;
 
   /// Mobile DM list header button to open the add friends sheet.
   ///
@@ -5684,23 +5648,11 @@ abstract class FluxerLocalizations {
   /// **'Are you sure you want to remove {username} as a friend?'**
   String userProfileRemoveFriendConfirmDescription(String username);
 
-  /// Toast shown when opening a DM channel fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to open DM'**
-  String get userProfileFailedOpenDm;
-
   /// Toast shown when saving the user note fails.
   ///
   /// In en, this message translates to:
   /// **'Failed to save note'**
   String get userProfileFailedSaveNote;
-
-  /// Toast shown when a relationship action (block, unblock, friend request, etc.) fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Action failed, please try again'**
-  String get userProfileActionFailed;
 
   /// Three-dot menu item to change a member's nickname.
   ///
@@ -6541,18 +6493,6 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Country: {country}'**
   String messagingPausedHelpCountryLine(String country);
-
-  /// Shown when adding files would exceed the per-message attachment limit.
-  ///
-  /// In en, this message translates to:
-  /// **'Too many attachments (max {max})'**
-  String chatAttachmentTooMany(int max);
-
-  /// Shown when a selected file is larger than allowed.
-  ///
-  /// In en, this message translates to:
-  /// **'{fileName} exceeds the size limit ({fileSize})'**
-  String chatAttachmentFileTooLarge(String fileName, String fileSize);
 
   /// Shown when the estimated multipart request exceeds the limit.
   ///
@@ -9753,12 +9693,6 @@ abstract class FluxerLocalizations {
   /// **'Stop streaming'**
   String get voiceParticipantMenuStopStreaming;
 
-  /// Toast shown when a voice participant moderation action fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn\'t update that member. Please try again.'**
-  String get voiceParticipantModerationFailed;
-
   /// Label for the chat button in voice lobby and call control surfaces.
   ///
   /// In en, this message translates to:
@@ -12364,12 +12298,6 @@ abstract class FluxerLocalizations {
   /// **'This invite is invalid or has expired.'**
   String get addGuildInviteInvalid;
 
-  /// Generic error when joining a community via invite fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not join community. Please try again.'**
-  String get addGuildJoinFailed;
-
   /// Title of the create-community sub-view in the add community modal.
   ///
   /// In en, this message translates to:
@@ -14696,12 +14624,6 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'This community has reached its invite limit.'**
   String get guildNavbarCreateInviteMaxInvites;
-
-  /// Error when instant invites are temporarily disabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Invite creation is temporarily disabled for this community.'**
-  String get guildNavbarCreateInviteTemporarilyDisabled;
 
   /// Error when copying a group DM invite link fails.
   ///
@@ -19928,7 +19850,7 @@ abstract class FluxerLocalizations {
   /// Error modal body when role deletion fails.
   ///
   /// In en, this message translates to:
-  /// **'\"{name}\" wouldn\'t delete. Try again.'**
+  /// **'We couldn\'t delete \"{name}\". Try again.'**
   String guildSettingsRolesDeleteFailedBody(String name);
 
   /// Error modal title when hoist reset fails.
@@ -22782,12 +22704,6 @@ abstract class FluxerLocalizations {
   /// **'Revoked ban for {displayName}'**
   String guildSettingsRevokeBanSuccess(String displayName);
 
-  /// Error when revoking a ban fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn\'t revoke ban. Try again.'**
-  String get guildSettingsRevokeBanError;
-
   /// Title for guild settings modal.
   ///
   /// In en, this message translates to:
@@ -23915,12 +23831,6 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Doesn\'t allow being added to group DMs'**
   String get createDmUnaddableGroupDisabled;
-
-  /// Generic error when DM or group DM creation fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn\'t create the conversation. Try again.'**
-  String get createDmFailed;
 
   /// Mobile header title for the DM list.
   ///
@@ -25553,6 +25463,1014 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Rename category'**
   String get favoritesRenameCategory;
+
+  /// Title of the dialog shown when accepting a friend request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t accept friend request'**
+  String get friendAcceptFailedTitle;
+
+  /// Body of the accept friend request error dialog when the request no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'That friend request is no longer available. Refresh and try again.'**
+  String get friendAcceptUnavailable;
+
+  /// Body of the accept friend request error dialog when the account is unclaimed.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish signing up to accept friend requests.'**
+  String get friendAcceptClaimToAccept;
+
+  /// Fallback body of the accept friend request error dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t accept the friend request. Try again.'**
+  String get friendAcceptFailedMessage;
+
+  /// Title of the dialog shown when cancelling an outgoing friend request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t cancel friend request'**
+  String get friendCancelFailedTitle;
+
+  /// Title of the dialog shown when ignoring an incoming friend request fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t ignore friend request'**
+  String get friendIgnoreFailedTitle;
+
+  /// Body of the ignore friend request error dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t ignore the friend request. Try again.'**
+  String get friendIgnoreFailedMessage;
+
+  /// Title of the dialog shown when removing a friend fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t remove friend'**
+  String get friendRemoveFailedTitle;
+
+  /// Body of the remove friend error dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t remove this friend. Try again.'**
+  String get friendRemoveFailedMessage;
+
+  /// Title of the dialog shown when blocking a user fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t block user'**
+  String get userBlockFailedTitle;
+
+  /// Body of the block user error dialog when the target is a system account.
+  ///
+  /// In en, this message translates to:
+  /// **'This account can\'t be blocked.'**
+  String get userBlockSystemAccount;
+
+  /// Fallback body of the block user error dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t block this user. Try again.'**
+  String get userBlockFailedMessage;
+
+  /// Title of the dialog shown when unblocking a user fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t unblock user'**
+  String get userUnblockFailedTitle;
+
+  /// Body of the unblock user error dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t unblock this user. Try again.'**
+  String get userUnblockFailedMessage;
+
+  /// Confirmation body before cancelling an outgoing friend request.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel your friend request to {userName}?'**
+  String friendCancelRequestConfirmDescription(String userName);
+
+  /// Title of a generic error dialog when an action fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong'**
+  String get errorSomethingWentWrongTitle;
+
+  /// Fallback body of a generic error dialog when the server gives no reason.
+  ///
+  /// In en, this message translates to:
+  /// **'An unexpected error occurred. Try again.'**
+  String get errorUnexpectedTryAgain;
+
+  /// Title of the dialog shown when the account is temporarily limited from messaging.
+  ///
+  /// In en, this message translates to:
+  /// **'Messaging is paused'**
+  String get errorMessagingPausedTitle;
+
+  /// Fallback body of the messaging paused dialog when the server gives no reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Messaging is paused on your account. Check your email for a quick step to continue.'**
+  String get errorMessagingPausedMessage;
+
+  /// Title of the dialog shown when the server has paused a feature.
+  ///
+  /// In en, this message translates to:
+  /// **'Feature temporarily disabled'**
+  String get errorFeatureDisabledTitle;
+
+  /// Body of the feature temporarily disabled dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'This feature is paused. Try again later.'**
+  String get errorFeatureDisabledMessage;
+
+  /// Title of the dialog shown when opening or creating a direct message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t start this conversation'**
+  String get dmErrorStartConversationTitle;
+
+  /// Body of the open DM error dialog when the user can't be messaged.
+  ///
+  /// In en, this message translates to:
+  /// **'They might not be accepting messages from you, or you no longer share a community.'**
+  String get dmErrorCannotMessageMessage;
+
+  /// Body of the open DM error dialog when the user no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'This user no longer exists. Refresh and try again.'**
+  String get dmErrorUnknownUserMessage;
+
+  /// Body of the open DM error dialog when the account is unclaimed.
+  ///
+  /// In en, this message translates to:
+  /// **'You need to claim your account before you can start a direct message.'**
+  String get dmErrorClaimMessage;
+
+  /// Body of the open DM error dialog when the email is unverified.
+  ///
+  /// In en, this message translates to:
+  /// **'You need to verify your email address before you can start a direct message.'**
+  String get dmErrorVerifyEmailMessage;
+
+  /// Title of the create group DM error dialog when too many people were added.
+  ///
+  /// In en, this message translates to:
+  /// **'This group has too many people'**
+  String get dmErrorTooManyRecipientsTitle;
+
+  /// Body of the create group DM error dialog when too many people were added.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve added more people than a group DM allows. Remove a few and try again.'**
+  String get dmErrorTooManyRecipientsMessage;
+
+  /// Title of the create group DM error dialog when someone has too many group DMs.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached the group DM limit'**
+  String get dmErrorMaxGroupDmsTitle;
+
+  /// Body of the create group DM error dialog when someone has too many group DMs.
+  ///
+  /// In en, this message translates to:
+  /// **'You or someone you\'re adding already has the maximum number of group DMs open. Leave one and try again.'**
+  String get dmErrorMaxGroupDmsMessage;
+
+  /// Title of the dialog shown when adding a friend to a group DM fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t add to group'**
+  String get groupDmAddFailedTitle;
+
+  /// Title of the dialog shown when creating a group DM invite link fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t create invite link'**
+  String get groupDmInviteFailedTitle;
+
+  /// Title of the dialog shown when closing a direct message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t close DM'**
+  String get dmCloseFailedTitle;
+
+  /// Title of the dialog shown when leaving a group DM fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t leave group'**
+  String get groupDmLeaveFailedTitle;
+
+  /// Title of the dialog shown when accepting an invite fails for an unknown reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t join community'**
+  String get inviteJoinFailedTitle;
+
+  /// Body of the invite error dialog when the community has paused invites.
+  ///
+  /// In en, this message translates to:
+  /// **'Admins paused invites — you can\'t join right now.'**
+  String get inviteErrorPausedMessage;
+
+  /// Title of the invite error dialog when the community is full.
+  ///
+  /// In en, this message translates to:
+  /// **'Community at capacity'**
+  String get inviteErrorAtCapacityTitle;
+
+  /// Body of the invite error dialog when the community is full.
+  ///
+  /// In en, this message translates to:
+  /// **'This community has reached its maximum member limit and is not accepting new members at this time.'**
+  String get inviteErrorAtCapacityMessage;
+
+  /// Title of the invite error dialog when a temporary invite needs a live connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway connection required'**
+  String get inviteErrorPresenceTitle;
+
+  /// Body of the invite error dialog when a temporary invite needs a live connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Temporary invites need a live connection. Check yours and try again.'**
+  String get inviteErrorPresenceMessage;
+
+  /// Title of the invite error dialog when the user is banned from the community.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re banned'**
+  String get inviteErrorBannedTitle;
+
+  /// Body of the invite error dialog when the user is banned from the community.
+  ///
+  /// In en, this message translates to:
+  /// **'You are banned from this community and cannot join.'**
+  String get inviteErrorBannedMessage;
+
+  /// Title of the invite error dialog when the user's IP address is banned.
+  ///
+  /// In en, this message translates to:
+  /// **'Your IP is banned'**
+  String get inviteErrorIpBannedTitle;
+
+  /// Body of the invite error dialog when the user's IP address is banned.
+  ///
+  /// In en, this message translates to:
+  /// **'Your IP address is banned from this community and you cannot join.'**
+  String get inviteErrorIpBannedMessage;
+
+  /// Title of the invite error dialog when an unclaimed account tries to join a group.
+  ///
+  /// In en, this message translates to:
+  /// **'Account verification required'**
+  String get inviteErrorClaimTitle;
+
+  /// Body of the invite error dialog when an unclaimed account tries to join a group.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an email and password to your account first.'**
+  String get inviteErrorClaimMessage;
+
+  /// Title of the dialog shown when leaving a community fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to leave community'**
+  String get leaveCommunityFailedTitle;
+
+  /// Body of the dialog shown when leaving a community fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t leave right now. Try again in a moment.'**
+  String get leaveCommunityFailedMessage;
+
+  /// Title of the dialog shown when sending a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Your message didn\'t send'**
+  String get chatSendFailedTitle;
+
+  /// Body of the dialog shown when sending a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Try sending your message again.'**
+  String get chatSendFailedMessage;
+
+  /// Title of the dialog shown when sending is rate limited.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re sending messages too quickly'**
+  String get chatSendTooQuickTitle;
+
+  /// Body of the dialog shown when a message action is rate limited.
+  ///
+  /// In en, this message translates to:
+  /// **'Slow down — wait a moment before trying again.'**
+  String get chatRateLimitedMessage;
+
+  /// Title of the dialog shown when a message with mature content is rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Mature content not allowed'**
+  String get chatMatureContentTitle;
+
+  /// Body of the mature content dialog in a community channel.
+  ///
+  /// In en, this message translates to:
+  /// **'This channel is not marked for mature content. Mature content can only be sent in channels marked for mature content. Ask a moderator to update this channel if appropriate.'**
+  String get chatMatureContentGuildMessage;
+
+  /// Body of the mature content dialog in a direct message. settingsPath is the settings location, such as User settings > Privacy dashboard > Sensitive content.
+  ///
+  /// In en, this message translates to:
+  /// **'You or the person you are messaging has chosen to block sensitive media in direct messages. Each of you can change this in {settingsPath}.'**
+  String chatMatureContentDmMessage(String settingsPath);
+
+  /// Body of the mature content dialog in a group DM.
+  ///
+  /// In en, this message translates to:
+  /// **'This group is not marked for mature content. The group owner can turn on Mature content in the group settings if everyone in the group is 18 or older.'**
+  String get chatMatureContentGroupDmMessage;
+
+  /// Title of the dialog shown when an attachment is over the size limit.
+  ///
+  /// In en, this message translates to:
+  /// **'File size too large'**
+  String get chatFileTooLargeTitle;
+
+  /// Body of the dialog shown when an attachment is over the size limit. maxSize is a formatted size such as 25 MB.
+  ///
+  /// In en, this message translates to:
+  /// **'One or more files you\'re trying to upload exceed the maximum size limit of {maxSize} per file.'**
+  String chatFileTooLargeMessage(String maxSize);
+
+  /// Title of the dialog shown when a message has too many reactions or too many files are attached.
+  ///
+  /// In en, this message translates to:
+  /// **'Whoa, this is heavy'**
+  String get chatHeavyTitle;
+
+  /// Body of the dialog shown when a message has the maximum number of reactions.
+  ///
+  /// In en, this message translates to:
+  /// **'This is one heavy message. Some reactions need to be removed before you can add more.'**
+  String get chatReactionsHeavyMessage;
+
+  /// Toast shown when adding a reaction fails because the user is timed out.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t add new reactions while you\'re timed out.'**
+  String get chatReactionTimedOut;
+
+  /// Body of the dialog shown when too many files are attached to one message.
+  ///
+  /// In en, this message translates to:
+  /// **'You can only upload {count, plural, one {{count} file} other {{count} files}} at a time. Try again with fewer files.'**
+  String chatTooManyAttachmentsMessage(int count);
+
+  /// Title of the dialog shown when editing is rate limited.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re editing messages too quickly'**
+  String get chatEditTooQuickTitle;
+
+  /// Body of the dialog shown when editing a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Try editing your message again.'**
+  String get chatEditFailedMessage;
+
+  /// Title of the dialog shown when deleting is rate limited.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re deleting messages too quickly'**
+  String get chatDeleteTooQuickTitle;
+
+  /// Body of the dialog shown when deleting is rate limited.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait a moment before deleting more messages.'**
+  String get chatDeleteTooQuickMessage;
+
+  /// Title of the dialog shown when deleting a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That message couldn\'t be deleted'**
+  String get chatDeleteFailedTitle;
+
+  /// Body of the dialog shown when deleting a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Try deleting that message again.'**
+  String get chatDeleteFailedMessage;
+
+  /// Title of the dialog shown when deleting an attachment from a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete attachment'**
+  String get chatAttachmentDeleteFailedTitle;
+
+  /// Body of the dialog shown when deleting an attachment from a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Try deleting that attachment again.'**
+  String get chatAttachmentDeleteFailedMessage;
+
+  /// Title of the dialog shown when updating attachment alt text fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update alt text'**
+  String get chatAltTextFailedTitle;
+
+  /// Body of the alt text error dialog when the message was deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'This message no longer exists.'**
+  String get chatAltTextUnknownMessage;
+
+  /// Body of the alt text error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t edit this message.'**
+  String get chatAltTextNoPermission;
+
+  /// Body of the alt text error dialog when editing is paused.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing is temporarily unavailable. Please try again later.'**
+  String get chatAltTextUnavailable;
+
+  /// Fallback body of the alt text error dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update the alt text. Please try again.'**
+  String get chatAltTextFailedMessage;
+
+  /// Title of the dialog shown when pinning a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to pin message'**
+  String get chatPinFailedTitle;
+
+  /// Title of the dialog shown when unpinning a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to unpin message'**
+  String get chatUnpinFailedTitle;
+
+  /// Body of the dialog shown when pinning or unpinning a message fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Try again later.'**
+  String get chatPinFailedMessage;
+
+  /// Body of the pin error dialog when the other user can't be interacted with.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot interact with this user right now.'**
+  String get chatPinBlockedMessage;
+
+  /// Title of the dialog shown when the bookmark limit is reached.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark limit reached'**
+  String get bookmarkLimitTitle;
+
+  /// Body of the dialog shown when the bookmark limit is reached.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re at {count, plural, one {{count} bookmark} other {{count} bookmarks}}. Remove one to add another.'**
+  String bookmarkLimitMessage(int count);
+
+  /// Title of the dialog shown when the saved media limit is reached.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved media limit reached'**
+  String get savedMediaLimitTitle;
+
+  /// Body of the dialog shown when the saved media limit is reached.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re at the cap of {count, plural, one {{count} saved media item} other {{count} saved media items}}. Remove one to add another.'**
+  String savedMediaLimitMessage(int count);
+
+  /// Title of the dialog shown when an action is flagged by safety systems.
+  ///
+  /// In en, this message translates to:
+  /// **'Content blocked'**
+  String get errorContentBlockedTitle;
+
+  /// Body of the content blocked dialog on the official instance.
+  ///
+  /// In en, this message translates to:
+  /// **'Your action could not be completed because it was flagged by our safety systems. If you believe this is a mistake, please contact support.'**
+  String get errorContentBlockedMessage;
+
+  /// Body of the content blocked dialog on a self-hosted instance.
+  ///
+  /// In en, this message translates to:
+  /// **'Your action could not be completed because it was flagged by our safety systems. If you believe this is a mistake, please contact the administrators of this instance.'**
+  String get errorContentBlockedSelfHostedMessage;
+
+  /// Toast shown after a channel is deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel deleted'**
+  String get channelDeletedToast;
+
+  /// Toast shown after a category is deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Category deleted'**
+  String get categoryDeletedToast;
+
+  /// Title of the delete channel error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t delete this'**
+  String get channelDeleteNoPermissionTitle;
+
+  /// Body of the delete channel error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to delete this channel.'**
+  String get channelDeleteNoPermissionChannel;
+
+  /// Body of the delete category error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to delete this category.'**
+  String get channelDeleteNoPermissionCategory;
+
+  /// Title of the delete channel error dialog when the channel no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'Already deleted'**
+  String get channelDeleteAlreadyDeletedTitle;
+
+  /// Body of the delete channel error dialog when the channel no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'This channel no longer exists. It may have already been deleted.'**
+  String get channelDeleteAlreadyDeletedChannel;
+
+  /// Body of the delete category error dialog when the category no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'This category no longer exists. It may have already been deleted.'**
+  String get channelDeleteAlreadyDeletedCategory;
+
+  /// Title of the delete channel error dialog for other failures.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete this channel'**
+  String get channelDeleteFailedChannelTitle;
+
+  /// Title of the delete category error dialog for other failures.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete this category'**
+  String get channelDeleteFailedCategoryTitle;
+
+  /// Title of the dialog shown when saving channel permissions fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update channel permissions'**
+  String get channelPermissionsUpdateFailedTitle;
+
+  /// Title of the dialog shown when saving channel settings fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save channel settings'**
+  String get channelSettingsSaveFailedTitle;
+
+  /// Title of the dialog shown when a community has no free emoji slots.
+  ///
+  /// In en, this message translates to:
+  /// **'No emoji slots available'**
+  String get emojiSlotsFullTitle;
+
+  /// Title of the dialog shown when a community has no free sticker slots.
+  ///
+  /// In en, this message translates to:
+  /// **'No sticker slots available'**
+  String get stickerSlotsFullTitle;
+
+  /// Body of the dialog shown when some emoji files could not be added.
+  ///
+  /// In en, this message translates to:
+  /// **'Review these files and try again with smaller or simpler images.'**
+  String get emojiSomeFailedMessage;
+
+  /// Body of the invalid emoji name dialog when the name has unsupported characters.
+  ///
+  /// In en, this message translates to:
+  /// **'Emoji names can only use letters, numbers and underscores.'**
+  String get emojiNameInvalidCharacters;
+
+  /// Title of the emoji error dialog when the emoji was deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'This emoji no longer exists'**
+  String get emojiErrorGoneTitle;
+
+  /// Body of the rename emoji error dialog when the emoji was deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'It may have been deleted. The name was reverted to what it was before.'**
+  String get emojiRenameGoneMessage;
+
+  /// Title of the rename emoji error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t rename this emoji'**
+  String get emojiRenameNoPermissionTitle;
+
+  /// Body of the rename emoji error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to rename this emoji. The name was reverted to what it was before.'**
+  String get emojiRenameNoPermissionMessage;
+
+  /// Body of the rename emoji error dialog when rate limited.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait a moment and try renaming again.'**
+  String get emojiRenameRateLimitedMessage;
+
+  /// Fallback body of the rename emoji error dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'The name was reverted to what it was before. Please try again in a moment.'**
+  String get emojiRenameFailedMessage;
+
+  /// Body of the delete emoji error dialog when the emoji was already deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'It looks like it was already deleted.'**
+  String get emojiDeleteGoneMessage;
+
+  /// Title of the delete emoji error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t delete this emoji'**
+  String get emojiDeleteNoPermissionTitle;
+
+  /// Body of the delete emoji error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to delete this emoji.'**
+  String get emojiDeleteNoPermissionMessage;
+
+  /// Body of the delete emoji error dialog when rate limited.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait a moment and try deleting again.'**
+  String get emojiDeleteRateLimitedMessage;
+
+  /// Title of the dialog shown when a sticker upload is over the size limit.
+  ///
+  /// In en, this message translates to:
+  /// **'Sticker is too large'**
+  String get stickerTooLargeTitle;
+
+  /// Body of the dialog shown when a sticker upload is over the size limit. maxSize is a formatted size such as 512 KB.
+  ///
+  /// In en, this message translates to:
+  /// **'The upload service rejected this sticker as larger than {maxSize}. Try a smaller file, a simpler image, or a shorter animation.'**
+  String stickerTooLargeMessage(String maxSize);
+
+  /// Fallback body of the create sticker error dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong while preparing this sticker. Try another file or try again in a moment.'**
+  String get stickerCreateFailedMessage;
+
+  /// Title of the dialog shown when editing a sticker fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update this sticker'**
+  String get stickerUpdateFailedTitle;
+
+  /// Body of the dialog shown when timing out a member fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to time out member. Try again.'**
+  String get moderationTimeoutFailed;
+
+  /// Body of the dialog shown when removing a member's timeout fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to remove timeout. Try again.'**
+  String get moderationRemoveTimeoutFailed;
+
+  /// Body of the dialog shown when kicking a member fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to kick member. Try again.'**
+  String get moderationKickFailed;
+
+  /// Body of the dialog shown when banning a member fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to ban member. Try again.'**
+  String get moderationBanFailed;
+
+  /// Title of the dialog shown when transferring community ownership fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to transfer ownership'**
+  String get transferOwnershipFailedTitle;
+
+  /// Body of the dialog shown when transferring community ownership fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Ownership could not be transferred to {username} at this time.'**
+  String transferOwnershipFailedMessage(String username);
+
+  /// Title of the dialog shown when revoking a ban fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t revoke ban'**
+  String get revokeBanFailedTitle;
+
+  /// Title of the voice moderation error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t do that'**
+  String get voiceModerationNoPermissionTitle;
+
+  /// Body of the voice moderation error dialog when the user lacks permission.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to do this to this member.'**
+  String get voiceModerationNoPermissionMessage;
+
+  /// Title of the voice moderation error dialog when the member already left voice.
+  ///
+  /// In en, this message translates to:
+  /// **'They left the call'**
+  String get voiceModerationLeftTitle;
+
+  /// Body of the voice moderation error dialog when the member already left voice.
+  ///
+  /// In en, this message translates to:
+  /// **'This member isn\'t connected to voice anymore.'**
+  String get voiceModerationLeftMessage;
+
+  /// Title of the voice moderation error dialog when the member left the community.
+  ///
+  /// In en, this message translates to:
+  /// **'Member not found'**
+  String get voiceModerationUnknownMemberTitle;
+
+  /// Body of the voice moderation error dialog when the member left the community.
+  ///
+  /// In en, this message translates to:
+  /// **'This member is no longer in the community. Refresh and try again.'**
+  String get voiceModerationUnknownMemberMessage;
+
+  /// Shown when joining a voice channel fails because the user is timed out.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t join while you\'re timed out.'**
+  String get voiceJoinTimedOut;
+
+  /// Shown when an unclaimed account tries to join a community voice channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Claim your account to join this voice channel.'**
+  String get voiceJoinClaimAccount;
+
+  /// Shown when an unclaimed account tries to start or join a direct call.
+  ///
+  /// In en, this message translates to:
+  /// **'Claim your account to start or join 1:1 calls.'**
+  String get voiceJoinClaimAccountDirectCall;
+
+  /// Shown when joining a voice channel fails because it is full.
+  ///
+  /// In en, this message translates to:
+  /// **'This voice channel has reached its user limit. Try again later or join a different channel.'**
+  String get voiceJoinUserLimit;
+
+  /// Shown when joining a voice channel fails because the user has too many connections.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached this voice channel\'s connection limit.'**
+  String get voiceJoinConnectionLimit;
+
+  /// Shown when joining a voice channel fails because it no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'This voice channel is no longer available.'**
+  String get voiceJoinChannelUnavailable;
+
+  /// Title of the dialog shown when an avatar can't be used.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t upload avatar'**
+  String get avatarUploadFailedTitle;
+
+  /// Title of the dialog shown when a profile banner can't be used.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t upload banner'**
+  String get bannerUploadFailedTitle;
+
+  /// Body of the dialog shown when an animated image can't be used on this account.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload a static image instead.'**
+  String get animatedImageUseStatic;
+
+  /// Title of the dialog shown when deleting a passkey fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete passkey'**
+  String get passkeyDeleteFailedTitle;
+
+  /// Title of the billing error dialog when payments are temporarily unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Payments are unavailable'**
+  String get premiumPaymentsUnavailableTitle;
+
+  /// Body of the billing error dialog when payments are temporarily unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Payments are temporarily unavailable. Please try again in a moment.'**
+  String get premiumPaymentsUnavailableMessage;
+
+  /// Title of the billing error dialog when there is no active subscription.
+  ///
+  /// In en, this message translates to:
+  /// **'No active subscription'**
+  String get premiumNoSubscriptionTitle;
+
+  /// Body of the billing error dialog when there is no active subscription.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t find an active subscription on this account. Refresh and try again.'**
+  String get premiumNoSubscriptionMessage;
+
+  /// Title of the billing error dialog when the subscription is already set to cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Already set to cancel'**
+  String get premiumAlreadyCancelingTitle;
+
+  /// Body of the billing error dialog when the subscription is already set to cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your subscription is already set to cancel at the end of your billing period.'**
+  String get premiumAlreadyCancelingMessage;
+
+  /// Title of the billing error dialog when there is nothing to reactivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription is not scheduled to cancel'**
+  String get premiumNotCancelingTitle;
+
+  /// Body of the billing error dialog when there is nothing to reactivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Your subscription isn\'t set to cancel, so there\'s nothing to reactivate.'**
+  String get premiumNotCancelingMessage;
+
+  /// Title of the dialog shown when cancelling the subscription fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t cancel your subscription'**
+  String get premiumCancelFailedTitle;
+
+  /// Body of the dialog shown when cancelling the subscription fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong while canceling your subscription. Please try again in a moment.'**
+  String get premiumCancelFailedMessage;
+
+  /// Title of the dialog shown when reactivating the subscription fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reactivate your subscription'**
+  String get premiumReactivateFailedTitle;
+
+  /// Body of the dialog shown when reactivating the subscription fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong while reactivating your subscription. Please try again in a moment.'**
+  String get premiumReactivateFailedMessage;
+
+  /// Title of the confirmation before a self-serve refund.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund your most recent purchase?'**
+  String get premiumRefundConfirmTitle;
+
+  /// Body of the confirmation before a self-serve refund.
+  ///
+  /// In en, this message translates to:
+  /// **'This refunds your most recent invoice and cancels any associated subscription. You won\'t be able to self-refund again for 30 days.'**
+  String get premiumRefundConfirmBody;
+
+  /// Confirm button of the self-serve refund confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund purchase'**
+  String get premiumRefundConfirm;
+
+  /// Toast shown after a self-serve refund succeeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund issued. May take a few business days to appear.'**
+  String get premiumRefundIssuedToast;
+
+  /// Title of the refund error dialog when the purchase is too old.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside the refund window'**
+  String get premiumRefundOutsideWindowTitle;
+
+  /// Body of the refund error dialog when the purchase is too old.
+  ///
+  /// In en, this message translates to:
+  /// **'Your most recent purchase is no longer within the refund window. Contact support for billing issues.'**
+  String get premiumRefundOutsideWindowMessage;
+
+  /// Title of the refund error dialog during the refund cooldown.
+  ///
+  /// In en, this message translates to:
+  /// **'You have refunded recently'**
+  String get premiumRefundCooldownTitle;
+
+  /// Body of the refund error dialog during the refund cooldown.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve already used a self-serve refund recently. You can refund again once the cooldown ends.'**
+  String get premiumRefundCooldownMessage;
+
+  /// Title of the refund error dialog when there is no recent purchase.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to refund'**
+  String get premiumRefundNothingTitle;
+
+  /// Body of the refund error dialog when there is no recent purchase.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t find a recent purchase to refund on this account.'**
+  String get premiumRefundNothingMessage;
+
+  /// Title of the refund error dialog for other failures.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t refund this purchase'**
+  String get premiumRefundFailedTitle;
+
+  /// Body of the refund error dialog for other failures.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong while issuing your refund. Contact support if this keeps happening.'**
+  String get premiumRefundFailedMessage;
+
+  /// Title of the checkout error dialog when the email is unverified.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify your email first'**
+  String get premiumVerifyEmailTitle;
+
+  /// Body of the checkout error dialog when the email is unverified. productName is the premium product name.
+  ///
+  /// In en, this message translates to:
+  /// **'You need to verify your email before you can purchase {productName}.'**
+  String premiumVerifyEmailBody(String productName);
+
+  /// Title of the checkout error dialog when checkout is blocked for the account.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout unavailable'**
+  String get premiumCheckoutBlockedTitle;
+
+  /// Body of the checkout error dialog when checkout is blocked, on the official instance.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout is blocked for this account. Contact {supportEmail} if you need help.'**
+  String premiumCheckoutBlockedBody(String supportEmail);
+
+  /// Body of the checkout error dialog when checkout is blocked, on a self-hosted instance.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout is blocked for this account.'**
+  String get premiumCheckoutBlockedBodySelfHosted;
 }
 
 class _FluxerLocalizationsDelegate
