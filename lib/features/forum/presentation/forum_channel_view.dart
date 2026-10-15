@@ -274,6 +274,8 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
                   onToggle: controller.toggleTag,
                 ),
               ),
+            if (handheldLayout && tags.isEmpty)
+              SliverToBoxAdapter(child: SizedBox(height: context.layout.s2)),
             if (list.indexing)
               SliverToBoxAdapter(
                 child: _ForumNotice(
