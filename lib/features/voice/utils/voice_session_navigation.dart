@@ -24,11 +24,10 @@ void navigateToActiveVoiceSession(
   }
   final String? guildId = voice.guildId;
   popShellCoveringPages();
-  if (guildId != null && guildId.isNotEmpty) {
-    navigateToContent(context, RoutePaths.guildChannel(guildId, channelId));
-    return;
-  }
-  unawaited(context.push(RoutePaths.dmChannelCall(channelId)));
+  final String path = guildId != null && guildId.isNotEmpty
+      ? RoutePaths.guildChannel(guildId, channelId)
+      : RoutePaths.dmChannelCall(channelId);
+  navigateToContent(context, path);
 }
 
 void goToPhoneVoiceChannelList({
