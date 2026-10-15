@@ -5,9 +5,27 @@ part 'guild_drag_provider.g.dart';
 
 const double kGuildDragCollapseThreshold = 12;
 const double kGuildNavbarWidth = 72;
+const double kGuildDragFeedbackSize = 48;
 const double kGuildDragHoverSpeedThresholdPxPerMs = 2;
 const Duration kGuildDragHoverDwell = Duration(milliseconds: 70);
 const double kGuildDragSeamAdjacentTolerance = 4;
+
+double clampGuildDragFeedbackCenterY({
+  required double centerY,
+  double? boundsTop,
+  double? boundsBottom,
+}) {
+  if (boundsTop == null || boundsBottom == null) {
+    return centerY;
+  }
+  const double halfExtent = kGuildDragFeedbackSize / 2;
+  final double minY = boundsTop + halfExtent;
+  final double maxY = boundsBottom - halfExtent;
+  if (maxY < minY) {
+    return centerY.clamp(boundsTop, boundsBottom);
+  }
+  return centerY.clamp(minY, maxY);
+}
 
 enum DropPosition { before, after, combine }
 
@@ -258,9 +276,32 @@ class GuildDrag extends _$GuildDrag {
   DateTime? _pendingDwellStartedAt;
   final Map<String, RegisteredGuildDragTarget> _dragTargets =
       <String, RegisteredGuildDragTarget>{};
+  double? _verticalBoundsTop;
+  double? _verticalBoundsBottom;
 
   @override
   DragState build() => const DragState();
+
+  void updateVerticalBounds({required double top, required double bottom}) {
+    _verticalBoundsTop = top;
+    _verticalBoundsBottom = bottom;
+  }
+
+  void clearVerticalBounds() {
+    _verticalBoundsTop = null;
+    _verticalBoundsBottom = null;
+  }
+
+  Offset _clampDragGlobalPosition(Offset globalPosition) {
+    return Offset(
+      globalPosition.dx,
+      clampGuildDragFeedbackCenterY(
+        centerY: globalPosition.dy,
+        boundsTop: _verticalBoundsTop,
+        boundsBottom: _verticalBoundsBottom,
+      ),
+    );
+  }
 
   void registerDragTarget(RegisteredGuildDragTarget target) {
     _dragTargets[target.itemId] = target;
@@ -290,23 +331,27 @@ class GuildDrag extends _$GuildDrag {
         state.hasMovedFromHoldPoint ||
         (globalPosition.dy - _dragStartGlobalPosition!.dy).abs() >=
             kGuildDragCollapseThreshold;
-    final bool yChanged = state.dragFeedbackGlobalY != globalPosition.dy;
+    final Offset clampedPosition = _clampDragGlobalPosition(globalPosition);
+    final bool yChanged = state.dragFeedbackGlobalY != clampedPosition.dy;
     final bool movedChanged = state.hasMovedFromHoldPoint != hasMoved;
     if (yChanged || movedChanged) {
       state = state.copyWith(
-        dragFeedbackGlobalY: globalPosition.dy,
+        dragFeedbackGlobalY: clampedPosition.dy,
         hasMovedFromHoldPoint: hasMoved,
       );
     }
     if (!hasMoved) {
       return false;
     }
-    return _updateHoverFromGlobalPosition(globalPosition, stabilizeHover: true);
+    return _updateHoverFromGlobalPosition(
+      clampedPosition,
+      stabilizeHover: true,
+    );
   }
 
   bool finalizeHoverForDrop(Offset globalPosition) {
     return _updateHoverFromGlobalPosition(
-      globalPosition,
+      _clampDragGlobalPosition(globalPosition),
       stabilizeHover: false,
     );
   }

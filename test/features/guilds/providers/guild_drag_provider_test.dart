@@ -193,4 +193,44 @@ void main() {
       );
     });
   });
+
+  group('clampGuildDragFeedbackCenterY', () {
+    test('returns input when bounds are missing', () {
+      expect(
+        clampGuildDragFeedbackCenterY(centerY: 120, boundsBottom: 400),
+        120,
+      );
+    });
+
+    test('keeps icon inside vertical bounds', () {
+      const double top = 100;
+      const double bottom = 500;
+      const double half = kGuildDragFeedbackSize / 2;
+
+      expect(
+        clampGuildDragFeedbackCenterY(
+          centerY: top,
+          boundsTop: top,
+          boundsBottom: bottom,
+        ),
+        top + half,
+      );
+      expect(
+        clampGuildDragFeedbackCenterY(
+          centerY: bottom,
+          boundsTop: top,
+          boundsBottom: bottom,
+        ),
+        bottom - half,
+      );
+      expect(
+        clampGuildDragFeedbackCenterY(
+          centerY: 300,
+          boundsTop: top,
+          boundsBottom: bottom,
+        ),
+        300,
+      );
+    });
+  });
 }

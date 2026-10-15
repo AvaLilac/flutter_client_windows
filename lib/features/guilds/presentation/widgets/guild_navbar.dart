@@ -51,7 +51,7 @@ import 'package:fluxer_app/features/guilds/presentation/'
 import 'package:fluxer_app/features/guilds/presentation/'
     'widgets/guild_folder_settings_modal.dart';
 import 'package:fluxer_app/features/guilds/presentation/'
-    'widgets/guild_long_press_menu_host.dart';
+    'widgets/guild_icon_peek_menu.dart';
 import 'package:fluxer_app/features/guilds/presentation/'
     'widgets/guild_menu_data.dart';
 import 'package:fluxer_app/features/guilds/presentation/'
@@ -159,6 +159,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
   final Set<String> _enteringDmIds = <String>{};
   final Set<String> _exitingDmIds = <String>{};
   bool _railDmsSeeded = false;
+  final GlobalKey _verticalDragBoundsKey = GlobalKey();
 
   @override
   void initState() {
@@ -391,12 +392,28 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
 
   @override
   void dispose() {
+    ref.read(guildDragProvider.notifier).clearVerticalBounds();
     _persistScroll();
     _scrollController
       ..removeListener(_persistScroll)
       ..dispose();
     _scrollIndicator.detach();
     super.dispose();
+  }
+
+  void _syncVerticalDragBounds() {
+    final RenderBox? renderBox =
+        _verticalDragBoundsKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) {
+      return;
+    }
+    final Offset topLeft = renderBox.localToGlobal(Offset.zero);
+    ref
+        .read(guildDragProvider.notifier)
+        .updateVerticalBounds(
+          top: topLeft.dy,
+          bottom: topLeft.dy + renderBox.size.height,
+        );
   }
 
   GuildScrollIndicatorSeverity? _resolveGuildScrollSeverity(String id) {
@@ -515,7 +532,14 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     );
 
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _syncVerticalDragBounds();
+    });
     return Container(
+      key: _verticalDragBoundsKey,
       width: kGuildNavbarWidth,
       decoration: BoxDecoration(
         color: context.colors.serverSidebarBackground,
@@ -595,28 +619,52 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
         final GuildNavbarGuild guildItem =
             entry.organizedItem! as GuildNavbarGuild;
         final Guild guild = guildItem.guild;
-        final GlobalKey<_GuildListItemState> itemKey =
-            _itemKeys.putIfAbsent(guild.id, GlobalKey<_GuildListItemState>.new)
-                as GlobalKey<_GuildListItemState>;
-        return GuildDragWrapper(
-          key: ValueKey<String>('guild-${guild.id}'),
-          itemId: guild.id,
-          isFolder: false,
-          enabled: !guild.unavailable,
-          dragFeedback: GuildDragFeedback(
-            label: guild.name,
-            iconUrl: guild.iconUrl,
-            isUnavailable: guild.unavailable,
-          ),
-          longPressMenu: isMobileLayout(context)
-              ? () => itemKey.currentState
-              : null,
-          child: _buildGuildItem(
-            context,
-            guild: guild,
-            unavailableCount: unavailableCount,
-            itemKey: itemKey,
-          ),
+        return Consumer(
+          builder: (context, ref, child) {
+            final unread = ref.watch(
+              guildReadStateProvider.select((s) => s[guild.id]),
+            );
+            final GlobalKey<_GuildListItemState> itemKey =
+                _itemKeys.putIfAbsent(
+                      guild.id,
+                      GlobalKey<_GuildListItemState>.new,
+                    )
+                    as GlobalKey<_GuildListItemState>;
+            final bool hasUnread =
+                !guild.unavailable && (unread?.hasUnread ?? false);
+            return GuildDragWrapper(
+              key: ValueKey<String>('guild-${guild.id}'),
+              itemId: guild.id,
+              isFolder: false,
+              enabled: !guild.unavailable,
+              dragFeedback: GuildDragFeedback(
+                label: guild.name,
+                iconUrl: guild.iconUrl,
+                isUnavailable: guild.unavailable,
+              ),
+              peekMenu: buildGuildPeekMenuConfig(
+                context,
+                guild: guild,
+                hasUnread: hasUnread,
+                onAction:
+                    (
+                      BuildContext actionContext,
+                      GuildIconPeekAction action,
+                    ) async {
+                      await itemKey.currentState?.handlePeekAction(
+                        actionContext,
+                        action,
+                      );
+                    },
+              ),
+              child: _buildGuildItem(
+                context,
+                guild: guild,
+                unavailableCount: unavailableCount,
+                itemKey: itemKey,
+              ),
+            );
+          },
         );
       case _NavbarListEntryKind.organizedFolder:
         final GuildNavbarFolder folderItem =

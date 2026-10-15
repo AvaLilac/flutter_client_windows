@@ -5,7 +5,7 @@ import 'package:fluxer_app/features/guilds/presentation/widgets/guild_folder_men
 import 'package:fluxer_app/features/guilds/presentation/widgets/guild_icon_peek_gesture_host.dart';
 import 'package:fluxer_app/features/guilds/presentation/widgets/guild_icon_peek_menu.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_drag_provider.dart';
-import 'package:fluxer_app/features/ui/action_menu/context_menu_widgets.dart';
+import 'package:fluxer_app/features/ui/action_menu/sidebar_peek_menu_panel.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 import '../../../../helpers/pump_fluxer_app.dart';
@@ -64,6 +64,7 @@ void main() {
       );
 
       expect(find.byType(GuildFolderPeekMenuPanel), findsOneWidget);
+      expect(find.byType(SidebarPeekMenuPanel), findsOneWidget);
       expect(find.text(testL10n.guildFolderMarkAsRead), findsOneWidget);
 
       await hold.up();
@@ -180,7 +181,7 @@ void main() {
       expect(selected, isEmpty);
     });
 
-    testWidgets('keeps original group dividers in the peek panel', (
+    testWidgets('shows dividers between peek menu rows', (
       WidgetTester tester,
     ) async {
       const Key folderKey = Key('folder-icon');
@@ -197,7 +198,7 @@ void main() {
         find.byKey(folderKey),
       );
 
-      expect(find.byType(ContextMenuDivider), findsNWidgets(3));
+      expect(find.byType(Divider), findsNWidgets(4));
       expect(find.text(testL10n.guildFolderMarkAsRead), findsOneWidget);
       expect(find.text(testL10n.guildBulkMuteCommunities), findsOneWidget);
       expect(find.text(testL10n.guildFolderSettingsTitle), findsOneWidget);

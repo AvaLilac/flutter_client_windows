@@ -366,9 +366,18 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
             iconUrl: guild.iconUrl,
             isUnavailable: guild.unavailable,
           ),
-          longPressMenu: isMobileLayout(context)
-              ? () => itemKey.currentState
-              : null,
+          peekMenu: buildGuildPeekMenuConfig(
+            context,
+            guild: guild,
+            hasUnread: !guild.unavailable && (unread?.hasUnread ?? false),
+            onAction:
+                (BuildContext actionContext, GuildIconPeekAction action) async {
+                  await itemKey.currentState?.handlePeekAction(
+                    actionContext,
+                    action,
+                  );
+                },
+          ),
           child: _GuildListItem(
             key: itemKey,
             label: guild.name,

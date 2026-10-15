@@ -1,8 +1,19 @@
+import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_drag_provider.dart';
+import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
+import 'package:fluxer_app/features/ui/action_menu/sidebar_peek_menu_panel.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
+import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const Duration kGuildPeekHoldDelay = Duration(milliseconds: 400);
 const double kGuildPeekHoldCancelThreshold = 4;
+
+enum GuildIconPeekAction { markAsRead, notifications, moreOptions }
+
+typedef GuildIconPeekActionHandler =
+    Future<void> Function(BuildContext context, GuildIconPeekAction action);
 
 enum PeekSelection { dismiss, keepOpen }
 
@@ -12,9 +23,95 @@ abstract class SidebarPeekContent {
     required ValueChanged<Object> onSelect,
   });
 
+  double estimateMenuHeight(BuildContext context);
+
   Object? hitTestAction(Offset globalPosition);
 
   Future<PeekSelection> handleSelection(BuildContext context, Object action);
+}
+
+class GuildIconPeekMenuConfig implements SidebarPeekContent {
+  GuildIconPeekMenuConfig({
+    required this.guildName,
+    required this.hasUnread,
+    required this.onAction,
+  });
+
+  final String guildName;
+  final bool hasUnread;
+  final GuildIconPeekActionHandler onAction;
+  final Map<GuildIconPeekAction, GlobalKey> itemKeys =
+      <GuildIconPeekAction, GlobalKey>{
+        for (final GuildIconPeekAction action in GuildIconPeekAction.values)
+          action: GlobalKey(),
+      };
+
+  @override
+  double estimateMenuHeight(BuildContext context) {
+    return estimateSidebarPeekMenuHeight(
+      context,
+      rowCount: visibleGuildIconPeekActions(hasUnread: hasUnread).length,
+    );
+  }
+
+  @override
+  Widget buildPanel({
+    required BuildContext context,
+    required ValueChanged<Object> onSelect,
+  }) {
+    return GuildIconPeekMenuPanel(
+      guildName: guildName,
+      hasUnread: hasUnread,
+      itemKeys: itemKeys,
+      onActionTap: (GuildIconPeekAction action) {
+        onSelect(action);
+      },
+    );
+  }
+
+  @override
+  Object? hitTestAction(Offset globalPosition) {
+    return hitTestPeekAction(
+      globalPosition: globalPosition,
+      itemKeys: itemKeys,
+      visibleActions: visibleGuildIconPeekActions(hasUnread: hasUnread),
+    );
+  }
+
+  @override
+  Future<PeekSelection> handleSelection(
+    BuildContext context,
+    Object action,
+  ) async {
+    await onAction(context, action as GuildIconPeekAction);
+    return PeekSelection.dismiss;
+  }
+}
+
+GuildIconPeekMenuConfig? buildGuildPeekMenuConfig(
+  BuildContext context, {
+  required Guild guild,
+  required bool hasUnread,
+  required GuildIconPeekActionHandler onAction,
+}) {
+  if (!isMobileLayout(context)) {
+    return null;
+  }
+  return GuildIconPeekMenuConfig(
+    guildName: guild.name,
+    hasUnread: hasUnread,
+    onAction: onAction,
+  );
+}
+
+List<GuildIconPeekAction> visibleGuildIconPeekActions({
+  required bool hasUnread,
+}) {
+  return <GuildIconPeekAction>[
+    if (hasUnread) GuildIconPeekAction.markAsRead,
+    GuildIconPeekAction.notifications,
+    GuildIconPeekAction.moreOptions,
+  ];
 }
 
 bool shouldCancelGuildPeekHold({
@@ -61,4 +158,83 @@ T? hitTestKeyedPeekTarget<T extends Object>({
     }
   }
   return null;
+}
+
+GuildIconPeekAction? hitTestPeekAction({
+  required Offset globalPosition,
+  required Map<GuildIconPeekAction, GlobalKey> itemKeys,
+  required List<GuildIconPeekAction> visibleActions,
+}) {
+  return hitTestKeyedPeekTarget<GuildIconPeekAction>(
+    globalPosition: globalPosition,
+    itemKeys: itemKeys,
+    visibleKeys: visibleActions,
+  );
+}
+
+String peekActionLabel(FluxerLocalizations l10n, GuildIconPeekAction action) {
+  switch (action) {
+    case GuildIconPeekAction.markAsRead:
+      return l10n.guildMenuMarkAsRead;
+    case GuildIconPeekAction.notifications:
+      return l10n.notificationSettings;
+    case GuildIconPeekAction.moreOptions:
+      return l10n.threadMoreOptions;
+  }
+}
+
+IconData peekActionIcon(GuildIconPeekAction action) {
+  switch (action) {
+    case GuildIconPeekAction.markAsRead:
+      return PhosphorIconsFill.eye;
+    case GuildIconPeekAction.notifications:
+      return PhosphorIconsFill.bell;
+    case GuildIconPeekAction.moreOptions:
+      return PhosphorIconsFill.dotsThreeOutline;
+  }
+}
+
+class GuildIconPeekMenuPanel extends StatelessWidget {
+  const GuildIconPeekMenuPanel({
+    required this.guildName,
+    required this.hasUnread,
+    required this.itemKeys,
+    this.onActionTap,
+    super.key,
+  });
+
+  final String guildName;
+  final bool hasUnread;
+  final Map<GuildIconPeekAction, GlobalKey> itemKeys;
+  final ValueChanged<GuildIconPeekAction>? onActionTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final List<GuildIconPeekAction> visibleActions =
+        visibleGuildIconPeekActions(hasUnread: hasUnread);
+    return Align(
+      widthFactor: 1,
+      heightFactor: 1,
+      alignment: Alignment.centerLeft,
+      child: SidebarPeekMenuPanel(
+        title: guildName,
+        sections: [
+          FluxerMenuGroup(
+            children: [
+              for (final GuildIconPeekAction action in visibleActions)
+                KeyedSubtree(
+                  key: itemKeys[action],
+                  child: FluxerBottomSheetMenuItem(
+                    label: peekActionLabel(l10n, action),
+                    icon: peekActionIcon(action),
+                    onTap: () => onActionTap?.call(action),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
