@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:fluxer_app/core/api/fluxer_client_properties.dart';
 import 'package:fluxer_app/core/build/app_build_config.dart';
 import 'package:fluxer_app/core/build/app_build_environment.dart';
+import 'package:fluxer_app/core/database/drift_stream_utils.dart';
 import 'package:fluxer_app/core/observability/error_log_rate_limiter.dart';
 import 'package:fluxer_app/core/observability/measure_log_redaction.dart';
 import 'package:fluxer_app/core/observability/measure_version_metadata.dart';
@@ -29,6 +30,8 @@ class FluxerObservability {
   bool _enabled = false;
   Future<void>? _measureInitFuture;
   bool _measureInitialized = false;
+  bool _platformErrorHandlerChained = false;
+  bool _globalErrorHandlersInstalled = false;
   final ErrorLogRateLimiter _errorLogRateLimiter = ErrorLogRateLimiter();
 
   bool get isEnabled => _enabled;
@@ -134,12 +137,38 @@ class FluxerObservability {
         .getTraceParentHeaderValue(span);
   }
 
+  void installGlobalErrorHandlers() {
+    if (_globalErrorHandlersInstalled) {
+      return;
+    }
+    _globalErrorHandlersInstalled = true;
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      recordFlutterError(details);
+    };
+    PlatformDispatcher.instance.onError = _handlePlatformDispatcherError;
+  }
+
   void recordFlutterError(FlutterErrorDetails details) {
-    recordError(
+    _logErrorToTalker(
       details.exception,
       stackTrace: details.stack,
       source: details.library ?? 'flutter',
       context: details.context?.toDescription(),
+    );
+  }
+
+  void reportUncaughtError(
+    Object error,
+    StackTrace stackTrace, {
+    required String library,
+  }) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: library,
+      ),
     );
   }
 
@@ -149,22 +178,16 @@ class FluxerObservability {
     StackTrace? stackTrace,
     String? context,
   }) {
-    if (!_errorLogRateLimiter.shouldLog(
-      error: error,
+    _logErrorToTalker(
+      error,
       stackTrace: stackTrace,
       source: source,
-    )) {
-      return;
-    }
-    final String trimmedContext = context?.trim() ?? '';
-    talker.handle(
-      error,
-      stackTrace,
-      trimmedContext.isEmpty ? source : '$source: $trimmedContext',
+      context: context,
     );
     if (!isEnabled) {
       return;
     }
+    final String trimmedContext = context?.trim() ?? '';
     final Map<String, AttributeValue> attributes = <String, AttributeValue>{
       'exception.source': StringAttr(source),
       if (trimmedContext.isNotEmpty)
@@ -207,11 +230,62 @@ class FluxerObservability {
       config: const MeasureConfig(autoStart: false, enableLogging: kDebugMode),
     );
     await _measureInitFuture;
+    _chainMeasurePlatformErrorHandler();
     final Span probe = Measure.instance.startSpan('fluxer.sdk_probe');
     _measureInitialized = probe.traceId != 'invalid-trace-id';
     if (_measureInitialized) {
       probe.end();
     }
+  }
+
+  bool _handlePlatformDispatcherError(Object error, StackTrace stack) {
+    if (isDriftCancellation(error)) {
+      return true;
+    }
+    recordFlutterError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'platform_dispatcher',
+      ),
+    );
+    forceFlush();
+    return false;
+  }
+
+  void _logErrorToTalker(
+    Object error, {
+    required String source,
+    StackTrace? stackTrace,
+    String? context,
+  }) {
+    if (!_errorLogRateLimiter.shouldLog(
+      error: error,
+      stackTrace: stackTrace,
+      source: source,
+    )) {
+      return;
+    }
+    final String trimmedContext = context?.trim() ?? '';
+    talker.handle(
+      error,
+      stackTrace,
+      trimmedContext.isEmpty ? source : '$source: $trimmedContext',
+    );
+  }
+
+  void _chainMeasurePlatformErrorHandler() {
+    if (_platformErrorHandlerChained) {
+      return;
+    }
+    _platformErrorHandlerChained = true;
+    final PlatformDispatcher dispatcher = PlatformDispatcher.instance;
+    final bool Function(Object, StackTrace)? measureHandler =
+        dispatcher.onError;
+    dispatcher.onError = (Object error, StackTrace stack) {
+      measureHandler?.call(error, stack);
+      return _handlePlatformDispatcherError(error, stack);
+    };
   }
 
   void _recordExceptionOnSpan(Span span, Object error, StackTrace stackTrace) {
@@ -325,10 +399,10 @@ class FluxerObservability {
     }
     final RawReceivePort port = RawReceivePort((dynamic message) {
       final _IsolateError isolateError = _parseIsolateError(message);
-      recordError(
+      reportUncaughtError(
         isolateError.error,
-        source: 'isolate',
-        stackTrace: isolateError.stackTrace,
+        isolateError.stackTrace ?? StackTrace.current,
+        library: 'isolate',
       );
     });
     _isolateErrorPort = port;

@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/app.dart';
 import 'package:fluxer_app/core/audio/app_media_audio_session.dart';
@@ -56,25 +54,6 @@ void _runFluxerApp(ProviderContainer container) {
   runApp(UncontrolledProviderScope(container: container, child: app));
 }
 
-void _configureFluxerErrorReporting() {
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    FluxerObservability.instance.recordFlutterError(details);
-  };
-  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
-    if (isDriftCancellation(error)) {
-      return true;
-    }
-    FluxerObservability.instance.recordError(
-      error,
-      stackTrace: stack,
-      source: 'platform_dispatcher',
-    );
-    FluxerObservability.instance.forceFlush();
-    return false;
-  };
-}
-
 Future<void> _bootstrapFluxer(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   unawaited(ApplePushService.installReplyHandler());
@@ -93,7 +72,10 @@ Future<void> _bootstrapFluxer(List<String> args) async {
   configureFluxerImageCache();
   configureFluxerGpuResourceCache();
   configureFluxerErrorUi();
-  _configureFluxerErrorReporting();
+  FluxerObservability.instance.installGlobalErrorHandlers();
+  if (AppBuildConfig.hasObservabilityConfig) {
+    await FluxerObservability.instance.prepare();
+  }
 
   final ProviderContainer container = ProviderContainer();
   await Future.wait<void>([
@@ -102,9 +84,6 @@ Future<void> _bootstrapFluxer(List<String> args) async {
       bootstrapChatAttachmentAudio,
     ),
     () async {
-      if (AppBuildConfig.hasObservabilityConfig) {
-        await FluxerObservability.instance.prepare();
-      }
       await Future.wait<void>([
         container.read(observabilityReportingProvider.notifier).load(),
         container.read(pushRelayConsentProvider.notifier).load(),
@@ -197,10 +176,10 @@ Future<void> main(List<String> args) async {
       if (isDriftCancellation(error)) {
         return;
       }
-      FluxerObservability.instance.recordError(
+      FluxerObservability.instance.reportUncaughtError(
         error,
-        stackTrace: stack,
-        source: 'zone',
+        stack,
+        library: 'Flutter zone',
       );
       FluxerObservability.instance.forceFlush();
       Error.throwWithStackTrace(error, stack);
