@@ -44,7 +44,7 @@ class FluxerObservability {
     }
     await _ensureMeasureInitialized();
     if (!_measureInitialized) {
-      talker.warning('[Measure] Native API key/URL missing');
+      talker.warning('[Measure] SDK failed to initialize');
     }
   }
 
@@ -54,7 +54,7 @@ class FluxerObservability {
     }
     await _ensureMeasureInitialized();
     if (!_measureInitialized) {
-      talker.warning('[Measure] Cannot start without native SDK configuration');
+      talker.warning('[Measure] Cannot start before SDK init');
       return;
     }
     await Measure.instance.start();
@@ -231,11 +231,7 @@ class FluxerObservability {
     );
     await _measureInitFuture;
     _chainMeasurePlatformErrorHandler();
-    final Span probe = Measure.instance.startSpan('fluxer.sdk_probe');
-    _measureInitialized = probe.traceId != 'invalid-trace-id';
-    if (_measureInitialized) {
-      probe.end();
-    }
+    _measureInitialized = Measure.instance.isInitialized;
   }
 
   bool _handlePlatformDispatcherError(Object error, StackTrace stack) {

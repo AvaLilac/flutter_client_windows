@@ -26,10 +26,16 @@ import flutter_callkit_incoming
     let measureInfo = Bundle.main.infoDictionary
     let measureApiKey = measureInfo?["MeasureApiKey"] as? String ?? ""
     let measureApiUrl = measureInfo?["MeasureApiUrl"] as? String ?? ""
-    if !measureApiKey.isEmpty, !measureApiUrl.isEmpty {
-      let clientInfo = ClientInfo(apiKey: measureApiKey, apiUrl: measureApiUrl)
-      Measure.initialize(with: clientInfo, config: BaseMeasureConfig())
+    if measureApiKey.isEmpty || measureApiUrl.isEmpty {
+      #if DEBUG
+        NSLog(
+          "[Measure] Native init skipped"
+        )
+      #endif
+      return
     }
+    let clientInfo = ClientInfo(apiKey: measureApiKey, apiUrl: measureApiUrl)
+    Measure.initialize(with: clientInfo, config: BaseMeasureConfig())
   }
 
   override func application(
