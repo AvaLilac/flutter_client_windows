@@ -81,8 +81,19 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _syncWidth(MediaQuery.sizeOf(context).width);
+    _syncWidth(_layoutWidth());
     _syncPaneTickers();
+  }
+
+  double _layoutWidth() {
+    if (!mounted) {
+      return _lastWidth;
+    }
+    final double? queryWidth = MediaQuery.maybeOf(context)?.size.width;
+    if (queryWidth != null && queryWidth > 0) {
+      return queryWidth;
+    }
+    return _lastWidth;
   }
 
   void _syncWidth(double width) {
@@ -185,7 +196,14 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
     if (!mounted) {
       return;
     }
-    final width = MediaQuery.sizeOf(context).width;
+    final width = _layoutWidth();
+    if (width <= 0) {
+      _currentSide = side;
+      if (writeBack) {
+        ref.read(currentRevealSideProvider.notifier).set(side);
+      }
+      return;
+    }
     _syncWidth(width);
     final goal = _goalForSide(side, width);
     final isReveal = side == RevealSide.left;
@@ -208,7 +226,7 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
     if (!mounted) {
       return;
     }
-    final width = MediaQuery.sizeOf(context).width;
+    final width = _layoutWidth();
     if (width <= 0) {
       return;
     }
@@ -227,7 +245,7 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
     if (!mounted) {
       return;
     }
-    final width = MediaQuery.sizeOf(context).width;
+    final width = _layoutWidth();
     if (width <= 0) {
       return;
     }
@@ -248,7 +266,7 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
   }
 
   double _peekOverlayT() {
-    final double width = MediaQuery.sizeOf(context).width;
+    final double width = _layoutWidth();
     final double maxReveal = _maxRevealTranslate(width);
     if (maxReveal <= 0) {
       return 0;
@@ -261,7 +279,7 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
       return;
     }
     final RevealSide side = ref.read(currentRevealSideProvider);
-    final double width = MediaQuery.sizeOf(context).width;
+    final double width = _layoutWidth();
     if (width <= 0) {
       return;
     }
@@ -276,6 +294,24 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
       _snapBackDuration(context),
       widget.snapBackCurve,
     );
+  }
+
+  void _scheduleMoveToState(RevealSide side, {required bool writeBack}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      unawaited(_moveToState(side, writeBack: writeBack));
+    });
+  }
+
+  void _scheduleSyncTranslateToRevealSide({required bool writeBack}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      unawaited(_syncTranslateToRevealSide(writeBack: writeBack));
+    });
   }
 
   bool _shouldDeferDrawerGesture(PointerDownEvent event) {
@@ -297,12 +333,12 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
         RevealSide next,
       ) {
         if (next != _currentSide) {
-          unawaited(_moveToState(next, writeBack: false));
+          _scheduleMoveToState(next, writeBack: false);
         }
       })
       ..listen<String>(shellLocationProvider, (String? prev, String next) {
         if (_currentSide == RevealSide.left) {
-          unawaited(_syncTranslateToRevealSide(writeBack: false));
+          _scheduleSyncTranslateToRevealSide(writeBack: false);
         }
       })
       ..listen<bool>(shellBlocksHorizontalGesturesProvider, (
@@ -314,14 +350,14 @@ class _SidebarDrawerState extends ConsumerState<SidebarDrawer>
           return;
         }
         if (prev ?? false) {
-          unawaited(_syncTranslateToRevealSide(writeBack: false));
+          _scheduleSyncTranslateToRevealSide(writeBack: false);
         }
       })
       ..listen<int>(drawerRevealSyncTriggerProvider, (int? prev, int next) {
         if (ref.read(shellBlocksHorizontalGesturesProvider)) {
           return;
         }
-        unawaited(_syncTranslateToRevealSide(writeBack: false));
+        _scheduleSyncTranslateToRevealSide(writeBack: false);
       });
     final Map<Type, GestureRecognizerFactory> drawerGestures =
         blocksHorizontalGestures
