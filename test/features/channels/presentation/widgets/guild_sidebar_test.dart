@@ -1,9 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
+import 'package:fluxer_app/core/database/fluxer_database.dart'
+    show FluxerDatabase;
 import 'package:fluxer_app/core/experiments/experiments_provider.dart';
 import 'package:fluxer_app/core/permissions/channel_effective_permissions.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
@@ -45,6 +51,7 @@ import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
 import 'package:fluxer_app/material_ui.dart' hide SensitiveContent;
+import 'package:fluxer_dart/export.dart' show FluxerClient;
 import 'package:go_router/go_router.dart';
 import 'package:riverpod/src/framework.dart' show Override;
 
@@ -633,6 +640,272 @@ void main() {
       double dy(String label) => tester.getTopLeft(find.text(label)).dy;
       expect(dy('Mark as read'), lessThan(dy('Mute category')));
       expect(dy('Mute category'), lessThan(dy('Copy category ID')));
+      await releaseTestWidgetTree(tester);
+    });
+
+    testWidgets('category menu hides create channel without manage channels', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: <Override>[
+            ..._buildOverrides(
+              channelListState: _state(),
+              unread: const {'c1': UnreadState(), 'c2': UnreadState()},
+              permissionBits: {'c1': Permission.manageChannels.value},
+            ),
+            effectiveGuildChannelPermissionBitsProvider(
+              'cat1',
+            ).overrideWith((ref) => 0),
+          ],
+        ),
+      );
+      await _pumpSidebar(tester);
+
+      await tester.longPress(find.text('My Category'));
+      await _pumpSidebar(tester);
+
+      expect(find.text('Mute category'), findsOneWidget);
+      expect(find.text('Create channel'), findsNothing);
+      expect(find.text('Edit category'), findsNothing);
+      await releaseTestWidgetTree(tester);
+    });
+
+    testWidgets('category create channel preselects the category as parent', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+      final _RecordingAdapter adapter = _RecordingAdapter();
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: <Override>[
+            ..._buildOverrides(
+              channelListState: _state(),
+              unread: const {'c1': UnreadState(), 'c2': UnreadState()},
+            ),
+            ..._apiOverrides(adapter),
+            effectiveGuildChannelPermissionBitsProvider(
+              'cat1',
+            ).overrideWith((ref) => Permission.manageChannels.value),
+          ],
+        ),
+      );
+      await _pumpSidebar(tester);
+
+      await tester.longPress(find.text('My Category'));
+      await _pumpSidebar(tester);
+      double dy(String label) => tester.getTopLeft(find.text(label)).dy;
+      expect(dy('Create channel'), lessThan(dy('Edit category')));
+      await tester.tap(find.text('Create channel'));
+      await _pumpSidebar(tester);
+      for (int i = 0; i < 4; i += 1) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      await tester.enterText(find.byType(EditableText).first, 'backstage');
+      await _pumpSidebar(tester);
+      await tester.tap(find.text(testL10n.create));
+      await _pumpSidebar(tester);
+
+      expect(adapter.requests, hasLength(1));
+      final RequestOptions request = adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, endsWith('/guilds/$_guildId/channels'));
+      final Map<String, Object?> body = request.data as Map<String, Object?>;
+      expect(body['name'], 'backstage');
+      expect(body['parent_id'], 'cat1');
+      await releaseTestWidgetTree(tester);
+    });
+
+    testWidgets('channel menu hides move to category without manage channels', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: _buildOverrides(
+            channelListState: _state(),
+            unread: const {'c1': UnreadState(), 'c2': UnreadState()},
+          ),
+        ),
+      );
+      await _pumpSidebar(tester);
+
+      await tester.longPress(find.text('general'));
+      await _pumpSidebar(tester);
+
+      expect(find.text('Copy channel ID'), findsOneWidget);
+      expect(find.text('Move to category'), findsNothing);
+      await releaseTestWidgetTree(tester);
+    });
+
+    testWidgets('move to category marks the current one and moves out of it', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+      final FluxerDatabase database = openTestDatabase();
+      await database.channelDao.upsertChannels(
+        <Channel>[
+          const Channel(
+            id: 'cat1',
+            guildId: _guildId,
+            name: 'My Category',
+            type: ChannelType.guildCategory,
+          ),
+          const Channel(
+            id: 'cat2',
+            guildId: _guildId,
+            name: 'Archive',
+            type: ChannelType.guildCategory,
+            position: 1,
+          ),
+          _channel('c1', 'general'),
+          const Channel(
+            id: 'c2',
+            guildId: _guildId,
+            name: 'random',
+            parentId: 'cat1',
+            position: 1,
+          ),
+        ].map((Channel channel) => channel.toCompanion()).toList(),
+      );
+      final _RecordingAdapter adapter = _RecordingAdapter();
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: <Override>[
+            ..._buildOverrides(
+              channelListState: _state(),
+              unread: const {'c1': UnreadState(), 'c2': UnreadState()},
+              permissionBits: {'c1': Permission.manageChannels.value},
+              database: database,
+            ),
+            ..._apiOverrides(adapter),
+          ],
+        ),
+      );
+      await _pumpSidebar(tester);
+
+      await tester.longPress(find.text('general'));
+      await _pumpSidebar(tester);
+      double dy(String label) => tester.getTopLeft(find.text(label)).dy;
+      expect(dy('Edit channel'), lessThan(dy('Move to category')));
+      expect(dy('Move to category'), lessThan(dy('Duplicate channel')));
+      await tester.tap(find.text('Move to category'));
+      await _pumpSidebar(tester);
+      for (int i = 0; i < 4; i += 1) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      FluxerBottomSheetMenuItem option(String label) =>
+          tester.widget<FluxerBottomSheetMenuItem>(
+            find.byWidgetPredicate(
+              (widgets.Widget widget) =>
+                  widget is FluxerBottomSheetMenuItem && widget.label == label,
+            ),
+          );
+      expect(option('No category').isSelected, isFalse);
+      expect(option('My Category').isSelected, isTrue);
+      expect(option('Archive').isSelected, isFalse);
+      expect(dy('No category'), lessThan(dy('Archive')));
+      expect(
+        find.descendant(
+          of: find.byWidget(option('My Category')),
+          matching: find.byType(FluxerSelectedCheck),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('No category'));
+      await _pumpSidebar(tester);
+
+      expect(adapter.requests, hasLength(1));
+      final RequestOptions request = adapter.requests.single;
+      expect(request.method, 'PATCH');
+      expect(request.path, '/guilds/$_guildId/channels');
+      expect(request.data, <Map<String, Object?>>[
+        <String, Object?>{
+          'id': 'c1',
+          'parent_id': null,
+          'preceding_sibling_id': 'cat2',
+          'position': 2,
+          'lock_permissions': false,
+        },
+      ]);
+      await releaseTestWidgetTree(tester);
+    });
+
+    testWidgets('move to category sends the channel to the end of another', (
+      tester,
+    ) async {
+      _setMobileSurface(tester);
+      final FluxerDatabase database = openTestDatabase();
+      await database.channelDao.upsertChannels(
+        <Channel>[
+          const Channel(
+            id: 'cat1',
+            guildId: _guildId,
+            name: 'My Category',
+            type: ChannelType.guildCategory,
+          ),
+          const Channel(
+            id: 'cat2',
+            guildId: _guildId,
+            name: 'Archive',
+            type: ChannelType.guildCategory,
+            position: 1,
+          ),
+          _channel('c1', 'general'),
+          const Channel(
+            id: 'old-1',
+            guildId: _guildId,
+            name: 'old-one',
+            parentId: 'cat2',
+          ),
+          const Channel(
+            id: 'old-2',
+            guildId: _guildId,
+            name: 'old-two',
+            parentId: 'cat2',
+            position: 1,
+          ),
+        ].map((Channel channel) => channel.toCompanion()).toList(),
+      );
+      final _RecordingAdapter adapter = _RecordingAdapter();
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: <Override>[
+            ..._buildOverrides(
+              channelListState: _state(),
+              unread: const {'c1': UnreadState(), 'c2': UnreadState()},
+              permissionBits: {'c1': Permission.manageChannels.value},
+              database: database,
+            ),
+            ..._apiOverrides(adapter),
+          ],
+        ),
+      );
+      await _pumpSidebar(tester);
+
+      await tester.longPress(find.text('general'));
+      await _pumpSidebar(tester);
+      await tester.tap(find.text('Move to category'));
+      await _pumpSidebar(tester);
+      for (int i = 0; i < 4; i += 1) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.tap(find.text('Archive'));
+      await _pumpSidebar(tester);
+
+      expect(adapter.requests.single.data, <Map<String, Object?>>[
+        <String, Object?>{
+          'id': 'c1',
+          'parent_id': 'cat2',
+          'preceding_sibling_id': 'old-2',
+          'position': 2,
+          'lock_permissions': false,
+        },
+      ]);
       await releaseTestWidgetTree(tester);
     });
 
@@ -1747,8 +2020,9 @@ List<Override> _buildOverrides({
   String? Function(Ref ref)? activeGuildIdReader,
   ChannelListViewModel Function()? channelListViewModelFactory,
   int guildPermissions = 0,
+  FluxerDatabase? database,
 }) {
-  final db = openTestDatabase();
+  final db = database ?? openTestDatabase();
   final String routeLocation = selectedChannelId != null
       ? '/channels/$_guildId/$selectedChannelId'
       : '/channels/$_guildId';
@@ -1952,4 +2226,43 @@ class _FakeMatureAgreements extends MatureContentAgreements {
   @override
   MatureContentAgreementsState build() =>
       const MatureContentAgreementsState(isLoaded: true);
+}
+
+List<Override> _apiOverrides(_RecordingAdapter adapter) {
+  final Dio dio = Dio(BaseOptions(baseUrl: 'https://api.fluxer.app/v1'))
+    ..httpClientAdapter = adapter;
+  return <Override>[
+    fluxerDioProvider.overrideWithValue(dio),
+    fluxerClientProvider.overrideWithValue(
+      FluxerClient(dio, baseUrl: 'https://api.fluxer.app/v1'),
+    ),
+  ];
+}
+
+class _RecordingAdapter implements HttpClientAdapter {
+  final List<RequestOptions> requests = <RequestOptions>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    return ResponseBody.fromString(
+      jsonEncode(<String, Object?>{
+        'id': 'created',
+        'type': 0,
+        'guild_id': _guildId,
+        'name': 'created',
+      }),
+      200,
+      headers: <String, List<String>>{
+        Headers.contentTypeHeader: <String>['application/json'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
