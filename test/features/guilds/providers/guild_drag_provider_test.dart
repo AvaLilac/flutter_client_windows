@@ -89,6 +89,61 @@ void main() {
         DropPosition.after,
       );
     });
+
+    test('uses wider reorder edges on folders', () {
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.2,
+          sourceIsFolder: false,
+          targetIsFolder: true,
+          allowCombine: true,
+        ),
+        DropPosition.before,
+      );
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.8,
+          sourceIsFolder: false,
+          targetIsFolder: true,
+          allowCombine: true,
+        ),
+        DropPosition.after,
+      );
+    });
+
+    test('uses a narrow merge band between guilds', () {
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.5,
+          sourceIsFolder: false,
+          targetIsFolder: false,
+          allowCombine: true,
+        ),
+        DropPosition.combine,
+      );
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.4,
+          sourceIsFolder: false,
+          targetIsFolder: false,
+          allowCombine: true,
+        ),
+        DropPosition.before,
+      );
+    });
+
+    test('skips guild merge when dragging from inside a folder', () {
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.5,
+          sourceIsFolder: false,
+          targetIsFolder: false,
+          allowCombine: true,
+          sourceAllowGuildMerge: false,
+        ),
+        DropPosition.after,
+      );
+    });
   });
 
   group('shouldDeferGuildHoverUpdate', () {

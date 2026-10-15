@@ -361,6 +361,7 @@ class _GuildFolderWidgetState extends ConsumerState<_GuildFolderWidget> {
           itemId: guild.id,
           isFolder: false,
           allowCombine: false,
+          allowsGuildMergeAsSource: false,
           dragFeedback: GuildDragFeedback(
             label: guild.name,
             iconUrl: guild.iconUrl,
