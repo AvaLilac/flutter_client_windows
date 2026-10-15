@@ -191,13 +191,24 @@ GoRouter fluxerRouter(Ref ref) {
   final homeShellPopupRouteObserver = createShellPopupRouteObserver();
   final notificationsShellPopupRouteObserver = createShellPopupRouteObserver();
   final youShellPopupRouteObserver = createShellPopupRouteObserver();
-  final List<NavigatorObserver> navigationObservers = <NavigatorObserver>[
-    ChannelPersistenceObserver(db),
-    rootShellPopupRouteObserver,
-  ];
-  if (AppBuildConfig.hasObservabilityConfig) {
-    navigationObservers.add(FluxerMeasureNavigatorObserver());
+  final FluxerMeasureNavigatorObserver? measureNavigatorObserver =
+      AppBuildConfig.hasObservabilityConfig
+      ? FluxerMeasureNavigatorObserver()
+      : null;
+  List<NavigatorObserver> withMeasureNavigatorObserver(
+    List<NavigatorObserver> observers,
+  ) {
+    if (measureNavigatorObserver == null) {
+      return observers;
+    }
+    return <NavigatorObserver>[...observers, measureNavigatorObserver];
   }
+
+  final List<NavigatorObserver> navigationObservers =
+      withMeasureNavigatorObserver(<NavigatorObserver>[
+        ChannelPersistenceObserver(db),
+        rootShellPopupRouteObserver,
+      ]);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -673,7 +684,9 @@ GoRouter fluxerRouter(Ref ref) {
         branches: [
           StatefulShellBranch(
             navigatorKey: homeBranchNavigatorKey,
-            observers: [homeShellPopupRouteObserver],
+            observers: withMeasureNavigatorObserver([
+              homeShellPopupRouteObserver,
+            ]),
             routes: [
               GoRoute(
                 path: '/channels/@me',
@@ -746,6 +759,7 @@ GoRouter fluxerRouter(Ref ref) {
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const FavoritesLayout(),
                 ),
                 routes: [
@@ -804,6 +818,7 @@ GoRouter fluxerRouter(Ref ref) {
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: GuildRootPlaceholder(
                     guildId: state.pathParameters['guildId'] ?? '',
                   ),
@@ -815,6 +830,7 @@ GoRouter fluxerRouter(Ref ref) {
                     pageBuilder: (context, state) => shellSlideTransitionPage(
                       context: context,
                       key: state.pageKey,
+                      name: state.name,
                       child: GuildMembersPage(
                         guildId: state.pathParameters['guildId'] ?? '',
                       ),
@@ -877,6 +893,7 @@ GoRouter fluxerRouter(Ref ref) {
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const SavedMessagesPage(),
                 ),
               ),
@@ -886,6 +903,7 @@ GoRouter fluxerRouter(Ref ref) {
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const RecentMentionsPage(),
                 ),
               ),
@@ -894,7 +912,9 @@ GoRouter fluxerRouter(Ref ref) {
 
           StatefulShellBranch(
             navigatorKey: notificationsBranchNavigatorKey,
-            observers: [notificationsShellPopupRouteObserver],
+            observers: withMeasureNavigatorObserver([
+              notificationsShellPopupRouteObserver,
+            ]),
             routes: [
               GoRoute(
                 path: '/notifications',
@@ -902,6 +922,7 @@ GoRouter fluxerRouter(Ref ref) {
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const NotificationsPage(),
                 ),
               ),
@@ -910,7 +931,9 @@ GoRouter fluxerRouter(Ref ref) {
 
           StatefulShellBranch(
             navigatorKey: youBranchNavigatorKey,
-            observers: [youShellPopupRouteObserver],
+            observers: withMeasureNavigatorObserver([
+              youShellPopupRouteObserver,
+            ]),
             routes: [
               GoRoute(
                 path: '/you',
@@ -918,6 +941,7 @@ GoRouter fluxerRouter(Ref ref) {
                 pageBuilder: (context, state) => shellFadeTransitionPage(
                   context: context,
                   key: state.pageKey,
+                  name: state.name,
                   child: const ProfilePage(),
                 ),
               ),
