@@ -191,17 +191,13 @@ GoRouter fluxerRouter(Ref ref) {
   final homeShellPopupRouteObserver = createShellPopupRouteObserver();
   final notificationsShellPopupRouteObserver = createShellPopupRouteObserver();
   final youShellPopupRouteObserver = createShellPopupRouteObserver();
-  final FluxerMeasureNavigatorObserver? measureNavigatorObserver =
-      AppBuildConfig.hasObservabilityConfig
-      ? FluxerMeasureNavigatorObserver()
-      : null;
   List<NavigatorObserver> withMeasureNavigatorObserver(
     List<NavigatorObserver> observers,
   ) {
-    if (measureNavigatorObserver == null) {
+    if (!AppBuildConfig.hasObservabilityConfig) {
       return observers;
     }
-    return <NavigatorObserver>[...observers, measureNavigatorObserver];
+    return <NavigatorObserver>[...observers, FluxerMeasureNavigatorObserver()];
   }
 
   final List<NavigatorObserver> navigationObservers =
