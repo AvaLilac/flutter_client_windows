@@ -15,6 +15,7 @@ const Duration kFluxerSheetInputLockout = Duration(milliseconds: 300);
 const double kFluxerSheetBackdropSpringOmega = 18.5;
 
 const double kFluxerSheetBackdropScale = 0.924;
+const double kFluxerSheetStackPeek = 10;
 const double kFluxerSheetBackdropCornerRadius = 12;
 const double kFluxerSheetParallaxMinCoverage = 0.85;
 const double kFluxerSheetBackdropCornerRampEnd = 0.25;
@@ -51,7 +52,20 @@ double fluxerSheetBackdropProgress(
   return (1 - math.exp(-x) * (1 + x)).clamp(0, 1);
 }
 
-class FluxerSheetRoute<T> extends ModalBottomSheetRoute<T> {
+Widget fluxerSheetRecede({required double depth, required Widget child}) {
+  final double scale = 1 - (1 - kFluxerSheetBackdropScale) * depth;
+  return Transform(
+    alignment: Alignment.topCenter,
+    transform: Matrix4.identity()
+      ..setEntry(0, 0, scale)
+      ..setEntry(1, 1, scale)
+      ..setEntry(1, 3, -kFluxerSheetStackPeek * depth),
+    child: child,
+  );
+}
+
+class FluxerSheetRoute<T> extends ModalBottomSheetRoute<T>
+    implements FluxerSheetBackdropHost {
   FluxerSheetRoute({
     required super.builder,
     required super.isScrollControlled,
@@ -86,13 +100,43 @@ class FluxerSheetRoute<T> extends ModalBottomSheetRoute<T> {
 
   bool get isEntering => _inputLocked.value;
 
-  FluxerSheetBackdropProgress? get backdrop {
+  Route<dynamic>? get _host {
     final Route<dynamic>? previous = _previous;
-    if (previous != null && previous is FluxerSheetBackdropHost) {
-      return FluxerSheetBackdropProgress.of(previous);
+    if (previous is FluxerSheetBackdropHost) {
+      return previous;
+    }
+    final Route<dynamic>? opener = origin;
+    if (opener is FluxerSheetRoute &&
+        !identical(opener, this) &&
+        opener.isActive &&
+        (opener.animation?.isForwardOrCompleted ?? false)) {
+      return opener;
+    }
+    return null;
+  }
+
+  FluxerSheetBackdropProgress? get backdrop {
+    final Route<dynamic>? host = _host;
+    if (host != null) {
+      return FluxerSheetBackdropProgress.of(host);
     }
     final NavigatorState? nav = navigator;
     return nav == null ? null : FluxerSheetBackdropProgress.of(nav);
+  }
+
+  List<FluxerSheetBackdropProgress> get _tintSources {
+    final List<FluxerSheetBackdropProgress> sources =
+        <FluxerSheetBackdropProgress>[];
+    FluxerSheetRoute<dynamic>? route = this;
+    while (route != null) {
+      final FluxerSheetBackdropProgress? source = route.backdrop;
+      if (source != null) {
+        sources.add(source);
+      }
+      final Route<dynamic>? host = route._host;
+      route = host is FluxerSheetRoute ? host : null;
+    }
+    return sources;
   }
 
   @override
@@ -288,9 +332,12 @@ class FluxerSheetRoute<T> extends ModalBottomSheetRoute<T> {
   @override
   Widget buildModalBarrier() {
     final Animation<double>? routeAnimation = animation;
-    final FluxerSheetBackdropProgress? backdrop = this.backdrop;
+    final List<FluxerSheetBackdropProgress> tintSources = _tintSources;
     final Color base = barrierColor;
-    if (routeAnimation == null || backdrop == null || base.a == 0 || offstage) {
+    if (routeAnimation == null ||
+        tintSources.isEmpty ||
+        base.a == 0 ||
+        offstage) {
       return super.buildModalBarrier();
     }
     return ListenableBuilder(
@@ -298,14 +345,20 @@ class FluxerSheetRoute<T> extends ModalBottomSheetRoute<T> {
         routeAnimation,
         _scrimTravel,
         _scrimPin,
-        backdrop,
+        ...tintSources,
         _inputLocked,
       ]),
       builder: (BuildContext context, Widget? _) {
         final double opacity = _scrimOpacity(routeAnimation);
-        final Color tinted = backdrop.value <= 0
+        final double tint = tintSources
+            .fold<double>(
+              0,
+              (double tint, source) => math.max(tint, source.value),
+            )
+            .clamp(0, 1);
+        final Color tinted = tint <= 0
             ? base
-            : Color.lerp(base, kFluxerSheetBackdropDimColor, backdrop.value)!;
+            : Color.lerp(base, kFluxerSheetBackdropDimColor, tint)!;
         return ModalBarrier(
           color: opacity >= 1
               ? tinted
@@ -353,7 +406,7 @@ class FluxerSheetBackdropProgress extends ValueNotifier<double> {
   bool _flushScheduled = false;
 
   void report(Object sheet, double strength) {
-    final double clamped = strength.clamp(0, 1);
+    final double clamped = math.max(0, strength);
     if (_strengthBySheet[sheet] == clamped) {
       return;
     }
@@ -391,7 +444,7 @@ class _FluxerSheetBackdropAnimation extends Animation<double> {
   final FluxerSheetBackdropProgress _progress;
 
   @override
-  double get value => _progress.value;
+  double get value => _progress.value.clamp(0, 1);
 
   @override
   AnimationStatus get status {
@@ -419,13 +472,23 @@ class _FluxerSheetBackdropAnimation extends Animation<double> {
 }
 
 class FluxerSheetBackdropLink {
-  FluxerSheetBackdropLink(this._navigator, {Route<dynamic>? route})
-    : _progress =
-          (route is FluxerSheetRoute ? route.backdrop : null) ??
-          FluxerSheetBackdropProgress.of(_navigator);
+  FluxerSheetBackdropLink(
+    this._navigator, {
+    required Route<dynamic>? route,
+    required this.onCovered,
+  }) : _progress =
+           (route is FluxerSheetRoute ? route.backdrop : null) ??
+           FluxerSheetBackdropProgress.of(_navigator),
+       _covered = route == null ? null : FluxerSheetBackdropProgress.of(route) {
+    _covered?.addListener(onCovered);
+  }
 
   final NavigatorState _navigator;
   final FluxerSheetBackdropProgress _progress;
+  final FluxerSheetBackdropProgress? _covered;
+  final VoidCallback onCovered;
+
+  double get depth => _covered?.value ?? 0;
 
   bool covers(double sheetHeight) {
     final RenderObject? box = _navigator.mounted
@@ -439,7 +502,10 @@ class FluxerSheetBackdropLink {
 
   void report(double strength) => _progress.report(this, strength);
 
-  void dispose() => _progress.remove(this);
+  void dispose() {
+    _covered?.removeListener(onCovered);
+    _progress.remove(this);
+  }
 }
 
 class FluxerSheetBackdrop extends StatefulWidget {
@@ -475,10 +541,11 @@ class _FluxerSheetBackdropState extends State<FluxerSheetBackdrop> {
       child: widget.child,
       builder: (BuildContext context, double strength, Widget? child) {
         final bool active = strength > 0;
+        final double step = strength.clamp(0, 1);
         final double scale = 1 - (1 - kFluxerSheetBackdropScale) * strength;
         final double radius =
             kFluxerSheetBackdropCornerRadius *
-            (strength / kFluxerSheetBackdropCornerRampEnd).clamp(0, 1);
+            (step / kFluxerSheetBackdropCornerRampEnd).clamp(0, 1);
         return CustomPaint(
           painter: active ? const _FluxerSheetBackdropFill() : null,
           child: Transform(
@@ -486,7 +553,11 @@ class _FluxerSheetBackdropState extends State<FluxerSheetBackdrop> {
             transform: Matrix4.identity()
               ..setEntry(0, 0, scale)
               ..setEntry(1, 1, scale)
-              ..setEntry(1, 3, topInset * strength),
+              ..setEntry(
+                1,
+                3,
+                topInset * step - kFluxerSheetStackPeek * (strength - step),
+              ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(radius),
               clipBehavior: active ? Clip.antiAlias : Clip.none,
