@@ -32,7 +32,6 @@ class FluxerObservability {
   bool _measureInitialized = false;
   bool _platformErrorHandlerChained = false;
   bool _globalErrorHandlersInstalled = false;
-  bool _measureOnlyFlutterErrorReport = false;
   final ErrorLogRateLimiter _errorLogRateLimiter = ErrorLogRateLimiter();
 
   bool get isEnabled => _enabled;
@@ -146,13 +145,9 @@ class FluxerObservability {
     }
     _globalErrorHandlersInstalled = true;
     FlutterError.onError = (FlutterErrorDetails details) {
-      if (_measureOnlyFlutterErrorReport) {
-        return;
-      }
       FlutterError.presentError(details);
       recordFlutterError(details);
     };
-    PlatformDispatcher.instance.onError = _handlePlatformDispatcherError;
   }
 
   void recordFlutterError(FlutterErrorDetails details) {
@@ -174,11 +169,11 @@ class FluxerObservability {
       stack: stackTrace,
       library: library,
     );
-    recordFlutterError(details);
     if (!_shouldSendErrorsToMeasure) {
+      recordFlutterError(details);
       return;
     }
-    _forwardUncaughtToMeasureSdk(details);
+    FlutterError.reportError(details);
   }
 
   void recordError(
@@ -243,21 +238,6 @@ class FluxerObservability {
     _measureInitialized = Measure.instance.isInitialized;
   }
 
-  bool _handlePlatformDispatcherError(Object error, StackTrace stack) {
-    if (isDriftCancellation(error)) {
-      return true;
-    }
-    reportUncaughtError(error, stack, library: 'platform_dispatcher');
-    forceFlush();
-    return false;
-  }
-
-  void _forwardUncaughtToMeasureSdk(FlutterErrorDetails details) {
-    _measureOnlyFlutterErrorReport = true;
-    FlutterError.reportError(details);
-    _measureOnlyFlutterErrorReport = false;
-  }
-
   void _logErrorToTalker(
     Object error, {
     required String source,
@@ -284,7 +264,25 @@ class FluxerObservability {
       return;
     }
     _platformErrorHandlerChained = true;
-    PlatformDispatcher.instance.onError = _handlePlatformDispatcherError;
+    final bool Function(Object, StackTrace)? measurePlatformHandler =
+        PlatformDispatcher.instance.onError;
+    PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+      if (isDriftCancellation(error)) {
+        return true;
+      }
+      recordFlutterError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'platform_dispatcher',
+        ),
+      );
+      if (_shouldSendErrorsToMeasure && measurePlatformHandler != null) {
+        measurePlatformHandler(error, stack);
+      }
+      forceFlush();
+      return false;
+    };
   }
 
   void _recordExceptionOnSpan(Span span, Object error, StackTrace stackTrace) {
