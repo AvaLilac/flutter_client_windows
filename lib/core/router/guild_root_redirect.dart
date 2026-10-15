@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:fluxer_app/core/database/fluxer_database.dart' hide Channel;
 import 'package:fluxer_app/core/database/fluxer_database.dart'
     as db_row
     show Channel;
+import 'package:fluxer_app/core/database/fluxer_database.dart' hide Channel;
 import 'package:fluxer_app/core/router/route_kind.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
 import 'package:fluxer_app/features/channels/data/unread_permission_utils.dart';
