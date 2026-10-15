@@ -9,6 +9,14 @@ const double kGuildDragFeedbackSize = 48;
 const double kGuildDragHoverSpeedThresholdPxPerMs = 2;
 const Duration kGuildDragHoverDwell = Duration(milliseconds: 70);
 const double kGuildDragSeamAdjacentTolerance = 4;
+const double kGuildRailAutoScrollEdgeExtent = 56;
+const double kGuildRailAutoScrollMaxSpeed = 900;
+const double kFolderCombineSplit = 0.34;
+const double kFolderCombineUpperSplit = 0.66;
+const double kGuildMergeCombineSplit = 0.44;
+const double kGuildMergeCombineUpperSplit = 0.56;
+const double kFolderCombineEdgeInset = 0.1;
+const double kGuildMergeCombineEdgeInset = 0.05;
 
 double clampGuildDragFeedbackCenterY({
   required double centerY,
@@ -25,6 +33,29 @@ double clampGuildDragFeedbackCenterY({
     return centerY.clamp(boundsTop, boundsBottom);
   }
   return centerY.clamp(minY, maxY);
+}
+
+double guildRailAutoScrollVelocity({
+  required double pointerY,
+  required double top,
+  required double bottom,
+}) {
+  final double halfHeight = (bottom - top) / 2;
+  final double extent = halfHeight < kGuildRailAutoScrollEdgeExtent
+      ? halfHeight
+      : kGuildRailAutoScrollEdgeExtent;
+  if (extent <= 0) {
+    return 0;
+  }
+  final double intoTop = top + extent - pointerY;
+  if (intoTop > 0) {
+    return -kGuildRailAutoScrollMaxSpeed * (intoTop / extent).clamp(0.0, 1.0);
+  }
+  final double intoBottom = pointerY - (bottom - extent);
+  if (intoBottom > 0) {
+    return kGuildRailAutoScrollMaxSpeed * (intoBottom / extent).clamp(0.0, 1.0);
+  }
+  return 0;
 }
 
 enum DropPosition { before, after, combine }
@@ -157,6 +188,7 @@ class DragState {
   const DragState({
     this.dragItemId,
     this.dragSourceIsFolder = false,
+    this.dragSourceAllowGuildMerge = true,
     this.hoverTargetId,
     this.hoverTargetIsFolder = false,
     this.dropPosition,
@@ -167,6 +199,7 @@ class DragState {
 
   final String? dragItemId;
   final bool dragSourceIsFolder;
+  final bool dragSourceAllowGuildMerge;
   final String? hoverTargetId;
   final bool hoverTargetIsFolder;
   final DropPosition? dropPosition;
@@ -192,6 +225,7 @@ class DragState {
   DragState copyWith({
     String? dragItemId,
     bool? dragSourceIsFolder,
+    bool? dragSourceAllowGuildMerge,
     String? hoverTargetId,
     bool? hoverTargetIsFolder,
     DropPosition? dropPosition,
@@ -207,6 +241,8 @@ class DragState {
     return DragState(
       dragItemId: clearDragItemId ? null : (dragItemId ?? this.dragItemId),
       dragSourceIsFolder: dragSourceIsFolder ?? this.dragSourceIsFolder,
+      dragSourceAllowGuildMerge:
+          dragSourceAllowGuildMerge ?? this.dragSourceAllowGuildMerge,
       hoverTargetId: clearHoverTargetId
           ? null
           : (hoverTargetId ?? this.hoverTargetId),
@@ -278,6 +314,7 @@ class GuildDrag extends _$GuildDrag {
       <String, RegisteredGuildDragTarget>{};
   double? _verticalBoundsTop;
   double? _verticalBoundsBottom;
+  Offset? _lastRawDragGlobalPosition;
 
   @override
   DragState build() => const DragState();
@@ -303,6 +340,40 @@ class GuildDrag extends _$GuildDrag {
     );
   }
 
+  Offset _clampHoverGlobalPosition(Offset globalPosition) {
+    final double? top = _verticalBoundsTop;
+    final double? bottom = _verticalBoundsBottom;
+    if (top == null || bottom == null || bottom < top) {
+      return globalPosition;
+    }
+    return Offset(globalPosition.dx, globalPosition.dy.clamp(top, bottom));
+  }
+
+  double autoScrollVelocity() {
+    final Offset? pointer = _lastRawDragGlobalPosition;
+    final double? top = _verticalBoundsTop;
+    final double? bottom = _verticalBoundsBottom;
+    if (!state.hasMovedFromHoldPoint ||
+        pointer == null ||
+        top == null ||
+        bottom == null) {
+      return 0;
+    }
+    return guildRailAutoScrollVelocity(
+      pointerY: pointer.dy,
+      top: top,
+      bottom: bottom,
+    );
+  }
+
+  bool refreshHoverAfterAutoScroll() {
+    final Offset? pointer = _lastRawDragGlobalPosition;
+    if (!state.hasMovedFromHoldPoint || pointer == null) {
+      return false;
+    }
+    return _updateHoverFromGlobalPosition(pointer, stabilizeHover: false);
+  }
+
   void registerDragTarget(RegisteredGuildDragTarget target) {
     _dragTargets[target.itemId] = target;
   }
@@ -315,17 +386,21 @@ class GuildDrag extends _$GuildDrag {
     String itemId, {
     required bool sourceIsFolder,
     double? anchorGlobalCenterX,
+    bool allowGuildMerge = true,
   }) {
     _dragStartGlobalPosition = null;
+    _lastRawDragGlobalPosition = null;
     _resetHoverStabilization();
     state = DragState(
       dragItemId: itemId,
       dragSourceIsFolder: sourceIsFolder,
+      dragSourceAllowGuildMerge: allowGuildMerge,
       dragAnchorGlobalCenterX: anchorGlobalCenterX,
     );
   }
 
   bool updateDragMovement(Offset globalPosition) {
+    _lastRawDragGlobalPosition = globalPosition;
     _dragStartGlobalPosition ??= globalPosition;
     final bool hasMoved =
         state.hasMovedFromHoldPoint ||
@@ -343,15 +418,16 @@ class GuildDrag extends _$GuildDrag {
     if (!hasMoved) {
       return false;
     }
-    return _updateHoverFromGlobalPosition(
-      clampedPosition,
-      stabilizeHover: true,
-    );
+    return _updateHoverFromGlobalPosition(globalPosition, stabilizeHover: true);
   }
 
-  bool finalizeHoverForDrop(Offset globalPosition) {
+  bool finalizeHoverForDrop() {
+    final Offset? globalPosition = _lastRawDragGlobalPosition;
+    if (globalPosition == null) {
+      return false;
+    }
     return _updateHoverFromGlobalPosition(
-      _clampDragGlobalPosition(globalPosition),
+      globalPosition,
       stabilizeHover: false,
     );
   }
@@ -360,11 +436,12 @@ class GuildDrag extends _$GuildDrag {
     Offset globalPosition, {
     required bool stabilizeHover,
   }) {
+    final Offset hoverPosition = _clampHoverGlobalPosition(globalPosition);
     final _ResolvedGuildHoverIntent resolved = _resolveHoverIntent(
-      globalPosition,
+      hoverPosition,
     );
     if (stabilizeHover) {
-      final double speed = _recordHoverSpeedSample(globalPosition);
+      final double speed = _recordHoverSpeedSample(hoverPosition);
       _trackPendingDwell(resolved.intent);
       final GuildDropHoverIntent? applied = _hoverIntentFromState();
       final bool hasPendingChange = resolved.intent != applied;
@@ -441,6 +518,7 @@ class GuildDrag extends _$GuildDrag {
       sourceIsFolder: state.dragSourceIsFolder,
       targetIsFolder: matchedTarget.isFolder,
       allowCombine: matchedTarget.allowCombine,
+      sourceAllowGuildMerge: state.dragSourceAllowGuildMerge,
       currentPosition: currentPosition,
     );
     return _ResolvedGuildHoverIntent(
@@ -625,6 +703,7 @@ class GuildDrag extends _$GuildDrag {
 
   void endDrag() {
     _dragStartGlobalPosition = null;
+    _lastRawDragGlobalPosition = null;
     _resetHoverStabilization();
     state = const DragState();
   }
@@ -635,24 +714,42 @@ DropPosition resolveGuildDropPosition({
   required bool sourceIsFolder,
   required bool targetIsFolder,
   required bool allowCombine,
+  bool sourceAllowGuildMerge = true,
   DropPosition? currentPosition,
 }) {
-  const double inset = 0.08;
+  const double reorderInset = 0.08;
 
   if (sourceIsFolder || !allowCombine) {
     return _resolveSplitDropPosition(
       ratio: ratio,
       split: 0.5,
       currentPosition: currentPosition,
-      inset: inset,
+      inset: reorderInset,
+    );
+  }
+  if (targetIsFolder) {
+    return _resolveSplitDropPosition(
+      ratio: ratio,
+      split: kFolderCombineSplit,
+      currentPosition: currentPosition,
+      inset: kFolderCombineEdgeInset,
+      upperSplit: kFolderCombineUpperSplit,
+    );
+  }
+  if (!sourceAllowGuildMerge) {
+    return _resolveSplitDropPosition(
+      ratio: ratio,
+      split: 0.5,
+      currentPosition: currentPosition,
+      inset: reorderInset,
     );
   }
   return _resolveSplitDropPosition(
     ratio: ratio,
-    split: 0.25,
+    split: kGuildMergeCombineSplit,
     currentPosition: currentPosition,
-    inset: inset,
-    upperSplit: 0.75,
+    inset: kGuildMergeCombineEdgeInset,
+    upperSplit: kGuildMergeCombineUpperSplit,
   );
 }
 

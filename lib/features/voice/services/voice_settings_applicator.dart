@@ -553,7 +553,7 @@ class VoiceSettingsApplicator {
     if (AudioManager.instance.canSwitchSpeakerphone) {
       final Set<VoiceOutputRoute> available =
           await readAvailableVoiceOutputRoutes();
-      final VoiceOutputRoute route = resolveVoiceOutputRoute(
+      final VoiceOutputRoute route = effectiveVoiceOutputRoute(
         preference: settings.outputRoute,
         available: available,
       );

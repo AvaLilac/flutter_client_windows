@@ -10,6 +10,7 @@ import 'package:fluxer_app/core/build/app_build_environment.dart';
 import 'package:fluxer_app/core/database/drift_stream_utils.dart';
 import 'package:fluxer_app/core/observability/error_log_rate_limiter.dart';
 import 'package:fluxer_app/core/observability/measure_log_redaction.dart';
+import 'package:fluxer_app/core/observability/measure_native_reporting.dart';
 import 'package:fluxer_app/core/observability/measure_version_metadata.dart';
 import 'package:fluxer_app/core/providers/app_runtime_info.dart';
 import 'package:fluxer_app/core/talker.dart';
@@ -20,9 +21,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String _kObservabilitySessionActiveKey = 'observability_session_active';
 
 class FluxerObservability {
-  FluxerObservability._();
+  FluxerObservability._(this._measure, this._initializeNative);
 
-  static final FluxerObservability instance = FluxerObservability._();
+  @visibleForTesting
+  FluxerObservability.forTesting(this._measure, this._initializeNative)
+    : _measureInitialized = true;
+
+  static final FluxerObservability instance = FluxerObservability._(
+    Measure.instance,
+    initializeNativeMeasure,
+  );
+
+  final MeasureApi _measure;
+  final Future<bool> Function() _initializeNative;
 
   RawReceivePort? _isolateErrorPort;
   bool _runtimeObserversStarted = false;
@@ -30,9 +41,7 @@ class FluxerObservability {
   bool _enabled = false;
   Future<void>? _measureInitFuture;
   bool _measureInitialized = false;
-  bool _platformErrorHandlerChained = false;
   bool _globalErrorHandlersInstalled = false;
-  bool _measureOnlyFlutterErrorReport = false;
   final ErrorLogRateLimiter _errorLogRateLimiter = ErrorLogRateLimiter();
 
   bool get isEnabled => _enabled;
@@ -60,7 +69,11 @@ class FluxerObservability {
       talker.warning('[Measure] Cannot start before SDK init');
       return;
     }
-    await Measure.instance.start();
+    if (!await _initializeNative()) {
+      talker.warning('[Measure] Native SDK is not configured');
+      return;
+    }
+    await _measure.start();
     _enabled = true;
     talker.info('[Measure] Started');
     _startRuntimeObservers();
@@ -70,7 +83,7 @@ class FluxerObservability {
   Future<void> stop() async {
     _enabled = false;
     if (_measureInitialized) {
-      await Measure.instance.stop();
+      await _measure.stop();
     }
   }
 
@@ -83,7 +96,7 @@ class FluxerObservability {
     if (!isEnabled) {
       return null;
     }
-    final Span span = Measure.instance.startSpan(name);
+    final Span span = _measure.startSpan(name);
     if (attributes.isNotEmpty) {
       span.setAttributes(attributes);
     }
@@ -136,7 +149,7 @@ class FluxerObservability {
     if (!isEnabled || span.hasEnded()) {
       return;
     }
-    headers[Measure.instance.getTraceParentHeaderKey()] = Measure.instance
+    headers[_measure.getTraceParentHeaderKey()] = _measure
         .getTraceParentHeaderValue(span);
   }
 
@@ -146,13 +159,9 @@ class FluxerObservability {
     }
     _globalErrorHandlersInstalled = true;
     FlutterError.onError = (FlutterErrorDetails details) {
-      if (_measureOnlyFlutterErrorReport) {
-        return;
-      }
       FlutterError.presentError(details);
       recordFlutterError(details);
     };
-    PlatformDispatcher.instance.onError = _handlePlatformDispatcherError;
   }
 
   void recordFlutterError(FlutterErrorDetails details) {
@@ -174,11 +183,11 @@ class FluxerObservability {
       stack: stackTrace,
       library: library,
     );
-    recordFlutterError(details);
     if (!_shouldSendErrorsToMeasure) {
+      recordFlutterError(details);
       return;
     }
-    _forwardUncaughtToMeasureSdk(details);
+    FlutterError.reportError(details);
   }
 
   void recordError(
@@ -200,17 +209,13 @@ class FluxerObservability {
     final Map<String, AttributeValue> attributes = <String, AttributeValue>{
       'exception.source': StringAttr(source),
       if (trimmedContext.isNotEmpty)
-        'exception.context': StringAttr(
-          redactDomainsForMeasure(trimmedContext),
-        ),
+        'exception.context': StringAttr(scrubForMeasure(trimmedContext)),
     };
     final StackTrace effectiveStack = stackTrace ?? StackTrace.current;
-    unawaited(
-      Measure.instance.trackHandledError(
-        sanitizeErrorForMeasure(error),
-        sanitizeStackTraceForMeasure(effectiveStack),
-        attributes: attributes,
-      ),
+    _measure.trackHandledError(
+      sanitizeErrorForMeasure(error),
+      sanitizeStackTraceForMeasure(effectiveStack),
+      attributes: attributes,
     );
   }
 
@@ -234,28 +239,54 @@ class FluxerObservability {
     if (_measureInitialized) {
       return;
     }
-    _measureInitFuture ??= Measure.instance.init(
+    _measureInitFuture ??= _initializeMeasure();
+    await _measureInitFuture;
+  }
+
+  Future<void> _initializeMeasure() async {
+    final FlutterExceptionHandler? localHandler = FlutterError.onError;
+    FlutterError.onError = (FlutterErrorDetails details) {};
+    await Measure.instance.init(
       () {},
       config: const MeasureConfig(autoStart: false, enableLogging: kDebugMode),
     );
-    await _measureInitFuture;
-    _chainMeasurePlatformErrorHandler();
+    routeMeasureErrorHooksThroughScrubber(localHandler);
     _measureInitialized = Measure.instance.isInitialized;
   }
 
-  bool _handlePlatformDispatcherError(Object error, StackTrace stack) {
-    if (isDriftCancellation(error)) {
-      return true;
-    }
-    reportUncaughtError(error, stack, library: 'platform_dispatcher');
-    forceFlush();
-    return false;
-  }
-
-  void _forwardUncaughtToMeasureSdk(FlutterErrorDetails details) {
-    _measureOnlyFlutterErrorReport = true;
-    FlutterError.reportError(details);
-    _measureOnlyFlutterErrorReport = false;
+  @visibleForTesting
+  void routeMeasureErrorHooksThroughScrubber(
+    FlutterExceptionHandler? localHandler,
+  ) {
+    final FlutterExceptionHandler? measureFlutterHandler = FlutterError.onError;
+    FlutterError.onError = (FlutterErrorDetails details) {
+      localHandler?.call(details);
+      if (_shouldSendErrorsToMeasure) {
+        measureFlutterHandler?.call(sanitizeErrorDetailsForMeasure(details));
+      }
+    };
+    final bool Function(Object, StackTrace)? measurePlatformHandler =
+        PlatformDispatcher.instance.onError;
+    PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+      if (isDriftCancellation(error)) {
+        return true;
+      }
+      recordFlutterError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'platform_dispatcher',
+        ),
+      );
+      if (_shouldSendErrorsToMeasure && measurePlatformHandler != null) {
+        measurePlatformHandler(
+          sanitizeErrorForMeasure(error),
+          sanitizeStackTraceForMeasure(stack),
+        );
+      }
+      forceFlush();
+      return false;
+    };
   }
 
   void _logErrorToTalker(
@@ -279,29 +310,19 @@ class FluxerObservability {
     );
   }
 
-  void _chainMeasurePlatformErrorHandler() {
-    if (_platformErrorHandlerChained) {
-      return;
-    }
-    _platformErrorHandlerChained = true;
-    PlatformDispatcher.instance.onError = _handlePlatformDispatcherError;
-  }
-
   void _recordExceptionOnSpan(Span span, Object error, StackTrace stackTrace) {
     span
       ..setStatus(SpanStatus.error)
       ..setAttributeString(
         'exception.message',
-        redactDomainsForMeasure(error.toString()),
+        scrubForMeasure(error.toString()),
       );
     if (!_shouldSendErrorsToMeasure) {
       return;
     }
-    unawaited(
-      Measure.instance.trackHandledError(
-        sanitizeErrorForMeasure(error),
-        sanitizeStackTraceForMeasure(stackTrace),
-      ),
+    _measure.trackHandledError(
+      sanitizeErrorForMeasure(error),
+      sanitizeStackTraceForMeasure(stackTrace),
     );
   }
 
@@ -326,10 +347,10 @@ class FluxerObservability {
         if (voiceBreadcrumb != null) {
           for (final MapEntry<String, String> entry
               in voiceBreadcrumb.entries) {
-            attributes.add(entry.key, redactDomainsForMeasure(entry.value));
+            attributes.add(entry.key, scrubForMeasure(entry.value));
           }
         }
-        Measure.instance.trackEvent(
+        _measure.trackEvent(
           name: 'app.previous_session_unclean_exit',
           attributes: attributes.build(),
         );
@@ -371,7 +392,7 @@ class FluxerObservability {
     if (packageName != null) {
       attributes.add('app.package_name', packageName);
     }
-    Measure.instance.trackEvent(
+    _measure.trackEvent(
       name: 'app.observability_session_started',
       attributes: attributes.build(),
     );

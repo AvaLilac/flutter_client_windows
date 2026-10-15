@@ -89,6 +89,61 @@ void main() {
         DropPosition.after,
       );
     });
+
+    test('uses wider reorder edges on folders', () {
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.2,
+          sourceIsFolder: false,
+          targetIsFolder: true,
+          allowCombine: true,
+        ),
+        DropPosition.before,
+      );
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.8,
+          sourceIsFolder: false,
+          targetIsFolder: true,
+          allowCombine: true,
+        ),
+        DropPosition.after,
+      );
+    });
+
+    test('uses a narrow merge band between guilds', () {
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.5,
+          sourceIsFolder: false,
+          targetIsFolder: false,
+          allowCombine: true,
+        ),
+        DropPosition.combine,
+      );
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.4,
+          sourceIsFolder: false,
+          targetIsFolder: false,
+          allowCombine: true,
+        ),
+        DropPosition.before,
+      );
+    });
+
+    test('skips guild merge when dragging from inside a folder', () {
+      expect(
+        resolveGuildDropPosition(
+          ratio: 0.5,
+          sourceIsFolder: false,
+          targetIsFolder: false,
+          allowCombine: true,
+          sourceAllowGuildMerge: false,
+        ),
+        DropPosition.after,
+      );
+    });
   });
 
   group('shouldDeferGuildHoverUpdate', () {
@@ -230,6 +285,45 @@ void main() {
           boundsBottom: bottom,
         ),
         300,
+      );
+    });
+  });
+
+  group('guildRailAutoScrollVelocity', () {
+    const double top = 100;
+    const double bottom = 700;
+
+    double velocityAt(double pointerY) => guildRailAutoScrollVelocity(
+      pointerY: pointerY,
+      top: top,
+      bottom: bottom,
+    );
+
+    test('does not scroll away from the edges', () {
+      expect(velocityAt(400), 0);
+      expect(velocityAt(top + kGuildRailAutoScrollEdgeExtent), 0);
+      expect(velocityAt(bottom - kGuildRailAutoScrollEdgeExtent), 0);
+    });
+
+    test('scrolls up near the top and down near the bottom', () {
+      expect(velocityAt(top + 10), lessThan(0));
+      expect(velocityAt(bottom - 10), greaterThan(0));
+    });
+
+    test('speeds up the deeper the finger is in the edge zone', () {
+      expect(velocityAt(bottom - 5), greaterThan(velocityAt(bottom - 40)));
+      expect(velocityAt(top + 5), lessThan(velocityAt(top + 40)));
+    });
+
+    test('caps the speed once the finger leaves the rail', () {
+      expect(velocityAt(bottom + 200), kGuildRailAutoScrollMaxSpeed);
+      expect(velocityAt(0), -kGuildRailAutoScrollMaxSpeed);
+    });
+
+    test('never scrolls a rail too short for an edge zone', () {
+      expect(
+        guildRailAutoScrollVelocity(pointerY: 100, top: 100, bottom: 100),
+        0,
       );
     });
   });

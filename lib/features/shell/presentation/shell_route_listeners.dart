@@ -96,11 +96,17 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
         if (previous == next) {
           return;
         }
-        _stopTtsIfLeavingSpokenChannel(next);
-        if (previous != null) {
-          _stopAttachmentAudioOnChannelChange();
-          _scheduleInactiveChannelCleanup(previous);
-        }
+        final String? previousChannelId = previous;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          _stopTtsIfLeavingSpokenChannel(ref.read(activeChannelIdProvider));
+          if (previousChannelId != null) {
+            _stopAttachmentAudioOnChannelChange();
+            _scheduleInactiveChannelCleanup(previousChannelId);
+          }
+        });
       });
 
     if (PushProviderGuard.isUnifiedPush) {

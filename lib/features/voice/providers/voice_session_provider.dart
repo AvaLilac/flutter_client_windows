@@ -142,7 +142,9 @@ class VoiceSession extends _$VoiceSession {
   Timer? _audioRouteRecoveryTimer;
   final List<Timer> _speakerOutputRetryTimers = <Timer>[];
   Set<String>? _lastKnownInputDeviceIds;
+  Set<String>? _lastKnownOutputDeviceIds;
   Set<String>? _pendingRecoveryInputIds;
+  Set<String>? _pendingRecoveryOutputIds;
   bool _isRecoveringAudioRoute = false;
   VoiceChannelPermissions? _channelPermissions;
   VoiceJoinTiming? _joinTiming;
@@ -2909,10 +2911,12 @@ class VoiceSession extends _$VoiceSession {
     }
 
     participant.addListener(onChanged);
+    onChanged();
     try {
-      await published.future.timeout(_kScreenSharePublicationTimeout);
-    } on TimeoutException {
-      return;
+      await published.future.timeout(
+        _kScreenSharePublicationTimeout,
+        onTimeout: () {},
+      );
     } finally {
       participant.removeListener(onChanged);
     }
@@ -3118,7 +3122,9 @@ class VoiceSession extends _$VoiceSession {
     _audioRouteRecoveryTimer?.cancel();
     _audioRouteRecoveryTimer = null;
     _pendingRecoveryInputIds = null;
+    _pendingRecoveryOutputIds = null;
     _lastKnownInputDeviceIds = null;
+    _lastKnownOutputDeviceIds = null;
     _isRecoveringAudioRoute = false;
     unawaited(_mediaDeviceChangeSubscription?.cancel());
     _mediaDeviceChangeSubscription = null;
@@ -3131,19 +3137,37 @@ class VoiceSession extends _$VoiceSession {
         .toSet();
   }
 
+  Set<String> _audioOutputDeviceIds(List<MediaDevice> devices) {
+    return devices
+        .where((MediaDevice device) => device.kind == 'audiooutput')
+        .map((MediaDevice device) => device.deviceId)
+        .toSet();
+  }
+
   void _scheduleAudioRouteRecovery(List<MediaDevice> devices) {
     _pendingRecoveryInputIds = _audioInputDeviceIds(devices);
+    _pendingRecoveryOutputIds = _audioOutputDeviceIds(devices);
     _audioRouteRecoveryTimer?.cancel();
     _audioRouteRecoveryTimer = Timer(kVoiceAudioRouteRecoveryDebounce, () {
       final Set<String>? inputIds = _pendingRecoveryInputIds;
+      final Set<String>? outputIds = _pendingRecoveryOutputIds;
       _pendingRecoveryInputIds = null;
-      if (inputIds != null) {
-        unawaited(_recoverAudioAfterDeviceChange(inputIds));
+      _pendingRecoveryOutputIds = null;
+      if (inputIds != null && outputIds != null) {
+        unawaited(
+          _recoverAudioAfterDeviceChange(
+            inputIds: inputIds,
+            outputIds: outputIds,
+          ),
+        );
       }
     });
   }
 
-  Future<void> _recoverAudioAfterDeviceChange(Set<String> inputIds) async {
+  Future<void> _recoverAudioAfterDeviceChange({
+    required Set<String> inputIds,
+    required Set<String> outputIds,
+  }) async {
     if (_isRecoveringAudioRoute) {
       return;
     }
@@ -3160,17 +3184,28 @@ class VoiceSession extends _$VoiceSession {
       previous: _lastKnownInputDeviceIds,
       current: inputIds,
     );
+    final bool outputChanged = didAudioOutputDeviceIdsChange(
+      previous: _lastKnownOutputDeviceIds,
+      current: outputIds,
+    );
     _lastKnownInputDeviceIds = inputIds;
+    _lastKnownOutputDeviceIds = outputIds;
+
+    if (!inputChanged && !outputChanged) {
+      return;
+    }
 
     final VoiceSettingsState settings = ref.read(voiceSettingsProvider);
     final VoiceSettingsApplicator applicator = _voiceSettingsApplicator();
 
     _isRecoveringAudioRoute = true;
     try {
-      await _runAudioRouteRecoveryStep(
-        'applySpeakerOutput',
-        () => applicator.applySpeakerOutput(settings: settings),
-      );
+      if (outputChanged) {
+        await _runAudioRouteRecoveryStep(
+          'applySpeakerOutput',
+          () => applicator.applySpeakerOutput(settings: settings),
+        );
+      }
       if (inputChanged &&
           shouldRefreshMicrophoneOnAudioRouteChange(
             isIos: Platform.isIOS,

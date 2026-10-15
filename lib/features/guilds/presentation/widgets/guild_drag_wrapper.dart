@@ -145,6 +145,7 @@ class GuildDragWrapper extends ConsumerStatefulWidget {
     required this.child,
     this.enabled = true,
     this.allowCombine = true,
+    this.allowsGuildMergeAsSource = true,
     this.longPressMenu,
     this.peekMenu,
     this.folderPeekMenu,
@@ -156,6 +157,7 @@ class GuildDragWrapper extends ConsumerStatefulWidget {
   final bool isFolder;
   final bool enabled;
   final bool allowCombine;
+  final bool allowsGuildMergeAsSource;
   final Widget dragFeedback;
   final Widget child;
   final ValueGetter<GuildLongPressMenu?>? longPressMenu;
@@ -167,8 +169,13 @@ class GuildDragWrapper extends ConsumerStatefulWidget {
   ConsumerState<GuildDragWrapper> createState() => _GuildDragWrapperState();
 }
 
-class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
+class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper>
+    with AutomaticKeepAliveClientMixin {
   final GlobalKey _dragTargetKey = GlobalKey();
+  bool _isDragSource = false;
+
+  @override
+  bool get wantKeepAlive => _isDragSource;
 
   @override
   void initState() {
@@ -213,6 +220,16 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDragSource = ref.watch(
+      guildDragProvider.select(
+        (DragState state) => state.dragItemId == widget.itemId,
+      ),
+    );
+    if (isDragSource != _isDragSource) {
+      _isDragSource = isDragSource;
+      updateKeepAlive();
+    }
+    super.build(context);
     final bool useTouchDrag = isTouchPrimaryInput(ref);
     final Color brandPrimary = context.colors.brandPrimary;
     final GuildDragItemVisualState dragVisual = ref.watch(
@@ -297,6 +314,7 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
                     widget.itemId,
                     sourceIsFolder: widget.isFolder,
                     anchorGlobalCenterX: anchorGlobalCenterX,
+                    allowGuildMerge: widget.allowsGuildMergeAsSource,
                   );
             },
             onDragUpdate: useTouchDrag
@@ -360,6 +378,7 @@ class _GuildDragWrapperState extends ConsumerState<GuildDragWrapper> {
       sourceIsFolder: details.data.isFolder,
       targetIsFolder: widget.isFolder,
       allowCombine: widget.allowCombine,
+      sourceAllowGuildMerge: dragState.dragSourceAllowGuildMerge,
       currentPosition: currentPosition,
     );
     ref
@@ -590,6 +609,7 @@ class _GuildDraggableState extends ConsumerState<_GuildDraggable>
 
   Future<void> _runReleaseAnimation() async {
     if (!mounted) {
+      ref.read(guildDragProvider.notifier).endDrag();
       return;
     }
     final GuildDrag notifier = ref.read(guildDragProvider.notifier);
@@ -602,7 +622,7 @@ class _GuildDraggableState extends ConsumerState<_GuildDraggable>
       return;
     }
 
-    notifier.finalizeHoverForDrop(Offset(centerX, globalY));
+    notifier.finalizeHoverForDrop();
 
     _isReleasing = true;
     _releaseStart = Offset(centerX, globalY);
@@ -626,14 +646,15 @@ class _GuildDraggableState extends ConsumerState<_GuildDraggable>
 
     _releaseController.reset();
     await _releaseController.forward();
-    if (!mounted) {
-      return;
-    }
     _isReleasing = false;
     _releaseStart = null;
     _releaseEnd = null;
     _removeFeedbackOverlay();
-    widget.onDragEnded();
+    if (mounted) {
+      widget.onDragEnded();
+    } else {
+      ref.read(guildDragProvider.notifier).endDrag();
+    }
   }
 
   @override

@@ -22,8 +22,21 @@ channel_upper() {
   printf '%s' "$1" | tr '[:lower:]' '[:upper:]'
 }
 
+ios_measure_secrets_channel() {
+  local channel="$1"
+  if [[ "$channel" == "beta" ]]; then
+    printf '%s' stable
+  else
+    printf '%s' "$channel"
+  fi
+}
+
 resolve_android_key() {
   local channel="$1"
+  if [[ "$channel" == "beta" ]]; then
+    resolve_android_key stable
+    return 0
+  fi
   local upper
   upper="$(channel_upper "$channel")"
   local env_name="MEASURE_ANDROID_API_KEY_${upper}"
@@ -52,15 +65,15 @@ resolve_android_key() {
     printf '%s' "$from_file"
     return 0
   fi
-  if [[ "$channel" == "beta" ]]; then
-    resolve_android_key stable
-    return 0
-  fi
   printf '%s' ""
 }
 
 resolve_ios_key() {
   local channel="$1"
+  if [[ "$channel" == "beta" ]]; then
+    resolve_ios_key stable
+    return 0
+  fi
   local upper
   upper="$(channel_upper "$channel")"
   local env_name="MEASURE_IOS_API_KEY_${upper}"
@@ -89,10 +102,6 @@ resolve_ios_key() {
     printf '%s' "$from_file"
     return 0
   fi
-  if [[ "$channel" == "beta" ]]; then
-    resolve_ios_key stable
-    return 0
-  fi
   printf '%s' ""
 }
 
@@ -109,9 +118,11 @@ write_ios_secrets_xcconfig() {
   local api_key="$2"
   local api_url="$3"
   local path="$ROOT/ios/Flutter/MeasureSecrets.${channel}.xcconfig"
+  local xcconfig_api_url
+  xcconfig_api_url="$(printf '%s' "$api_url" | sed 's#//#/$()/#g')"
   cat >"$path" <<EOF
 MEASURE_API_KEY=$api_key
-MEASURE_API_URL=$api_url
+MEASURE_API_URL=$xcconfig_api_url
 EOF
   echo "Wrote ios/Flutter/MeasureSecrets.${channel}.xcconfig"
 }
@@ -158,7 +169,8 @@ if [[ "$android_any" -eq 1 ]]; then
     for channel in "${MEASURE_CHANNELS[@]}"; do
       ios_key="$(resolve_ios_key "$channel")"
       if [[ -z "$ios_key" ]]; then
-        ios_key="$(read_measure_property "$MEASURE_PROPERTIES" "measure.ios.apiKey.${channel}")"
+        property_channel="$(ios_measure_secrets_channel "$channel")"
+        ios_key="$(read_measure_property "$MEASURE_PROPERTIES" "measure.ios.apiKey.${property_channel}")"
       fi
       if [[ -n "$ios_key" ]]; then
         echo "measure.ios.apiKey.${channel}=$ios_key"
@@ -174,7 +186,8 @@ ios_written=0
 for channel in "${MEASURE_CHANNELS[@]}"; do
   ios_key="$(resolve_ios_key "$channel")"
   if [[ -n "$ios_key" ]]; then
-    write_ios_secrets_xcconfig "$channel" "$ios_key" "$API_URL"
+    secrets_channel="$(ios_measure_secrets_channel "$channel")"
+    write_ios_secrets_xcconfig "$secrets_channel" "$ios_key" "$API_URL"
     ios_written=1
   fi
 done
@@ -187,9 +200,10 @@ release_channel="${MEASURE_RELEASE_CHANNEL:-}"
 if [[ -n "$release_channel" ]]; then
   ios_key="$(resolve_ios_key "$release_channel")"
   if [[ -n "$ios_key" ]]; then
-    write_ios_secrets_xcconfig "$release_channel" "$ios_key" "$API_URL"
-    cp "$ROOT/ios/Flutter/MeasureSecrets.${release_channel}.xcconfig" \
+    secrets_channel="$(ios_measure_secrets_channel "$release_channel")"
+    write_ios_secrets_xcconfig "$secrets_channel" "$ios_key" "$API_URL"
+    cp "$ROOT/ios/Flutter/MeasureSecrets.${secrets_channel}.xcconfig" \
       "$ROOT/ios/Flutter/MeasureSecrets.xcconfig"
-    echo "Wrote ios/Flutter/MeasureSecrets.xcconfig from ${release_channel} channel"
+    echo "Wrote ios/Flutter/MeasureSecrets.xcconfig from ${secrets_channel} channel"
   fi
 fi
