@@ -2,6 +2,7 @@
 #include "Generated.xcconfig"
 MEASURE_API_KEY=
 MEASURE_API_URL=
+#include? "MeasureSecrets.$(MEASURE_ENVIRONMENT).xcconfig"
 #include? "MeasureSecrets.xcconfig"
 
 // Match the Podfile simulator architecture exclusions.

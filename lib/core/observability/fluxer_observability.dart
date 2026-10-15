@@ -32,11 +32,14 @@ class FluxerObservability {
   bool _measureInitialized = false;
   bool _platformErrorHandlerChained = false;
   bool _globalErrorHandlersInstalled = false;
+  bool _measureOnlyFlutterErrorReport = false;
   final ErrorLogRateLimiter _errorLogRateLimiter = ErrorLogRateLimiter();
 
   bool get isEnabled => _enabled;
 
   bool get isSdkAvailable => _measureInitialized;
+
+  bool get _shouldSendErrorsToMeasure => isEnabled && _measureInitialized;
 
   Future<void> prepare() async {
     if (!AppBuildConfig.hasObservabilityConfig) {
@@ -143,6 +146,9 @@ class FluxerObservability {
     }
     _globalErrorHandlersInstalled = true;
     FlutterError.onError = (FlutterErrorDetails details) {
+      if (_measureOnlyFlutterErrorReport) {
+        return;
+      }
       FlutterError.presentError(details);
       recordFlutterError(details);
     };
@@ -163,13 +169,16 @@ class FluxerObservability {
     StackTrace stackTrace, {
     required String library,
   }) {
-    FlutterError.reportError(
-      FlutterErrorDetails(
-        exception: error,
-        stack: stackTrace,
-        library: library,
-      ),
+    final FlutterErrorDetails details = FlutterErrorDetails(
+      exception: error,
+      stack: stackTrace,
+      library: library,
     );
+    recordFlutterError(details);
+    if (!_shouldSendErrorsToMeasure) {
+      return;
+    }
+    _forwardUncaughtToMeasureSdk(details);
   }
 
   void recordError(
@@ -184,7 +193,7 @@ class FluxerObservability {
       source: source,
       context: context,
     );
-    if (!isEnabled) {
+    if (!_shouldSendErrorsToMeasure) {
       return;
     }
     final String trimmedContext = context?.trim() ?? '';
@@ -238,15 +247,15 @@ class FluxerObservability {
     if (isDriftCancellation(error)) {
       return true;
     }
-    recordFlutterError(
-      FlutterErrorDetails(
-        exception: error,
-        stack: stack,
-        library: 'platform_dispatcher',
-      ),
-    );
+    reportUncaughtError(error, stack, library: 'platform_dispatcher');
     forceFlush();
     return false;
+  }
+
+  void _forwardUncaughtToMeasureSdk(FlutterErrorDetails details) {
+    _measureOnlyFlutterErrorReport = true;
+    FlutterError.reportError(details);
+    _measureOnlyFlutterErrorReport = false;
   }
 
   void _logErrorToTalker(
@@ -275,13 +284,7 @@ class FluxerObservability {
       return;
     }
     _platformErrorHandlerChained = true;
-    final PlatformDispatcher dispatcher = PlatformDispatcher.instance;
-    final bool Function(Object, StackTrace)? measureHandler =
-        dispatcher.onError;
-    dispatcher.onError = (Object error, StackTrace stack) {
-      measureHandler?.call(error, stack);
-      return _handlePlatformDispatcherError(error, stack);
-    };
+    PlatformDispatcher.instance.onError = _handlePlatformDispatcherError;
   }
 
   void _recordExceptionOnSpan(Span span, Object error, StackTrace stackTrace) {
@@ -291,6 +294,9 @@ class FluxerObservability {
         'exception.message',
         redactDomainsForMeasure(error.toString()),
       );
+    if (!_shouldSendErrorsToMeasure) {
+      return;
+    }
     unawaited(
       Measure.instance.trackHandledError(
         sanitizeErrorForMeasure(error),

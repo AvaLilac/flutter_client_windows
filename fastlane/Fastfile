@@ -42,11 +42,21 @@ def project_root_path
   File.expand_path("..", __dir__)
 end
 
+def measure_ios_api_key
+  channel = ENV["MEASURE_RELEASE_CHANNEL"].to_s.strip
+  channel = "stable" if channel.empty?
+  channel = "stable" if channel == "beta"
+  channel_key = ENV["MEASURE_IOS_API_KEY_#{channel.upcase}"].to_s.strip
+  return channel_key unless channel_key.empty?
+
+  ENV["MEASURE_IOS_API_KEY"].to_s.strip
+end
+
 def upload_measure_ios_dsyms
-  api_key = ENV["MEASURE_IOS_API_KEY"].to_s.strip
+  api_key = measure_ios_api_key
   api_url = ENV["MEASURE_API_URL"].to_s.strip
   if api_key.empty? || api_url.empty?
-    UI.important("MEASURE_IOS_API_KEY or MEASURE_API_URL not set; skipping Measure dSYM upload")
+    UI.important("Measure iOS API key or MEASURE_API_URL not set; skipping Measure dSYM upload")
     return
   end
 

@@ -201,6 +201,8 @@ jobs:
 
       - name: Write Measure native config
         env:
+          MEASURE_RELEASE_CHANNEL: canary
+          MEASURE_IOS_API_KEY_CANARY: ${{ secrets.MEASURE_IOS_API_KEY_CANARY }}
           MEASURE_IOS_API_KEY: ${{ secrets.MEASURE_IOS_API_KEY }}
           MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
         run: tool/measure/write_native_measure_config.sh
@@ -212,6 +214,7 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
           CANARY_NUMBER: ${{ steps.canary_build_number.outputs.build_number }}
+          MEASURE_IOS_API_KEY_CANARY: ${{ secrets.MEASURE_IOS_API_KEY_CANARY }}
           MEASURE_IOS_API_KEY: ${{ secrets.MEASURE_IOS_API_KEY }}
           MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
           MEASURE_RELEASE_CHANNEL: canary

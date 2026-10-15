@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
+MEASURE_CHANNELS=(canary beta stable)
+
 read_measure_property() {
   local file="$1"
   local key="$2"
@@ -16,46 +18,178 @@ read_measure_property() {
   fi
 }
 
+channel_upper() {
+  printf '%s' "$1" | tr '[:lower:]' '[:upper:]'
+}
+
+resolve_android_key() {
+  local channel="$1"
+  local upper
+  upper="$(channel_upper "$channel")"
+  local env_name="MEASURE_ANDROID_API_KEY_${upper}"
+  local value="${!env_name:-}"
+  if [[ -n "$value" ]]; then
+    printf '%s' "$value"
+    return 0
+  fi
+  if [[ -n "${MEASURE_ANDROID_API_KEY:-}" && "${MEASURE_RELEASE_CHANNEL:-stable}" == "$channel" ]]; then
+    printf '%s' "$MEASURE_ANDROID_API_KEY"
+    return 0
+  fi
+  if [[ -n "${MEASURE_ANDROID_API_KEY:-}" && "$channel" == "stable" && -z "${MEASURE_RELEASE_CHANNEL:-}" ]]; then
+    printf '%s' "$MEASURE_ANDROID_API_KEY"
+    return 0
+  fi
+  local legacy
+  legacy="$(read_measure_property "$MEASURE_PROPERTIES" "measure.apiKey")"
+  if [[ -n "$legacy" && "$channel" == "stable" ]]; then
+    printf '%s' "$legacy"
+    return 0
+  fi
+  local from_file
+  from_file="$(read_measure_property "$MEASURE_PROPERTIES" "measure.apiKey.${channel}")"
+  if [[ -n "$from_file" ]]; then
+    printf '%s' "$from_file"
+    return 0
+  fi
+  if [[ "$channel" == "beta" ]]; then
+    resolve_android_key stable
+    return 0
+  fi
+  printf '%s' ""
+}
+
+resolve_ios_key() {
+  local channel="$1"
+  local upper
+  upper="$(channel_upper "$channel")"
+  local env_name="MEASURE_IOS_API_KEY_${upper}"
+  local value="${!env_name:-}"
+  if [[ -n "$value" ]]; then
+    printf '%s' "$value"
+    return 0
+  fi
+  if [[ -n "${MEASURE_IOS_API_KEY:-}" && "${MEASURE_RELEASE_CHANNEL:-stable}" == "$channel" ]]; then
+    printf '%s' "$MEASURE_IOS_API_KEY"
+    return 0
+  fi
+  if [[ -n "${MEASURE_IOS_API_KEY:-}" && "$channel" == "stable" && -z "${MEASURE_RELEASE_CHANNEL:-}" ]]; then
+    printf '%s' "$MEASURE_IOS_API_KEY"
+    return 0
+  fi
+  local legacy
+  legacy="$(read_measure_property "$MEASURE_PROPERTIES" "measure.ios.apiKey")"
+  if [[ -n "$legacy" && "$channel" == "stable" ]]; then
+    printf '%s' "$legacy"
+    return 0
+  fi
+  local from_file
+  from_file="$(read_measure_property "$MEASURE_PROPERTIES" "measure.ios.apiKey.${channel}")"
+  if [[ -n "$from_file" ]]; then
+    printf '%s' "$from_file"
+    return 0
+  fi
+  if [[ "$channel" == "beta" ]]; then
+    resolve_ios_key stable
+    return 0
+  fi
+  printf '%s' ""
+}
+
+resolve_api_url() {
+  if [[ -n "${MEASURE_API_URL:-}" ]]; then
+    printf '%s' "$MEASURE_API_URL"
+    return 0
+  fi
+  read_measure_property "$MEASURE_PROPERTIES" "measure.apiUrl"
+}
+
+write_ios_secrets_xcconfig() {
+  local channel="$1"
+  local api_key="$2"
+  local api_url="$3"
+  local path="$ROOT/ios/Flutter/MeasureSecrets.${channel}.xcconfig"
+  cat >"$path" <<EOF
+MEASURE_API_KEY=$api_key
+MEASURE_API_URL=$api_url
+EOF
+  echo "Wrote ios/Flutter/MeasureSecrets.${channel}.xcconfig"
+}
+
 MEASURE_PROPERTIES="$ROOT/android/measure.properties"
+API_URL="$(resolve_api_url)"
 
-ANDROID_KEY="${MEASURE_ANDROID_API_KEY:-}"
-IOS_KEY="${MEASURE_IOS_API_KEY:-}"
-API_URL="${MEASURE_API_URL:-}"
+android_any=0
+ios_any=0
+for channel in "${MEASURE_CHANNELS[@]}"; do
+  android_key="$(resolve_android_key "$channel")"
+  ios_key="$(resolve_ios_key "$channel")"
+  if [[ -n "$android_key" ]]; then
+    android_any=1
+  fi
+  if [[ -n "$ios_key" ]]; then
+    ios_any=1
+  fi
+done
 
-if [[ -z "$ANDROID_KEY" ]]; then
-  ANDROID_KEY="$(read_measure_property "$MEASURE_PROPERTIES" "measure.apiKey")"
-fi
-if [[ -z "$IOS_KEY" ]]; then
-  IOS_KEY="$(read_measure_property "$MEASURE_PROPERTIES" "measure.ios.apiKey")"
-fi
-if [[ -z "$API_URL" ]]; then
-  API_URL="$(read_measure_property "$MEASURE_PROPERTIES" "measure.apiUrl")"
-fi
-
-if [[ -n "$ANDROID_KEY" ]]; then
+if [[ "$android_any" -eq 1 || "$ios_any" -eq 1 ]]; then
   if [[ -z "$API_URL" ]]; then
-    echo "::error::MEASURE_API_URL must be set when MEASURE_ANDROID_API_KEY is set"
+    echo "::error::MEASURE_API_URL must be set when writing Measure credentials"
     exit 1
   fi
-  cat >"$ROOT/android/measure.properties" <<EOF
-measure.apiKey=$ANDROID_KEY
-measure.apiUrl=$API_URL
-EOF
+fi
+
+if [[ "$android_any" -eq 1 ]]; then
+  merged_api_url="$API_URL"
+  if [[ -z "$merged_api_url" ]]; then
+    merged_api_url="$(read_measure_property "$MEASURE_PROPERTIES" "measure.apiUrl")"
+  fi
+  {
+    echo "measure.apiUrl=$merged_api_url"
+    for channel in "${MEASURE_CHANNELS[@]}"; do
+      android_key="$(resolve_android_key "$channel")"
+      if [[ -z "$android_key" ]]; then
+        android_key="$(read_measure_property "$MEASURE_PROPERTIES" "measure.apiKey.${channel}")"
+      fi
+      if [[ -n "$android_key" ]]; then
+        echo "measure.apiKey.${channel}=$android_key"
+      fi
+    done
+    for channel in "${MEASURE_CHANNELS[@]}"; do
+      ios_key="$(resolve_ios_key "$channel")"
+      if [[ -z "$ios_key" ]]; then
+        ios_key="$(read_measure_property "$MEASURE_PROPERTIES" "measure.ios.apiKey.${channel}")"
+      fi
+      if [[ -n "$ios_key" ]]; then
+        echo "measure.ios.apiKey.${channel}=$ios_key"
+      fi
+    done
+  } >"$MEASURE_PROPERTIES"
   echo "Wrote android/measure.properties"
 else
-  echo "MEASURE_ANDROID_API_KEY not set; skipping android/measure.properties"
+  echo "No Measure Android keys resolved; skipping android/measure.properties"
 fi
 
-if [[ -n "$IOS_KEY" ]]; then
-  if [[ -z "$API_URL" ]]; then
-    echo "::error::MEASURE_API_URL must be set when MEASURE_IOS_API_KEY is set"
-    exit 1
+ios_written=0
+for channel in "${MEASURE_CHANNELS[@]}"; do
+  ios_key="$(resolve_ios_key "$channel")"
+  if [[ -n "$ios_key" ]]; then
+    write_ios_secrets_xcconfig "$channel" "$ios_key" "$API_URL"
+    ios_written=1
   fi
-  cat >"$ROOT/ios/Flutter/MeasureSecrets.xcconfig" <<EOF
-MEASURE_API_KEY=$IOS_KEY
-MEASURE_API_URL=$API_URL
-EOF
-  echo "Wrote ios/Flutter/MeasureSecrets.xcconfig"
-else
-  echo "MEASURE_IOS_API_KEY not set; skipping ios/Flutter/MeasureSecrets.xcconfig"
+done
+
+if [[ "$ios_written" -eq 0 ]]; then
+  echo "No Measure iOS keys resolved; skipping ios/Flutter/MeasureSecrets.*.xcconfig"
+fi
+
+release_channel="${MEASURE_RELEASE_CHANNEL:-}"
+if [[ -n "$release_channel" ]]; then
+  ios_key="$(resolve_ios_key "$release_channel")"
+  if [[ -n "$ios_key" ]]; then
+    write_ios_secrets_xcconfig "$release_channel" "$ios_key" "$API_URL"
+    cp "$ROOT/ios/Flutter/MeasureSecrets.${release_channel}.xcconfig" \
+      "$ROOT/ios/Flutter/MeasureSecrets.xcconfig"
+    echo "Wrote ios/Flutter/MeasureSecrets.xcconfig from ${release_channel} channel"
+  fi
 fi

@@ -119,6 +119,8 @@ jobs:
 
       - name: Write Measure Android config
         env:
+          MEASURE_RELEASE_CHANNEL: canary
+          MEASURE_ANDROID_API_KEY_CANARY: ${{ secrets.MEASURE_ANDROID_API_KEY_CANARY }}
           MEASURE_ANDROID_API_KEY: ${{ secrets.MEASURE_ANDROID_API_KEY }}
           MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
         run: tool/measure/write_native_measure_config.sh

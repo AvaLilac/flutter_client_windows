@@ -144,6 +144,8 @@ jobs:
 
       - name: Write Measure Android config
         env:
+          MEASURE_RELEASE_CHANNEL: beta
+          MEASURE_ANDROID_API_KEY_STABLE: ${{ secrets.MEASURE_ANDROID_API_KEY_STABLE }}
           MEASURE_ANDROID_API_KEY: ${{ secrets.MEASURE_ANDROID_API_KEY }}
           MEASURE_API_URL: ${{ secrets.MEASURE_API_URL }}
         run: tool/measure/write_native_measure_config.sh

@@ -182,7 +182,6 @@ Future<void> main(List<String> args) async {
         library: 'Flutter zone',
       );
       FluxerObservability.instance.forceFlush();
-      Error.throwWithStackTrace(error, stack);
     },
   );
 }

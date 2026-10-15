@@ -42,6 +42,47 @@ fun readMeasureConfigValue(
     return ""
 }
 
+fun readMeasureAndroidApiKey(
+    environment: String,
+    measureProperties: Properties,
+    localProperties: Properties,
+): String {
+    val channelKey = "measure.apiKey.$environment"
+    readMeasureConfigValue(
+        propertyKey = channelKey,
+        envVar = "MEASURE_ANDROID_API_KEY_${environment.uppercase()}",
+        measureProperties = measureProperties,
+        localProperties = localProperties,
+    ).takeIf { it.isNotEmpty() }?.let { return it }
+    if (environment == "beta") {
+        return readMeasureAndroidApiKey(
+            environment = "stable",
+            measureProperties = measureProperties,
+            localProperties = localProperties,
+        )
+    }
+    if (environment == "stable") {
+        return readMeasureConfigValue(
+            propertyKey = "measure.apiKey",
+            envVar = "MEASURE_ANDROID_API_KEY",
+            measureProperties = measureProperties,
+            localProperties = localProperties,
+        )
+    }
+    return ""
+}
+
+fun readMeasureApiUrl(
+    measureProperties: Properties,
+    localProperties: Properties,
+): String =
+    readMeasureConfigValue(
+        propertyKey = "measure.apiUrl",
+        envVar = "MEASURE_API_URL",
+        measureProperties = measureProperties,
+        localProperties = localProperties,
+    )
+
 val measureProperties = Properties()
 val measurePropertiesFile = rootProject.file("measure.properties")
 if (measurePropertiesFile.exists()) {
@@ -58,15 +99,7 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-val measureApiKey = readMeasureConfigValue(
-    propertyKey = "measure.apiKey",
-    envVar = "MEASURE_ANDROID_API_KEY",
-    measureProperties = measureProperties,
-    localProperties = localProperties,
-)
-val measureApiUrl = readMeasureConfigValue(
-    propertyKey = "measure.apiUrl",
-    envVar = "MEASURE_API_URL",
+val measureApiUrl = readMeasureApiUrl(
     measureProperties = measureProperties,
     localProperties = localProperties,
 )
@@ -107,7 +140,7 @@ android {
         manifestPlaceholders["buildEnvironment"] = "stable"
         manifestPlaceholders["pushProvider"] = "fcm"
         manifestPlaceholders["appIconAliasPrefix"] = "com.fluxer.MainActivity"
-        manifestPlaceholders["measureApiKey"] = measureApiKey
+        manifestPlaceholders["measureApiKey"] = ""
         manifestPlaceholders["measureApiUrl"] = measureApiUrl
     }
 
@@ -119,16 +152,34 @@ android {
             manifestPlaceholders["appLabel"] = "Fluxer Canary"
             manifestPlaceholders["buildEnvironment"] = "canary"
             manifestPlaceholders["appIconAliasPrefix"] = "com.fluxer.canary.MainActivity"
+            manifestPlaceholders["measureApiKey"] =
+                readMeasureAndroidApiKey(
+                    environment = "canary",
+                    measureProperties = measureProperties,
+                    localProperties = localProperties,
+                )
         }
         create("stable") {
             dimension = "environment"
             manifestPlaceholders["appLabel"] = "Fluxer"
             manifestPlaceholders["buildEnvironment"] = "stable"
+            manifestPlaceholders["measureApiKey"] =
+                readMeasureAndroidApiKey(
+                    environment = "stable",
+                    measureProperties = measureProperties,
+                    localProperties = localProperties,
+                )
         }
         create("beta") {
             dimension = "environment"
             manifestPlaceholders["appLabel"] = "Fluxer Beta"
             manifestPlaceholders["buildEnvironment"] = "beta"
+            manifestPlaceholders["measureApiKey"] =
+                readMeasureAndroidApiKey(
+                    environment = "beta",
+                    measureProperties = measureProperties,
+                    localProperties = localProperties,
+                )
         }
         create("fcm") {
             dimension = "push"
