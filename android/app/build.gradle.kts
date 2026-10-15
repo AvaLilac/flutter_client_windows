@@ -47,13 +47,6 @@ fun readMeasureAndroidApiKey(
     measureProperties: Properties,
     localProperties: Properties,
 ): String {
-    val channelKey = "measure.apiKey.$environment"
-    readMeasureConfigValue(
-        propertyKey = channelKey,
-        envVar = "MEASURE_ANDROID_API_KEY_${environment.uppercase()}",
-        measureProperties = measureProperties,
-        localProperties = localProperties,
-    ).takeIf { it.isNotEmpty() }?.let { return it }
     if (environment == "beta") {
         return readMeasureAndroidApiKey(
             environment = "stable",
@@ -61,6 +54,13 @@ fun readMeasureAndroidApiKey(
             localProperties = localProperties,
         )
     }
+    val channelKey = "measure.apiKey.$environment"
+    readMeasureConfigValue(
+        propertyKey = channelKey,
+        envVar = "MEASURE_ANDROID_API_KEY_${environment.uppercase()}",
+        measureProperties = measureProperties,
+        localProperties = localProperties,
+    ).takeIf { it.isNotEmpty() }?.let { return it }
     if (environment == "stable") {
         return readMeasureConfigValue(
             propertyKey = "measure.apiKey",
