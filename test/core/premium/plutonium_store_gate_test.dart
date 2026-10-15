@@ -164,6 +164,7 @@ void main() {
       required AppStoreDistribution distribution,
       required bool officialInstance,
       required bool sandboxPurchases,
+      bool iosBetaOrCanaryBuild = false,
     }) {
       return resolvePremiumStorePurchasesEnabled(
         isAndroid: false,
@@ -172,6 +173,7 @@ void main() {
         officialInstance: officialInstance,
         appStoreDistribution: distribution,
         sandboxPurchases: sandboxPurchases,
+        iosBetaOrCanaryBuild: iosBetaOrCanaryBuild,
       );
     }
 
@@ -227,9 +229,27 @@ void main() {
             officialInstance: true,
             appStoreDistribution: distribution,
             sandboxPurchases: false,
+            iosBetaOrCanaryBuild: false,
           ),
           isTrue,
         );
+      }
+    });
+
+    test('beta and canary iOS builds never enable purchases', () {
+      for (final bool sandboxPurchases in <bool>[false, true]) {
+        for (final AppStoreDistribution distribution
+            in AppStoreDistribution.values) {
+          expect(
+            resolve(
+              distribution: distribution,
+              officialInstance: true,
+              sandboxPurchases: sandboxPurchases,
+              iosBetaOrCanaryBuild: true,
+            ),
+            isFalse,
+          );
+        }
       }
     });
   });
@@ -248,6 +268,7 @@ void main() {
           officialInstance: official,
           appStoreDistribution: AppStoreDistribution.production,
           sandboxPurchases: false,
+          iosBetaOrCanaryBuild: false,
         );
         final bool commerceVisible = resolvePremiumCommerceVisible(
           selfHosted: !official,
@@ -282,6 +303,7 @@ void main() {
             officialInstance: true,
             appStoreDistribution: AppStoreDistribution.production,
             sandboxPurchases: true,
+            iosBetaOrCanaryBuild: false,
           ),
           isFalse,
         );

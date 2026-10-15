@@ -34,6 +34,7 @@ bool resolvePremiumStorePurchasesEnabled({
   required bool officialInstance,
   required AppStoreDistribution appStoreDistribution,
   required bool sandboxPurchases,
+  required bool iosBetaOrCanaryBuild,
 }) {
   if (!officialInstance) {
     return false;
@@ -42,6 +43,9 @@ bool resolvePremiumStorePurchasesEnabled({
     return pushProvider == PushProviderKind.firebaseMessaging;
   }
   if (isIOS) {
+    if (iosBetaOrCanaryBuild) {
+      return false;
+    }
     return pushProvider == PushProviderKind.apple &&
         resolveAppStorePurchaseDistribution(
           distribution: appStoreDistribution,
@@ -102,5 +106,6 @@ final premiumStorePurchasesEnabledProvider = Provider<bool>((Ref ref) {
         : AppStoreDistribution.unknown,
     sandboxPurchases:
         appStore && (ref.watch(sandboxStorePurchasesProvider).value ?? false),
+    iosBetaOrCanaryBuild: AppBuildConfig.isBeta || AppBuildConfig.isCanary,
   );
 });
