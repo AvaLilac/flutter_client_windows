@@ -16539,6 +16539,9 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
   String get next => 'Siguiente';
 
   @override
+  String get create => 'Crear';
+
+  @override
   String get mfaTitle => 'Autenticación de dos factores';
 
   @override
@@ -16577,6 +16580,11 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
   @override
   String get accountRemoveDescription =>
       'Esto eliminará la sesión guardada de esta cuenta.';
+
+  @override
+  String accountSignOutTitle(String identifier) {
+    return '¿Cerrar sesión en $identifier?';
+  }
 
   @override
   String get accountExpired => 'Vencido';
@@ -17806,8 +17814,7 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
   String get emojiInfoFromHeader => 'Este emoji es de';
 
   @override
-  String get emojiInfoDiscoverableCommunity =>
-      'Comunidad que aparece en Descubrir';
+  String get emojiInfoDiscoverableCommunity => 'Comunidad descubrible';
 
   @override
   String get emojiInfoPrivateCommunity => 'Comunidad privada';
@@ -27112,7 +27119,7 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
 
   @override
   String get discoveryListingSubheading =>
-      'Quieres listar tu comunidad aquí? Postula si cumples los requisitos en la configuración de tu comunidad > Descubrimiento.';
+      '¿Quieres listar tu comunidad aquí? Aplica si cumples los requisitos en la configuración de tu comunidad > Descubrimiento.';
 
   @override
   String get discoverySearchCommunities => 'Buscar comunidades';
@@ -27228,7 +27235,7 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
 
   @override
   String get discoveryJoinErrorNotAvailableMessage =>
-      'Es posible que haya dejado de aparecer en Descubrir o haya desactivado la admisión de nuevos miembros. Actualiza la página y no volverás a verla.';
+      'Es posible que haya dejado de aparecer en Descubrimiento o haya desactivado la admisión de nuevos miembros. Actualiza la página y no volverás a verla.';
 
   @override
   String get discoveryJoinErrorRateLimitTitle => 'Vas demasiado rápido';
@@ -27685,7 +27692,7 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
   String get guildMenuSettingsWebhooks => 'Webhooks';
 
   @override
-  String get guildMenuSettingsDiscovery => 'Descubrir';
+  String get guildMenuSettingsDiscovery => 'Descubrimiento';
 
   @override
   String get guildMenuSettingsMembers => 'Miembros';
@@ -28808,7 +28815,7 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
 
   @override
   String get guildSettingsDiscoveryDescription =>
-      'Muestra tu comunidad en Descubrir para que otros puedan encontrarla y unirse.';
+      'Muestra tu comunidad en el Descubrimiento para que otros puedan encontrarla y unirse.';
 
   @override
   String get guildSettingsDiscoveryNotEnoughMembersTitle =>
@@ -28841,7 +28848,7 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
 
   @override
   String get guildSettingsDiscoveryApprovedInfo =>
-      'Tu comunidad aparece en Descubrir. Puedes actualizar los datos publicados a continuación o retirarla de Descubrir.';
+      'Tu comunidad aparece en Descubrimiento. Puedes actualizar los datos publicados a continuación o retirarla.';
 
   @override
   String get guildSettingsDiscoveryPendingInfo =>
@@ -28859,7 +28866,7 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
 
   @override
   String get guildSettingsDiscoveryPrimaryLanguageHelp =>
-      'El idioma que la mayoría de tu comunidad habla. Se usa para filtrar los resultados de Descubrir.';
+      'El idioma que la mayoría de tu comunidad habla. Se usa para filtrar los resultados de Descubrimiento.';
 
   @override
   String get guildSettingsDiscoveryDescriptionField => 'Descripción';
@@ -28927,15 +28934,15 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
 
   @override
   String get guildSettingsDiscoveryApplicationSent =>
-      'Solicitud para aparecer en Descubrir enviada';
+      'Solicitud para aparecer en Descubrimiento enviada';
 
   @override
   String get guildSettingsDiscoveryListingUpdated =>
-      'Ficha de Descubrir actualizada';
+      'Ficha de Descubrimiento actualizada';
 
   @override
   String get guildSettingsDiscoveryApplicationWithdrawn =>
-      'Solicitud para aparecer en Descubrir retirada';
+      'Solicitud para aparecer en Descubrimiento retirada';
 
   @override
   String get guildSettingsDiscoveryWithdrawErrorTitle =>
@@ -29081,7 +29088,7 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
       'Administrador de la plataforma';
 
   @override
-  String get guildMembersJoinSourceDiscovery => 'Descubrir';
+  String get guildMembersJoinSourceDiscovery => 'Descubrimiento';
 
   @override
   String get guildMembersJoinMethodUnknown => 'Desconocido';
