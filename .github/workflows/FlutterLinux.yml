@@ -27,7 +27,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y \
-            ca-certificates curl git unzip xz-utils zip tar zstd \
+            ca-certificates curl git unzip xz-utils zip tar zstd jq file \
             build-essential
 
       - name: Checkout repository
