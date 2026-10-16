@@ -37,7 +37,10 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libunwind-dev libx11-dev libxkbcommon-dev \
             libnotify-dev libkeybinder-3.0-dev \
-            libglu1-mesa-dev libepoxy-dev
+            libglu1-mesa-dev libepoxy-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libgstreamer-plugins-bad1.0-dev \
+            gstreamer1.0-plugins-good gstreamer1.0-libav
 
       - name: Set up Flutter
         uses: axi92/flutter-action@72633a794ba0b23276fa4fc465a6cacb758a90c5
