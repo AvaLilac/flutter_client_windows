@@ -104,6 +104,17 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Patch inappwebview Linux plugin for older WPE headers
+        run: |
+          CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}"
+          FILE=$(find "$CACHE_DIR/hosted/pub.dev" -path '*flutter_inappwebview_linux-*/linux/in_app_webview/in_app_webview_settings.cc' | head -n 1)
+          if [ -z "$FILE" ]; then
+            echo "in_app_webview_settings.cc not found"
+            exit 1
+          fi
+          sed -i 's|WPE_SETTING_DISABLE_ANIMATIONS|"/wpe-platform/disable-animations"|g' "$FILE"
+          grep -n "disable-animations" "$FILE"
+
       - name: Run build_runner
         run: dart run build_runner build
 
@@ -112,6 +123,13 @@ jobs:
           flutter build linux --release -v \
             --dart-define-from-file=tool/dart_defines/canary.json \
             --dart-define=PUSH_PROVIDER=${PUSH_PROVIDER} 2>&1 | tee build.log
+
+      - name: Show build errors
+        if: failure()
+        run: |
+          grep -nE "error:|Error:|CMake Error|fatal error|FAILED|undefined reference|not found" build.log | head -60
+          echo "-----"
+          tail -n 40 build.log
 
       - name: Upload build log on failure
         if: failure()
