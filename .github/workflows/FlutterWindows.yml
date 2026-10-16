@@ -9,6 +9,7 @@ permissions:
 jobs:
   build-windows:
     name: Build Windows (canary)
+
     runs-on: windows-latest
 
     defaults:
@@ -16,7 +17,11 @@ jobs:
         shell: bash
 
     env:
-      PUSH_PROVIDER: unifiedpush # see note below
+      PUSH_PROVIDER: unifiedpush
+
+      CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
+
+      PUB_CACHE: D:\pub-cache
 
     steps:
       - name: Checkout repository
@@ -28,7 +33,7 @@ jobs:
         run: git submodule update --init --recursive
 
       - name: Set up Flutter
-        # Same fork the macOS workflow pins
+
         uses: axi92/flutter-action@72633a794ba0b23276fa4fc465a6cacb758a90c5
         with:
           channel: stable
@@ -43,7 +48,7 @@ jobs:
       - name: Restore pub cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          path: ~\AppData\Local\Pub\Cache
+          path: D:\pub-cache
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-pub-
