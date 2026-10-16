@@ -19,8 +19,6 @@ jobs:
     env:
       PUSH_PROVIDER: unifiedpush
 
-      CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
-
       PUB_CACHE: D:\pub-cache
 
     steps:
@@ -55,6 +53,12 @@ jobs:
 
       - name: Configure OSS build tree
         run: dart tool/configure_build.dart --profile=oss
+
+      - name: Silence MSVC coroutine deprecation error in plugins
+
+        run: |
+          sed -i '/^project(/a add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)' windows/CMakeLists.txt
+          head -n 6 windows/CMakeLists.txt
 
       - name: Get dependencies
         run: flutter pub get
