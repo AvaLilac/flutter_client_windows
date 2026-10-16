@@ -124,6 +124,15 @@ jobs:
             --dart-define-from-file=tool/dart_defines/canary.json \
             --dart-define=PUSH_PROVIDER=${PUSH_PROVIDER} 2>&1 | tee build.log
 
+      - name: Rename bundled libraries to their sonames
+        run: |
+          cd build/linux/x64/release/bundle/lib
+          for f in libWPEWebKit-2.0.so.1.* libwpe-1.0.so.1.*; do
+            [ -e "$f" ] || continue
+            mv "$f" "$(echo "$f" | sed -E 's/(\.so\.[0-9]+)\..*/\1/')"
+          done
+          ls -la | grep -iE 'wpe'
+
       - name: Show build errors
         if: failure()
         run: |
