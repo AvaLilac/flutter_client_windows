@@ -40,7 +40,26 @@ jobs:
             libglu1-mesa-dev libepoxy-dev \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
             libgstreamer-plugins-bad1.0-dev \
-            gstreamer1.0-plugins-good gstreamer1.0-libav
+            gstreamer1.0-plugins-good gstreamer1.0-libav \
+            libwayland-dev libwpe-1.0-dev libwpebackend-fdo-1.0-dev
+
+      - name: Install WPE WebKit
+        run: |
+          apt-cache search wpewebkit || true
+          FOUND=""
+          for pkg in libwpewebkit-2.0-dev libwpewebkit-1.1-dev libwpewebkit-1.0-dev; do
+            if apt-cache show "$pkg" >/dev/null 2>&1; then
+              sudo apt-get install -y "$pkg"
+              FOUND="$pkg"
+              break
+            fi
+          done
+          if [ -z "$FOUND" ]; then
+            echo "No WPE WebKit dev package available in the apt repositories"
+            exit 1
+          fi
+          echo "Installed $FOUND"
+          pkg-config --list-all | grep -i wpe || true
 
       - name: Set up Flutter
         uses: axi92/flutter-action@72633a794ba0b23276fa4fc465a6cacb758a90c5
