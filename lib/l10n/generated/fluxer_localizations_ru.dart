@@ -6089,6 +6089,12 @@ class FluxerLocalizationsRu extends FluxerLocalizations {
       'Прекратить просмотр текущего потока';
 
   @override
+  String get voiceScreenShareEnterFullscreenTooltip => 'Full screen';
+
+  @override
+  String get voiceScreenShareExitFullscreenTooltip => 'Exit full screen';
+
+  @override
   String get voiceOwnScreenShareTitle => 'Вы транслируете';
 
   @override
@@ -8253,6 +8259,16 @@ class FluxerLocalizationsRu extends FluxerLocalizations {
   String get channelMenuDuplicateChannel => 'Дублировать канал';
 
   @override
+  String channelDuplicateHelper(String channelName) {
+    return 'The new channel will reuse the permissions from $channelName.';
+  }
+
+  @override
+  String channelDuplicateVoiceHelper(String channelName) {
+    return 'The new voice channel will reuse the permissions, user limit, and bitrate from $channelName.';
+  }
+
+  @override
   String get channelMenuMoveToCategory => 'Move to category';
 
   @override
@@ -9114,6 +9130,13 @@ class FluxerLocalizationsRu extends FluxerLocalizations {
 
   @override
   String get chatAttachmentLibraryPermissionSettings => 'Открыть настройки';
+
+  @override
+  String get chatAttachmentLibraryLimitedBody =>
+      'Only photos and videos you chose to share are shown here.';
+
+  @override
+  String get chatAttachmentLibraryLimitedManage => 'Manage';
 
   @override
   String messageAccessibilityLabel(String author, String summary) {
@@ -10408,6 +10431,28 @@ class FluxerLocalizationsRu extends FluxerLocalizations {
   @override
   String get advancedCrashReportingDescription =>
       'Reports go to Fluxer\'s error tracker, whichever instance you\'re signed in to. They don\'t include instance names, IDs or message content.';
+
+  @override
+  String get observabilityReportingConsentTitle => 'Help fix crashes';
+
+  @override
+  String get observabilityReportingConsentSubtitle =>
+      'Fluxer closed unexpectedly. Sharing anonymous crash and error data helps us fix issues faster.';
+
+  @override
+  String get observabilityReportingConsentBody =>
+      'Reports include crash logs, errors and basic performance data. They are not shared with third parties and you can turn this off at any time.';
+
+  @override
+  String observabilityReportingConsentEnableLater(String reportingToggle) {
+    return 'To enable later, open Settings → Advanced → $reportingToggle.';
+  }
+
+  @override
+  String get observabilityReportingConsentAgree => 'Send crash reports';
+
+  @override
+  String get observabilityReportingConsentDecline => 'Don\'t want to enable';
 
   @override
   String get advancedSettingsConfigure => 'Настроить';

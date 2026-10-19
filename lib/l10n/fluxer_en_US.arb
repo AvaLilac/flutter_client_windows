@@ -5243,6 +5243,14 @@
     "@voiceStopWatchingCurrentStreamTooltip": {
         "description": "Tooltip for the Stop Watching control in the voice bar."
     },
+    "voiceScreenShareEnterFullscreenTooltip": "Full screen",
+    "@voiceScreenShareEnterFullscreenTooltip": {
+        "description": "Tooltip for expanding a watched screen share to full screen."
+    },
+    "voiceScreenShareExitFullscreenTooltip": "Exit full screen",
+    "@voiceScreenShareExitFullscreenTooltip": {
+        "description": "Tooltip for leaving full screen while watching a screen share."
+    },
     "voiceOwnScreenShareTitle": "You are broadcasting",
     "@voiceOwnScreenShareTitle": {
         "description": "Title on the participant's own screen-share tile when they are sharing their screen."
@@ -10675,6 +10683,24 @@
     "channelMenuDuplicateChannel": "Duplicate channel",
     "@channelMenuDuplicateChannel": {
         "description": "Guild channel menu action to duplicate the selected channel."
+    },
+    "channelDuplicateHelper": "The new channel will reuse the permissions from {channelName}.",
+    "@channelDuplicateHelper": {
+        "description": "Helper text under the name field in the duplicate channel sheet. channelName is the source channel name with a leading #.",
+        "placeholders": {
+            "channelName": {
+                "type": "String"
+            }
+        }
+    },
+    "channelDuplicateVoiceHelper": "The new voice channel will reuse the permissions, user limit, and bitrate from {channelName}.",
+    "@channelDuplicateVoiceHelper": {
+        "description": "Helper text under the name field in the duplicate channel sheet when the source is a voice channel. channelName is the source channel name with a leading #.",
+        "placeholders": {
+            "channelName": {
+                "type": "String"
+            }
+        }
     },
     "channelMenuMoveToCategory": "Move to category",
     "@channelMenuMoveToCategory": {

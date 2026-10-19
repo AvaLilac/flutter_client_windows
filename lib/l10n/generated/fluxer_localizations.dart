@@ -9837,6 +9837,18 @@ abstract class FluxerLocalizations {
   /// **'Stop watching the current stream'**
   String get voiceStopWatchingCurrentStreamTooltip;
 
+  /// Tooltip for expanding a watched screen share to full screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Full screen'**
+  String get voiceScreenShareEnterFullscreenTooltip;
+
+  /// Tooltip for leaving full screen while watching a screen share.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit full screen'**
+  String get voiceScreenShareExitFullscreenTooltip;
+
   /// Title on the participant's own screen-share tile when they are sharing their screen.
   ///
   /// In en, this message translates to:
@@ -13341,6 +13353,18 @@ abstract class FluxerLocalizations {
   /// **'Duplicate channel'**
   String get channelMenuDuplicateChannel;
 
+  /// Helper text under the name field in the duplicate channel sheet. channelName is the source channel name with a leading #.
+  ///
+  /// In en, this message translates to:
+  /// **'The new channel will reuse the permissions from {channelName}.'**
+  String channelDuplicateHelper(String channelName);
+
+  /// Helper text under the name field in the duplicate channel sheet when the source is a voice channel. channelName is the source channel name with a leading #.
+  ///
+  /// In en, this message translates to:
+  /// **'The new voice channel will reuse the permissions, user limit, and bitrate from {channelName}.'**
+  String channelDuplicateVoiceHelper(String channelName);
+
   /// Guild channel menu action that opens a sheet to move the channel into another category or out of any category.
   ///
   /// In en, this message translates to:
@@ -14834,6 +14858,18 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Open settings'**
   String get chatAttachmentLibraryPermissionSettings;
+
+  /// Explains limited photo library access in the attachment gallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Only photos and videos you chose to share are shown here.'**
+  String get chatAttachmentLibraryLimitedBody;
+
+  /// Opens the system picker to change which photos the app can access.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage'**
+  String get chatAttachmentLibraryLimitedManage;
 
   /// Screen reader label for a chat message row.
   ///
@@ -17042,6 +17078,42 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Reports go to Fluxer\'s error tracker, whichever instance you\'re signed in to. They don\'t include instance names, IDs or message content.'**
   String get advancedCrashReportingDescription;
+
+  /// Title of the post-crash opt-in sheet for crash and error reporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Help fix crashes'**
+  String get observabilityReportingConsentTitle;
+
+  /// Subtitle on the post-crash crash reporting opt-in sheet. Keep the name Fluxer as is.
+  ///
+  /// In en, this message translates to:
+  /// **'Fluxer closed unexpectedly. Sharing anonymous crash and error data helps us fix issues faster.'**
+  String get observabilityReportingConsentSubtitle;
+
+  /// Body copy on the post-crash crash reporting opt-in sheet explaining what is collected.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports include crash logs, errors and basic performance data. They are not shared with third parties and you can turn this off at any time.'**
+  String get observabilityReportingConsentBody;
+
+  /// Hint on the post-crash crash reporting opt-in sheet for finding the setting later.
+  ///
+  /// In en, this message translates to:
+  /// **'To enable later, open Settings → Advanced → {reportingToggle}.'**
+  String observabilityReportingConsentEnableLater(String reportingToggle);
+
+  /// Primary button on the post-crash crash reporting opt-in sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Send crash reports'**
+  String get observabilityReportingConsentAgree;
+
+  /// Secondary button that permanently dismisses the post-crash crash reporting opt-in sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t want to enable'**
+  String get observabilityReportingConsentDecline;
 
   /// Button label that opens a dedicated advanced settings modal.
   ///

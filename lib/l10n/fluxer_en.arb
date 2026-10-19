@@ -7711,6 +7711,14 @@
     "@voiceStopWatchingCurrentStreamTooltip": {
         "description": "Tooltip for the Stop Watching control in the voice bar."
     },
+    "voiceScreenShareEnterFullscreenTooltip": "Full screen",
+    "@voiceScreenShareEnterFullscreenTooltip": {
+        "description": "Tooltip for expanding a watched screen share to full screen."
+    },
+    "voiceScreenShareExitFullscreenTooltip": "Exit full screen",
+    "@voiceScreenShareExitFullscreenTooltip": {
+        "description": "Tooltip for leaving full screen while watching a screen share."
+    },
     "voiceOwnScreenShareTitle": "You are broadcasting",
     "@voiceOwnScreenShareTitle": {
         "description": "Title on the participant's own screen-share tile when they are sharing their screen."
@@ -10393,6 +10401,24 @@
     "@channelMenuDuplicateChannel": {
         "description": "Guild channel menu action to duplicate the selected channel."
     },
+    "channelDuplicateHelper": "The new channel will reuse the permissions from {channelName}.",
+    "@channelDuplicateHelper": {
+        "description": "Helper text under the name field in the duplicate channel sheet. channelName is the source channel name with a leading #.",
+        "placeholders": {
+            "channelName": {
+                "type": "String"
+            }
+        }
+    },
+    "channelDuplicateVoiceHelper": "The new voice channel will reuse the permissions, user limit, and bitrate from {channelName}.",
+    "@channelDuplicateVoiceHelper": {
+        "description": "Helper text under the name field in the duplicate channel sheet when the source is a voice channel. channelName is the source channel name with a leading #.",
+        "placeholders": {
+            "channelName": {
+                "type": "String"
+            }
+        }
+    },
     "channelMenuMoveToCategory": "Move to category",
     "@channelMenuMoveToCategory": {
         "description": "Guild channel menu action that opens a sheet to move the channel into another category or out of any category."
@@ -11476,6 +11502,14 @@
     "chatAttachmentLibraryPermissionSettings": "Open settings",
     "@chatAttachmentLibraryPermissionSettings": {
         "description": "Button that opens system settings so the user can grant photo library access."
+    },
+    "chatAttachmentLibraryLimitedBody": "Only photos and videos you chose to share are shown here.",
+    "@chatAttachmentLibraryLimitedBody": {
+        "description": "Explains limited photo library access in the attachment gallery."
+    },
+    "chatAttachmentLibraryLimitedManage": "Manage",
+    "@chatAttachmentLibraryLimitedManage": {
+        "description": "Opens the system picker to change which photos the app can access."
     },
     "messageAccessibilityLabel": "{author}, {summary}",
     "@messageAccessibilityLabel": {
@@ -12689,6 +12723,36 @@
     "advancedCrashReportingDescription": "Reports go to Fluxer's error tracker, whichever instance you're signed in to. They don't include instance names, IDs or message content.",
     "@advancedCrashReportingDescription": {
         "description": "Toggle description for crash and performance reporting. Reports always go to the error tracker run by Fluxer, the company, never to the instance the user is signed in to, and leave out instance names, IDs and message content. Keep the name Fluxer as is."
+    },
+    "observabilityReportingConsentTitle": "Help fix crashes",
+    "@observabilityReportingConsentTitle": {
+        "description": "Title of the post-crash opt-in sheet for crash and error reporting."
+    },
+    "observabilityReportingConsentSubtitle": "Fluxer closed unexpectedly. Sharing anonymous crash and error data helps us fix issues faster.",
+    "@observabilityReportingConsentSubtitle": {
+        "description": "Subtitle on the post-crash crash reporting opt-in sheet. Keep the name Fluxer as is."
+    },
+    "observabilityReportingConsentBody": "Reports include crash logs, errors and basic performance data. They are not shared with third parties and you can turn this off at any time.",
+    "@observabilityReportingConsentBody": {
+        "description": "Body copy on the post-crash crash reporting opt-in sheet explaining what is collected."
+    },
+    "observabilityReportingConsentEnableLater": "To enable later, open Settings → Advanced → {reportingToggle}.",
+    "@observabilityReportingConsentEnableLater": {
+        "description": "Hint on the post-crash crash reporting opt-in sheet for finding the setting later.",
+        "placeholders": {
+            "reportingToggle": {
+                "type": "String",
+                "example": "Send crash and performance reports"
+            }
+        }
+    },
+    "observabilityReportingConsentAgree": "Send crash reports",
+    "@observabilityReportingConsentAgree": {
+        "description": "Primary button on the post-crash crash reporting opt-in sheet."
+    },
+    "observabilityReportingConsentDecline": "Don't want to enable",
+    "@observabilityReportingConsentDecline": {
+        "description": "Secondary button that permanently dismisses the post-crash crash reporting opt-in sheet."
     },
     "advancedSettingsConfigure": "Configure",
     "@advancedSettingsConfigure": {

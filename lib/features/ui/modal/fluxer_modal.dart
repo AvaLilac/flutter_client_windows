@@ -1,7 +1,9 @@
 import 'dart:ui';
 
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/shell/foldable/crease_overlay_layout.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
+import 'package:fluxer_app/features/shell/utils/shell_popup_presentation.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/overlay/fluxer_overlay_back_handler.dart';
@@ -29,11 +31,12 @@ class FluxerModal {
     Widget? trailing,
     VoidCallback? onBack,
     bool centered = false,
-    bool useRootNavigator = false,
+    bool? useRootNavigator,
   }) {
     return showDialog<T>(
       context: context,
-      useRootNavigator: useRootNavigator,
+      useRootNavigator:
+          useRootNavigator ?? resolveShellPopupUseRootNavigator(context),
       barrierColor: Colors.transparent,
       builder: (dialogContext) {
         void close() => Navigator.of(dialogContext).pop();
@@ -190,7 +193,7 @@ class FluxerModal {
                           alignment: Alignment.bottomCenter,
                           child: centeredDialog,
                         )
-                      : Center(child: centeredDialog),
+                      : CreaseAwareAlign(child: centeredDialog),
                 ),
               ),
             ],
@@ -212,7 +215,7 @@ class FluxerConfirmModal {
     String? confirmLabel,
     Widget? body,
     bool isDanger = false,
-    bool useRootNavigator = true,
+    bool? useRootNavigator,
   }) {
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     final String resolvedConfirmLabel = confirmLabel ?? l10n.uiConfirm;
