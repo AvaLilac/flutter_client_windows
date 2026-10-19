@@ -64,6 +64,27 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Patch secure storage to use the legacy macOS keychain
+        run: |
+          CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}/hosted/pub.dev"
+          FILES=$(grep -rl "usesDataProtectionKeychain" "$CACHE_DIR"/flutter_secure_storage* --include=*.dart || true)
+          if [ -z "$FILES" ]; then
+            echo "No usesDataProtectionKeychain declarations found"
+            exit 1
+          fi
+          for f in $FILES; do
+            sed -i '' 's/usesDataProtectionKeychain = true/usesDataProtectionKeychain = false/g' "$f"
+          done
+          grep -rn "usesDataProtectionKeychain" $FILES | head -30
+          if ! grep -rq "usesDataProtectionKeychain = false" $FILES; then
+            echo "Default value was not patched"
+            exit 1
+          fi
+
+      - name: Show secure storage usage in app code
+        run: |
+          grep -rn "usesDataProtectionKeychain\|MacOsOptions\|FlutterSecureStorage(" lib packages --include=*.dart | head -20 || true
+
       - name: Run build_runner
         run: dart run build_runner build
 
@@ -73,16 +94,6 @@ jobs:
             --dart-define-from-file=tool/dart_defines/canary.json \
             --dart-define=PUSH_PROVIDER=${PUSH_PROVIDER}
           pod install --project-directory=macos
-
-      - name: Verify dart defines reached the Xcode config
-        run: |
-          grep DART_DEFINES macos/Flutter/ephemeral/Flutter-Generated.xcconfig \
-            | cut -d= -f2 | tr ',' '\n' \
-            | while read -r d; do echo "$d" | base64 --decode | sed 's/=.*//'; echo; done
-
-      - name: Show secure storage usage in app code
-        run: |
-          grep -rn "useDataProtectionKeyChain\|MacOsOptions\|FlutterSecureStorage(" lib packages --include=*.dart | head -20 || true
 
       - name: Build macOS app (unsigned)
         run: |
