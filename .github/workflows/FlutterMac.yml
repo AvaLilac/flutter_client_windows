@@ -1,0 +1,125 @@
+name: Compile MacOS on Desktop
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    name: Build macOS (unsigned)
+    runs-on: macos-26
+
+    env:
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+      LANGUAGE: en_US.UTF-8
+      PUSH_PROVIDER: unifiedpush
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          submodules: recursive
+
+      - name: Sync submodules
+        run: git submodule update --init --recursive
+
+      - name: Set up Flutter
+        uses: axi92/flutter-action@72633a794ba0b23276fa4fc465a6cacb758a90c5
+        with:
+          channel: stable
+
+      - name: Disable Flutter Swift Package Manager
+        run: |
+          flutter config --no-enable-swift-package-manager
+          flutter clean
+
+      - name: Set up Rust and native asset build hooks
+        run: |
+          if ! command -v cargo >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+              | sh -s -- -y --profile minimal --default-toolchain stable
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            . "$HOME/.cargo/env"
+          fi
+          rustup show active-toolchain || rustup toolchain install stable
+          flutter config --enable-native-assets
+
+      - name: Restore pub cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Configure OSS build tree
+        run: dart tool/configure_build.dart --profile=oss
+
+      - name: Apply macOS dependency overrides
+        run: bash tool/apply_macos_pub_overrides.sh
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Run build_runner
+        run: dart run build_runner build
+
+      - name: Prepare macOS project files with dart defines
+        run: |
+          flutter build macos --config-only --release \
+            --dart-define-from-file=tool/dart_defines/canary.json \
+            --dart-define=PUSH_PROVIDER=${PUSH_PROVIDER}
+          pod install --project-directory=macos
+
+      - name: Verify dart defines reached the Xcode config
+        run: |
+          grep DART_DEFINES macos/Flutter/ephemeral/Flutter-Generated.xcconfig \
+            | cut -d= -f2 | tr ',' '\n' \
+            | while read -r d; do echo "$d" | base64 --decode | sed 's/=.*//'; echo; done
+
+      - name: Show secure storage usage in app code
+        run: |
+          grep -rn "useDataProtectionKeyChain\|MacOsOptions\|FlutterSecureStorage(" lib packages --include=*.dart | head -20 || true
+
+      - name: Build macOS app (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace macos/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -derivedDataPath build/macos \
+            -resultBundlePath build/macos/Runner.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee xcodebuild.log
+
+      - name: Ad-hoc sign app
+        run: |
+          APP="build/macos/Build/Products/Release/Fluxer Lite.app"
+          test -d "$APP" || { echo "App not found at $APP"; exit 1; }
+          codesign --force --deep --sign - "$APP"
+
+      - name: Package app
+        run: |
+          APP="build/macos/Build/Products/Release/Fluxer Lite.app"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" Fluxer-macos.zip
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build-log
+          path: xcodebuild.log
+          retention-days: 7
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-canary
+          path: Fluxer-macos.zip
+          if-no-files-found: error
+          retention-days: 14
