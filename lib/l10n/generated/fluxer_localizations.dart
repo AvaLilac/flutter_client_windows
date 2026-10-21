@@ -9531,6 +9531,12 @@ abstract class FluxerLocalizations {
   /// **'Jump to {channelSourceLabel}'**
   String voiceJumpToChannel(String channelSourceLabel);
 
+  /// Accessible label for the draggable handle that resizes the channel or direct message sidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize sidebar'**
+  String get shellResizeSidebar;
+
   /// Voice status popout title.
   ///
   /// In en, this message translates to:
@@ -16767,6 +16773,66 @@ abstract class FluxerLocalizations {
   /// **'Couldn\'t enable notifications. Allow notification permission to continue.'**
   String get notificationsEnableNotificationsPermissionDenied;
 
+  /// Label for the compile-time mobile push provider on notification settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Push provider'**
+  String get notificationsPushDeliveryProviderLabel;
+
+  /// Label for the UnifiedPush distributor on notification settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Distributor'**
+  String get notificationsPushDeliveryDistributorLabel;
+
+  /// Shown when no UnifiedPush distributor is selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not selected'**
+  String get notificationsPushDeliveryDistributorNone;
+
+  /// Title of the UnifiedPush distributor picker sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose distributor'**
+  String get notificationsPushDeliveryDistributorSheetTitle;
+
+  /// Accessibility label when the distributor row opens a picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Change push distributor'**
+  String get notificationsPushDeliveryDistributorPickAccessibility;
+
+  /// Label for the UnifiedPush gateway host on notification settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway'**
+  String get notificationsPushDeliveryGatewayLabel;
+
+  /// Label for Fluxer Push relay status on notification settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Fluxer Push relay'**
+  String get notificationsPushDeliveryRelayLabel;
+
+  /// Fluxer relay is active for this device.
+  ///
+  /// In en, this message translates to:
+  /// **'In use'**
+  String get notificationsPushDeliveryRelayInUse;
+
+  /// Fluxer relay is required but not enabled for this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get notificationsPushDeliveryRelayOff;
+
+  /// This push provider does not use the Fluxer relay.
+  ///
+  /// In en, this message translates to:
+  /// **'Not used'**
+  String get notificationsPushDeliveryRelayNotUsed;
+
   /// Notification settings section title for the Fluxer push relay.
   ///
   /// In en, this message translates to:
@@ -17076,7 +17142,7 @@ abstract class FluxerLocalizations {
   /// Toggle description for crash and performance reporting. Reports always go to the error tracker run by Fluxer, the company, never to the instance the user is signed in to, and leave out instance names, IDs and message content. Keep the name Fluxer as is.
   ///
   /// In en, this message translates to:
-  /// **'Reports go to Fluxer\'s error tracker, whichever instance you\'re signed in to. They don\'t include instance names, IDs or message content.'**
+  /// **'Reports go to Fluxer\'s error tracker, even when you\'re signed in to another instance. They don\'t include instance names, IDs or message content.'**
   String get advancedCrashReportingDescription;
 
   /// Title of the post-crash opt-in sheet for crash and error reporting.

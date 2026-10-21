@@ -11,10 +11,12 @@ import 'package:fluxer_app/core/build/app_build_config.dart';
 import 'package:fluxer_app/core/build/push_provider_assert.dart';
 import 'package:fluxer_app/core/build/push_provider_guard.dart';
 import 'package:fluxer_app/core/database/drift_stream_utils.dart';
+import 'package:fluxer_app/core/observability/fluxer_measure_root.dart';
 import 'package:fluxer_app/core/observability/fluxer_observability.dart';
 import 'package:fluxer_app/core/observability/observability_reporting_provider.dart';
 import 'package:fluxer_app/core/observability/reporting_consent/app_foreground_session_watchdog.dart';
 import 'package:fluxer_app/core/observability/reporting_consent/observability_reporting_prompt_coordinator.dart';
+import 'package:fluxer_app/core/platform/bundled_root_certificates.dart';
 import 'package:fluxer_app/core/platform/fluxer_platform.dart';
 import 'package:fluxer_app/core/providers/active_instance_provider.dart';
 import 'package:fluxer_app/core/providers/app_startup_provider.dart';
@@ -52,12 +54,16 @@ void _configureImagePicker() {
 
 void _runFluxerApp(ProviderContainer container) {
   runApp(
-    UncontrolledProviderScope(container: container, child: const FluxerApp()),
+    UncontrolledProviderScope(
+      container: container,
+      child: const FluxerMeasureRoot(child: FluxerApp()),
+    ),
   );
 }
 
 Future<void> _bootstrapFluxer(List<String> args) async {
   FluxerAppZoomBinding.ensureInitialized();
+  await trustBundledRootCertificates();
   installAppForegroundSessionLifecycleBinding();
   unawaited(ApplePushService.installReplyHandler());
   assertPushProviderBuildConfig();

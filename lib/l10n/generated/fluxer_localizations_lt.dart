@@ -5939,6 +5939,9 @@ class FluxerLocalizationsLt extends FluxerLocalizations {
   }
 
   @override
+  String get shellResizeSidebar => 'Resize sidebar';
+
+  @override
   String get voiceConnectionTitle => 'Balso ryšys';
 
   @override
@@ -10256,6 +10259,38 @@ class FluxerLocalizationsLt extends FluxerLocalizations {
       'Nepavyko įjungti pranešimų. Norėdami tęsti, leiskite pranešimų leidimus.';
 
   @override
+  String get notificationsPushDeliveryProviderLabel => 'Push provider';
+
+  @override
+  String get notificationsPushDeliveryDistributorLabel => 'Distributor';
+
+  @override
+  String get notificationsPushDeliveryDistributorNone => 'Not selected';
+
+  @override
+  String get notificationsPushDeliveryDistributorSheetTitle =>
+      'Choose distributor';
+
+  @override
+  String get notificationsPushDeliveryDistributorPickAccessibility =>
+      'Change push distributor';
+
+  @override
+  String get notificationsPushDeliveryGatewayLabel => 'Gateway';
+
+  @override
+  String get notificationsPushDeliveryRelayLabel => 'Fluxer Push relay';
+
+  @override
+  String get notificationsPushDeliveryRelayInUse => 'In use';
+
+  @override
+  String get notificationsPushDeliveryRelayOff => 'Off';
+
+  @override
+  String get notificationsPushDeliveryRelayNotUsed => 'Not used';
+
+  @override
   String get notificationsPushRelaySectionTitle =>
       'Tiesioginių pranešimų perdavimas';
 
@@ -10436,7 +10471,7 @@ class FluxerLocalizationsLt extends FluxerLocalizations {
 
   @override
   String get advancedCrashReportingDescription =>
-      'Reports go to Fluxer\'s error tracker, whichever instance you\'re signed in to. They don\'t include instance names, IDs or message content.';
+      'Reports go to Fluxer\'s error tracker, even when you\'re signed in to another instance. They don\'t include instance names, IDs or message content.';
 
   @override
   String get observabilityReportingConsentTitle => 'Help fix crashes';

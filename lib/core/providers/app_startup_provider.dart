@@ -12,6 +12,7 @@ import 'package:fluxer_app/core/experiments/experiments_provider.dart';
 import 'package:fluxer_app/core/gateway/gateway_presence_coordinator.dart';
 import 'package:fluxer_app/core/gateway/providers/gateway_event_providers.dart';
 import 'package:fluxer_app/core/observability/fluxer_observability.dart';
+import 'package:fluxer_app/core/permissions/route_warmup_listener_provider.dart';
 import 'package:fluxer_app/core/premium/current_user_entitlements_provider.dart';
 import 'package:fluxer_app/core/premium/premium_state_sync_provider.dart';
 import 'package:fluxer_app/core/providers/app_runtime_info_provider.dart';
@@ -39,6 +40,7 @@ import 'package:fluxer_app/core/theme/providers/theme_preference_provider.dart';
 import 'package:fluxer_app/features/auth/providers/account_manager_provider.dart';
 import 'package:fluxer_app/features/auth/providers/auth_providers.dart';
 import 'package:fluxer_app/features/channels/providers/ack_batcher_gateway_listener_provider.dart';
+import 'package:fluxer_app/features/channels/providers/channel_list_gateway_recovery_listener_provider.dart';
 import 'package:fluxer_app/features/chat/providers/chat_wallpaper_provider.dart';
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_sync_provider.dart';
 import 'package:fluxer_app/features/chat/providers/slowmode/slowmode_tracker.dart';
@@ -79,6 +81,8 @@ void authenticatedSessionBindings(Ref ref) {
     ..read(experimentsProvider)
     ..read(voiceP2pConsentRetryProvider)
     ..read(ackBatcherGatewayListenerProvider)
+    ..read(channelListGatewayRecoveryListenerProvider)
+    ..read(routeWarmupListenerProvider)
     ..read(pushTrayBackgroundListenerProvider)
     ..read(fluxerSfxIncomingRingBindingProvider)
     ..read(fluxerMessageSfxBindingProvider)
