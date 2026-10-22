@@ -1331,30 +1331,6 @@
     "@dmFriendRequestSentToast": {
         "description": "Toast message when a friend request is sent."
     },
-    "dmFriendRequestFailed": "No se pudo enviar solicitud de amistad",
-    "@dmFriendRequestFailed": {
-        "description": "Toast message when sending a friend request fails."
-    },
-    "dmAcceptFriendRequestFailed": "No se pudo aceptar la solicitud de amistad",
-    "@dmAcceptFriendRequestFailed": {
-        "description": "Toast message when accepting a friend request fails."
-    },
-    "dmRemoveFriendFailed": "No se pudo eliminar de tus amigos",
-    "@dmRemoveFriendFailed": {
-        "description": "Toast message when removing a friend fails."
-    },
-    "dmBlockFailed": "No se pudo bloquear al usuario",
-    "@dmBlockFailed": {
-        "description": "Toast message when blocking a user fails."
-    },
-    "dmUnblockFailed": "No se pudo desbloquear al usuario",
-    "@dmUnblockFailed": {
-        "description": "Toast message when unblocking a user fails."
-    },
-    "dmIgnoreFriendRequestFailed": "No se pudo ignorar la solicitud de amistad",
-    "@dmIgnoreFriendRequestFailed": {
-        "description": "Toast message when ignoring a friend request fails."
-    },
     "dmAddFriends": "Agregar amigos",
     "@dmAddFriends": {
         "description": "Mobile DM list header button to open the add friends sheet."
@@ -3111,17 +3087,9 @@
             }
         }
     },
-    "userProfileFailedOpenDm": "No se pudo abrir el chat privado",
-    "@userProfileFailedOpenDm": {
-        "description": "Toast shown when opening a DM channel fails."
-    },
     "userProfileFailedSaveNote": "No se pudo guardar la nota",
     "@userProfileFailedSaveNote": {
         "description": "Toast shown when saving the user note fails."
-    },
-    "userProfileActionFailed": "La acción falló, intenta de nuevo",
-    "@userProfileActionFailed": {
-        "description": "Toast shown when a relationship action (block, unblock, friend request, etc.) fails."
     },
     "userProfileChangeNickname": "Cambiar apodo",
     "@userProfileChangeNickname": {
@@ -3874,19 +3842,6 @@
                 "type": "String"
             }
         }
-    },
-    "chatAttachmentTooMany": "Demasiados archivos adjuntos (máx. {max})",
-    "@chatAttachmentTooMany": {
-        "description": "Shown when adding files would exceed the per-message attachment limit.",
-        "placeholders": {
-            "max": {
-                "type": "int"
-            }
-        }
-    },
-    "chatAttachmentFileTooLarge": "{fileName} supera el límite de tamaño ({fileSize})",
-    "@chatAttachmentFileTooLarge": {
-        "description": "Shown when a selected file is larger than allowed."
     },
     "chatAttachmentPayloadTooLarge": "Esos archivos son demasiado grandes para enviarlos juntos",
     "@chatAttachmentPayloadTooLarge": {
@@ -6012,10 +5967,6 @@
     "addGuildInviteInvalid": "Esta invitación no es validad o ha caducado.",
     "@addGuildInviteInvalid": {
         "description": "Error when the entered invite code cannot be resolved."
-    },
-    "addGuildJoinFailed": "No se pudo unir a la comunidad. Por favor, inténtalo de nuevo.",
-    "@addGuildJoinFailed": {
-        "description": "Generic error when joining a community via invite fails."
     },
     "chatMessageRemoveAllReactionsConfirmTitle": "Quitar todas las reacciones",
     "@chatMessageRemoveAllReactionsConfirmTitle": {
@@ -8287,10 +8238,6 @@
             }
         }
     },
-    "guildSettingsRevokeBanError": "No se pudo revocar el baneo. Intenta de nuevo.",
-    "@guildSettingsRevokeBanError": {
-        "description": "Error when revoking a ban fails."
-    },
     "guildSettingsCommunitySettings": "Configuración de la comunidad",
     "@guildSettingsCommunitySettings": {
         "description": "Title for guild settings modal."
@@ -9035,10 +8982,6 @@
     "createDmUnaddableGroupDisabled": "No permite que lo agreguen a los MD grupales",
     "@createDmUnaddableGroupDisabled": {
         "description": "Reason when a user disabled group DM additions."
-    },
-    "createDmFailed": "No se pudo crear la conversación. Inténtalo de nuevo.",
-    "@createDmFailed": {
-        "description": "Generic error when DM or group DM creation fails."
     },
     "channelDetailsSearchScopeOpenDmsOnlyGuildDescription": "Solo en todos los chats privados que tienes abiertos actualmente",
     "@channelDetailsSearchScopeOpenDmsOnlyGuildDescription": {
@@ -10989,10 +10932,6 @@
     "@nagbarPushNotification": {
         "description": "Push notification permission nagbar body."
     },
-    "nagbarBillingPortalFailed": "No se pudo abrir el portal de facturación. Inténtalo de nuevo en un momento.",
-    "@nagbarBillingPortalFailed": {
-        "description": "Toast when opening the billing portal from a nagbar fails."
-    },
     "registerPendingApproval": "Tu solicitud de cuenta está pendiente de aprobación. Podrás iniciar sesión cuando un administrador la apruebe.",
     "@registerPendingApproval": {
         "description": "Notice shown after registering on an instance that requires admin approval."
@@ -12729,10 +12668,6 @@
     "@voiceParticipantMenuStopStreaming": {
         "description": "Voice screen-share context menu action that stops the current user stream."
     },
-    "voiceParticipantModerationFailed": "No se pudo actualizar a ese miembro. Inténtalo de nuevo.",
-    "@voiceParticipantModerationFailed": {
-        "description": "Toast shown when a voice participant moderation action fails."
-    },
     "voiceCallViewModeLabel": "Ver",
     "@voiceCallViewModeLabel": {
         "description": "Section header for choosing grid or focus layout during a voice call."
@@ -14084,10 +14019,6 @@
     "guildNavbarCreateInviteMaxInvites": "Esta comunidad alcanzó su límite de invitaciones.",
     "@guildNavbarCreateInviteMaxInvites": {
         "description": "Error when the community is at MAX_INVITES."
-    },
-    "guildNavbarCreateInviteTemporarilyDisabled": "La creación de invitaciones está temporalmente deshabilitada para esta comunidad.",
-    "@guildNavbarCreateInviteTemporarilyDisabled": {
-        "description": "Error when instant invites are temporarily disabled."
     },
     "groupDmCopyInviteFailed": "No se pudo copiar el enlace de invitación",
     "@groupDmCopyInviteFailed": {
@@ -17884,7 +17815,7 @@
     "@premiumCheckoutBlockedBodySelfHosted": {
         "description": "Body of the checkout error dialog when checkout is blocked, on a self-hosted instance."
     },
-    "accountSignOutTitle": "¿Cerrar sesión de {identifier}?",
+    "accountSignOutTitle": "¿Cerrar sesión en {identifier}?",
     "@accountSignOutTitle": {
         "description": "Title of the confirmation before signing out of one saved account. The identifier is the account's username.",
         "placeholders": {
