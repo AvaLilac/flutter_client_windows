@@ -16729,7 +16729,7 @@ class FluxerLocalizationsEs419 extends FluxerLocalizationsEs {
 
   @override
   String accountSignOutTitle(String identifier) {
-    return '¿Cerrar sesión de $identifier?';
+    return '¿Cerrar sesión en $identifier?';
   }
 
   @override

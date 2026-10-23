@@ -42345,7 +42345,7 @@ class FluxerLocalizationsEnUs extends FluxerLocalizationsEn {
   String get appIconOptionSweden => 'Sweden';
 
   @override
-  String get appIconOptionGreyscale => 'Greyscale';
+  String get appIconOptionGreyscale => 'Grayscale';
 
   @override
   String get appIconOptionRainbow => 'Rainbow';
@@ -42360,7 +42360,7 @@ class FluxerLocalizationsEnUs extends FluxerLocalizationsEn {
   String get appIconOptionDefaultBrutalist => 'Brutalist';
 
   @override
-  String get appIconOptionGreyscaleBrutalist => 'Greyscale brutalist';
+  String get appIconOptionGreyscaleBrutalist => 'Grayscale brutalist';
 
   @override
   String get appIconUnsupported =>
