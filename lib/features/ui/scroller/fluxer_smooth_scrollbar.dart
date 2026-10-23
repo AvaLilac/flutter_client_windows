@@ -107,7 +107,13 @@ class _FluxerSmoothScrollbarState extends State<FluxerSmoothScrollbar>
     } else {
       _syncExtentTarget();
       if (!_extentsSettled) {
-        _scheduleFrame();
+        if (_lerpExtents) {
+          _scheduleFrame();
+        } else {
+          _smoothedMinExtent = _targetMinExtent;
+          _smoothedMaxExtent = _targetMaxExtent;
+          _refreshPainter();
+        }
       }
     }
     if (oldWidget.pinTrailingEdge != widget.pinTrailingEdge ||
@@ -174,12 +180,18 @@ class _FluxerSmoothScrollbarState extends State<FluxerSmoothScrollbar>
 
   void _onPositionChanged() {
     _syncExtentTarget();
-    if (!_extentsSettled && !_draggingThumb) {
+    if (!_lerpExtents && !_extentsSettled) {
+      _smoothedMinExtent = _targetMinExtent;
+      _smoothedMaxExtent = _targetMaxExtent;
+    }
+    if (_lerpExtents && !_extentsSettled) {
       _scheduleFrame();
     } else {
       _refreshPainter();
     }
   }
+
+  bool get _lerpExtents => _hoveringTrack || _draggingThumb;
 
   bool _syncExtentTarget({bool snap = false}) {
     final ScrollPosition? position = _attachedPosition;
@@ -217,19 +229,24 @@ class _FluxerSmoothScrollbarState extends State<FluxerSmoothScrollbar>
         return;
       }
       if (_hasExtent && !_draggingThumb && !_extentsSettled) {
-        _smoothedMinExtent = fluxerSmoothScrollbarLerpExtent(
-          current: _smoothedMinExtent,
-          target: _targetMinExtent,
-          snap: false,
-        );
-        _smoothedMaxExtent = fluxerSmoothScrollbarLerpExtent(
-          current: _smoothedMaxExtent,
-          target: _targetMaxExtent,
-          snap: false,
-        );
+        if (_lerpExtents) {
+          _smoothedMinExtent = fluxerSmoothScrollbarLerpExtent(
+            current: _smoothedMinExtent,
+            target: _targetMinExtent,
+            snap: false,
+          );
+          _smoothedMaxExtent = fluxerSmoothScrollbarLerpExtent(
+            current: _smoothedMaxExtent,
+            target: _targetMaxExtent,
+            snap: false,
+          );
+        } else {
+          _smoothedMinExtent = _targetMinExtent;
+          _smoothedMaxExtent = _targetMaxExtent;
+        }
       }
       _refreshPainter();
-      if (_hasExtent && !_extentsSettled && !_draggingThumb) {
+      if (_hasExtent && !_extentsSettled && _lerpExtents) {
         _scheduleFrame();
       }
     });
@@ -372,6 +389,14 @@ class _FluxerSmoothScrollbarState extends State<FluxerSmoothScrollbar>
     }
     _attachPosition();
     final bool targetChanged = _syncExtentTarget();
+    if (!_lerpExtents) {
+      if (targetChanged || !_extentsSettled) {
+        _smoothedMinExtent = _targetMinExtent;
+        _smoothedMaxExtent = _targetMaxExtent;
+        _refreshPainter();
+      }
+      return false;
+    }
     if (targetChanged || !_extentsSettled) {
       _scheduleFrame();
     } else {
