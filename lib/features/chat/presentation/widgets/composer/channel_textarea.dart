@@ -152,21 +152,7 @@ TextStyle _composerInputHintStyle(
   );
 }
 
-OutlineInputBorder _composerTouchInputOutlineBorder(
-  BuildContext context, {
-  required bool focused,
-}) {
-  return OutlineInputBorder(
-    borderRadius: BorderRadius.circular(24),
-    borderSide: BorderSide(
-      color: focused
-          ? context.colors.backgroundModifierAccentFocus
-          : context.colors.backgroundModifierAccent,
-    ),
-  );
-}
-
-InputDecoration _composerTouchInputDecoration({
+InputDecoration _composerDesktopInputDecoration({
   required BuildContext context,
   required String hintText,
   required bool enabled,
@@ -176,16 +162,12 @@ InputDecoration _composerTouchInputDecoration({
     hintMaxLines: 1,
     hintStyle: _composerInputHintStyle(context, enabled: enabled),
     hintFadeDuration: context.motion.panel,
-    filled: true,
-    fillColor: context.colors.backgroundTertiary,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    border: _composerTouchInputOutlineBorder(context, focused: false),
-    enabledBorder: _composerTouchInputOutlineBorder(context, focused: false),
-    focusedBorder: _composerTouchInputOutlineBorder(
-      context,
-      focused: !isFluxerMobileOs,
-    ),
-    disabledBorder: _composerTouchInputOutlineBorder(context, focused: false),
+    filled: false,
+    border: InputBorder.none,
+    enabledBorder: InputBorder.none,
+    focusedBorder: InputBorder.none,
+    disabledBorder: InputBorder.none,
+    contentPadding: const EdgeInsets.symmetric(vertical: 2),
     isDense: true,
   );
 }
@@ -1350,34 +1332,16 @@ class _ChannelTextareaState extends ConsumerState<ChannelTextarea>
       gifEnabled: gifEnabled,
     );
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
-    final bool touchInputStyle = isTouchPrimaryInput(ref);
-    final bool touchActions = touchInputStyle;
+    final bool touchActions = isTouchPrimaryInput(ref);
     final bool composerEnabled = perms.isComposerEnabled;
     final String hintText = perms.showsNoSendPermissionHint
         ? l10n.channelNoSendPermissionHint
         : _resolveHintText();
-    final InputDecoration inputDecoration = touchInputStyle
-        ? _composerTouchInputDecoration(
-            context: context,
-            hintText: hintText,
-            enabled: composerEnabled,
-          )
-        : InputDecoration(
-            hintText: hintText,
-            hintMaxLines: 1,
-            hintStyle: _composerInputHintStyle(
-              context,
-              enabled: composerEnabled,
-            ),
-            hintFadeDuration: context.motion.panel,
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            disabledBorder: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 2),
-            isDense: true,
-          );
+    final InputDecoration inputDecoration = _composerDesktopInputDecoration(
+      context: context,
+      hintText: hintText,
+      enabled: composerEnabled,
+    );
     return ListenableBuilder(
       listenable: _voiceRecording,
       builder: (BuildContext context, Widget? _) {
