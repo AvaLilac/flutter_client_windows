@@ -10549,6 +10549,13 @@ class FluxerLocalizationsIt extends FluxerLocalizations {
       'Rimpicciolisci il logo all\'uscita dalla schermata di avvio';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'Suggerimenti tastiera';
 
   @override

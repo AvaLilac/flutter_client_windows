@@ -10583,6 +10583,13 @@ class FluxerLocalizationsBg extends FluxerLocalizations {
       'Намали мащаба на логото при излизане от началния екран';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'Подсказки за клавиатурата';
 
   @override

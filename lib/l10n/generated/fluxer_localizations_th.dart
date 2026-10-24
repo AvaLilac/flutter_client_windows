@@ -10398,6 +10398,13 @@ class FluxerLocalizationsTh extends FluxerLocalizations {
       'ย่อโลโก้ออกเมื่อออกจากหน้าจอเริ่มต้น';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'คำแนะนำแป้นพิมพ์';
 
   @override

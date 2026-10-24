@@ -10568,6 +10568,13 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
       'Зменшувати логотип під час виходу з екрана запуску';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'Підказки клавіатури';
 
   @override

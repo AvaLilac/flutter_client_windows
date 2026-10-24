@@ -10045,6 +10045,13 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
       '스플래시 화면을 나갈 때 로고를 축소합니다';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => '키보드 힌트';
 
   @override

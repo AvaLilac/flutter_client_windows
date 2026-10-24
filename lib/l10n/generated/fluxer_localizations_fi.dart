@@ -10500,6 +10500,13 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Loitonna logoa, kun poistut aloitusnäytöstä';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'Näppäimistövihjeet';
 
   @override

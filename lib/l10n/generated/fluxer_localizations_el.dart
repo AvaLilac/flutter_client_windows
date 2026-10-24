@@ -10611,6 +10611,13 @@ class FluxerLocalizationsEl extends FluxerLocalizations {
       'Σμίκρυνση του λογότυπου κατά την έξοδο από την οθόνη εκκίνησης';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'Υποδείξεις πληκτρολογίου';
 
   @override

@@ -10583,6 +10583,13 @@ class FluxerLocalizationsPl extends FluxerLocalizations {
       'Przybliż logo, gdy opuszczasz ekran powitalny';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'Podpowiedzi klawiaturowe';
 
   @override

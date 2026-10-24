@@ -17295,6 +17295,18 @@ abstract class FluxerLocalizations {
   /// **'Zoom the logo out when leaving the splash screen'**
   String get advancedSettingMobileSplashZoomAnimationDescription;
 
+  /// Toggle label for splash screen loading quotes in advanced settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Splash screen quotes'**
+  String get advancedSettingSplashQuotesLabel;
+
+  /// Toggle description for the local-only splash screen quotes setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Show a random quote on the splash screen. Won\'t sync across devices.'**
+  String get advancedSettingSplashQuotesDescription;
+
   /// No description provided for @advancedSettingKeyboardHintsLabel.
   ///
   /// In en, this message translates to:

@@ -9832,6 +9832,13 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
       '离开启动屏时缩小 Logo';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => '键盘提示';
 
   @override

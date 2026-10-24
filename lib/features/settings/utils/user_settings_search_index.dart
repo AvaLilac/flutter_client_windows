@@ -732,6 +732,13 @@ final List<_UserSettingsSearchOption> _userSettingsSearchOptions = [
     ),
   ),
   _UserSettingsSearchOption(
+    id: 'advanced:splash-quotes',
+    section: UserSettingsSection.advanced,
+    fieldId: 'advanced-settings-appearance',
+    label: _l((l10n) => l10n.advancedSettingSplashQuotesLabel),
+    description: _l((l10n) => l10n.advancedSettingSplashQuotesDescription),
+  ),
+  _UserSettingsSearchOption(
     id: 'advanced:keyboard-hints',
     section: UserSettingsSection.advanced,
     fieldId: 'advanced-settings-appearance',

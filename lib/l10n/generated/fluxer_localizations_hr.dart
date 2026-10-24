@@ -10518,6 +10518,13 @@ class FluxerLocalizationsHr extends FluxerLocalizations {
       'Smanji logotip pri izlasku sa početnog zaslona';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'Savjeti za tipkovnicu';
 
   @override

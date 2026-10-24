@@ -12826,6 +12826,14 @@
     "advancedSettingShowNekoDescriptionTouch": "Show Neko on your chat input",
     "advancedSettingMobileSplashZoomAnimationLabel": "Splash zoom animation",
     "advancedSettingMobileSplashZoomAnimationDescription": "Zoom the logo out when leaving the splash screen",
+    "advancedSettingSplashQuotesLabel": "Splash screen quotes",
+    "@advancedSettingSplashQuotesLabel": {
+        "description": "Toggle label for splash screen loading quotes in advanced settings."
+    },
+    "advancedSettingSplashQuotesDescription": "Show a random quote on the splash screen. Won't sync across devices.",
+    "@advancedSettingSplashQuotesDescription": {
+        "description": "Toggle description for the local-only splash screen quotes setting."
+    },
     "advancedSettingKeyboardHintsLabel": "Keyboard hints",
     "advancedSettingKeyboardHintsDescription": "Keyboard shortcut hints in tooltips",
     "advancedSettingEnableFavoritesLabel": "Enable favorites",

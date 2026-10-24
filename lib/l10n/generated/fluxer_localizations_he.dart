@@ -10329,6 +10329,13 @@ class FluxerLocalizationsHe extends FluxerLocalizations {
       'כווץ את הלוגו החוצה בעת יציאה ממסך הפתיחה';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'רמזי מקלדת';
 
   @override

@@ -10639,6 +10639,13 @@ class FluxerLocalizationsFr extends FluxerLocalizations {
       'Réduire le logo en quittant l’écran de démarrage';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel =>
       'Indications de raccourcis clavier';
 

@@ -10465,6 +10465,13 @@ class FluxerLocalizationsHi extends FluxerLocalizations {
       'स्प्लैश स्क्रीन से बाहर निकलते समय लोगो को ज़ूम आउट करें';
 
   @override
+  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+
+  @override
+  String get advancedSettingSplashQuotesDescription =>
+      'Show a random quote on the splash screen. Won\'t sync across devices.';
+
+  @override
   String get advancedSettingKeyboardHintsLabel => 'कीबोर्ड हिंट';
 
   @override

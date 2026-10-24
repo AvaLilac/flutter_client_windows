@@ -11,7 +11,7 @@ import 'package:fluxer_app/features/channels/providers/unread_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_availability_provider.dart';
 import 'package:fluxer_app/features/quick_switcher/domain/recent_channel_visit.dart';
 import 'package:fluxer_app/features/quick_switcher/providers/recent_channel_visits_provider.dart';
-import 'package:fluxer_app/features/settings/providers/open_communities_to_last_channel_provider.dart';
+import 'package:fluxer_app/features/settings/providers/local_settings_provider.dart';
 import 'package:fluxer_app/features/shell/providers/drawer_reveal_sync_trigger_provider.dart';
 import 'package:fluxer_app/features/shell/providers/reveal_side_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_pip_providers.dart';
@@ -70,9 +70,9 @@ class DrawerNavigationCoordinator {
     final int generation = ++_selectGuildGeneration;
     final bool switchingGuild =
         container.read(activeGuildIdProvider) != guildId;
-    final bool openLastChannel = container.read(
-      openCommunitiesToLastChannelProvider,
-    );
+    final bool openLastChannel = container
+        .read(localSettingsProvider)
+        .openCommunitiesToLastChannel;
     container
         .read(channelListViewModelProvider.notifier)
         .loadActiveGuild(guildId);
@@ -112,7 +112,7 @@ class DrawerNavigationCoordinator {
     ProviderContainer container,
     String guildId,
   ) async {
-    if (!container.read(openCommunitiesToLastChannelProvider) ||
+    if (!container.read(localSettingsProvider).openCommunitiesToLastChannel ||
         container.read(activeGuildIdProvider) == guildId) {
       return null;
     }
