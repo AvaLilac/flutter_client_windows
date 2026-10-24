@@ -9971,9 +9971,9 @@
     "@channelSettingsSlowmode": {
         "description": "Label for slowmode control in channel settings."
     },
-    "channelSettingsSlowmodeDescription": "Wait between messages. \"{bypassSlowmodePermissionLabel}\" can bypass it.",
+    "channelSettingsSlowmodeDescription": "Wait between messages. Members with \"{bypassSlowmodePermissionLabel}\" can bypass this.",
     "@channelSettingsSlowmodeDescription": {
-        "description": "Description under the slowmode select in channel settings.",
+        "description": "Description under the slowmode slider in channel settings.",
         "placeholders": {
             "bypassSlowmodePermissionLabel": {
                 "type": "String"

@@ -12823,10 +12823,10 @@ abstract class FluxerLocalizations {
   /// **'Slowmode'**
   String get channelSettingsSlowmode;
 
-  /// Description under the slowmode select in channel settings.
+  /// Description under the slowmode slider in channel settings.
   ///
   /// In en, this message translates to:
-  /// **'Wait between messages. \"{bypassSlowmodePermissionLabel}\" can bypass it.'**
+  /// **'Wait between messages. Members with \"{bypassSlowmodePermissionLabel}\" can bypass this.'**
   String channelSettingsSlowmodeDescription(
     String bypassSlowmodePermissionLabel,
   );

@@ -7827,7 +7827,7 @@ class FluxerLocalizationsEn extends FluxerLocalizations {
   String channelSettingsSlowmodeDescription(
     String bypassSlowmodePermissionLabel,
   ) {
-    return 'Wait between messages. \"$bypassSlowmodePermissionLabel\" can bypass it.';
+    return 'Wait between messages. Members with \"$bypassSlowmodePermissionLabel\" can bypass this.';
   }
 
   @override
