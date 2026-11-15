@@ -1,3 +1,4 @@
+
 name: Windows Canary Build (Velopack)
 
 on:
@@ -20,7 +21,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   OXYGEN_CHANNEL: canary
@@ -36,9 +36,8 @@ defaults:
 
 jobs:
   build-and-pack:
-    name: Build, sign and pack canary Windows app
+    name: Build and pack canary Windows app
     runs-on: windows-latest
-    environment: release-builds
     outputs:
       version: ${{ steps.version.outputs.pack_version }}
     steps:
@@ -68,7 +67,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Set up Flutter
-        # Temp use while waiting for a pr: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         uses: axi92/flutter-action@72633a794ba0b23276fa4fc465a6cacb758a90c5
         with:
           channel: stable
@@ -85,7 +83,7 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
-      - name: Install vpk
+      - name: Install Velopack
         run: |
           dotnet tool install -g vpk --version "$VPK_VERSION"
           printf '%s\\.dotnet\\tools\n' "$USERPROFILE" >> "$GITHUB_PATH"
@@ -118,81 +116,35 @@ jobs:
             --dart-define-from-file=tool/dart_defines/canary.json \
             --dart-define=BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --dart-define=CANARY_NUMBER="$BUILD_NUMBER"
+
           APP_DIR="build/windows/x64/runner/Release"
+
           if [ ! -f "$APP_DIR/$OXYGEN_MAIN_EXE" ]; then
             echo "::error::Expected executable at $APP_DIR/$OXYGEN_MAIN_EXE"
             exit 1
           fi
+
           echo "APP_DIR=$GITHUB_WORKSPACE/$APP_DIR" >> "$GITHUB_ENV"
-
-      - name: Validate Windows signing inputs
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
-          AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME }}
-          AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE_NAME }}
-        run: |
-          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_ARTIFACT_SIGNING_ENDPOINT AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE_NAME; do
-            if [ -z "${!name}" ]; then
-              echo "::error::$name is not set."
-              exit 1
-            fi
-          done
-
-      - name: Azure login for Artifact Signing
-        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Write Velopack Trusted Signing metadata
-        env:
-          AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
-          AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME }}
-          AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE_NAME }}
-        run: |
-          METADATA_PATH="$RUNNER_TEMP/trusted-signing.json"
-          python - "$METADATA_PATH" <<'EOF'
-          import json
-          import os
-          import sys
-
-          metadata = {
-              "Endpoint": os.environ["AZURE_ARTIFACT_SIGNING_ENDPOINT"],
-              "CodeSigningAccountName": os.environ["AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME"],
-              "CertificateProfileName": os.environ["AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE_NAME"],
-              "ExcludeCredentials": [
-                  "ManagedIdentityCredential",
-                  "WorkloadIdentityCredential",
-                  "SharedTokenCacheCredential",
-                  "VisualStudioCredential",
-                  "VisualStudioCodeCredential",
-                  "AzurePowerShellCredential",
-                  "AzureDeveloperCliCredential",
-                  "InteractiveBrowserCredential",
-              ],
-          }
-          with open(sys.argv[1], "w", encoding="utf-8") as handle:
-              json.dump(metadata, handle, indent=2)
-          EOF
-          echo "TRUSTED_SIGN_FILE=$METADATA_PATH" >> "$GITHUB_ENV"
 
       - name: Download previous release for delta packages
         run: |
           mkdir -p Releases
-          if ! vpk download http --url "$OXYGEN_FEED_BASE_URL/x64" --channel "$OXYGEN_CHANNEL" --outputDir Releases --allowEmptyChannel; then
-            echo "::notice::No previous release found at $OXYGEN_FEED_BASE_URL/x64; packing without deltas."
+
+          if ! vpk download http \
+            --url "$OXYGEN_FEED_BASE_URL/x64" \
+            --channel "$OXYGEN_CHANNEL" \
+            --outputDir Releases \
+            --allowEmptyChannel; then
+            echo "::notice::No previous release found; packing without deltas."
           fi
 
-      - name: Pack and sign with Velopack
+      - name: Pack with Velopack
         env:
           PACK_VERSION: ${{ steps.version.outputs.pack_version }}
         run: |
           touch "$RUNNER_TEMP/vpk-pack.marker"
           sleep 1
+
           vpk pack \
             --packId "$OXYGEN_PACK_ID" \
             --packVersion "$PACK_VERSION" \
@@ -204,43 +156,57 @@ jobs:
             --shortcuts Desktop,StartMenu \
             --framework vcredist143-x64 \
             --channel "$OXYGEN_CHANNEL" \
-            --outputDir Releases \
-            --azureTrustedSignFile "$TRUSTED_SIGN_FILE"
+            --outputDir Releases
 
-      - name: Remove Trusted Signing metadata
-        if: always()
-        run: rm -f "$RUNNER_TEMP/trusted-signing.json"
-
-      - name: Verify packaged signatures
+      - name: Verify packaged outputs
         shell: pwsh
         run: |
           $marker = Get-Item "$env:RUNNER_TEMP/vpk-pack.marker"
-          $portable = Get-ChildItem Releases -Filter '*-Portable.zip' | Where-Object { $_.LastWriteTime -gt $marker.LastWriteTime } | Select-Object -First 1
-          $setup = Get-ChildItem Releases -Filter '*-Setup.exe' | Where-Object { $_.LastWriteTime -gt $marker.LastWriteTime } | Select-Object -First 1
+
+          $portable = Get-ChildItem Releases -Filter '*-Portable.zip' |
+            Where-Object { $_.LastWriteTime -gt $marker.LastWriteTime } |
+            Select-Object -First 1
+
+          $setup = Get-ChildItem Releases -Filter '*-Setup.exe' |
+            Where-Object { $_.LastWriteTime -gt $marker.LastWriteTime } |
+            Select-Object -First 1
+
           if (-not $portable -or -not $setup) {
             Write-Error 'Velopack did not produce a portable zip and setup executable.'
             exit 1
           }
+
           $verifyDir = Join-Path $env:RUNNER_TEMP 'vpk-verify'
-          if (Test-Path $verifyDir) { Remove-Item $verifyDir -Recurse -Force }
+
+          if (Test-Path $verifyDir) {
+            Remove-Item $verifyDir -Recurse -Force
+          }
+
           Expand-Archive -Path $portable.FullName -DestinationPath $verifyDir
-          $targets = @($setup) + @(Get-ChildItem $verifyDir -Recurse -Include *.exe, *.dll)
-          $unsigned = $targets | Where-Object { (Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid' }
-          if ($unsigned) {
-            $unsigned | ForEach-Object { Write-Host "::error::Not validly signed: $($_.FullName)" }
+
+          $executable = Get-ChildItem $verifyDir -Filter 'fluxer_oxygen.exe' -Recurse |
+            Select-Object -First 1
+
+          if (-not $executable) {
+            Write-Error 'The portable package does not contain fluxer_oxygen.exe.'
             exit 1
           }
-          Write-Host "Verified $($targets.Count) signed binaries."
+
+          Write-Host "Verified portable package: $($portable.Name)"
+          Write-Host "Verified setup package: $($setup.Name)"
 
       - name: Lay out release feed
         run: |
           FEED_DIR="feed/oxygen/$OXYGEN_CHANNEL/win32"
+
           mkdir -p "$FEED_DIR/x64" "$FEED_DIR/arm64"
+
           find Releases -maxdepth 1 -type f -newer "$RUNNER_TEMP/vpk-pack.marker" -print0 \
             | while IFS= read -r -d '' file; do
                 cp "$file" "$FEED_DIR/x64/"
                 cp "$file" "$FEED_DIR/arm64/"
               done
+
           ls -la "$FEED_DIR/x64"
 
       - name: Upload release feed artifact
