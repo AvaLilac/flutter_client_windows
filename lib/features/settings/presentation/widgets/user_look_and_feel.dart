@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_mode.dart';
 import 'package:fluxer_app/core/theme/providers/theme_preference_provider.dart';
@@ -14,12 +14,13 @@ import 'package:fluxer_app/features/settings/presentation/widgets/theme_swatch_b
 import 'package:fluxer_app/features/settings/presentation/widgets/typing_indicator_preview.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/user_theme_colors.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/wide_settings_content_layout.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/local_settings_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/local_settings_provider.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
+import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 
 class UserLookAndFeel extends ConsumerWidget {
   const UserLookAndFeel({this.scrollController, super.key});
@@ -140,7 +141,9 @@ class UserLookAndFeel extends ConsumerWidget {
                     label: l10n.lookAndFeelThemeSystem,
                     backgroundColor: systemSwatchColor,
                     isSelected: isSystem,
-                    centerIcon: PhosphorIconsFill.arrowsCounterClockwise,
+                    centerIcon: usesDesktopPointerUi(context)
+                        ? PhosphorIconsBold.arrowsCounterClockwise
+                        : PhosphorIconsFill.arrowsCounterClockwise,
                     enabled: swatchesEnabled,
                     isLoading: inflightMode == FluxerThemeMode.system,
                     onTap: () => unawaited(changeTheme(FluxerThemeMode.system)),
@@ -156,6 +159,18 @@ class UserLookAndFeel extends ConsumerWidget {
                 enabled: !isSystem && swatchesEnabled,
                 onChanged: (value) => unawaited(changeSync(value: value)),
               ),
+              if (themePref.systemDynamicColorsAvailable)
+                FluxerSwitchGroupItem(
+                  label: l10n.lookAndFeelUseSystemDynamicColorsLabel,
+                  description:
+                      l10n.lookAndFeelUseSystemDynamicColorsDescription,
+                  value: themePref.useSystemDynamicColors,
+                  onChanged: (value) => unawaited(
+                    ref
+                        .read(themePreferenceProvider.notifier)
+                        .setUseSystemDynamicColors(value: value),
+                  ),
+                ),
               FluxerSettingsConfigureRow(
                 title: l10n.lookAndFeelThemeColorsTitle,
                 description: l10n.lookAndFeelThemeColorsConfigureDescription,

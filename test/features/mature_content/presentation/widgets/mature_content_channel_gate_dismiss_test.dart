@@ -7,9 +7,11 @@ import 'package:fluxer_app/core/theme/themes/dark.dart';
 import 'package:fluxer_app/features/mature_content/domain/mature_content_types.dart';
 import 'package:fluxer_app/features/mature_content/presentation/widgets/mature_content_channel_gate.dart';
 import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
-import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/features/mature_content/providers/sensitive_content_provider.dart';
+import 'package:fluxer_app/material_ui.dart' hide SensitiveContent;
 import 'package:riverpod/src/framework.dart' show Override;
 
+import '../../../../helpers/core_test_provider_overrides.dart';
 import '../../../../helpers/test_l10n.dart';
 
 void main() {
@@ -28,6 +30,7 @@ void main() {
     await tester.pumpWidget(
       _buildTestApp(
         overrides: [
+          sensitiveContentProvider.overrideWith(_AdultSensitive.new),
           matureContentAgreementsProvider.overrideWith(_LoadedAgreements.new),
           matureGateContextProvider(
             'channel-1',
@@ -44,6 +47,14 @@ void main() {
   });
 }
 
+class _AdultSensitive extends SensitiveContent {
+  @override
+  SensitiveContentState build() => const SensitiveContentState(
+    access: MatureAccess.allowed,
+    showLocked: false,
+  );
+}
+
 class _LoadedAgreements extends MatureContentAgreements {
   @override
   MatureContentAgreementsState build() {
@@ -57,7 +68,7 @@ Widget _buildTestApp({
 }) {
   final colorTheme = buildDarkColorTheme();
   return ProviderScope(
-    overrides: overrides,
+    overrides: coreTestProviderOverrides(extra: overrides),
     child: MaterialApp(
       locale: kTestLocale,
       localizationsDelegates: fluxerLocalizationsDelegates,

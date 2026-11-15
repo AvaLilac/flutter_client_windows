@@ -7,7 +7,7 @@ import 'package:fluxer_app/core/theme/fluxer_theme.dart';
 import 'package:fluxer_app/core/theme/themes/dark.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/providers/channel_list_view_model.dart';
-import 'package:fluxer_app/features/channels/utils/navigate_to_channel_content.dart';
+import 'package:fluxer_app/features/channels/utils/navigation/navigate_to_channel_content.dart';
 import 'package:fluxer_app/features/mature_content/domain/mature_content_types.dart';
 import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
 import 'package:fluxer_app/features/mature_content/providers/sensitive_content_provider.dart';
@@ -18,7 +18,10 @@ import '../../../helpers/test_l10n.dart';
 
 class _AdultSensitive extends SensitiveContent {
   @override
-  SensitiveContentState build() => const SensitiveContentState();
+  SensitiveContentState build() => const SensitiveContentState(
+    access: MatureAccess.allowed,
+    showLocked: false,
+  );
 }
 
 class _LoadedAgreements extends MatureContentAgreements {

@@ -7,10 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/gateway/gateway_event_handler.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
+import 'package:fluxer_app/core/providers/app/startup_gateway_fallback_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_performance_providers.dart';
-import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_performance_providers.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_ready_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_session_recovery_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/channels/data/read_state_repository.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
@@ -457,6 +459,51 @@ void main() {
       expect(entry?.hasPlainUnread, isTrue);
     },
   );
+
+  test('seeds from the cache before READY on a cache-first launch', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final db = openTestDatabase();
+    final lastMessageId = _recentSnowflake();
+    await _seedGuild(
+      db,
+      'guild-1',
+      channels: [
+        (
+          id: 'channel-1',
+          name: 'general',
+          type: 0,
+          lastMessageId: lastMessageId,
+        ),
+      ],
+    );
+    await db.readStateDao.upsertReadState(
+      ReadStatesCompanion(
+        channelId: const Value('channel-1'),
+        lastMessageId: Value(snowflakeAtPreviousMillisecond(lastMessageId)),
+      ),
+    );
+
+    final container = _container(db);
+    addTearDown(container.dispose);
+    final sub = container.listen(
+      guildReadStateProvider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(sub.close);
+
+    container.read(startupGatewayFallbackProvider.notifier)
+      ..arm()
+      ..openFromCache();
+    await _waitForGuildState(container, 'guild-1');
+
+    expect(container.read(gatewayReadyProvider), isFalse);
+    expect(container.read(guildReadStateReadyProvider), isTrue);
+    expect(
+      container.read(guildReadStateProvider)['guild-1']?.hasUnread,
+      isTrue,
+    );
+  });
 
   test(
     'guildReadStateReadyProvider is false until initial seed completes',
@@ -1365,7 +1412,7 @@ void main() {
       batcher = MessageWriteBatcher(
         database: db,
         channelLastMessageIndex: container.read(
-          channelLastMessageIndexProvider,
+          channelLastMessageIndexProvider(readAccountUserId(container)),
         ),
       );
       addTearDown(batcher.dispose);
@@ -1406,7 +1453,7 @@ void main() {
           currentUserId: 'me',
           readStateRepository: ReadStateRepository(FluxerClient(Dio()), db),
           channelLastMessageIndex: container.read(
-            channelLastMessageIndexProvider,
+            channelLastMessageIndexProvider(readAccountUserId(container)),
           ),
         ).handle(
           MessageDeleteEvent(channelId: 'channel-1', messageId: newMessageId),
@@ -1419,7 +1466,9 @@ void main() {
         );
         expect(
           container
-              .read(channelLastMessageIndexProvider)
+              .read(
+                channelLastMessageIndexProvider(readAccountUserId(container)),
+              )
               .lastMessageIdFor('channel-1'),
           readMessageId,
         );

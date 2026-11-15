@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/constants/media_proxy_sizes.dart';
@@ -7,7 +8,7 @@ import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
 import 'package:fluxer_app/core/permissions/permission_resolver.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/router/navigate_to_content.dart';
 import 'package:fluxer_app/core/router/route_names.dart' show RoutePaths;
@@ -22,6 +23,7 @@ import 'package:fluxer_app/features/members/domain/member.dart';
 import 'package:fluxer_app/features/members/domain/member_role_management.dart';
 import 'package:fluxer_app/features/members/presentation/widgets/user_profile_roles_section.dart';
 import 'package:fluxer_app/features/members/providers/member_providers.dart';
+import 'package:fluxer_app/features/profile/domain/custom_status_utils.dart';
 import 'package:fluxer_app/features/profile/presentation/sheets/profile_tab_menu_sheet.dart';
 import 'package:fluxer_app/features/profile/presentation/sheets/status_change_sheet.dart';
 import 'package:fluxer_app/features/profile/presentation/sheets/user_profile_actions_sheet.dart';
@@ -30,37 +32,43 @@ import 'package:fluxer_app/features/profile/presentation/sheets/user_profile_not
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_action_card_row.dart';
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_banner.dart';
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_bio_card.dart';
+import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_custom_status.dart';
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_header.dart';
+import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_identity_avatar.dart';
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_loading_skeleton.dart';
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_mutuals_section.dart';
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_note_card.dart';
+import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_popout_frame.dart';
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_relationship_button.dart';
 import 'package:fluxer_app/features/profile/presentation/widgets/user_profile_self_card.dart';
+import 'package:fluxer_app/features/profile/providers/own_profile_badges_provider.dart';
 import 'package:fluxer_app/features/profile/providers/user_note_view_model.dart';
 import 'package:fluxer_app/features/profile/providers/user_presence_provider.dart';
 import 'package:fluxer_app/features/profile/providers/user_profile_guild_provider.dart';
 import 'package:fluxer_app/features/profile/providers/user_relationship_provider.dart';
-import 'package:fluxer_app/features/profile/utils/premium_badge_visibility.dart';
+import 'package:fluxer_app/features/profile/utils/profile_hosted_layout.dart';
 import 'package:fluxer_app/features/profile/utils/profile_menu_capabilities.dart';
 import 'package:fluxer_app/features/settings/presentation/user_settings_modal.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
+import 'package:fluxer_app/features/shell/hosted_ui/hosted_ui_background_bleed.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
-import 'package:fluxer_app/features/voice/utils/call_actions.dart';
+import 'package:fluxer_app/features/voice/utils/callkit/call_actions.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
+import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 import 'package:fluxer_app/shared/providers/user_profile.dart';
 import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/fluxer_haptics.dart';
 import 'package:fluxer_app/shared/utils/guild_user_display.dart';
 import 'package:fluxer_app/shared/utils/snowflake_time.dart';
+import 'package:fluxer_app/shared/utils/user_tag.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const double _kBannerHeight = 184;
-const double _kAvatarSize = 80;
-const double _kAvatarRingWidth = 3.2;
-const double _kAvatarOverlap = _kAvatarSize / 2 + _kAvatarRingWidth;
+const double _kAvatarOverlap =
+    kUserProfileAvatarSize / 2 + kUserProfileAvatarRingWidth;
 
 class UserProfileView extends ConsumerStatefulWidget {
   const UserProfileView({
@@ -73,6 +81,8 @@ class UserProfileView extends ConsumerStatefulWidget {
     this.showTopHandle = false,
     this.isWebhook = false,
     this.message,
+    this.popout = false,
+    this.onOpenFullProfile,
     super.key,
   });
 
@@ -85,6 +95,8 @@ class UserProfileView extends ConsumerStatefulWidget {
   final bool showTopHandle;
   final bool isWebhook;
   final Message? message;
+  final bool popout;
+  final VoidCallback? onOpenFullProfile;
 
   @override
   ConsumerState<UserProfileView> createState() => _UserProfileViewState();
@@ -229,7 +241,7 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
         autoFocusNote: false,
         scrollController: scrollController,
         onCloseRequested: close,
-        showTopHandle: true,
+        showTopHandle: !usesDesktopPointerUi(sheetContext),
       ),
     );
   }
@@ -309,11 +321,7 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
     required String? guildName,
     required String? guildIconUrl,
     required List<MemberRole> memberRoles,
-    required int flags,
-    required bool hasPlutonium,
-    required bool isLifetimePlutonium,
-    required String? premiumSince,
-    required int? premiumLifetimeSequence,
+    required List<ProfileBadgeResponse> profileBadges,
     required List<UserPartialResponse> mutualFriends,
     required List<UserProfileFullResponseMutualGuilds> mutualCommunities,
     required UserPartialResponse? actionUser,
@@ -343,326 +351,530 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
   }) {
     final layout = context.layout;
     final colors = context.colors;
-    final bool showsPremiumFeatures = ref.watch(
-      instanceRuntimeConfigProvider.select(
-        (config) => config.showsPremiumFeatures,
-      ),
-    );
     final bool isBlocked = relationship?.friendStatus == FriendStatus.blocked;
+    final EdgeInsets hostedSide = profileHostedSideContentInsets(context);
+    final double contentPadLeft = layout.s4 + hostedSide.left;
+    final double contentPadRight = layout.s4 + hostedSide.right;
+    void openActions(Offset position) {
+      unawaited(
+        UserProfileActionsSheet.show(
+          context,
+          ref,
+          relationship: relationship,
+          user: actionUser!,
+          isCurrentUser: isCurrentUser,
+          position: position,
+          hasGuildProfile: hasGuildProfile,
+          isShowingGlobalProfile: isShowingGlobalProfile,
+          onShowGlobalProfile: () {
+            setState(() => _showGlobalProfile = true);
+          },
+          onShowCommunityProfile: () {
+            setState(() => _showGlobalProfile = false);
+          },
+          displayName: displayName,
+          guildId: widget.guildId,
+          message: widget.message,
+          avatarUrl: avatarUrl,
+          avatarColor: avatarColor,
+          capabilities: menuCaps,
+          currentNick: guildMemberNick,
+          currentTimeoutUntil: guildMemberTimeoutUntil,
+          allGuildRoles: allGuildRoles,
+          memberRoleIds: memberRoleIds,
+          canManageRoles: canManageRoles,
+          isGuildOwner: isGuildOwner,
+          viewerHighestRole: viewerHighestRole,
+          canReportUserProfile: true,
+        ),
+      );
+    }
+
+    if (widget.popout) {
+      return _buildPopoutCard(
+        userId: userId,
+        username: username,
+        discriminator: discriminator,
+        displayName: displayName,
+        avatarUrl: avatarUrl,
+        avatarColor: avatarColor,
+        bannerColor: bannerColor,
+        bannerUrl: bannerUrl,
+        bio: bio,
+        accountMemberSince: accountMemberSince,
+        guildMemberSince: guildMemberSince,
+        guildName: guildName,
+        guildIconUrl: guildIconUrl,
+        memberRoles: memberRoles,
+        profileBadges: profileBadges,
+        connections: connections,
+        pronouns: pronouns,
+        customStatus: customStatus,
+        isCurrentUser: isCurrentUser,
+        isBlocked: isBlocked,
+        timezoneOffset: timezoneOffset,
+        profileGuildId: profileGuildId,
+        memberRoleIds: memberRoleIds,
+        allGuildRoles: allGuildRoles,
+        canManageRoles: canManageRoles,
+        isGuildOwner: isGuildOwner,
+        viewerHighestRole: viewerHighestRole,
+        isWebhook: isWebhook,
+        isBot: isBot,
+        isSystem: isSystem,
+        openActions: actionUser == null ? null : openActions,
+      );
+    }
+    Widget scrollView = CustomScrollView(
+      controller: widget.scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: <Widget>[
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: _kBannerHeight + _kAvatarOverlap,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: _kBannerHeight,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      top: layout.radiusXxl.topLeft,
+                    ),
+                    child: UserProfileBanner(
+                      bannerUrl: bannerUrl,
+                      bannerColor: bannerColor,
+                    ),
+                  ),
+                ),
+                if (widget.showTopHandle)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Center(
+                        child: Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(9999),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                PositionedDirectional(
+                  start: contentPadLeft,
+                  top: _kBannerHeight - _kAvatarOverlap,
+                  child: UserProfileIdentityAvatar(
+                    userId: userId,
+                    displayName: displayName,
+                    avatarUrl: avatarUrl,
+                    avatarColor: avatarColor,
+                    showStatus: !isWebhook,
+                    onTap: widget.useCurrentUserCache ? _openStatusSheet : null,
+                  ),
+                ),
+                if (!isWebhook)
+                  PositionedDirectional(
+                    end: contentPadRight,
+                    top: _kBannerHeight + layout.s2,
+                    child: Row(
+                      children: <Widget>[
+                        UserProfileRelationshipButton(
+                          relationshipStatus: relationship?.friendStatus,
+                          isCurrentUser: isCurrentUser,
+                          allowFriendRequests: !ref.watch(
+                            instanceRuntimeConfigProvider.select(
+                              (config) => config.directMessagesDisabled,
+                            ),
+                          ),
+                          onUnblock: () => _handleRelationshipAction(
+                            repoCall: () => ref
+                                .read(friendRepositoryProvider)
+                                .removeRelationship(userId),
+                            errorAction: ApiErrorAction.unblockUser,
+                            confirmTitle: FluxerLocalizations.of(
+                              context,
+                            ).userProfileUnblockConfirmTitle,
+                            confirmDescription: FluxerLocalizations.of(
+                              context,
+                            ).userProfileUnblockConfirmDescription(username),
+                            confirmPrimary: FluxerLocalizations.of(
+                              context,
+                            ).userProfileUnblockUser,
+                            confirmVariant: FluxerButtonVariant.primary,
+                          ),
+                          onRemoveFriend: () => _handleRelationshipAction(
+                            repoCall: () => ref
+                                .read(friendRepositoryProvider)
+                                .removeRelationship(userId),
+                            errorAction: ApiErrorAction.removeFriend,
+                            confirmTitle: FluxerLocalizations.of(
+                              context,
+                            ).userProfileRemoveFriendConfirmTitle,
+                            confirmDescription: FluxerLocalizations.of(context)
+                                .userProfileRemoveFriendConfirmDescription(
+                                  username,
+                                ),
+                            confirmPrimary: FluxerLocalizations.of(
+                              context,
+                            ).userProfileRemoveFriend,
+                            confirmVariant: FluxerButtonVariant.dangerPrimary,
+                          ),
+                          onAcceptRequest: () => _handleRelationshipAction(
+                            repoCall: () => ref
+                                .read(friendRepositoryProvider)
+                                .acceptFriendRequest(userId),
+                            errorAction: ApiErrorAction.acceptFriendRequest,
+                          ),
+                          onCancelRequest: () => _handleRelationshipAction(
+                            repoCall: () => ref
+                                .read(friendRepositoryProvider)
+                                .removeRelationship(userId),
+                            errorAction: ApiErrorAction.cancelFriendRequest,
+                          ),
+                          onSendFriendRequest: () => _handleRelationshipAction(
+                            repoCall: () => ref
+                                .read(friendRepositoryProvider)
+                                .sendFriendRequest(userId),
+                            errorAction: ApiErrorAction.sendFriendRequest,
+                          ),
+                        ),
+                        SizedBox(width: layout.s2),
+                        if (actionUser == null)
+                          FluxerButton.circleAlt(
+                            icon: PhosphorIconsFill.gear,
+                            semanticLabel: FluxerLocalizations.of(
+                              context,
+                            ).nagbarOpenSettings,
+                            onPressed: () => UserSettingsModal.show(context),
+                          )
+                        else
+                          _MoreButton(onTap: openActions),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: EdgeInsetsDirectional.fromSTEB(
+            contentPadLeft,
+            layout.s2,
+            contentPadRight,
+            (FluxerBottomSheet.isInSheet(context) ? 0 : layout.s4) +
+                FluxerBottomSheet.scrollBottomPaddingOf(context),
+          ),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate.fixed(<Widget>[
+              UserProfileHeader(
+                username: username,
+                discriminator: discriminator,
+                displayName: displayName,
+                badges: profileBadges,
+                customStatus: customStatus,
+                pronouns: pronouns,
+                showUsername: !isWebhook,
+                isBot: isBot || isWebhook,
+                isSystem: isSystem,
+                isCurrentUser: isCurrentUser,
+                onDisplayNameTap: widget.useCurrentUserCache
+                    ? _openProfileTabMenu
+                    : null,
+              ),
+              if (!isWebhook) ...[
+                SizedBox(height: layout.s4),
+                UserProfileActionCardRow(
+                  isCurrentUser: isCurrentUser,
+                  isFriend: relationship?.friendStatus == FriendStatus.accepted,
+                  isBlocked: isBlocked,
+                  canCall:
+                      canCall &&
+                      !ref.watch(
+                        instanceRuntimeConfigProvider.select(
+                          (config) =>
+                              config.directMessagesDisabled ||
+                              !config.voiceEnabled,
+                        ),
+                      ),
+                  showMessage: !ref.watch(
+                    instanceRuntimeConfigProvider.select(
+                      (config) => config.directMessagesDisabled,
+                    ),
+                  ),
+                  onMessage: () => _handleMessage(userId, isBlocked, username),
+                  onVoiceCall: () => _handleOutboundDmCall(
+                    peerUserId: userId,
+                    isBlocked: isBlocked,
+                    username: username,
+                    startWithVideo: false,
+                  ),
+                  onVideoCall: () => _handleOutboundDmCall(
+                    peerUserId: userId,
+                    isBlocked: isBlocked,
+                    username: username,
+                    startWithVideo: true,
+                  ),
+                  onEditProfile: () =>
+                      UserSettingsModal.show(context, openProfileSection: true),
+                ),
+                if (widget.useCurrentUserCache) ...[
+                  SizedBox(height: layout.s3),
+                  const UserProfileSelfCard(),
+                ],
+                SizedBox(height: layout.s4),
+                UserProfileBioCard(
+                  bio: bio,
+                  userId: userId,
+                  guildId: profileGuildId,
+                  accountMemberSince: accountMemberSince,
+                  guildMemberSince: guildMemberSince,
+                  guildName: guildName,
+                  guildIconUrl: guildIconUrl,
+                  connections: connections,
+                  timezoneOffset: timezoneOffset,
+                ),
+                if (profileGuildId != null) ...<Widget>[
+                  SizedBox(height: layout.s4),
+                  UserProfileRolesSection(
+                    guildId: profileGuildId,
+                    userId: userId,
+                    memberRoles: memberRoles,
+                    memberRoleIds: memberRoleIds,
+                    allGuildRoles: allGuildRoles,
+                    canManageRoles: canManageRoles,
+                    isGuildOwner: isGuildOwner,
+                    viewerHighestRole: viewerHighestRole,
+                  ),
+                ],
+                SizedBox(height: layout.s4),
+                if (!isCurrentUser) ...[
+                  UserProfileMutualsSection(
+                    friends: mutualFriends,
+                    communities: mutualCommunities,
+                    onFriendTap: (UserPartialResponse friend) =>
+                        _showMutualFriendProfile(friend.id),
+                    onCommunityTap:
+                        (UserProfileFullResponseMutualGuilds community) =>
+                            _openMutualCommunity(community.id),
+                  ),
+                  SizedBox(height: layout.s4),
+                ],
+                UserProfileNoteCard(
+                  note: note,
+                  onTap: () => UserProfileNoteEditSheet.show(
+                    context,
+                    userId: userId,
+                    initialNote: note,
+                  ),
+                ),
+                SizedBox(height: layout.s4),
+              ],
+            ]),
+          ),
+        ),
+      ],
+    );
+    if (profileHostedBannerBleedsIntoSideStrip(context)) {
+      scrollView = Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          HostedUiSideStripFill(color: bannerColor, height: _kBannerHeight),
+          scrollView,
+        ],
+      );
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.backgroundPrimary,
         borderRadius: BorderRadius.vertical(top: layout.radiusXxl.topLeft),
       ),
-      child: CustomScrollView(
-        controller: widget.scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: <Widget>[
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: _kBannerHeight + _kAvatarOverlap,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: _kBannerHeight,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.vertical(
-                        top: layout.radiusXxl.topLeft,
-                      ),
-                      child: UserProfileBanner(
-                        bannerUrl: bannerUrl,
-                        bannerColor: bannerColor,
-                      ),
+      child: scrollView,
+    );
+  }
+
+  Widget _buildPopoutCard({
+    required String userId,
+    required String username,
+    required String discriminator,
+    required String displayName,
+    required String? avatarUrl,
+    required int? avatarColor,
+    required Color bannerColor,
+    required String? bannerUrl,
+    required String? bio,
+    required DateTime? accountMemberSince,
+    required DateTime? guildMemberSince,
+    required String? guildName,
+    required String? guildIconUrl,
+    required List<MemberRole> memberRoles,
+    required List<ProfileBadgeResponse> profileBadges,
+    required List<ConnectionResponse> connections,
+    required String? pronouns,
+    required String? customStatus,
+    required bool isCurrentUser,
+    required bool isBlocked,
+    required int? timezoneOffset,
+    required String? profileGuildId,
+    required Set<String> memberRoleIds,
+    required List<MemberRole> allGuildRoles,
+    required bool canManageRoles,
+    required bool isGuildOwner,
+    required MemberRole? viewerHighestRole,
+    required bool isWebhook,
+    required bool isBot,
+    required bool isSystem,
+    required ValueChanged<Offset>? openActions,
+  }) {
+    final colors = context.colors;
+    final textStyles = context.textStyles;
+    final layout = context.layout;
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final VoidCallback? openFull = isWebhook ? null : widget.onOpenFullProfile;
+    final String? trimmedPronouns = pronouns?.trim();
+    final bool dmsDisabled = ref.watch(
+      instanceRuntimeConfigProvider.select(
+        (config) => config.directMessagesDisabled,
+      ),
+    );
+    final int nameLength = math.max(displayName.characters.length, 1);
+    final Widget name = Text(
+      displayName,
+      style: textStyles.heading.copyWith(
+        color: colors.textPrimary,
+        fontSize: (480 / nameLength).clamp(17.0, 20.0),
+        fontWeight: FontWeight.w500,
+        height: 24 / (480 / nameLength).clamp(17.0, 20.0),
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    final Widget? footer = isWebhook
+        ? null
+        : isCurrentUser
+        ? FluxerButton.primary(
+            label: l10n.userProfileEditProfile,
+            icon: PhosphorIconsFill.pencil,
+            size: FluxerButtonSize.small,
+            onPressed: () {
+              _requestClose();
+              unawaited(
+                UserSettingsModal.show(context, openProfileSection: true),
+              );
+            },
+          )
+        : dmsDisabled
+        ? null
+        : FluxerButton.primary(
+            label: isBlocked ? l10n.userProfileOpenDm : l10n.userProfileMessage,
+            icon: PhosphorIconsFill.chatTeardrop,
+            size: FluxerButtonSize.small,
+            onPressed: () => _handleMessage(userId, isBlocked, username),
+          );
+
+    return UserProfilePopoutFrame(
+      scrollController: widget.scrollController,
+      accentColor: bannerColor,
+      bannerUrl: bannerUrl,
+      badges: profileBadges,
+      footer: footer,
+      topEndAction: openActions == null
+          ? null
+          : _MoreButton(onTap: openActions),
+      avatar: UserProfileIdentityAvatar(
+        userId: userId,
+        displayName: displayName,
+        avatarUrl: avatarUrl,
+        avatarColor: avatarColor,
+        showStatus: !isWebhook,
+        onTap: openFull,
+      ),
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Flexible(
+              child: openFull == null
+                  ? name
+                  : FluxerTappable(
+                      onTap: openFull,
+                      builder:
+                          (BuildContext context, Set<WidgetState> states) =>
+                              name,
                     ),
-                  ),
-                  if (widget.showTopHandle)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Center(
-                          child: Container(
-                            width: 36,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(9999),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  Positioned(
-                    left: layout.s4,
-                    top: _kBannerHeight - _kAvatarOverlap,
-                    child: _ProfileIdentityAvatar(
-                      userId: userId,
-                      displayName: displayName,
-                      avatarUrl: avatarUrl,
-                      avatarColor: avatarColor,
-                      showStatus: !isWebhook,
-                      onTap: widget.useCurrentUserCache
-                          ? _openStatusSheet
-                          : null,
-                    ),
-                  ),
-                  if (!isWebhook)
-                    Positioned(
-                      right: layout.s4,
-                      top: _kBannerHeight + layout.s2,
-                      child: Row(
-                        children: <Widget>[
-                          UserProfileRelationshipButton(
-                            relationshipStatus: relationship?.friendStatus,
-                            isCurrentUser: isCurrentUser,
-                            allowFriendRequests: !ref.watch(
-                              instanceRuntimeConfigProvider.select(
-                                (config) => config.directMessagesDisabled,
-                              ),
-                            ),
-                            onUnblock: () => _handleRelationshipAction(
-                              repoCall: () => ref
-                                  .read(friendRepositoryProvider)
-                                  .removeRelationship(userId),
-                              errorAction: ApiErrorAction.unblockUser,
-                              confirmTitle: FluxerLocalizations.of(
-                                context,
-                              ).userProfileUnblockConfirmTitle,
-                              confirmDescription: FluxerLocalizations.of(
-                                context,
-                              ).userProfileUnblockConfirmDescription(username),
-                              confirmPrimary: FluxerLocalizations.of(
-                                context,
-                              ).userProfileUnblockUser,
-                              confirmVariant: FluxerButtonVariant.primary,
-                            ),
-                            onRemoveFriend: () => _handleRelationshipAction(
-                              repoCall: () => ref
-                                  .read(friendRepositoryProvider)
-                                  .removeRelationship(userId),
-                              errorAction: ApiErrorAction.removeFriend,
-                              confirmTitle: FluxerLocalizations.of(
-                                context,
-                              ).userProfileRemoveFriendConfirmTitle,
-                              confirmDescription:
-                                  FluxerLocalizations.of(
-                                    context,
-                                  ).userProfileRemoveFriendConfirmDescription(
-                                    username,
-                                  ),
-                              confirmPrimary: FluxerLocalizations.of(
-                                context,
-                              ).userProfileRemoveFriend,
-                              confirmVariant: FluxerButtonVariant.dangerPrimary,
-                            ),
-                            onAcceptRequest: () => _handleRelationshipAction(
-                              repoCall: () => ref
-                                  .read(friendRepositoryProvider)
-                                  .acceptFriendRequest(userId),
-                              errorAction: ApiErrorAction.acceptFriendRequest,
-                            ),
-                            onCancelRequest: () => _handleRelationshipAction(
-                              repoCall: () => ref
-                                  .read(friendRepositoryProvider)
-                                  .removeRelationship(userId),
-                              errorAction: ApiErrorAction.cancelFriendRequest,
-                            ),
-                            onSendFriendRequest: () =>
-                                _handleRelationshipAction(
-                                  repoCall: () => ref
-                                      .read(friendRepositoryProvider)
-                                      .sendFriendRequest(userId),
-                                  errorAction: ApiErrorAction.sendFriendRequest,
-                                ),
-                          ),
-                          SizedBox(width: layout.s2),
-                          if (actionUser == null)
-                            FluxerButton.circleAlt(
-                              icon: PhosphorIconsFill.gear,
-                              semanticLabel: FluxerLocalizations.of(
-                                context,
-                              ).nagbarOpenSettings,
-                              onPressed: () => UserSettingsModal.show(context),
-                            )
-                          else
-                            _MoreButton(
-                              onTap: (Offset position) {
-                                unawaited(
-                                  UserProfileActionsSheet.show(
-                                    context,
-                                    ref,
-                                    relationship: relationship,
-                                    user: actionUser,
-                                    isCurrentUser: isCurrentUser,
-                                    position: position,
-                                    hasGuildProfile: hasGuildProfile,
-                                    isShowingGlobalProfile:
-                                        isShowingGlobalProfile,
-                                    onShowGlobalProfile: () {
-                                      setState(() => _showGlobalProfile = true);
-                                    },
-                                    onShowCommunityProfile: () {
-                                      setState(
-                                        () => _showGlobalProfile = false,
-                                      );
-                                    },
-                                    displayName: displayName,
-                                    guildId: widget.guildId,
-                                    message: widget.message,
-                                    avatarUrl: avatarUrl,
-                                    avatarColor: avatarColor,
-                                    capabilities: menuCaps,
-                                    currentNick: guildMemberNick,
-                                    currentTimeoutUntil:
-                                        guildMemberTimeoutUntil,
-                                    allGuildRoles: allGuildRoles,
-                                    memberRoleIds: memberRoleIds,
-                                    canManageRoles: canManageRoles,
-                                    isGuildOwner: isGuildOwner,
-                                    viewerHighestRole: viewerHighestRole,
-                                    canReportUserProfile: true,
-                                  ),
-                                );
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+            ),
+            if (isBot || isSystem || isWebhook) ...<Widget>[
+              const SizedBox(width: 6),
+              FluxerUserTag(isSystem: isSystem),
+            ],
+          ],
+        ),
+        if (!isWebhook)
+          Text(
+            formatUserTag(
+              username,
+              discriminator,
+              uniqueUsernames:
+                  isCurrentUser || ref.watch(uniqueUsernamesProvider),
+              bot: isBot,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textStyles.bodySmall.copyWith(
+              color: colors.textTertiary,
+              height: 18 / 14,
             ),
           ),
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-              layout.s4,
-              layout.s2,
-              layout.s4,
-              layout.s4 + FluxerBottomSheet.scrollBottomPaddingOf(context),
-            ),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate.fixed(<Widget>[
-                UserProfileHeader(
-                  username: username,
-                  discriminator: discriminator,
-                  displayName: displayName,
-                  flags: flags,
-                  hasPlutonium: hasPlutonium && showsPremiumFeatures,
-                  isLifetimePlutonium: isLifetimePlutonium,
-                  premiumSince: premiumSince,
-                  premiumLifetimeSequence: premiumLifetimeSequence,
-                  customStatus: customStatus,
-                  pronouns: pronouns,
-                  showUsername: !isWebhook,
-                  isBot: isBot || isWebhook,
-                  isSystem: isSystem,
-                  isCurrentUser: isCurrentUser,
-                  onDisplayNameTap: widget.useCurrentUserCache
-                      ? _openProfileTabMenu
-                      : null,
-                ),
-                if (!isWebhook) ...[
-                  SizedBox(height: layout.s4),
-                  UserProfileActionCardRow(
-                    isCurrentUser: isCurrentUser,
-                    isFriend:
-                        relationship?.friendStatus == FriendStatus.accepted,
-                    isBlocked: isBlocked,
-                    canCall:
-                        canCall &&
-                        !ref.watch(
-                          instanceRuntimeConfigProvider.select(
-                            (config) =>
-                                config.directMessagesDisabled ||
-                                !config.voiceEnabled,
-                          ),
-                        ),
-                    showMessage: !ref.watch(
-                      instanceRuntimeConfigProvider.select(
-                        (config) => config.directMessagesDisabled,
-                      ),
-                    ),
-                    onMessage: () =>
-                        _handleMessage(userId, isBlocked, username),
-                    onVoiceCall: () => _handleOutboundDmCall(
-                      peerUserId: userId,
-                      isBlocked: isBlocked,
-                      username: username,
-                      startWithVideo: false,
-                    ),
-                    onVideoCall: () => _handleOutboundDmCall(
-                      peerUserId: userId,
-                      isBlocked: isBlocked,
-                      username: username,
-                      startWithVideo: true,
-                    ),
-                    onEditProfile: () => UserSettingsModal.show(
-                      context,
-                      openProfileSection: true,
-                    ),
-                  ),
-                  if (widget.useCurrentUserCache) ...[
-                    SizedBox(height: layout.s3),
-                    const UserProfileSelfCard(),
-                  ],
-                  SizedBox(height: layout.s4),
-                  UserProfileBioCard(
-                    bio: bio,
-                    userId: userId,
-                    guildId: profileGuildId,
-                    accountMemberSince: accountMemberSince,
-                    guildMemberSince: guildMemberSince,
-                    guildName: guildName,
-                    guildIconUrl: guildIconUrl,
-                    connections: connections,
-                    timezoneOffset: timezoneOffset,
-                  ),
-                  if (profileGuildId != null) ...<Widget>[
-                    SizedBox(height: layout.s4),
-                    UserProfileRolesSection(
-                      guildId: profileGuildId,
-                      userId: userId,
-                      memberRoles: memberRoles,
-                      memberRoleIds: memberRoleIds,
-                      allGuildRoles: allGuildRoles,
-                      canManageRoles: canManageRoles,
-                      isGuildOwner: isGuildOwner,
-                      viewerHighestRole: viewerHighestRole,
-                    ),
-                  ],
-                  SizedBox(height: layout.s4),
-                  if (!isCurrentUser) ...[
-                    UserProfileMutualsSection(
-                      friends: mutualFriends,
-                      communities: mutualCommunities,
-                      onFriendTap: (UserPartialResponse friend) =>
-                          _showMutualFriendProfile(friend.id),
-                      onCommunityTap:
-                          (UserProfileFullResponseMutualGuilds community) =>
-                              _openMutualCommunity(community.id),
-                    ),
-                    SizedBox(height: layout.s4),
-                  ],
-                  UserProfileNoteCard(
-                    note: note,
-                    onTap: () => UserProfileNoteEditSheet.show(
-                      context,
-                      userId: userId,
-                      initialNote: note,
-                    ),
-                  ),
-                  SizedBox(height: layout.s4),
-                ],
-              ]),
+        if (trimmedPronouns != null && trimmedPronouns.isNotEmpty) ...<Widget>[
+          SizedBox(height: layout.s1),
+          Text(
+            trimmedPronouns,
+            style: textStyles.bodySmall.copyWith(
+              color: colors.textTertiary,
+              fontSize: 13,
             ),
           ),
         ],
-      ),
+        if (hasVisibleCustomStatus(customStatus)) ...<Widget>[
+          SizedBox(height: layout.s2),
+          UserProfileCustomStatus(text: customStatus, popout: true),
+        ],
+        if (!isWebhook) ...<Widget>[
+          SizedBox(height: layout.s2),
+          UserProfileBioCard(
+            compact: true,
+            bio: bio,
+            userId: userId,
+            guildId: profileGuildId,
+            accountMemberSince: accountMemberSince,
+            guildMemberSince: guildMemberSince,
+            guildName: guildName,
+            guildIconUrl: guildIconUrl,
+            connections: connections,
+            timezoneOffset: timezoneOffset,
+          ),
+        ],
+        if (!isWebhook && profileGuildId != null) ...<Widget>[
+          SizedBox(height: layout.s2),
+          UserProfileRolesSection(
+            guildId: profileGuildId,
+            userId: userId,
+            memberRoles: memberRoles,
+            memberRoleIds: memberRoleIds,
+            allGuildRoles: allGuildRoles,
+            canManageRoles: canManageRoles,
+            isGuildOwner: isGuildOwner,
+            viewerHighestRole: viewerHighestRole,
+          ),
+        ],
+      ],
     );
   }
 
@@ -697,11 +909,7 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
       guildName: null,
       guildIconUrl: null,
       memberRoles: const <MemberRole>[],
-      flags: 0,
-      hasPlutonium: false,
-      isLifetimePlutonium: false,
-      premiumSince: null,
-      premiumLifetimeSequence: null,
+      profileBadges: const <ProfileBadgeResponse>[],
       mutualFriends: const <UserPartialResponse>[],
       mutualCommunities: const <UserProfileFullResponseMutualGuilds>[],
       actionUser: null,
@@ -733,9 +941,6 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
       userNoteViewModelProvider(userId: widget.userId),
     );
     final String ownUserId = ref.watch(userSettingsViewModelProvider).userId;
-    final UserSettingsViewState settingsState = ref.watch(
-      userSettingsViewModelProvider,
-    );
     _maybeAutoFocusNote(noteAsync);
     if (widget.useCurrentUserCache) {
       final UserProfileFullResponse? ownFullProfile = ref.watch(
@@ -745,13 +950,17 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
         currentUserCachedProfileProvider,
       );
       if (profile == null) {
+        if (widget.popout) {
+          return const _PopoutLoadingCard();
+        }
         return UserProfileLoadingSkeleton(
           scrollController: widget.scrollController,
           showTopHandle: widget.showTopHandle,
         );
       }
-      final PremiumBadgeVisibility premiumBadges =
-          PremiumBadgeVisibility.fromSettings(settingsState);
+      final List<ProfileBadgeResponse> profileBadges = ref.watch(
+        ownProfileBadgesProvider,
+      );
       return _buildLoadedView(
         userId: profile.id,
         username: profile.username,
@@ -780,11 +989,7 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
         guildName: null,
         guildIconUrl: null,
         memberRoles: const <MemberRole>[],
-        flags: profile.publicFlags,
-        hasPlutonium: premiumBadges.hasPlutonium,
-        isLifetimePlutonium: premiumBadges.isLifetimePlutonium,
-        premiumSince: premiumBadges.premiumSince,
-        premiumLifetimeSequence: premiumBadges.premiumLifetimeSequence,
+        profileBadges: profileBadges,
         mutualFriends: const <UserPartialResponse>[],
         mutualCommunities: const <UserProfileFullResponseMutualGuilds>[],
         actionUser: null,
@@ -822,10 +1027,12 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
           )
         : fetchedProfileAsync;
     return profileAsync.when(
-      loading: () => UserProfileLoadingSkeleton(
-        scrollController: widget.scrollController,
-        showTopHandle: widget.showTopHandle,
-      ),
+      loading: () => widget.popout
+          ? const _PopoutLoadingCard()
+          : UserProfileLoadingSkeleton(
+              scrollController: widget.scrollController,
+              showTopHandle: widget.showTopHandle,
+            ),
       error: (_, _) => _ErrorState(
         onRetry: () => ref.invalidate(
           userProfileProvider(userId: widget.userId, guildId: widget.guildId),
@@ -900,6 +1107,15 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
             currentUserId: ownUserId,
             everyonePermissions: everyonePermissions,
             memberRoles: viewerRoles,
+            guildMfaRestricted: isGuildMfaRestricted(
+              guildMfaLevel: guildInfo?.mfaLevel ?? 0,
+              isGuildOwner: isGuildOwner,
+              userLacksMfa: ref.watch(
+                userSettingsViewModelProvider.select(
+                  (UserSettingsViewState s) => s.lacksMfa,
+                ),
+              ),
+            ),
           );
           canManageRoles = hasPermission(
             viewerPermissions,
@@ -949,13 +1165,8 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
               friendNickname: relationshipAsync.value?.nickname,
               showGlobalProfile: _showGlobalProfile,
             );
-        final PremiumBadgeVisibility premiumBadges = isCurrentProfile
-            ? PremiumBadgeVisibility.fromSettings(settingsState)
-            : PremiumBadgeVisibility.fromProfile(
-                premiumType: response.premiumType,
-                premiumSince: response.premiumSince,
-                premiumLifetimeSequence: response.premiumLifetimeSequence,
-              );
+        final List<ProfileBadgeResponse> profileBadges =
+            response.profileBadges ?? const <ProfileBadgeResponse>[];
         return _buildLoadedView(
           userId: response.user.id,
           username: response.user.username,
@@ -982,13 +1193,9 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
                   hash: guildInfo.icon,
                 ),
           memberRoles: memberRoles,
-          flags: response.user.flags,
+          profileBadges: profileBadges,
           isBot: response.user.bot ?? false,
           isSystem: response.user.system ?? false,
-          hasPlutonium: premiumBadges.hasPlutonium,
-          isLifetimePlutonium: premiumBadges.isLifetimePlutonium,
-          premiumSince: premiumBadges.premiumSince,
-          premiumLifetimeSequence: premiumBadges.premiumLifetimeSequence,
           mutualFriends: isCurrentProfile
               ? const <UserPartialResponse>[]
               : response.mutualFriends ?? const <UserPartialResponse>[],
@@ -1027,46 +1234,14 @@ class _UserProfileViewState extends ConsumerState<UserProfileView> {
   }
 }
 
-class _ProfileIdentityAvatar extends StatelessWidget {
-  const _ProfileIdentityAvatar({
-    required this.userId,
-    required this.displayName,
-    required this.avatarUrl,
-    required this.avatarColor,
-    required this.showStatus,
-    this.onTap,
-  });
-
-  final String userId;
-  final String displayName;
-  final String? avatarUrl;
-  final int? avatarColor;
-  final bool showStatus;
-  final VoidCallback? onTap;
+class _PopoutLoadingCard extends StatelessWidget {
+  const _PopoutLoadingCard();
 
   @override
   Widget build(BuildContext context) {
-    final Widget avatar = Container(
-      padding: const EdgeInsets.all(_kAvatarRingWidth),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: context.colors.backgroundPrimary,
-      ),
-      child: FluxerAvatar.userPresence(
-        fallbackText: displayName,
-        userId: userId,
-        imageUrl: avatarUrl,
-        avatarColor: avatarColor,
-        showStatus: showStatus,
-        size: _kAvatarSize,
-      ),
-    );
-    if (onTap == null) {
-      return avatar;
-    }
-    return FluxerTappable(
-      onTap: onTap,
-      builder: (BuildContext context, Set<WidgetState> states) => avatar,
+    return const SizedBox(
+      height: 240,
+      child: Center(child: FluxerLoadingSpinner()),
     );
   }
 }
@@ -1147,9 +1322,9 @@ class _ErrorState extends StatelessWidget {
           ),
         ),
         if (onClose != null)
-          Positioned(
+          PositionedDirectional(
             top: layout.s2,
-            right: layout.s2,
+            end: layout.s2,
             child: FluxerButton.circleAlt(
               onPressed: onClose,
               icon: PhosphorIconsBold.x,

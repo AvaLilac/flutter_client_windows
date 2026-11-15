@@ -7,19 +7,19 @@ import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/core/limits/instance_limit_provider.dart';
 import 'package:fluxer_app/core/limits/limit_key.dart';
 import 'package:fluxer_app/core/premium/should_show_premium_commerce_provider.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/wide_settings_content_layout.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/features/ui/warning_alert/fluxer_warning_alert.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/utils/user_date_formatting.dart';
 import 'package:fluxer_dart/export.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const int _kMinUsernameLength = 1;
 const int _kMaxUsernameLength = 32;
@@ -306,7 +306,12 @@ class _FluxerTagChangeContentState
       context,
       title: l10n.fluxerTagAlreadyTaken,
       builder: (sheetContext, _) => Padding(
-        padding: EdgeInsets.all(sheetContext.layout.s4),
+        padding: EdgeInsets.fromLTRB(
+          sheetContext.layout.s4,
+          sheetContext.layout.s4,
+          sheetContext.layout.s4,
+          0,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -341,7 +346,10 @@ class _FluxerTagChangeContentState
 
     final String message;
     if (expiryDate != null) {
-      final formatted = formatUserMediumDate(expiryDate, l10n.localeName);
+      final formatted = formatUserMediumDate(
+        expiryDate.toLocal(),
+        l10n.localeName,
+      );
       message = l10n.customTagTemporaryBodyWithDate(formatted);
     } else {
       message = l10n.customTagTemporaryBody;
@@ -351,7 +359,12 @@ class _FluxerTagChangeContentState
       context,
       title: l10n.customTagIsTemporary,
       builder: (sheetContext, _) => Padding(
-        padding: EdgeInsets.all(sheetContext.layout.s4),
+        padding: EdgeInsets.fromLTRB(
+          sheetContext.layout.s4,
+          sheetContext.layout.s4,
+          sheetContext.layout.s4,
+          0,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

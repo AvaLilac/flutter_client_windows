@@ -6,19 +6,36 @@ import 'package:flutter/foundation.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/channels/data/read_state_effective.dart';
+import 'package:fluxer_app/features/channels/data/read_state_persist.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 
 const int kReadStateWriteBatchMs = 1000;
 
-const int kReadStateAckBatchMs = 50;
 const int kReadStateMentionBatchMs = 50;
 const int kReadStateUnreadMinIntervalMs = 2000;
+
+class ReadStateAckCursor {
+  const ReadStateAckCursor({
+    required this.lastMessageId,
+    required this.mentionCount,
+    required this.manual,
+    required this.stickyUnreadMessageId,
+    required this.version,
+    required this.lastPinTimestamp,
+  });
+
+  final String? lastMessageId;
+  final int mentionCount;
+  final bool manual;
+  final String? stickyUnreadMessageId;
+  final String? version;
+  final String? lastPinTimestamp;
+}
 
 class ReadStateWriteBatcher {
   ReadStateWriteBatcher({
     required this._database,
     this._window = const Duration(milliseconds: kReadStateWriteBatchMs),
-    this._ackWindow = const Duration(milliseconds: kReadStateAckBatchMs),
     this._mentionWindow = const Duration(
       milliseconds: kReadStateMentionBatchMs,
     ),
@@ -31,20 +48,48 @@ class ReadStateWriteBatcher {
   final FluxerDatabase _database;
   final VoidCallback? onOverlayChanged;
   final Duration _window;
-  final Duration _ackWindow;
   final Duration _mentionWindow;
   final Duration _minIntervalBetweenUnreadFlushes;
   final Map<String, _PendingUnread> _pending = <String, _PendingUnread>{};
   final Map<String, _PendingAck> _pendingAcks = <String, _PendingAck>{};
+  final Map<String, _AckCursor> _cursors = <String, _AckCursor>{};
+  final Map<String, Future<ReadStateAckCursor>> _seeding =
+      <String, Future<ReadStateAckCursor>>{};
   final Map<String, Future<void>> _flushing = <String, Future<void>>{};
   final Map<String, DateTime> _lastUnreadFlushAt = <String, DateTime>{};
   final Map<String, _HeldReadStateOverlay> _heldWhileWriting =
       <String, _HeldReadStateOverlay>{};
+  final Map<String, Set<VoidCallback>> _overlayListeners =
+      <String, Set<VoidCallback>>{};
+  Future<void>? _ackPersist;
   bool _disposed = false;
 
-  void _bumpOverlay() {
+  VoidCallback listenOverlay(String channelId, VoidCallback listener) {
+    (_overlayListeners[channelId] ??= <VoidCallback>{}).add(listener);
+    return () {
+      final Set<VoidCallback>? listeners = _overlayListeners[channelId];
+      if (listeners == null) {
+        return;
+      }
+      listeners.remove(listener);
+      if (listeners.isEmpty) {
+        _overlayListeners.remove(channelId);
+      }
+    };
+  }
+
+  void _bumpOverlay(Iterable<String> channelIds) {
     if (_disposed) {
       return;
+    }
+    for (final String channelId in channelIds) {
+      final Set<VoidCallback>? listeners = _overlayListeners[channelId];
+      if (listeners == null) {
+        continue;
+      }
+      for (final VoidCallback listener in listeners.toList()) {
+        listener();
+      }
     }
     onOverlayChanged?.call();
   }
@@ -60,6 +105,23 @@ class ReadStateWriteBatcher {
       _pendingAcks.containsKey(channelId) ||
       _heldWhileWriting.containsKey(channelId);
 
+  ReadState? persistedReadState(String channelId) {
+    final _AckCursor? cursor = _cursors[channelId];
+    if (cursor == null || !cursor.seeded) {
+      return null;
+    }
+    return ReadState(
+      channelId: channelId,
+      lastMessageId: cursor.persistedLastMessageId,
+      mentionCount: cursor.persistedMentionCount,
+      manual: cursor.persistedManual,
+      stickyUnreadMessageId: cursor.persistedSticky,
+      lastPinTimestamp: cursor.lastPinTimestamp,
+      version: cursor.version,
+      flags: cursor.flags,
+    );
+  }
+
   ReadStateEffectiveFields effectiveFields(
     String channelId,
     ReadState? persisted,
@@ -71,6 +133,13 @@ class ReadStateWriteBatcher {
     if (held != null) {
       lastMessageId = held.lastMessageId ?? lastMessageId;
       mentionCount = held.mentionCount;
+    }
+
+    final String? ackMessageId = _pendingAcks[channelId]?.messageId;
+    if (ackMessageId != null &&
+        compareSnowflakeIds(ackMessageId, lastMessageId) >= 0) {
+      lastMessageId = ackMessageId;
+      mentionCount = 0;
     }
 
     final _PendingUnread? pending = _pending[channelId];
@@ -91,13 +160,6 @@ class ReadStateWriteBatcher {
       );
       lastMessageId = simulated.lastMessageId;
       mentionCount = simulated.mentionCount;
-    }
-
-    final _PendingAck? pendingAck = _pendingAcks[channelId];
-    final String? ackMessageId = pendingAck?.messageId;
-    if (ackMessageId != null) {
-      lastMessageId = ackMessageId;
-      mentionCount = 0;
     }
 
     return ReadStateEffectiveFields(
@@ -137,7 +199,13 @@ class ReadStateWriteBatcher {
         seedAckCandidate: seedAckCandidate,
       ),
     );
-    _bumpOverlay();
+    final _AckCursor? cursor = _cursors[channelId];
+    if (cursor != null &&
+        shouldMention &&
+        compareSnowflakeIds(messageId, cursor.lastMessageId) > 0) {
+      cursor.mentionCount += 1;
+    }
+    _bumpOverlay(<String>[channelId]);
   }
 
   Timer _scheduleUnreadFlush(String channelId, Duration delay) =>
@@ -159,101 +227,195 @@ class ReadStateWriteBatcher {
   bool hasPending(String channelId) =>
       _pending.containsKey(channelId) || _pendingAcks.containsKey(channelId);
 
+  bool hasPendingUnread(String channelId) => _pending.containsKey(channelId);
+
+  ReadStateAckCursor? peekCursor(String channelId) {
+    final _AckCursor? cursor = _cursors[channelId];
+    if (cursor == null || !cursor.seeded) {
+      return null;
+    }
+    return cursor.view();
+  }
+
+  Future<ReadStateAckCursor> ensureCursor(String channelId) {
+    final _AckCursor? existing = _cursors[channelId];
+    if (existing != null && existing.seeded) {
+      return Future<ReadStateAckCursor>.value(existing.view());
+    }
+    return _seeding
+        .putIfAbsent(channelId, () async {
+          final ReadState? row = await _database.readStateDao.getReadState(
+            channelId,
+          );
+          final _AckCursor cursor = _cursors.putIfAbsent(
+            channelId,
+            _AckCursor.new,
+          );
+          _seedCursor(cursor, row);
+          final _PendingAck? pending = _pendingAcks[channelId];
+          final String? pendingId = pending?.messageId;
+          if (pendingId != null &&
+              compareSnowflakeIds(cursor.lastMessageId, pendingId) > 0) {
+            _pendingAcks.remove(channelId);
+          }
+          return cursor.view();
+        })
+        .whenComplete(() {
+          _seeding.remove(channelId)?.ignore();
+        });
+  }
+
+  void setCursorManual(
+    String channelId, {
+    required bool manual,
+    bool clearSticky = false,
+  }) {
+    if (channelId.isEmpty) {
+      return;
+    }
+    final _AckCursor cursor = _cursors.putIfAbsent(channelId, _AckCursor.new)
+      ..manual = manual
+      ..manualPinned = true;
+    if (clearSticky) {
+      cursor
+        ..stickyUnreadMessageId = null
+        ..stickyPinned = true;
+    }
+  }
+
+  void adoptPersisted({
+    required String channelId,
+    required String? lastMessageId,
+    required int mentionCount,
+    required bool manual,
+    String? stickyUnreadMessageId,
+    String? lastPinTimestamp,
+    String? version,
+    int? flags,
+  }) {
+    final _AckCursor? cursor = _cursors[channelId];
+    if (cursor == null || !cursor.seeded) {
+      return;
+    }
+    if (cursor.ackDirty &&
+        compareSnowflakeIds(cursor.lastMessageId, lastMessageId) > 0) {
+      return;
+    }
+    cursor
+      ..lastMessageId = lastMessageId
+      ..mentionCount = mentionCount
+      ..manual = manual
+      ..manualPinned = true
+      ..stickyUnreadMessageId = stickyUnreadMessageId
+      ..stickyPinned = true
+      ..lastPinTimestamp = lastPinTimestamp ?? cursor.lastPinTimestamp
+      ..version = version ?? cursor.version
+      ..flags = flags ?? cursor.flags
+      ..persistedLastMessageId = lastMessageId
+      ..persistedMentionCount = mentionCount
+      ..persistedManual = manual
+      ..persistedSticky = stickyUnreadMessageId
+      ..ackDirty = false;
+    _pendingAcks.remove(channelId);
+  }
+
   void enqueueAck({
     required String channelId,
     required String messageId,
-    required bool isDm,
     required bool clearSticky,
-    required bool markDmRead,
   }) {
     final _PendingAck pending = _pendingAcks.putIfAbsent(
       channelId,
-      () => _PendingAck(
-        isDm: isDm,
-        timer: Timer(_ackWindow, () => unawaited(flushAck(channelId))),
-      ),
+      _PendingAck.new,
     );
-    if (pending.messageId == null ||
-        compareSnowflakeIds(messageId, pending.messageId) > 0) {
+    final String? previousPendingId = pending.messageId;
+    if (previousPendingId == null ||
+        compareSnowflakeIds(messageId, previousPendingId) > 0) {
       pending.messageId = messageId;
     }
-    pending
-      ..clearSticky = pending.clearSticky || clearSticky
-      ..markDmRead = pending.markDmRead || markDmRead;
-    _bumpOverlay();
+    pending.clearSticky = pending.clearSticky || clearSticky;
+    final _AckCursor cursor = _cursors.putIfAbsent(channelId, _AckCursor.new);
+    final String? previousAckId = cursor.lastMessageId;
+    final int previousMentions = cursor.mentionCount;
+    final bool previousManual = cursor.manual;
+    final String? previousSticky = cursor.stickyUnreadMessageId;
+    final String? ackId = pending.messageId;
+    if (ackId != null &&
+        compareSnowflakeIds(ackId, cursor.lastMessageId) >= 0) {
+      cursor
+        ..lastMessageId = ackId
+        ..mentionCount = _mentionsAfter(channelId, ackId)
+        ..manual = false
+        ..manualPinned = true;
+      if (pending.clearSticky) {
+        cursor
+          ..stickyUnreadMessageId = null
+          ..stickyPinned = true;
+      }
+      cursor.ackDirty = true;
+    }
+    if (cursor.lastMessageId == previousAckId &&
+        cursor.mentionCount == previousMentions &&
+        cursor.manual == previousManual &&
+        cursor.stickyUnreadMessageId == previousSticky) {
+      return;
+    }
+    _bumpOverlay(<String>[channelId]);
   }
 
-  Future<void> flushAck(String channelId) {
-    final Future<void>? inFlight = _flushing['ack:$channelId'];
-    if (inFlight != null) {
-      return inFlight;
-    }
-    final _PendingAck? pending = _pendingAcks.remove(channelId);
+  int _mentionsAfter(String channelId, String ackId) {
+    final _PendingUnread? pending = _pending[channelId];
     if (pending == null) {
-      return Future<void>.value();
+      return 0;
     }
-    pending.timer.cancel();
-    final String? messageId = pending.messageId;
-    if (messageId == null) {
-      return Future<void>.value();
+    var count = 0;
+    for (final _UnreadIntent intent in pending.intents) {
+      if (intent.shouldMention &&
+          compareSnowflakeIds(intent.messageId, ackId) > 0) {
+        count += 1;
+      }
     }
-    final _HeldReadStateOverlay held = _HeldReadStateOverlay(
-      lastMessageId: messageId,
-      mentionCount: 0,
-    );
-    _heldWhileWriting[channelId] = held;
-    _bumpOverlay();
-    final Future<void> future = _applyAckFlush(
-      channelId: channelId,
-      messageId: messageId,
-      isDm: pending.isDm,
-      clearSticky: pending.clearSticky,
-      markDmRead: pending.markDmRead,
-    );
-    _flushing['ack:$channelId'] = future;
-    return future.whenComplete(() {
-      unawaited(_flushing.remove('ack:$channelId'));
-      _releaseHeld(channelId, held);
-    });
+    return count;
   }
+
+  Future<void> flushAck(String channelId) =>
+      _persistDirtyAcks(only: <String>{channelId});
 
   void _releaseHeld(String channelId, _HeldReadStateOverlay held) {
     if (!identical(_heldWhileWriting[channelId], held)) {
       return;
     }
     _heldWhileWriting.remove(channelId);
-    _bumpOverlay();
+    _bumpOverlay(<String>[channelId]);
   }
 
   void discard(String channelId) {
     final _PendingUnread? pending = _pending.remove(channelId);
     pending?.timer.cancel();
-    final _PendingAck? ack = _pendingAcks.remove(channelId);
-    ack?.timer.cancel();
+    _pendingAcks.remove(channelId);
+    _cursors.remove(channelId);
+    _seeding.remove(channelId)?.ignore();
     _heldWhileWriting.remove(channelId);
-    _bumpOverlay();
+    _bumpOverlay(<String>[channelId]);
   }
 
   Future<void> flushAll() async {
     for (final String channelId in _pending.keys.toList()) {
       await flush(channelId);
     }
-    for (final String channelId in _pendingAcks.keys.toList()) {
-      await flushAck(channelId);
-    }
+    await _persistDirtyAcks();
   }
 
   void clearAll() {
     for (final _PendingUnread pending in _pending.values) {
       pending.timer.cancel();
     }
-    for (final _PendingAck pending in _pendingAcks.values) {
-      pending.timer.cancel();
-    }
     _pending.clear();
     _pendingAcks.clear();
+    _cursors.clear();
+    _seeding.clear();
     _heldWhileWriting.clear();
-    _bumpOverlay();
+    _bumpOverlay(_overlayListeners.keys.toList());
   }
 
   Future<void> dispose() async {
@@ -296,7 +458,7 @@ class ReadStateWriteBatcher {
       mentionCount: preview.mentionCount,
     );
     _heldWhileWriting[channelId] = held;
-    _bumpOverlay();
+    _bumpOverlay(<String>[channelId]);
     final Future<void> future = _applyFlush(channelId, pending);
     _flushing[channelId] = future;
     await future.whenComplete(() {
@@ -338,7 +500,8 @@ class ReadStateWriteBatcher {
         final bool shouldWrite =
             fieldsChanged || (working == null && unreadMessages > 0);
         if (shouldWrite) {
-          await _database.readStateDao.upsertReadState(
+          await upsertReadStateIfChanged(
+            _database,
             ReadStatesCompanion(
               channelId: Value(channelId),
               lastMessageId: Value(lastMessageId),
@@ -372,42 +535,163 @@ class ReadStateWriteBatcher {
     }
   }
 
-  Future<void> _applyAckFlush({
-    required String channelId,
-    required String messageId,
-    required bool isDm,
-    required bool clearSticky,
-    required bool markDmRead,
-  }) async {
-    try {
-      await _database.transaction(() async {
-        final ReadState? existing = await _database.readStateDao.getReadState(
-          channelId,
-        );
-        await _database.readStateDao.upsertReadState(
-          ReadStatesCompanion(
-            channelId: Value(channelId),
-            lastMessageId: Value(messageId),
-            mentionCount: const Value(0),
-            lastPinTimestamp: Value(existing?.lastPinTimestamp),
-            manual: const Value(false),
-            stickyUnreadMessageId: clearSticky
-                ? const Value(null)
-                : Value(existing?.stickyUnreadMessageId),
-            version: Value(existing?.version),
-          ),
-        );
-        if (isDm && markDmRead) {
-          await _database.dmChannelDao.markAsRead(channelId);
-        }
-      });
-    } on Object catch (e, st) {
-      talker.error(
-        '[ReadStateWriteBatcher] ack flush failed for $channelId',
-        e,
-        st,
+  Future<void> _persistDirtyAcks({Set<String>? only}) {
+    final Future<void>? inFlight = _ackPersist;
+    if (inFlight != null) {
+      return inFlight.then((_) => _persistDirtyAcks(only: only));
+    }
+    final Future<void> future = _persistDirtyAcksBody(only: only);
+    _ackPersist = future;
+    return future.whenComplete(() {
+      if (identical(_ackPersist, future)) {
+        _ackPersist = null;
+      }
+    });
+  }
+
+  Future<void> _persistDirtyAcksBody({Set<String>? only}) async {
+    final List<String> ids = <String>[
+      for (final String channelId in _pendingAcks.keys)
+        if (only == null || only.contains(channelId)) channelId,
+    ];
+    if (ids.isEmpty) {
+      return;
+    }
+    final Map<String, _PendingAck> taken = <String, _PendingAck>{};
+    final List<ReadStatesCompanion> companions = <ReadStatesCompanion>[];
+    final Map<String, _AckCursor> written = <String, _AckCursor>{};
+    final Map<String, _AckSnapshot> writtenSnapshot = <String, _AckSnapshot>{};
+    for (final String channelId in ids) {
+      final _PendingAck? pending = _pendingAcks.remove(channelId);
+      if (pending == null) {
+        continue;
+      }
+      taken[channelId] = pending;
+      final _AckCursor? cursor = _cursors[channelId];
+      if (cursor == null || !cursor.ackDirty) {
+        continue;
+      }
+      if (_storedAckWins(cursor)) {
+        cursor.ackDirty = false;
+        continue;
+      }
+      if (_ackMatchesPersisted(cursor)) {
+        cursor.ackDirty = false;
+        continue;
+      }
+      companions.add(_ackCompanion(channelId, cursor));
+      written[channelId] = cursor;
+      writtenSnapshot[channelId] = _AckSnapshot(
+        lastMessageId: cursor.lastMessageId,
+        mentionCount: cursor.mentionCount,
+        manual: cursor.manual,
+        sticky: cursor.stickyUnreadMessageId,
       );
     }
+    if (companions.isEmpty) {
+      _bumpOverlay(taken.keys);
+      return;
+    }
+    try {
+      await _database.transaction(() async {
+        await _database.readStateDao.upsertReadStates(companions);
+      });
+      for (final MapEntry<String, _AckCursor> entry in written.entries) {
+        final _AckSnapshot? snapshot = writtenSnapshot[entry.key];
+        if (snapshot == null) {
+          continue;
+        }
+        final _AckCursor cursor = entry.value;
+        cursor
+          ..persistedLastMessageId = snapshot.lastMessageId
+          ..persistedMentionCount = snapshot.mentionCount
+          ..persistedManual = snapshot.manual
+          ..persistedSticky = snapshot.sticky
+          ..seeded = true
+          ..ackDirty = !_ackMatchesPersisted(cursor);
+      }
+    } on Object catch (e, st) {
+      for (final MapEntry<String, _PendingAck> entry in taken.entries) {
+        _pendingAcks.putIfAbsent(entry.key, () => entry.value);
+      }
+      talker.error('[ReadStateWriteBatcher] ack flush failed', e, st);
+    }
+    _bumpOverlay(taken.keys);
+  }
+
+  bool _storedAckWins(_AckCursor cursor) {
+    if (!cursor.seeded || cursor.persistedLastMessageId == null) {
+      return false;
+    }
+    if (compareSnowflakeIds(
+          cursor.persistedLastMessageId,
+          cursor.lastMessageId,
+        ) <=
+        0) {
+      return false;
+    }
+    cursor.lastMessageId = cursor.persistedLastMessageId;
+    cursor.mentionCount = cursor.persistedMentionCount;
+    return true;
+  }
+
+  bool _ackMatchesPersisted(_AckCursor cursor) {
+    if (!cursor.seeded) {
+      return false;
+    }
+    return cursor.persistedLastMessageId == cursor.lastMessageId &&
+        cursor.persistedMentionCount == cursor.mentionCount &&
+        cursor.persistedManual == cursor.manual &&
+        cursor.persistedSticky == cursor.stickyUnreadMessageId;
+  }
+
+  ReadStatesCompanion _ackCompanion(String channelId, _AckCursor cursor) {
+    return ReadStatesCompanion(
+      channelId: Value(channelId),
+      lastMessageId: Value(cursor.lastMessageId),
+      mentionCount: Value(cursor.mentionCount),
+      manual: Value(cursor.manual),
+      stickyUnreadMessageId: cursor.seeded || cursor.stickyPinned
+          ? Value(cursor.stickyUnreadMessageId)
+          : const Value.absent(),
+      lastPinTimestamp: cursor.seeded
+          ? Value(cursor.lastPinTimestamp)
+          : const Value.absent(),
+      version: cursor.seeded ? Value(cursor.version) : const Value.absent(),
+      flags: cursor.seeded ? Value(cursor.flags) : const Value.absent(),
+    );
+  }
+
+  void _seedCursor(_AckCursor cursor, ReadState? row) {
+    if (cursor.seeded) {
+      return;
+    }
+    cursor
+      ..lastPinTimestamp = row?.lastPinTimestamp
+      ..version = row?.version
+      ..flags = row?.flags
+      ..persistedLastMessageId = row?.lastMessageId
+      ..persistedMentionCount = row?.mentionCount ?? 0
+      ..persistedManual = row?.manual ?? false
+      ..persistedSticky = row?.stickyUnreadMessageId;
+    final String? storedId = row?.lastMessageId;
+    if (!cursor.ackDirty) {
+      cursor
+        ..lastMessageId = storedId
+        ..mentionCount = row?.mentionCount ?? 0;
+    } else if (compareSnowflakeIds(storedId, cursor.lastMessageId) > 0) {
+      cursor
+        ..lastMessageId = storedId
+        ..mentionCount = row?.mentionCount ?? 0
+        ..ackDirty = false;
+    }
+    if (!cursor.manualPinned) {
+      cursor.manual = !cursor.ackDirty && (row?.manual ?? false);
+    }
+    if (!cursor.stickyPinned) {
+      cursor.stickyUnreadMessageId = row?.stickyUnreadMessageId;
+    }
+    cursor.seeded = true;
   }
 }
 
@@ -436,14 +720,50 @@ class _UnreadIntent {
   final String? seedAckCandidate;
 }
 
-class _PendingAck {
-  _PendingAck({required this.isDm, required this.timer});
+class _AckSnapshot {
+  const _AckSnapshot({
+    required this.lastMessageId,
+    required this.mentionCount,
+    required this.manual,
+    required this.sticky,
+  });
 
-  final bool isDm;
-  final Timer timer;
+  final String? lastMessageId;
+  final int mentionCount;
+  final bool manual;
+  final String? sticky;
+}
+
+class _PendingAck {
   String? messageId;
   bool clearSticky = false;
-  bool markDmRead = false;
+}
+
+class _AckCursor {
+  bool seeded = false;
+  bool ackDirty = false;
+  bool manualPinned = false;
+  bool stickyPinned = false;
+  String? lastMessageId;
+  int mentionCount = 0;
+  bool manual = false;
+  String? stickyUnreadMessageId;
+  String? lastPinTimestamp;
+  String? version;
+  int? flags;
+  String? persistedLastMessageId;
+  int persistedMentionCount = 0;
+  bool persistedManual = false;
+  String? persistedSticky;
+
+  ReadStateAckCursor view() => ReadStateAckCursor(
+    lastMessageId: lastMessageId,
+    mentionCount: mentionCount,
+    manual: manual,
+    stickyUnreadMessageId: stickyUnreadMessageId,
+    version: version,
+    lastPinTimestamp: lastPinTimestamp,
+  );
 }
 
 class _HeldReadStateOverlay {

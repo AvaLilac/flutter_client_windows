@@ -10,7 +10,16 @@ enum ClientSensitiveMediaFilterLevel {
   };
 }
 
-enum MatureContentGateReason { none, consentRequired, minorBlocked }
+enum MatureAccess { allowed, minor, regionLocked, appLocked }
+
+enum MatureContentGateReason {
+  none,
+  consentRequired,
+  webOptInRequired,
+  minorBlocked,
+  regionLocked,
+  appLocked,
+}
 
 enum MatureContentAgreementScope { channel, category, guild }
 
@@ -96,6 +105,7 @@ class MatureMediaPolicy {
     required this.shouldBlur,
     required this.shouldBlock,
     required this.canReveal,
+    this.appLocked = false,
   });
 
   static const MatureMediaPolicy none = MatureMediaPolicy(
@@ -107,4 +117,5 @@ class MatureMediaPolicy {
   final bool shouldBlur;
   final bool shouldBlock;
   final bool canReveal;
+  final bool appLocked;
 }

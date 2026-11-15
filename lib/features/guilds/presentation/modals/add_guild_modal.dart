@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/instance/instance_endpoints.dart';
-import 'package:fluxer_app/core/providers/well_known_provider.dart';
+import 'package:fluxer_app/core/providers/instance/well_known_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/guilds/data/discord_template_fetcher.dart';
 import 'package:fluxer_app/features/guilds/presentation/modals/add_guild_create_view.dart';
@@ -14,8 +15,8 @@ import 'package:fluxer_app/features/guilds/providers/add_guild_enabled_provider.
 import 'package:fluxer_app/features/guilds/services/create_community_service.dart';
 import 'package:fluxer_app/features/guilds/services/join_community_service.dart';
 import 'package:fluxer_app/features/guilds/utils/discord_template_parser.dart';
-import 'package:fluxer_app/features/guilds/utils/invite_link_parser.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/guilds/utils/invites/invite_link_parser.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
@@ -26,8 +27,8 @@ import 'package:fluxer_app/features/ui/stepped_carousel/fluxer_stepped_carousel.
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 enum _AddGuildModalView { landing, create, join, importUrl, importCreate }
 
@@ -511,7 +512,9 @@ class _AddGuildFlowState extends ConsumerState<_AddGuildFlow> {
       _AddGuildModalView.landing => AddGuildLandingView(
         onCreateTap: () => _push(_AddGuildModalView.create),
         onJoinTap: () => _push(_AddGuildModalView.join),
-        onImportTap: () => _push(_AddGuildModalView.importUrl),
+        onImportTap: Platform.isIOS
+            ? null
+            : () => _push(_AddGuildModalView.importUrl),
       ),
       _AddGuildModalView.create => AddGuildCreateView(
         key: _createViewKey,
@@ -655,6 +658,7 @@ class _AddGuildFlowState extends ConsumerState<_AddGuildFlow> {
                     onPressed: _close,
                     icon: PhosphorIconsBold.x,
                     isSquare: true,
+                    semanticLabel: l10n.uiClose,
                   ),
                 ),
               ),

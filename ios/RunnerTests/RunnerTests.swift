@@ -61,6 +61,55 @@ class RunnerTests: XCTestCase {
     XCTAssertEqual(PushNotificationPayload.resolveMessageId(from: userInfo), "msg-fallback")
   }
 
+  func testResolveMessageIdFromNumericSnowflake() {
+    let snowflake = "1122334455667788990"
+    let userInfo: [AnyHashable: Any] = [
+      "message_id": NSDecimalNumber(string: snowflake),
+    ]
+    XCTAssertEqual(PushNotificationPayload.resolveMessageId(from: userInfo), snowflake)
+  }
+
+  func testResolveMessageIdFromChannelTag() {
+    let channelId = "456"
+    let userInfo: [AnyHashable: Any] = [
+      "tag": "channel:456:1122334455667788990",
+    ]
+    XCTAssertEqual(
+      PushNotificationPayload.resolveMessageId(from: userInfo, channelId: channelId),
+      "1122334455667788990"
+    )
+    XCTAssertEqual(
+      PushNotificationPayload.messageIdFromChannelTag(
+        "channel:456:1122334455667788990",
+        channelId: channelId
+      ),
+      "1122334455667788990"
+    )
+    XCTAssertNil(
+      PushNotificationPayload.messageIdFromChannelTag("channel:456", channelId: channelId)
+    )
+  }
+
+  func testParseBadgeCountAcceptsNumericStrings() {
+    XCTAssertEqual(PushNotificationPayload.parseBadgeCount(3), 3)
+    XCTAssertEqual(PushNotificationPayload.parseBadgeCount(NSNumber(value: 7)), 7)
+    XCTAssertEqual(PushNotificationPayload.parseBadgeCount("12"), 12)
+    XCTAssertNil(PushNotificationPayload.parseBadgeCount(""))
+    XCTAssertNil(PushNotificationPayload.parseBadgeCount(nil))
+  }
+
+  func testIsClearPayloadDetectsNestedNotificationData() {
+    let nested: [AnyHashable: Any] = [
+      "notification": [
+        "data": [
+          "type": "notification_clear",
+          "channel_id": "456",
+        ],
+      ],
+    ]
+    XCTAssertTrue(PushNotificationPayload.isClearPayload(from: nested))
+  }
+
   func testResolveNotificationIdentifierUsesMessageId() {
     let userInfo: [AnyHashable: Any] = [
       "aps": ["thread-id": "channel:456"],
@@ -181,6 +230,103 @@ class RunnerTests: XCTestCase {
 
   func testSpeakableGroupNameIsNilForDirectMessages() {
     XCTAssertNil(PushNotificationPayload.resolveSpeakableGroupName(title: "Alice"))
+  }
+
+  func testStructuredGuildPushNamesTheAuthorAndTheChannel() {
+    let userInfo: [AnyHashable: Any] = [
+      "data": [
+        "author_name": "peer",
+        "conversation_kind": "guild",
+        "conversation_name": "general",
+        "guild_name": "Test Guild",
+      ],
+    ]
+    XCTAssertEqual(
+      PushNotificationPayload.resolveConversationIdentity(
+        from: userInfo,
+        title: "peer (#general, Test Guild)"
+      ),
+      PushConversationIdentity(senderName: "peer", groupName: "#general, Test Guild")
+    )
+  }
+
+  func testStructuredGroupDmUsesTheStoredNameWhenThePushHasNone() {
+    let userInfo: [AnyHashable: Any] = [
+      "channel_id": "300",
+      "target_user_id": "1",
+      "data": ["author_name": "peer", "conversation_kind": "group_dm"],
+    ]
+    XCTAssertEqual(
+      PushNotificationPayload.resolveConversationIdentity(
+        from: userInfo,
+        title: "peer (Group DM)",
+        groupDmNames: ["1": ["300": "Weekend plans"]]
+      ),
+      PushConversationIdentity(senderName: "peer", groupName: "Weekend plans")
+    )
+  }
+
+  func testStructuredGroupDmPrefersThePushedName() {
+    let userInfo: [AnyHashable: Any] = [
+      "channel_id": "300",
+      "target_user_id": "1",
+      "data": [
+        "author_name": "peer",
+        "conversation_kind": "group_dm",
+        "conversation_name": "Renamed",
+      ],
+    ]
+    XCTAssertEqual(
+      PushNotificationPayload.resolveConversationIdentity(
+        from: userInfo,
+        title: "peer (Group DM)",
+        groupDmNames: ["1": ["300": "Weekend plans"]]
+      ),
+      PushConversationIdentity(senderName: "peer", groupName: "Renamed")
+    )
+  }
+
+  func testLegacyGroupDmTitleUsesTheStoredName() {
+    XCTAssertEqual(
+      PushNotificationPayload.resolveConversationIdentity(
+        from: ["channel_id": "300", "target_user_id": "1"],
+        title: "peer (Group DM)",
+        groupDmNames: ["1": ["300": "Weekend plans"]]
+      ),
+      PushConversationIdentity(senderName: "peer", groupName: "Weekend plans")
+    )
+  }
+
+  func testStoredGroupDmNamesAreScopedToTheTargetAccount() {
+    XCTAssertEqual(
+      PushNotificationPayload.resolveConversationIdentity(
+        from: ["channel_id": "300", "target_user_id": "2"],
+        title: "peer (Group DM)",
+        groupDmNames: ["1": ["300": "Weekend plans"]]
+      ),
+      PushConversationIdentity(senderName: "peer", groupName: "Group DM")
+    )
+  }
+
+  func testLegacyGuildTitleStillSplitsAuthorAndChannel() {
+    XCTAssertEqual(
+      PushNotificationPayload.resolveConversationIdentity(
+        from: ["channel_id": "1"],
+        title: "peer (#general, Test Guild)"
+      ),
+      PushConversationIdentity(senderName: "peer", groupName: "general")
+    )
+    XCTAssertEqual(
+      PushNotificationPayload.resolveConversationIdentity(
+        from: ["channel_id": "2", "parent_id": "1", "channel_name": "ideas"],
+        title: "a (#ideas, #general, Guild)"
+      ),
+      PushConversationIdentity(senderName: "a", groupName: "#ideas, #general, Guild")
+    )
+  }
+
+  func testNoTitleAndNoAuthorGivesNoIdentity() {
+    XCTAssertNil(PushNotificationPayload.resolveConversationIdentity(from: [:], title: ""))
   }
 
   func testMessageIsCoveredByAckKeepsNewerMessages() {

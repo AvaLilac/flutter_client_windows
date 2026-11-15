@@ -1,7 +1,7 @@
 import 'package:fluxer_app/core/build/app_build_config.dart';
 import 'package:fluxer_app/core/instance/instance_runtime_config.dart';
 import 'package:fluxer_app/core/premium/plutonium_store_gate.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'should_show_premium_commerce_provider.g.dart';
@@ -11,7 +11,8 @@ bool shouldShowPremiumCommerce(Ref ref) {
   final InstanceRuntimeConfig config = ref.watch(instanceRuntimeConfigProvider);
   return resolvePremiumCommerceVisible(
     selfHosted: config.selfHosted,
-    ossWebCheckout: AppBuildConfig.isOssWebCheckout,
+    webCheckout: AppBuildConfig.isWebCheckout,
     selfHostedCheckoutAvailable: config.premiumEnabled && config.stripeEnabled,
+    distributionBuild: AppBuildConfig.distribution != null,
   );
 }

@@ -4,6 +4,7 @@ import 'package:fluxer_markdown/src/contexts/fluxer_markdown_context.dart';
 import 'package:fluxer_markdown/src/contexts/fluxer_markdown_features.dart';
 import 'package:fluxer_markdown/src/parsing/markdown_parse_cache.dart';
 import 'package:fluxer_markdown/src/renderers/fluxer_markdown_renderers.dart';
+import 'package:fluxer_markdown/src/utils/code_block_highlight.dart';
 import 'package:fluxer_markdown/src/utils/highlight_languages.dart';
 import 'package:fluxer_markdown/src/widgets/fluxer_markdown_link_registry.dart';
 import 'package:markdown/markdown.dart' as md;
@@ -13,14 +14,19 @@ typedef FluxerMarkdownAstParser =
     List<md.Node> Function(String data, FluxerMarkdownFeatures features);
 
 final MarkdownParseCache<
-  (String, FluxerMarkdownFeatures, RegExp?),
+  (String, FluxerMarkdownFeatures, Object?),
   List<md.Node>
 >
 _astNodeCache =
     MarkdownParseCache<
-      (String, FluxerMarkdownFeatures, RegExp?),
+      (String, FluxerMarkdownFeatures, Object?),
       List<md.Node>
     >();
+
+void clearMarkdownParseCaches() {
+  _astNodeCache.clear();
+  clearHighlightSpanCache();
+}
 
 class FluxerMarkdown extends StatefulWidget {
   const FluxerMarkdown({
@@ -125,7 +131,7 @@ class _FluxerMarkdownState extends State<FluxerMarkdown> {
       style,
       isDark,
       textScaler,
-      MediaQuery.maybeOf(context)?.boldText ?? false,
+      MediaQuery.maybeBoldTextOf(context) ?? false,
       Directionality.maybeOf(context),
       Localizations.maybeLocaleOf(context),
       _timestampLayoutToken(),
@@ -180,7 +186,7 @@ class _FluxerMarkdownState extends State<FluxerMarkdown> {
     final List<md.Node> nodes = _astNodeCache.resolve((
       markdownParseCacheKey(widget.data, widget.parseCacheKey),
       features,
-      widget.config.unicodeEmojiPattern,
+      widget.config.unicodeEmojiMatcher,
     ), () => widget.astParser(widget.data, features));
     return buildFluxerMarkdownProvidedAst(
       context: context,

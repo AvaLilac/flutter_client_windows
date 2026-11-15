@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_connection_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_connection_provider.dart';
 import 'package:fluxer_app/features/members/providers/guild_member_chunk_waiter.dart';
 import 'package:fluxer_app/shared/utils/sdk_converters.dart';
 import 'package:fluxer_dart/export.dart';
@@ -241,9 +241,15 @@ class GuildMemberHydrationService {
   }
 
   void _markNonMember(String guildId, String userId) {
-    _nonMembers.putIfAbsent(guildId, () => <String>{}).add(userId);
+    final Set<String> ids = _nonMembers.putIfAbsent(guildId, () => <String>{});
+    if (ids.length >= kGuildNonMemberCacheMaxPerGuild) {
+      ids.clear();
+    }
+    ids.add(userId);
   }
 }
+
+const int kGuildNonMemberCacheMaxPerGuild = 2000;
 
 final Provider<GuildMemberHydrationService>
 guildMemberHydrationServiceProvider = Provider<GuildMemberHydrationService>((

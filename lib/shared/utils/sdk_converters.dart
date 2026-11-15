@@ -60,6 +60,7 @@ db.ServersCompanion guildFromSdk(
         ? const Value.absent()
         : Value(onlineCount),
     featuresJson: Value(jsonEncode(sdk.features)),
+    badgeIdsJson: Value(jsonEncode(sdk.badgeIds)),
     position: Value(position),
     unavailable: Value(unavailable),
     disabledOperations: Value(sdk.disabledOperations),
@@ -222,6 +223,8 @@ db.RolesCompanion roleFromSdk(GuildRoleResponse sdk, String guildId) {
     hoistPosition: sdk.hoistPosition == null
         ? const Value.absent()
         : Value(sdk.hoistPosition),
+    icon: Value(sdk.icon),
+    unicodeEmoji: Value(sdk.unicodeEmoji),
   );
 }
 
@@ -242,6 +245,15 @@ db.UsersCompanion userFromPartialSdk(UserPartialResponse sdk) {
   );
 }
 
+Future<void> upsertMessageUsersFromSdk(
+  db.FluxerDatabase database,
+  MessageResponseSchema message,
+) => upsertUsersCompanions(database, <db.UsersCompanion>[
+  userFromPartialSdk(message.author),
+  ...message.mentions.map(userFromPartialSdk),
+  ...?message.users?.map(userFromPartialSdk),
+]);
+
 Future<void> upsertMentionUsersFromSdk(
   db.FluxerDatabase database,
   Iterable<UserPartialResponse>? mentions,
@@ -252,28 +264,11 @@ Future<void> upsertMentionUsersFromSdk(
   await upsertUsersCompanions(database, mentions.map(userFromPartialSdk));
 }
 
-List<db.UsersCompanion> dedupeUsersCompanionsById(
-  Iterable<db.UsersCompanion> users,
-) {
-  final Map<String, db.UsersCompanion> byId = <String, db.UsersCompanion>{};
-  for (final db.UsersCompanion user in users) {
-    if (!user.id.present) {
-      continue;
-    }
-    byId[user.id.value] = user;
-  }
-  return byId.values.toList(growable: false);
-}
-
 Future<void> upsertUsersCompanions(
   db.FluxerDatabase database,
   Iterable<db.UsersCompanion> users,
 ) async {
-  final List<db.UsersCompanion> deduped = dedupeUsersCompanionsById(users);
-  if (deduped.isEmpty) {
-    return;
-  }
-  await database.userDao.upsertUsers(deduped);
+  await database.userDao.upsertUsersIfChanged(users);
 }
 
 Future<void> upsertGuildMembersFromSdk(

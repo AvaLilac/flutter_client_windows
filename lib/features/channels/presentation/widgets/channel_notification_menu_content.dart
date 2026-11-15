@@ -6,11 +6,12 @@ import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/presentation/sheets/mute_duration_sheet.dart';
 import 'package:fluxer_app/features/channels/providers/channel_notification_menu_provider.dart';
 import 'package:fluxer_app/features/guilds/data/guild_user_settings_repository.dart';
+import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_dart/export.dart' hide ChannelType;
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 enum ChannelNotificationMenuLayout { actionMenu, bottomSheet }
 
@@ -76,9 +77,11 @@ class ChannelNotificationMenuContent extends ConsumerWidget {
   ) {
     return FluxerBottomSheetContent(
       scrollable: false,
-      padding: EdgeInsets.symmetric(
-        horizontal: context.layout.pageGutter,
-        vertical: 4,
+      padding: EdgeInsets.fromLTRB(
+        context.layout.pageGutter,
+        4,
+        context.layout.pageGutter,
+        0,
       ),
       child: FluxerBottomSheetGroupColumn(
         children: <Widget>[
@@ -98,7 +101,7 @@ class ChannelNotificationMenuContent extends ConsumerWidget {
     FluxerLocalizations l10n,
     ChannelNotificationMenuState menuState,
   ) {
-    final String? mutedHint = formatMutedHintText(menuState.muteConfig);
+    final String? mutedHint = formatMutedHintText(menuState.muteConfig, l10n);
 
     if (menuState.isMuted) {
       if (_isActionMenu) {
@@ -131,20 +134,14 @@ class ChannelNotificationMenuContent extends ConsumerWidget {
       return <Widget>[
         FluxerMenuSubmenuItem(
           label: l10n.notificationMuteChannel,
-          onPressed: () {
-            onClose();
-            unawaited(_openMuteSheet(context, ref));
-          },
+          onPressed: () => unawaited(_openMuteSheet(context, ref)),
         ),
       ];
     }
     return <Widget>[
       FluxerBottomSheetSubmenuItem(
         label: l10n.notificationMuteChannel,
-        onTap: () {
-          onClose();
-          unawaited(_openMuteSheet(context, ref));
-        },
+        onTap: () => unawaited(_openMuteSheet(context, ref)),
       ),
     ];
   }
@@ -291,10 +288,12 @@ class ChannelNotificationMenuContent extends ConsumerWidget {
     final MuteSelection? selection = await showMuteDurationSheet(
       context,
       muteTitle: l10n.notificationMuteChannel,
+      useRootNavigator: isMobileLayout(context),
     );
-    if (selection == null || !context.mounted) {
+    if (selection == null) {
       return;
     }
+    onClose();
     await ref
         .read(guildUserSettingsRepositoryProvider)
         .updateChannelOverride(
@@ -303,15 +302,13 @@ class ChannelNotificationMenuContent extends ConsumerWidget {
           muted: true,
           durationSeconds: selection.durationSeconds,
         );
-    if (context.mounted) {
-      ref
-          .read(toastProvider.notifier)
-          .show(
-            FluxerToast(
-              message: l10n.channelDetailsMutedChannel,
-              variant: FluxerToastVariant.success,
-            ),
-          );
-    }
+    ref
+        .read(toastProvider.notifier)
+        .show(
+          FluxerToast(
+            message: l10n.channelDetailsMutedChannel,
+            variant: FluxerToastVariant.success,
+          ),
+        );
   }
 }

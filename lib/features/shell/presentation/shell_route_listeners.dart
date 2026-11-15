@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cross_file/cross_file.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/audio/chat_attachment/chat_attachment_audio_session.dart';
 import 'package:fluxer_app/core/badge/app_icon_badge_coordinator.dart';
@@ -11,9 +12,11 @@ import 'package:fluxer_app/core/observability/reporting_consent/observability_re
 import 'package:fluxer_app/core/observability/reporting_consent/observability_reporting_prompt_logic.dart';
 import 'package:fluxer_app/core/observability/reporting_consent/observability_reporting_prompt_provider.dart';
 import 'package:fluxer_app/core/permissions/guild_channel_permission_cleanup.dart';
-import 'package:fluxer_app/core/providers/active_instance_provider.dart';
+import 'package:fluxer_app/core/premium/plutonium_store_gate.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
+import 'package:fluxer_app/core/providers/app/splash_exit_allowed_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/splash_exit_allowed_provider.dart';
+import 'package:fluxer_app/core/providers/instance/active_instance_provider.dart';
 import 'package:fluxer_app/core/push/push_notifications_coordinator.dart';
 import 'package:fluxer_app/core/push/relay_consent/push_relay_consent_prompt_provider.dart';
 import 'package:fluxer_app/core/push/relay_consent/push_relay_consent_provider.dart';
@@ -30,6 +33,7 @@ import 'package:fluxer_app/core/router/route_names.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/core/share/pending_share_provider.dart';
 import 'package:fluxer_app/core/share/shared_media_payload.dart';
+import 'package:fluxer_app/features/auth/providers/awaiting_tap_after_sign_in_provider.dart';
 import 'package:fluxer_app/features/channels/providers/channel_list_view_model.dart';
 import 'package:fluxer_app/features/chat/presentation/sheets/share_media_sheet.dart';
 import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
@@ -39,8 +43,14 @@ import 'package:fluxer_app/features/members/providers/member_list_viewport_provi
 import 'package:fluxer_app/features/notifications/providers/notification_stream_providers.dart';
 import 'package:fluxer_app/features/quick_switcher/presentation/sheets/quick_switcher_bottom_sheet.dart';
 import 'package:fluxer_app/features/quick_switcher/providers/quick_switcher_provider.dart';
+import 'package:fluxer_app/features/settings/domain/user_settings_section.dart';
+import 'package:fluxer_app/features/settings/presentation/user_settings_modal.dart';
+import 'package:fluxer_app/features/settings/providers/commerce/plutonium_store_provider.dart';
 import 'package:fluxer_app/features/shell/navigation/drawer_navigation_coordinator.dart';
+import 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
+import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/features/voice/tts/fluxer_tts_provider.dart';
+import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 class ShellRouteListeners extends ConsumerStatefulWidget {
@@ -56,6 +66,15 @@ class ShellRouteListeners extends ConsumerStatefulWidget {
 class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
   int _distributorPickerAttempts = 0;
   bool _deferredObservabilityReportingConsent = false;
+  bool _deferredPushRelayConsent = false;
+
+  void _scheduleConsentPromptsAfterSignInTap() {
+    _scheduleObservabilityReportingConsent();
+    if (PushProviderGuard.isApple || PushProviderGuard.isFirebaseMessaging) {
+      _schedulePushRelayConsentPrompt();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +108,14 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
           persistGuildChannelFromLocation(db, next);
           persistAppLocation(db, next);
         });
+      })
+      ..listenManual<bool>(awaitingTapAfterSignInProvider, (
+        bool? previous,
+        bool next,
+      ) {
+        if (previous ?? false) {
+          _scheduleConsentPromptsAfterSignInTap();
+        }
       })
       ..listenManual<String?>(activeGuildIdProvider, (
         String? previous,
@@ -144,6 +171,20 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
           _schedulePushRelayConsentPrompt();
         });
       }, fireImmediately: true);
+      ref.listenManual<bool>(isActiveInstanceOfficialProvider, (
+        bool? previous,
+        bool next,
+      ) {
+        if (next || !ref.read(pushRelayConsentPromptProvider)) {
+          return;
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          _schedulePushRelayConsentPrompt();
+        });
+      });
     }
 
     if (observabilityReportingPromptIsMobilePlatform()) {
@@ -236,6 +277,15 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
         ref.read(isActiveInstanceOfficialProvider)) {
       return;
     }
+    if (ref
+        .read(observabilityReportingPromptProvider.notifier)
+        .isPresentationInFlight) {
+      _deferredPushRelayConsent = true;
+      return;
+    }
+    if (ref.read(awaitingTapAfterSignInProvider)) {
+      return;
+    }
     final BuildContext? rootContext = rootNavigatorKey.currentContext;
     if (rootContext == null || !rootContext.mounted) {
       if (attempt >= 60) {
@@ -249,25 +299,65 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
       });
       return;
     }
-    ref.read(pushRelayConsentPromptProvider.notifier).beginPresentation();
-    unawaited(_presentPushRelayConsent(rootContext));
+    final Set<String>? userIds = ref
+        .read(pushRelayConsentPromptProvider.notifier)
+        .beginPresentation();
+    if (userIds == null) {
+      return;
+    }
+    unawaited(_presentPushRelayConsent(rootContext, userIds));
   }
 
-  Future<void> _presentPushRelayConsent(BuildContext rootContext) async {
+  Future<void> _presentPushRelayConsent(
+    BuildContext rootContext,
+    Set<String> userIds,
+  ) async {
     final promptNotifier = ref.read(pushRelayConsentPromptProvider.notifier);
+    final PushRelayConsent consent = ref.read(
+      pushRelayConsentProvider.notifier,
+    );
+    final Toast toasts = ref.read(toastProvider.notifier);
     try {
       final bool? agreed = await showPushRelayConsentSheet(rootContext);
-      if (!mounted) {
-        return;
-      }
       await recordPushRelayConsentSheetResult(
-        consent: ref.read(pushRelayConsentProvider.notifier),
+        consent: consent,
         agreed: agreed,
+        userIds: userIds,
       );
+      if (agreed == false && mounted) {
+        _showPushRelayDeclinedToast(toasts);
+      }
     } finally {
       promptNotifier.endPresentation();
       _scheduleDeferredObservabilityReportingConsent();
     }
+  }
+
+  void _showPushRelayDeclinedToast(Toast toasts) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    toasts.show(
+      FluxerToast(
+        message: l10n.pushRelayConsentDeclinedToast(
+          l10n.notificationsPushRelayConsentLabel,
+        ),
+        action: FluxerToastAction(
+          label: l10n.pushRelayConsentDeclinedToastAction,
+          onPressed: () {
+            final BuildContext? rootContext = rootNavigatorKey.currentContext;
+            if (rootContext == null || !rootContext.mounted) {
+              return;
+            }
+            unawaited(
+              UserSettingsModal.show(
+                rootContext,
+                initialSection: UserSettingsSection.notifications,
+                initialFieldId: 'push-relay',
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   bool _isPushRelayConsentPresentationInFlight() {
@@ -315,6 +405,9 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
       _deferredObservabilityReportingConsent = true;
       return;
     }
+    if (ref.read(awaitingTapAfterSignInProvider)) {
+      return;
+    }
     final BuildContext? rootContext = rootNavigatorKey.currentContext;
     if (rootContext == null || !rootContext.mounted) {
       if (attempt >= 60) {
@@ -328,7 +421,11 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
       });
       return;
     }
-    ref.read(observabilityReportingPromptProvider.notifier).beginPresentation();
+    if (!ref
+        .read(observabilityReportingPromptProvider.notifier)
+        .beginPresentation()) {
+      return;
+    }
     unawaited(_presentObservabilityReportingConsent(rootContext));
   }
 
@@ -338,23 +435,38 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
     final ObservabilityReportingPrompt promptNotifier = ref.read(
       observabilityReportingPromptProvider.notifier,
     );
+    final ObservabilityReporting reporting = ref.read(
+      observabilityReportingProvider.notifier,
+    );
+    final ObservabilityReportingPromptDismissed dismissed = ref.read(
+      observabilityReportingPromptDismissedProvider.notifier,
+    );
     try {
       final bool? optedIn = await showObservabilityReportingConsentSheet(
         rootContext,
       );
-      if (!mounted) {
-        return;
-      }
       await recordObservabilityReportingConsentSheetResult(
-        reporting: ref.read(observabilityReportingProvider.notifier),
-        dismissed: ref.read(
-          observabilityReportingPromptDismissedProvider.notifier,
-        ),
+        reporting: reporting,
+        dismissed: dismissed,
         optedIn: optedIn,
       );
     } finally {
       promptNotifier.endPresentation();
+      _scheduleDeferredPushRelayConsent();
     }
+  }
+
+  void _scheduleDeferredPushRelayConsent() {
+    if (!_deferredPushRelayConsent || !mounted) {
+      return;
+    }
+    _deferredPushRelayConsent = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _schedulePushRelayConsentPrompt();
+    });
   }
 
   void _presentHomeQuickAction(HomeQuickAction action, {bool retried = false}) {
@@ -410,13 +522,17 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
       if (!_loadActiveGuildChannels(next)) {
         return;
       }
-      ref.read(guildSyncProvider.notifier).syncIfNeeded(next);
+      ref
+          .read(guildSyncProvider(readAccountUserId(ref)).notifier)
+          .syncIfNeeded(next);
     });
   }
 
   void _applyActiveGuildEffects(String guildId) {
     if (_loadActiveGuildChannels(guildId)) {
-      ref.read(guildSyncProvider.notifier).syncIfNeeded(guildId);
+      ref
+          .read(guildSyncProvider(readAccountUserId(ref)).notifier)
+          .syncIfNeeded(guildId);
     }
   }
 
@@ -480,10 +596,12 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
         return;
       }
       ref
-          .read(memberListViewportProvider.notifier)
+          .read(memberListViewportProvider(readAccountUserId(ref)).notifier)
           .clearChannel(guildId: guildId, channelId: previousChannelId);
       ref
-          .read(memberListDesiredRangesProvider.notifier)
+          .read(
+            memberListDesiredRangesProvider(readAccountUserId(ref)).notifier,
+          )
           .clearChannel(guildId: guildId, channelId: previousChannelId);
     });
   }
@@ -493,6 +611,10 @@ class _ShellRouteListenersState extends ConsumerState<ShellRouteListeners> {
     ref
       ..watch(pushNotificationsCoordinatorProvider)
       ..watch(appIconBadgeCoordinatorProvider);
+    if (defaultTargetPlatform == TargetPlatform.iOS &&
+        ref.watch(premiumStorePurchasesEnabledProvider)) {
+      ref.listen(premiumStoreProvider, (_, _) {});
+    }
     return widget.child;
   }
 }

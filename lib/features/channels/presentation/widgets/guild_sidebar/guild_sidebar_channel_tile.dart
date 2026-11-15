@@ -41,9 +41,9 @@ class _ChannelTile extends ConsumerWidget {
       unreadBadgesLevel: unread?.unreadBadgesLevel,
     );
     final int? cachedPermissionBits = ref.watch(
-      channelPermissionCacheProvider.select(
-        (ChannelPermissionCaches caches) => caches[channel.id],
-      ),
+      channelPermissionCacheProvider(
+        watchAccountUserId(ref),
+      ).select((ChannelPermissionCaches caches) => caches[channel.id]),
     );
     final int? connectPermissionBits =
         cachedPermissionBits ??
@@ -65,7 +65,7 @@ class _ChannelTile extends ConsumerWidget {
         isVoice &&
         guild.hasVoiceE2ee &&
         ref.watch(
-          voiceStatesMapProvider.select(
+          voiceStatesMapProvider(watchAccountUserId(ref)).select(
             (Map<String, VoiceState> map) => isVoiceChannelE2eeEncryptedForIcon(
               voiceStates: map,
               guildId: guildId,
@@ -77,13 +77,21 @@ class _ChannelTile extends ConsumerWidget {
           ),
         );
 
+    final bool desktopPointer = usesDesktopPointerUi(context);
     final double rowOpacity = isChannelDirectlyMuted && !isSelected ? 0.5 : 1.0;
+    Color faded(Color color) =>
+        rowOpacity < 1 ? color.withValues(alpha: color.a * rowOpacity) : color;
     final Color baseTextColor = isSelected || channelUnreadState.isHighlight
         ? context.colors.textPrimary
         : context.colors.textTertiaryMuted;
-    final Color textColor = rowOpacity < 1
-        ? baseTextColor.withValues(alpha: baseTextColor.a * rowOpacity)
-        : baseTextColor;
+    final Color textColor = faded(baseTextColor);
+    final Color desktopIconColor = faded(
+      _desktopSidebarRowTextColor(
+        context,
+        selected: isSelected,
+        unread: channelUnreadState.isHighlight,
+      ),
+    );
     final bool showUnreadOnSelectedChannel = isMobileLayout(context);
     final bool showUnreadIndicator =
         channelUnreadState.shouldShowUnreadIndicator &&
@@ -121,6 +129,12 @@ class _ChannelTile extends ConsumerWidget {
             vertical: 1,
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+          desktopSidebar: desktopPointer,
+          desktopMargin: const EdgeInsetsDirectional.only(
+            start: 8,
+            end: 8,
+            top: 1,
+          ),
           semanticLabel: navigationItemSemanticLabel(
             l10n: FluxerLocalizations.of(context),
             name: channel.name,
@@ -129,13 +143,11 @@ class _ChannelTile extends ConsumerWidget {
             mentionCount: showMentionBadge ? mentionCount : 0,
             isMuted: isChannelDirectlyMuted,
           ),
-          onSecondaryTapUp: (details) => unawaited(
-            _showChannelActions(
-              context,
-              ref,
-              hasUnread: hasUnread,
-              position: details.globalPosition,
-            ),
+          onContextMenuRequested: (details) => _showChannelActions(
+            context,
+            ref,
+            hasUnread: hasUnread,
+            position: details.globalPosition,
           ),
           onLongPress: isTouchPrimaryInput(ref)
               ? () => unawaited(
@@ -156,14 +168,14 @@ class _ChannelTile extends ConsumerWidget {
               effectivePermissionBits: effectivePermissionBits,
             );
           },
-          child: Row(
+          childBuilder: (BuildContext context, Set<WidgetState> states) => Row(
             children: [
               ChannelIcon(
                 type: channel.type,
                 channel: channel,
                 effectivePermissionBits: connectPermissionBits,
                 canConnectPermissionBits: connectPermissionBits,
-                color: textColor,
+                color: desktopPointer ? desktopIconColor : textColor,
                 e2eeEncrypted: showE2eeVoiceIcon,
               ),
               const SizedBox(width: 6),
@@ -171,8 +183,20 @@ class _ChannelTile extends ConsumerWidget {
                 child: Text(
                   channel.name,
                   style: context.textStyles.channelName.copyWith(
-                    color: textColor,
-                    fontWeight: channelUnreadState.isHighlight && !isSelected
+                    color: !desktopPointer
+                        ? textColor
+                        : faded(
+                            _desktopSidebarRowTextColor(
+                              context,
+                              hovered: states.contains(WidgetState.hovered),
+                              selected: isSelected,
+                              unread: channelUnreadState.isHighlight,
+                            ),
+                          ),
+                    fontWeight:
+                        channelUnreadState.isHighlight &&
+                            !isSelected &&
+                            !desktopPointer
                         ? FontWeight.w600
                         : FontWeight.w500,
                     height: 20 / 16,
@@ -222,7 +246,7 @@ class _ChannelTile extends ConsumerWidget {
             .read(favoriteChannelsRepositoryProvider)
             .isFavorite(channel.id);
     final int? cachedPermissionBits = ref.read(
-      channelPermissionCacheProvider,
+      channelPermissionCacheProvider(readAccountUserId(ref)),
     )[channel.id];
     final int? permissionBits =
         cachedPermissionBits ??
@@ -233,11 +257,13 @@ class _ChannelTile extends ConsumerWidget {
         ref.read(mutedChannelIdsProvider(guildId)).value ?? const <String>{};
     final bool isMuted = mutedIds.contains(channel.id);
     final muteConfig = await _loadChannelMuteConfig(ref, guildId, channel.id);
-    final String? mutedHint = isMuted ? formatMutedHintText(muteConfig) : null;
+    final String? mutedHint = isMuted
+        ? formatMutedHintText(muteConfig, l10n)
+        : null;
     final bool developerMode = ref
         .read(userSettingsViewModelProvider)
         .developerMode;
-    final bool nsfwAllowed = ref.read(sensitiveContentProvider).nsfwAllowed;
+    final MatureAccess matureAccess = ref.read(sensitiveContentProvider).access;
     final bool hasAgreedToMatureContent = ref
         .read(matureContentAgreementsProvider)
         .agreedChannelIds
@@ -256,7 +282,7 @@ class _ChannelTile extends ConsumerWidget {
       isFavorite: isFavorite,
       isMuted: isMuted,
       developerMode: developerMode,
-      nsfwAllowed: nsfwAllowed,
+      matureAccess: matureAccess,
       hasAgreedToMatureContent: hasAgreedToMatureContent,
       voiceChannelJoinRequiresDoubleClick: ref.read(
         advancedPreferencesProvider.select(
@@ -267,7 +293,7 @@ class _ChannelTile extends ConsumerWidget {
       vanityUrlCode: guild.vanityUrlCode,
       canFollow: canOfferAnnouncementFollow(
         channel,
-        ref.read(guildPermissionsProvider),
+        ref.read(guildPermissionsProvider(readAccountUserId(ref))),
       ),
       canOfferP2pCall:
           ref.read(voiceP2pEnabledProvider) &&
@@ -283,7 +309,7 @@ class _ChannelTile extends ConsumerWidget {
       l10n: l10n,
       state: menuState,
     );
-    if (isMobileLayout(context)) {
+    if (!usesDesktopPointerUi(context)) {
       return FluxerBottomSheet.showScrollable<void>(
         context,
         title: channel.name,
@@ -410,27 +436,7 @@ class _ChannelTile extends ConsumerWidget {
       case ChannelMenuAction.notificationSettings:
         close();
         unawaited(
-          showChannelNotificationSettingsSheet(
-            menuContext,
-            channel: channel,
-            onSetNotification: (setting) async {
-              await ref
-                  .read(guildUserSettingsRepositoryProvider)
-                  .updateChannelOverride(
-                    guildId: channel.guildId,
-                    channelId: channel.id,
-                    messageNotifications: setting,
-                  );
-              ref
-                  .read(toastProvider.notifier)
-                  .show(
-                    const FluxerToast(
-                      message: 'Notification settings updated',
-                      variant: FluxerToastVariant.success,
-                    ),
-                  );
-            },
-          ),
+          showChannelNotificationSettingsSheet(menuContext, channel: channel),
         );
       case ChannelMenuAction.editChannel:
         close();

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show immutable, listEquals;
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/synced_preferences/engine/synced_preference_field.dart';
@@ -10,12 +11,13 @@ import 'package:fluxer_app/features/guilds/providers/guild_availability_provider
 import 'package:fluxer_app/features/guilds/providers/guild_drag_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_list_view_model.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_outage_availability.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_dart/models/user_settings_response_guild_folders.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'organized_guild_list_provider.g.dart';
 
+@immutable
 sealed class GuildNavbarItem {
   const GuildNavbarItem();
 }
@@ -38,11 +40,35 @@ class GuildNavbarFolder extends GuildNavbarItem {
   final List<Guild> guilds;
 
   bool get showIconWhenCollapsed => (flags & 1) != 0;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is GuildNavbarFolder &&
+            other.id == id &&
+            other.name == name &&
+            other.color == color &&
+            other.flags == flags &&
+            other.icon == icon &&
+            listEquals(other.guilds, guilds);
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, color, flags, icon, Object.hashAll(guilds));
 }
 
 class GuildNavbarGuild extends GuildNavbarItem {
   const GuildNavbarGuild({required this.guild});
   final Guild guild;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GuildNavbarGuild && other.guild == guild;
+
+  @override
+  int get hashCode => guild.hashCode;
 }
 
 List<GuildNavbarItem> computeOrganizedGuildList({
@@ -226,6 +252,12 @@ Stream<List<UserSettingsResponseGuildFolders>> guildFolders(Ref ref) async* {
 @Riverpod(keepAlive: true)
 class OrganizedGuildList extends _$OrganizedGuildList {
   String? _serverFoldersAtLocalOrder;
+
+  @override
+  bool updateShouldNotify(
+    List<GuildNavbarItem> previous,
+    List<GuildNavbarItem> next,
+  ) => !listEquals(previous, next);
 
   @override
   List<GuildNavbarItem> build() {

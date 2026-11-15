@@ -20,7 +20,8 @@ import 'package:fluxer_app/features/chat/utils/media/hdr_aware_image_url.dart';
 import 'package:fluxer_app/features/chat/utils/media/save_message_media_favorite.dart';
 import 'package:fluxer_app/features/forum/providers/media_download_policy_provider.dart';
 import 'package:fluxer_app/features/mature_content/presentation/widgets/mature_media_overlay.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/shell/foldable/tabletop_hinge_column.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
@@ -31,8 +32,8 @@ import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/external_links/external_link_handler.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class AttachmentMediaViewerItem {
   const AttachmentMediaViewerItem({
@@ -108,6 +109,8 @@ Future<void> showAttachmentMediaViewer(
   String? channelId,
   void Function(int index)? onForward,
   MessageMediaActionScope? actionScope,
+  bool downloadsHidden = false,
+  VoidCallback? onViewPost,
 }) async {
   if (items.isEmpty) {
     return;
@@ -124,6 +127,8 @@ Future<void> showAttachmentMediaViewer(
         channelId: channelId,
         onForward: onForward,
         actionScope: actionScope,
+        downloadsHidden: downloadsHidden,
+        onViewPost: onViewPost,
       );
     },
     transitionBuilder: (_, animation, _, child) {
@@ -139,6 +144,8 @@ class AttachmentMediaViewerShell extends ConsumerStatefulWidget {
     this.channelId,
     this.onForward,
     this.actionScope,
+    this.downloadsHidden = false,
+    this.onViewPost,
     super.key,
   });
 
@@ -149,6 +156,10 @@ class AttachmentMediaViewerShell extends ConsumerStatefulWidget {
   final void Function(int index)? onForward;
 
   final MessageMediaActionScope? actionScope;
+
+  final bool downloadsHidden;
+
+  final VoidCallback? onViewPost;
 
   @override
   ConsumerState<AttachmentMediaViewerShell> createState() =>
@@ -203,7 +214,7 @@ class _AttachmentMediaViewerShellState
     if (item.url.isEmpty) {
       return;
     }
-    unawaited(handleExternalLinkTap(context, item.url));
+    unawaited(openAttachmentInBrowser(context, item.url));
   }
 
   void _executeForward() {
@@ -214,6 +225,15 @@ class _AttachmentMediaViewerShellState
     final int index = _currentIndex;
     Navigator.of(context).pop();
     onForward(index);
+  }
+
+  void _executeViewPost() {
+    final VoidCallback? onViewPost = widget.onViewPost;
+    if (onViewPost == null) {
+      return;
+    }
+    Navigator.of(context).pop();
+    onViewPost();
   }
 
   void _executeSelectIndex(int index) {
@@ -348,6 +368,8 @@ class _AttachmentMediaViewerShellState
       launchContext: MediaOptionsLaunchContext.fromImageViewerItem(
         currentItem,
         actionScope: widget.actionScope,
+        downloadsHidden: widget.downloadsHidden,
+        onViewPost: widget.onViewPost,
       ),
       onCloseViewer: _executeClose,
     );
@@ -429,12 +451,17 @@ class _AttachmentMediaViewerShellState
     required String indexLabel,
     required double dismissChromeOpacity,
     required bool showOptionsButton,
+    required bool matureMediaHidden,
     MessageMediaFavoriteTarget? favoriteTarget,
   }) {
     final MessageMediaActionScope? actionScope = widget.actionScope;
     final bool downloadsHidden =
-        actionScope != null &&
-        ref.watch(mediaDownloadHiddenProvider(actionScope.message.channelId));
+        widget.downloadsHidden ||
+        matureMediaHidden ||
+        (actionScope != null &&
+            ref.watch(
+              mediaDownloadHiddenProvider(actionScope.message.channelId),
+            ));
     return Opacity(
       opacity: useTouchGestures ? dismissChromeOpacity : 1,
       child: Padding(
@@ -462,6 +489,17 @@ class _AttachmentMediaViewerShellState
                 ),
               ),
             const Spacer(),
+            if (widget.onViewPost != null) ...[
+              Tooltip(
+                message: l10n.forumOpenPost,
+                child: FluxerButton.mediaOverlay(
+                  onPressed: _executeViewPost,
+                  icon: PhosphorIconsBold.chatCircle,
+                  isSquare: true,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             if (!isMobile && widget.onForward != null) ...[
               Tooltip(
                 message: l10n.mediaViewerForward,
@@ -644,16 +682,26 @@ class _AttachmentMediaViewerShellState
             widget.actionScope!.message,
             currentItem.attachmentId,
           );
-    final MessageMediaFavoriteTarget? favoriteTarget =
-        favoriteTargetForMessageMedia(
-          actionScope: widget.actionScope,
-          attachmentId: currentItem.attachmentId,
-          embedIndex: currentItem.embedIndex,
-          filename: currentItem.filename,
-          fallbackContentHash: currentItem.contentHash,
-          attachment: resolvedAttachment,
-          forMediaViewerToolbar: true,
+    final String? viewerChannelId =
+        widget.channelId ?? widget.actionScope?.message.channelId;
+    final bool matureMediaHidden =
+        viewerChannelId != null &&
+        watchMatureMediaHidden(
+          ref,
+          channelId: viewerChannelId,
+          isMatureMedia: currentItem.isMatureMedia,
         );
+    final MessageMediaFavoriteTarget? favoriteTarget = matureMediaHidden
+        ? null
+        : favoriteTargetForMessageMedia(
+            actionScope: widget.actionScope,
+            attachmentId: currentItem.attachmentId,
+            embedIndex: currentItem.embedIndex,
+            filename: currentItem.filename,
+            fallbackContentHash: currentItem.contentHash,
+            attachment: resolvedAttachment,
+            forMediaViewerToolbar: true,
+          );
     final bool showOptionsButton = _hasOptionsMenu(currentItem);
     final double backdropBaseOpacity = isMobile ? 0.85 : 0.6;
     final double backdropOpacity = useTouchGestures
@@ -675,12 +723,13 @@ class _AttachmentMediaViewerShellState
           _executeClose();
           return KeyEventResult.handled;
         }
+        final bool isRtl = Directionality.of(context) == TextDirection.rtl;
         if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          _executePrevious();
+          isRtl ? _executeNext() : _executePrevious();
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-          _executeNext();
+          isRtl ? _executePrevious() : _executeNext();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -731,6 +780,7 @@ class _AttachmentMediaViewerShellState
                             indexLabel: indexLabel,
                             dismissChromeOpacity: dismissChromeOpacity,
                             showOptionsButton: showOptionsButton,
+                            matureMediaHidden: matureMediaHidden,
                             favoriteTarget: favoriteTarget,
                           ),
                           const Spacer(),
@@ -757,6 +807,7 @@ class _AttachmentMediaViewerShellState
                           indexLabel: indexLabel,
                           dismissChromeOpacity: dismissChromeOpacity,
                           showOptionsButton: showOptionsButton,
+                          matureMediaHidden: matureMediaHidden,
                           favoriteTarget: favoriteTarget,
                         ),
                         Expanded(

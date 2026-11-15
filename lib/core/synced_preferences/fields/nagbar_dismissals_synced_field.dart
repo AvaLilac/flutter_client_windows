@@ -4,7 +4,7 @@ import 'package:fluxer_app/core/synced_preferences/engine/synced_preference_fiel
 import 'package:fluxer_app/core/synced_preferences/generated/fluxer/user/preferences/v1/preferences.pb.dart'
     as pb;
 import 'package:fluxer_app/features/shell/domain/nagbar_dismissals_state.dart';
-import 'package:fluxer_app/features/shell/providers/nagbar_dismissals_provider.dart';
+import 'package:fluxer_app/features/shell/providers/nagbar/nagbar_providers.dart';
 
 class NagbarDismissalsSyncedField
     extends
@@ -44,6 +44,11 @@ class NagbarDismissalsSyncedField
       giftInventoryDismissed: proto.giftInventory,
       guildMembershipCtaDismissed: proto.guildMembershipCta,
       visionaryMfaDismissed: proto.visionaryMfa,
+      guildMfaRequirementDismissed: <String>{
+        for (final MapEntry<String, bool> entry
+            in proto.guildMfaRequirement.entries)
+          if (entry.value) entry.key,
+      },
     );
   }
 
@@ -57,6 +62,13 @@ class NagbarDismissalsSyncedField
       ..giftInventory = local.giftInventoryDismissed
       ..guildMembershipCta = local.guildMembershipCtaDismissed
       ..visionaryMfa = local.visionaryMfaDismissed;
+    proto.guildMfaRequirement
+      ..clear()
+      ..addEntries(
+        local.guildMfaRequirementDismissed.map(
+          (String guildId) => MapEntry<String, bool>(guildId, true),
+        ),
+      );
   }
 
   @override
@@ -75,6 +87,11 @@ class NagbarDismissalsSyncedField
         a.premiumOnboardingDismissed == b.premiumOnboardingDismissed &&
         a.giftInventoryDismissed == b.giftInventoryDismissed &&
         a.guildMembershipCtaDismissed == b.guildMembershipCtaDismissed &&
-        a.visionaryMfaDismissed == b.visionaryMfaDismissed;
+        a.visionaryMfaDismissed == b.visionaryMfaDismissed &&
+        a.guildMfaRequirementDismissed.length ==
+            b.guildMfaRequirementDismissed.length &&
+        a.guildMfaRequirementDismissed.containsAll(
+          b.guildMfaRequirementDismissed,
+        );
   }
 }

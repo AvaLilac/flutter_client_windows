@@ -14,13 +14,27 @@ void main() {
     scopeId: 'guild-1',
   );
 
+  test('requires web opt-in on iOS instead of in-app consent', () {
+    const MatureContentAgreementsState emptyAgreements =
+        MatureContentAgreementsState(isLoaded: true);
+    expect(
+      resolveChannelGateReason(
+        context: guildContext,
+        access: MatureAccess.allowed,
+        agreements: emptyAgreements,
+        allowInAppConsent: false,
+      ),
+      MatureContentGateReason.webOptInRequired,
+    );
+  });
+
   test('requires consent until guild agreement is recorded', () {
     const MatureContentAgreementsState emptyAgreements =
         MatureContentAgreementsState(isLoaded: true);
     expect(
       resolveChannelGateReason(
         context: guildContext,
-        nsfwAllowed: true,
+        access: MatureAccess.allowed,
         agreements: emptyAgreements,
       ),
       MatureContentGateReason.consentRequired,
@@ -32,7 +46,7 @@ void main() {
     expect(
       resolveChannelGateReason(
         context: guildContext,
-        nsfwAllowed: true,
+        access: MatureAccess.allowed,
         agreements: agreed,
       ),
       MatureContentGateReason.none,
@@ -43,7 +57,7 @@ void main() {
     expect(
       resolveChannelGateReason(
         context: guildContext,
-        nsfwAllowed: true,
+        access: MatureAccess.allowed,
         agreements: const MatureContentAgreementsState(),
       ),
       MatureContentGateReason.consentRequired,
@@ -64,7 +78,7 @@ void main() {
     expect(
       resolveChannelGateReason(
         context: warningContext,
-        nsfwAllowed: true,
+        access: MatureAccess.allowed,
         agreements: const MatureContentAgreementsState(),
       ),
       MatureContentGateReason.consentRequired,
@@ -85,7 +99,7 @@ void main() {
     expect(
       resolveChannelGateReason(
         context: ungated,
-        nsfwAllowed: true,
+        access: MatureAccess.allowed,
         agreements: const MatureContentAgreementsState(),
       ),
       MatureContentGateReason.none,

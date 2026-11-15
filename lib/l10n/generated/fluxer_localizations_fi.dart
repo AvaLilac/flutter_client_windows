@@ -94,8 +94,32 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get gatewayConnectedToast => 'Yhdistetty';
 
   @override
+  String get gatewayOfflineToast =>
+      'Olet offline-tilassa. Fluxer yhdistää uudelleen, kun olet taas verkossa.';
+
+  @override
   String get sessionExpiredToast =>
       'Istuntosi on vanhentunut. Kirjaudu sisään uudelleen.';
+
+  @override
+  String accountDeletionScheduledNotice(String date) {
+    return 'Tilisi poistetaan $date. Jos kirjaudut sisään ennen sitä, poisto peruuntuu.';
+  }
+
+  @override
+  String get accountDeletionScheduledNoticeNoDate =>
+      'Tilisi on ajastettu poistettavaksi. Jos kirjaudut sisään ennen poistopäivää, poisto peruuntuu.';
+
+  @override
+  String get accountDeletionImmediateNotice =>
+      'Poistamme tiliäsi nyt. Jos tililläsi on sähköpostiosoite, lähetämme sinulle sähköpostia, kun poisto on valmis.';
+
+  @override
+  String get accountDeletionImmediateNoticeNoEmail => 'Poistamme tiliäsi nyt.';
+
+  @override
+  String get accountDisabledNotice =>
+      'Tilisi on poistettu käytöstä. Kirjaudu uudelleen sisään, kun haluat käyttää sitä.';
 
   @override
   String splashStartupFailed(String error) {
@@ -150,6 +174,17 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   }
 
   @override
+  String get verificationResendEmail => 'Lähetä sähköposti uudelleen';
+
+  @override
+  String get verificationEmailSent =>
+      'Vahvistussähköposti lähetetty. Tarkista saapuneet-kansiosi.';
+
+  @override
+  String get verificationEmailRateLimited =>
+      'Olet pyytänyt liian monta vahvistussähköpostia. Odota hetki ja yritä uudelleen.';
+
+  @override
   String get nagbarOpenSettings => 'Avaa asetukset';
 
   @override
@@ -184,8 +219,21 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   }
 
   @override
+  String nagbarPremiumGracePeriodNoAction(
+    String productName,
+    String graceDate,
+  ) {
+    return '$productName-tilauksesi uusiminen epäonnistui. Säilytät $productName-etusi $graceDate asti.';
+  }
+
+  @override
   String nagbarPremiumExpired(String productName) {
     return 'Tilauksesi $productName on päättynyt. Uusi tilaus nyt säilyttääksesi edut.';
+  }
+
+  @override
+  String nagbarPremiumExpiredNoAction(String productName) {
+    return '$productName-tilauksesi on päättynyt.';
   }
 
   @override
@@ -224,15 +272,13 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get nagbarEnableMfa => 'Ota 2FA käyttöön';
 
   @override
-  String get nagbarTermsAcceptance =>
-      'Olemme päivittäneet käyttöehtomme. Tarkista ja hyväksy ne jatkaaksesi.';
-
-  @override
-  String get nagbarReviewTerms => 'Tarkista ehdot';
-
-  @override
   String nagbarGuildMembershipCta(String communityName) {
     return 'Liity yhteisöön $communityName, niin voit jutella tiimin kanssa ja pysyä ajan tasalla.';
+  }
+
+  @override
+  String nagbarGuildMfaRequirement(String communityName) {
+    return 'Moderation actions in $communityName require two-factor authentication. Enable 2FA to kick, ban, time out, or delete messages here.';
   }
 
   @override
@@ -246,9 +292,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get nagbarEnableNotifications => 'Ota ilmoitukset käyttöön';
-
-  @override
-  String get welcomeBack => 'Tervetuloa takaisin';
 
   @override
   String get email => 'Sähköposti';
@@ -267,6 +310,29 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get logInWithPasskey => 'Kirjaudu sisään tunnusavaimella';
+
+  @override
+  String get signInWithBrowser => 'Sign in with your browser';
+
+  @override
+  String get signInWithBrowserPasskeyHint =>
+      'To use a passkey on this instance, sign in with your browser.';
+
+  @override
+  String get browserSignInFailed =>
+      'Couldn\'t sign in with your browser. Try again.';
+
+  @override
+  String loginLegalAgreement(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both':
+          'Kirjautumalla sisään hyväksyt <terms>käyttöehdot</terms> ja <privacy>tietosuojakäytännön</privacy>.',
+      'terms': 'Kirjautumalla sisään hyväksyt <terms>käyttöehdot</terms>.',
+      'other':
+          'Kirjautumalla sisään hyväksyt <privacy>tietosuojakäytännön</privacy>.',
+    });
+    return '$_temp0';
+  }
 
   @override
   String continueWithSso(String provider) {
@@ -293,6 +359,19 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get register => 'Rekisteröidy';
+
+  @override
+  String loginHeading(String productName) {
+    return 'Sign in to $productName';
+  }
+
+  @override
+  String loginNewAccountPrompt(String productName) {
+    return 'New to $productName? ';
+  }
+
+  @override
+  String get loginCreateAccountLink => 'Create an account';
 
   @override
   String get orDivider => 'TAI';
@@ -365,8 +444,18 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get mfaTryAnotherMethod => 'Kokeile toista menetelmää';
 
   @override
+  String get mfaPasskeyUnavailable =>
+      'Tämän instanssin pääsyavaimet eivät toimi tässä sovelluksessa, eikä tililläsi ole muuta vahvistustapaa. Kirjaudu sen sijaan sisään verkossa.';
+
+  @override
   String get mfaUseSecurityKey =>
       'Käytä mieluummin turva-avainta tai pääsyavainta';
+
+  @override
+  String get mfaUseBackupCode => 'Käytä varakoodia';
+
+  @override
+  String get mfaUseAuthenticatorCode => 'Käytä tunnistussovelluksen koodia';
 
   @override
   String get accountSelectorTitle => 'Valitse tili';
@@ -391,8 +480,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get accountExpired => 'Vanhentunut';
 
   @override
-  String accountSessionExpired(String identifier) {
-    return 'Istunto vanhentui tunnuksella $identifier. Kirjaudu uudelleen.';
+  String accountSessionExpiredNotice(String name) {
+    return 'Istuntosi tilille $name vanheni. Kirjaudu uudelleen.';
   }
 
   @override
@@ -496,78 +585,68 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get signOut => 'Kirjaudu ulos';
 
   @override
-  String get suspendedPermanentTitle => 'Tili pysyvästi estetty';
-
-  @override
   String get suspendedTemporaryTitle => 'Tili estetty';
 
   @override
-  String get suspendedPermanentDescription =>
-      'Tilisi on pysyvästi estetty käyttöehtojemme rikkomisen vuoksi.';
+  String get suspendedBannedTitle => 'Tili jäädytetty pysyvästi';
 
   @override
-  String get suspendedTemporaryDescription =>
-      'Tilisi on väliaikaisesti estetty. Voit käyttää tiliäsi, kun estoaika päättyy.';
+  String get suspendedClosedTitle => 'Tili suljettu';
 
   @override
-  String get suspendedIssuedAt => 'Myönnetty';
+  String get suspendedWhatHappened => 'Mitä tapahtui';
 
   @override
-  String get suspendedEndsAt => 'Päättyy';
+  String get suspendedWhy => 'Miksi';
 
   @override
-  String get suspendedDuration => 'Kesto';
+  String get suspendedHowWeDecided => 'Miten päätimme';
 
   @override
-  String get suspendedPermanent => 'Pysyvä';
+  String get suspendedHowToAppeal => 'Näin valitat päätöksestä';
 
   @override
-  String get suspendedReason => 'Syy';
-
-  @override
-  String get suspendedAppealDeadline => 'Valitusmääräaika';
-
-  @override
-  String suspendedDeletionWarning(String date) {
-    return 'Tilisi poistetaan suunnitellusti $date.';
+  String suspendedNoteFromTeam(String statement) {
+    return 'Tiimimme huomautus: $statement';
   }
 
   @override
-  String get suspendedRecheck => 'Tarkista päivitykset';
+  String suspendedDecisionId(String decisionId) {
+    return 'Päätöksen tunnus: $decisionId';
+  }
 
   @override
-  String suspendedRecheckCooldown(int seconds) {
-    return 'Tarkista uudelleen ${seconds}s kuluttua';
+  String suspendedRule(String title) {
+    return 'Sääntö: $title';
+  }
+
+  @override
+  String suspendedAppealNoDeadline(String email) {
+    return 'Jos uskot, että teimme virheen, lähetä sähköpostia osoitteeseen $email ja mainitse käyttäjänimesi.';
+  }
+
+  @override
+  String suspendedAppealNoEmail(String email, String deadline) {
+    return 'Jos uskot, että teimme virheen, lähetä sähköpostia osoitteeseen $email viimeistään $deadline. Mainitse päätöksen tunnus ja käyttäjänimesi. Valittaminen on maksutonta, ja ihminen käy jokaisen valituksen läpi.';
+  }
+
+  @override
+  String suspendedAppealWithEmail(String email, String deadline) {
+    return 'Jos uskot, että teimme virheen, lähetä sähköpostia osoitteeseen $email viimeistään $deadline. Lähetä viesti tilisi sähköpostiosoitteesta, jos voit, ja mainitse päätöksen tunnus. Valittaminen on maksutonta, ja ihminen käy jokaisen valituksen läpi.';
+  }
+
+  @override
+  String suspendedDeletionRequest(String email) {
+    return 'Jos haluat pyytää meitä poistamaan tilisi ja tietosi, lähetä sähköpostia osoitteeseen $email tilisi sähköpostiosoitteesta.';
+  }
+
+  @override
+  String suspendedDeletionRequestNoEmail(String email) {
+    return 'Jos haluat pyytää meitä poistamaan tilisi ja tietosi, lähetä sähköpostia osoitteeseen $email ja mainitse käyttäjänimesi.';
   }
 
   @override
   String get suspendedBackToLogin => 'Takaisin kirjautumiseen';
-
-  @override
-  String get suspendedAppealTitle => 'Valitus';
-
-  @override
-  String get suspendedAppealHint =>
-      'Selitä, miksi käyttösulku tulisi harkita uudelleen (vähintään 50 merkkiä)...';
-
-  @override
-  String get suspendedAppealSubmit => 'Lähetä valitus';
-
-  @override
-  String get suspendedAppealPending => 'Odottaa tarkistusta';
-
-  @override
-  String get suspendedAppealAccepted => 'Valitus hyväksytty';
-
-  @override
-  String get suspendedAppealRejected => 'Valitus hylätty';
-
-  @override
-  String get suspendedAppealAcceptedDescription =>
-      'Valituksesi on hyväksytty ja tilisi on palautettu.';
-
-  @override
-  String get suspendedSignIn => 'Kirjaudu tilillesi';
 
   @override
   String get forgotPasswordTitle => 'Unohditko salasanasi?';
@@ -773,9 +852,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Tiliäsi ei ole vielä lunastettu. Ilman käyttäjätunnusta ja salasanaa et voi kirjautua sisään muilta laitteilta ja saatat menettää pääsyn tiliisi. Lunasta tilisi nyt varmistaaksesi sen.';
 
   @override
-  String get addFriendUsernameOnlyHint => 'Käyttäjänimi';
-
-  @override
   String get registerTitle => 'Luo tili';
 
   @override
@@ -799,6 +875,12 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get registerDateOfBirth => 'Syntymäaika';
 
   @override
+  String get registerDateOfBirthDone => 'Valmis';
+
+  @override
+  String get registerDateOfBirthNotSet => 'Ei asetettu';
+
+  @override
   String get registerMonth => 'Kuukausi';
 
   @override
@@ -808,16 +890,19 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get registerYear => 'Vuosi';
 
   @override
-  String get registerConsentPrefix => 'Hyväksyn ';
+  String registerConsentLinks(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both':
+          'Hyväksyn <terms>käyttöehdot</terms> ja <privacy>tietosuojakäytännön</privacy>',
+      'terms': 'Hyväksyn <terms>käyttöehdot</terms>',
+      'other': 'Hyväksyn <privacy>tietosuojakäytännön</privacy>',
+    });
+    return '$_temp0';
+  }
 
   @override
-  String get registerConsentTerms => 'Käyttöehdot';
-
-  @override
-  String get registerConsentAnd => ' ja ';
-
-  @override
-  String get registerConsentPrivacy => 'Tietosuojakäytäntö';
+  String get registerConsentBuiltInRules =>
+      'Hyväksyn, että tämä instanssi ei suvaitse lainkaan loukkaavaa sisältöä tai häiriköiviä käyttäjiä ja että sen ylläpitäjät voivat poistaa näitä sääntöjä rikkovaa sisältöä ja tilejä.';
 
   @override
   String get registerConfirmPassword => 'Vahvista salasana';
@@ -839,6 +924,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get passkeyNoCredentials =>
       'Tälle sovellukselle ei löytynyt passkey-tunnuksia. Kirjaudu sisään sähköpostilla ja salasanalla.';
+
+  @override
+  String get passkeyNoCredentialsForAccount =>
+      'Tällä laitteella ei ole pääsyavainta tälle tilille. Käytä laitetta tai salasanojen hallintaa, johon tallensit sen.';
 
   @override
   String get passkeyDeviceNotSupported =>
@@ -896,8 +985,14 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   }
 
   @override
-  String embedInviteMembers(String count) {
-    return '$count jäsentä';
+  String embedInviteMembers(int count, String formattedCount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$formattedCount jäsentä',
+      one: '$formattedCount jäsen',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -999,9 +1094,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Voit tuoda teemoja vain verkossa tai työpöydällä.';
 
   @override
-  String get embedThemeImport => 'Tuo teema';
-
-  @override
   String embedGiftVisionaryLifetime(String productName) {
     return 'Visionary (elämänikäinen $productName)';
   }
@@ -1091,6 +1183,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get giftAcceptAlreadyClaimed => 'Tämä lahja on jo lunastettu.';
+
+  @override
+  String get giftAcceptLifetimeNotInApp =>
+      'Tätä lahjaa ei voi lunastaa iOS-sovelluksessa. Voit lunastaa sen työpöytäsovelluksessa.';
 
   @override
   String get giftAcceptMaybeLater => 'Ehkä myöhemmin';
@@ -1284,6 +1380,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get incomingVoiceCallTitle => 'Saapuva äänipuhelu';
 
   @override
+  String get incomingVoiceCallSubtitle => 'Voice call';
+
+  @override
   String get incomingVoiceCallAccept => 'Vastaa';
 
   @override
@@ -1336,7 +1435,13 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String dmGroupMemberCount(int count) {
-    return '$count jäsentä';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count jäsentä',
+      one: '$count jäsen',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1458,9 +1563,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get addFriendSheetTitle => 'Lisää kaveri';
-
-  @override
-  String get addFriendUsernameHint => 'Käyttäjänimi#0000';
 
   @override
   String get addFriendUsernameLabel => 'Kaverin käyttäjänimi';
@@ -1731,6 +1833,49 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       locale: localeName,
       other: '$count yhteisöä',
       one: '1 yhteisö',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get stickerPickerSearchHint => 'Etsi täydellinen tarra';
+
+  @override
+  String get stickerPickerEmptyNoCommunitiesTitle =>
+      'Tarroja ei ole saatavilla';
+
+  @override
+  String get stickerPickerEmptyNoCommunitiesBody =>
+      'Liity yhteisöön, jossa on tarroja, niin voit käyttää niitä täällä.';
+
+  @override
+  String get stickerPickerEmptyHereTitle => 'Tarroja ei ole saatavilla';
+
+  @override
+  String get stickerPickerEmptyHereBody =>
+      'Tässä keskustelussa ei ole käytettävissä tarroja.';
+
+  @override
+  String get stickerPickerNoResultsTitle => 'Tarroja ei löytynyt';
+
+  @override
+  String get stickerPickerNoResultsBody => 'Kokeile toista hakusanaa.';
+
+  @override
+  String stickerPlutoniumUpsellText(
+    String stickerCount,
+    String communityCount,
+  ) {
+    return 'Plutoniumilla käyttöösi avautuu $stickerCount ($communityCount).';
+  }
+
+  @override
+  String stickerPlutoniumUpsellStickerCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tarraa',
+      one: '1 tarra',
     );
     return '$_temp0';
   }
@@ -2010,6 +2155,47 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get emojiPickerTitle => 'Hymiöt';
 
   @override
+  String get profileBadgesSettingsTitle => 'Merkit';
+
+  @override
+  String get profileBadgesSettingsDescription =>
+      'Valitse, mitkä merkit muut näkevät profiilissasi.';
+
+  @override
+  String get profileBadgesSettingsEmpty => 'Sinulla ei ole vielä merkkejä.';
+
+  @override
+  String get profileBadgesSettingsLoadFailed => 'Merkkejäsi ei voitu ladata.';
+
+  @override
+  String profileBadgesShowOnProfile(String badgeLabel) {
+    return 'Näytä $badgeLabel profiilissasi';
+  }
+
+  @override
+  String profileBadgesOverflowButton(int count) {
+    return '+$count';
+  }
+
+  @override
+  String get profileBadgesShowAllTooltip => 'Näytä kaikki merkit';
+
+  @override
+  String profileBadgesShowAllSemantic(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '+$count merkkiä lisää, näytä kaikki',
+      one: '+$count merkki lisää, näytä kaikki',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get profileBadgesVisionaryNumberNote =>
+      'Näkyy vain, kun Visionary-merkkisi on näkyvissä eikä näy tavallisena tilauksena.';
+
+  @override
   String get plutoniumBadgePrivacyTitle => 'Plutonium-merkin yksityisyys';
 
   @override
@@ -2055,6 +2241,25 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get hideVisionaryIdDescription => 'Poista Visionary ID -merkki';
 
   @override
+  String get operatorPassName => 'Operator Pass';
+
+  @override
+  String operatorPassSince(String since) {
+    return 'Operator Pass $since alkaen';
+  }
+
+  @override
+  String get operatorPassShowBadgeOnProfile => 'Näytä merkki profiilissani';
+
+  @override
+  String operatorPassHideDate(String operatorPassName) {
+    return 'Piilota, milloin sait $operatorPassName';
+  }
+
+  @override
+  String get operatorPassHideCount => 'Piilota Operator Passiesi määrä';
+
+  @override
   String get avatarDescriptionNonPremium =>
       'JPEG, PNG, WebP. Max 10MB. Suositus: 512×512px. Animoitu avatar (GIF) vaatii Plutoniumin.';
 
@@ -2069,8 +2274,8 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get plutoniumNotAvailableTitle => 'Plutonium';
 
   @override
-  String get plutoniumNotAvailableBody =>
-      'Sovelluksen sisäiset ostokset eivät ole vielä saatavilla tällä alustalla. Pysy kuulolla – tulossa pian!';
+  String get plutoniumNotSoldHere =>
+      'Plutoniumia ei voi ostaa tässä sovellusversiossa.';
 
   @override
   String get profilePreviewLabel => 'Esikatselu';
@@ -2143,6 +2348,42 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Vahvistus epäonnistui. Yritä uudelleen.';
 
   @override
+  String get sudoWrongPassword => 'Salasana on väärä. Yritä uudelleen.';
+
+  @override
+  String get sudoEmailCodeSend => 'Lähetä minulle koodi sähköpostitse';
+
+  @override
+  String get sudoEmailCodeSent =>
+      'Lähetimme 6-numeroisen koodin sähköpostiosoitteeseesi.';
+
+  @override
+  String get sudoEmailCodeLabel => 'Sähköpostin koodi';
+
+  @override
+  String get sudoEmailCodeResend => 'Lähetä uusi koodi';
+
+  @override
+  String get sudoSsoReauthHint =>
+      'Vahvista henkilöllisyytesi kirjautumalla uudelleen sisään.';
+
+  @override
+  String get sudoSsoReauthButtonGeneric => 'Kirjaudu uudelleen sisään';
+
+  @override
+  String sudoSsoReauthButton(String provider) {
+    return 'Kirjaudu palvelulla $provider';
+  }
+
+  @override
+  String get sudoSsoReauthWrongAccount =>
+      'Kirjauduit eri tilille. Kirjaudu tilillä, jota käytät täällä.';
+
+  @override
+  String get sudoPasskeyUnavailable =>
+      'Tämän instanssin pääsyavaimet eivät toimi tässä sovelluksessa. Käytä tunnistussovellusta tai varmuuskoodia tai vahvista verkossa.';
+
+  @override
   String get securityAccountTitle => 'Tili';
 
   @override
@@ -2155,6 +2396,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get securitySectionDescription =>
       'Suojaa tilisi kaksivaiheisella todennuksella ja tunnistautumisavaimilla';
+
+  @override
+  String get securitySectionDescriptionNoPasskeys =>
+      'Suojaa tilisi kaksivaiheisella todennuksella';
 
   @override
   String get securityLoginEmailSectionTitle => 'Sähköpostiasetukset';
@@ -2486,6 +2731,58 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Poista tilisi käytöstä väliaikaisesti. Voit ottaa sen uudelleen käyttöön kirjautumalla sisään myöhemmin.';
 
   @override
+  String get dangerZoneDeleteEntryDescription =>
+      'Poista tilisi ja henkilötietosi. Voit poistaa myös viestisi.';
+
+  @override
+  String get dangerZoneDeleteIntro =>
+      'Tilisi, profiilisi ja henkilötietosi poistetaan. Viestit, joita et poista, jäävät sinne, minne lähetit ne, ilman nimeäsi tai profiiliasi.';
+
+  @override
+  String get dangerZoneDeleteMessagesLabel => 'Poista myös viestini';
+
+  @override
+  String get dangerZoneDeleteMessagesHint =>
+      'Poistaa tilisi mukana jokaisen viestin, jonka olet lähettänyt yksityisviesteissä, ryhmäkeskusteluissa ja yhteisöissä.';
+
+  @override
+  String dangerZoneDeleteExportHint(String privacyDashboard) {
+    return 'Jos haluat säilyttää kopion tiedoistasi, pyydä ensin tietojen vienti kohdassa $privacyDashboard.';
+  }
+
+  @override
+  String get dangerZoneDeleteLater => 'Poista 14 päivän kuluttua';
+
+  @override
+  String get dangerZoneDeleteLaterHint =>
+      'Voit perua poiston kirjautumalla sisään näiden 14 päivän aikana.';
+
+  @override
+  String get dangerZoneDeleteSchedule => 'Ajasta poisto';
+
+  @override
+  String get dangerZoneDeleteScheduleHint =>
+      'Tilisi poistetaan tämän instanssin odotusajan jälkeen. Jos kirjaudut sisään ennen sitä, poisto peruuntuu.';
+
+  @override
+  String get dangerZoneDeleteNow => 'Poista nyt';
+
+  @override
+  String get dangerZoneDeleteNowConfirmTitle => 'Poistetaanko tilisi nyt?';
+
+  @override
+  String get dangerZoneDeleteNowConfirmBody =>
+      'Tilisi poistetaan heti, eikä sitä voi palauttaa.';
+
+  @override
+  String get dangerZoneDeleteAppStoreBilling =>
+      'Plutonium-tilauksesi laskuttaa Apple. Tilin poistaminen ei peru tilausta, joten peru se ensin App Storessa.';
+
+  @override
+  String get dangerZoneDeleteGooglePlayBilling =>
+      'Plutonium-tilauksesi laskuttaa Google Play. Tilin poistaminen ei peru tilausta, joten peru se ensin Google Playssa.';
+
+  @override
   String get dangerZoneDisableConfirmDescription =>
       'Tilin käytöstä poistaminen kirjaa sinut ulos kaikista istunnoista. Voit ottaa tilisi uudelleen käyttöön milloin tahansa kirjautumalla sisään uudelleen.';
 
@@ -2493,49 +2790,15 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get dangerZoneDeleteTitle => 'Poista tili';
 
   @override
-  String get dangerZoneDeleteDescription =>
-      'Poista tilisi ja kaikki siihen liittyvät tiedot pysyvästi. Tätä toimintoa ei voi kumota.';
-
-  @override
   String get dangerZoneDeleteCannotDeleteAccount => 'Tiliä ei voi poistaa';
 
   @override
-  String get dangerZoneDeleteOwnsCommunities =>
-      'Et voi poistaa tiliäsi, jos omistat yhteisöjä. Siirrä ensin seuraavien yhteisöjen omistajuus:';
+  String get dangerZoneDeleteOwnsCommunitiesList =>
+      'Omistat nämä yhteisöt. Poista jokainen niistä tai anna se toiselle jäsenelle ennen kuin poistat tilisi.';
 
   @override
-  String dangerZoneDeleteAndXMore(int count) {
-    return 'ja $count muuta';
-  }
-
-  @override
-  String dangerZoneDeleteTransferInstructions(String settingsPath) {
-    return 'Siirrä omistajuus siirtymällä kohtaan $settingsPath ja käyttämällä siirrä omistajuus -vaihtoehtoa.';
-  }
-
-  @override
-  String get dangerZoneDeleteConfirmDescription =>
-      'Haluatko varmasti poistaa tilisi? Tilisi merkitään poistettavaksi pysyvästi.';
-
-  @override
-  String get dangerZoneDeleteBullet1 =>
-      'Voit peruuttaa poistoprosessin 14 päivän kuluessa';
-
-  @override
-  String get dangerZoneDeleteBullet2 =>
-      'Tilisi poistetaan pysyvästi 14 päivän kuluttua';
-
-  @override
-  String get dangerZoneDeleteBullet3 =>
-      'Kun poisto on käsitelty, et voi enää palauttaa pääsyä tilillesi';
-
-  @override
-  String get dangerZoneDeleteBullet4 =>
-      'Et voi poistaa lähettämiäsi viestejä tilisi poistamisen jälkeen';
-
-  @override
-  String get dangerZoneDeleteDisclaimer =>
-      'Jos haluat viedä tietosi tai poistaa viestisi ensin, käy Tietosuojapaneeli-osiossa Käyttäjäasetuksissa ennen jatkamista.';
+  String get dangerZoneDeleteOwnedCommunitiesHelp =>
+      'Avaa yhteisön asetukset napauttamalla yhteisöä. ”Poista yhteisö” on alareunassa. Jos haluat antaa yhteisön pois, avaa ”Jäsenet”, napauta jäsentä, napauta hänen profiilinsa kolmea pistettä ja valitse ”Siirrä omistajuus”.';
 
   @override
   String get claimAccountTitle => 'Viimeistele tilisi rekisteröinti';
@@ -2559,9 +2822,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get claimAccountSuccess => 'Tili lunastettu';
-
-  @override
-  String get importantInformation => 'Tärkeää tietoa:';
 
   @override
   String get genericError => 'Tapahtui virhe';
@@ -4088,6 +4348,11 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get chatAttachmentDownloadFailedToast => 'Liitteen lataus epäonnistui';
 
   @override
+  String chatAttachmentDownloadPhotosAccessToast(String productName) {
+    return '$productName tarvitsee pääsyn kuvakirjastoosi tallentaakseen tämän liitteen.';
+  }
+
+  @override
   String get chatAttachmentExpiredTooltip => 'Liite vanhentunut';
 
   @override
@@ -4213,7 +4478,15 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get matureMediaRevealButton => 'Näytä';
 
   @override
-  String get matureMediaRevealHint => 'Näytä napsauttamalla';
+  String get matureMediaRevealLabel => 'Näytä arkaluonteinen media';
+
+  @override
+  String get matureMediaAppLockedLabel =>
+      'Arkaluonteinen media on piilotettu iPhonessa ja iPadissa.';
+
+  @override
+  String get matureMediaMinorLockedLabel =>
+      'Arkaluonteinen media on piilotettu tililtäsi.';
 
   @override
   String get matureContentTitle => 'Aikuisille tarkoitettu sisältö';
@@ -4264,12 +4537,70 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Tämä aikuisille tarkoitettu yhteisö ei ole käytettävissä tililläsi.';
 
   @override
+  String matureContentIosWebOptInInstanceBody(String webAddress) {
+    return 'Turn on age-restricted communities and channels at $webAddress in your browser or in the desktop app. They stay hidden in the iOS app until you do.';
+  }
+
+  @override
   String get matureCategoryUnavailableBody =>
       'Tämä aikuisille tarkoitettu kategoria ei ole käytettävissä tililläsi.';
 
   @override
   String get matureChannelUnavailableBody =>
       'Tämä aikuisille tarkoitettu kanava ei ole käytettävissä tililläsi.';
+
+  @override
+  String get matureContentAppLockedBody =>
+      '18+-sisältö on pois päältä iPhonessa ja iPadissa. Jos haluat nähdä 18+-merkittyjä yhteisöjä ja kanavia täällä, avaa Fluxer verkossa tai työpöytäsovelluksessa, siirry asetuksissa kohtaan ”Tietosuoja” ja ota käyttöön ”Salli 18+-sisältö iPhonessa ja iPadissa”.';
+
+  @override
+  String get matureContentRegionLockedBody =>
+      'Sijaintisi aikuissisältöä koskevien lakien vuoksi aikuissisältö ei ole saatavilla siellä, missä olet.';
+
+  @override
+  String get matureMessageHiddenPreview => 'Viesti 18+-kanavalla';
+
+  @override
+  String get ageRangeUnderMinimumTitle =>
+      'Fluxer ei ole käytettävissä tällä tilillä';
+
+  @override
+  String get ageRangeUnderMinimumBody =>
+      'Apple Accountisi jakama ikäryhmä on alle 13 vuotta. Fluxer on tarkoitettu vain 13 vuotta täyttäneille.';
+
+  @override
+  String get ageRangeUnderMinimumBodyGoogle =>
+      'The age range shared by your Google Account is under 13. Fluxer is only for people aged 13 and over.';
+
+  @override
+  String get ageRangeUnlockBody =>
+      'Where you are, the law says a date of birth you type in isn\'t enough for mature content, and you can use the age range on your Apple Account to unlock it. Fluxer only gets the age range if it\'s 18 or over. An age range under 18 stays on this device.';
+
+  @override
+  String get ageRangeUnlockBodyGoogle =>
+      'Where you are, the law says a date of birth you type in isn\'t enough for mature content, and you can use the age range on your Google Account to unlock it. Fluxer only gets the age range if it\'s 18 or over. An age range under 18 stays on this device.';
+
+  @override
+  String get ageRangeUnlockHelpLink => 'How unlocking mature content works';
+
+  @override
+  String get ageRangeUnlockButton => 'Unlock mature content';
+
+  @override
+  String get ageRangeUnlockUnderAdult =>
+      'Mature content stays off because the age range on your Apple Account is under 18. The age range stays on this device and isn\'t sent to Fluxer.';
+
+  @override
+  String get ageRangeUnlockUnderAdultGoogle =>
+      'Mature content stays off because the age range on your Google Account is under 18. The age range stays on this device and isn\'t sent to Fluxer.';
+
+  @override
+  String get ageRangeUnlockFailed =>
+      'Fluxer couldn\'t unlock mature content. Please try again later.';
+
+  @override
+  String get ageRangeUnlockDateOfBirthRequired =>
+      'Your account needs a date of birth before Fluxer can use your age range.';
 
   @override
   String get matureContentProceedButton => 'Jatka';
@@ -4303,6 +4634,18 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get sensitiveContentSaveButton => 'Tallenna';
+
+  @override
+  String get sensitiveContentAppLockedHint =>
+      'Jos haluat valita täällä ”Näytä”, avaa Fluxer verkossa tai työpöytäsovelluksessa, siirry asetuksissa kohtaan ”Tietosuoja” ja ota käyttöön ”Salli 18+-sisältö iPhonessa ja iPadissa”.';
+
+  @override
+  String get sensitiveContentInstallFromPlayHint =>
+      'Unlocking mature content with your Google Account needs the copy of Fluxer from Google Play.';
+
+  @override
+  String get sensitiveContentFinishInPlayHint =>
+      'Google Play needs one more step before it can share an age range. Open the Play Store to finish it, then come back and press \"Unlock mature content\" again.';
 
   @override
   String chatUploadingAttachmentsSummary(int count) {
@@ -4524,7 +4867,7 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get lookAndFeelThemeSectionDescription =>
-      'Valitse tumman, hiilenmustan tai vaalean ulkoasun välillä.';
+      'Valitse järjestelmän, tumman, hiilenmustan tai vaalean ulkoasun välillä.';
 
   @override
   String get lookAndFeelHdrSectionTitle => 'Laaja dynaaminen alue';
@@ -4576,6 +4919,14 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get lookAndFeelSyncThemeAcrossDevicesSystemDescription =>
       'Järjestelmäteema poistaa synkronoinnin automaattisesti käytöstä seuratakseen järjestelmäsi asetusta tällä laitteella.';
+
+  @override
+  String get lookAndFeelUseSystemDynamicColorsLabel =>
+      'Use Material You colors';
+
+  @override
+  String get lookAndFeelUseSystemDynamicColorsDescription =>
+      'Tint the theme with your device\'s system colors.';
 
   @override
   String get lookAndFeelThemeSyncFailed =>
@@ -4737,6 +5088,11 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String lookAndFeelMessageGroupSpacingValue(int spacing) {
     return '$spacing px';
+  }
+
+  @override
+  String lookAndFeelPixelsAccessibleValue(int value) {
+    return '$value pixels';
   }
 
   @override
@@ -5048,6 +5404,65 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get savedMediaNameRequired => 'Nimi on pakollinen.';
+
+  @override
+  String get savedMediaEdit => 'Muokkaa';
+
+  @override
+  String get savedMediaEditTitle => 'Muokkaa tallennettua mediaa';
+
+  @override
+  String get savedMediaDeleteTitle => 'Poista tallennettu media';
+
+  @override
+  String savedMediaDeleteConfirm(String name) {
+    return 'Poistetaanko ”$name” tallennetusta mediastasi?';
+  }
+
+  @override
+  String get savedMediaDeleteFailed => 'Tallennettua mediaa ei voitu poistaa.';
+
+  @override
+  String get savedMediaSearchHint => 'Hae tallennettuja medioita';
+
+  @override
+  String get savedMediaUnavailableTitle =>
+      'Tallennettu media ei ole saatavilla';
+
+  @override
+  String get savedMediaUnavailableBody => 'Yritä hetken kuluttua uudelleen.';
+
+  @override
+  String get savedMediaEmptyTitle => 'Ei tallennettuja medioita';
+
+  @override
+  String get savedMediaEmptyBody =>
+      'Tallenna mediaa viesteistä, niin se näkyy täällä.';
+
+  @override
+  String get savedMediaNoResultsTitle => 'Ei tuloksia';
+
+  @override
+  String get savedMediaNoResultsBody =>
+      'Kokeile toista hakusanaa tai suodatinta.';
+
+  @override
+  String get savedMediaFilterAll => 'Kaikki';
+
+  @override
+  String get savedMediaFilterImages => 'Kuvat';
+
+  @override
+  String get savedMediaFilterVideos => 'Videot';
+
+  @override
+  String get savedMediaFilterAudio => 'Ääni';
+
+  @override
+  String get savedMediaFilterGifs => 'GIFit';
+
+  @override
+  String get savedMediaGifBadge => 'GIF';
 
   @override
   String get gifFavoriteFirstTimeTitle =>
@@ -5874,6 +6289,108 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get voiceConnectionDismiss => 'Poista';
 
   @override
+  String get voiceCallControlsSheetLabel => 'Puhelun hallinta';
+
+  @override
+  String get voiceCallBarOpenCallHint => 'Opens the call';
+
+  @override
+  String get voiceParticipantSpeaking => 'Speaking';
+
+  @override
+  String get voiceParticipantOptionsAction => 'Participant options';
+
+  @override
+  String voiceParticipantOtherDevicesLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Show $count more devices',
+      one: 'Show 1 more device',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get voicePipReturnToCallLabel => 'Return to call';
+
+  @override
+  String voiceAnnounceUserJoined(String name) {
+    return '$name joined';
+  }
+
+  @override
+  String voiceAnnounceUserLeft(String name) {
+    return '$name left';
+  }
+
+  @override
+  String voiceAnnounceUsersJoined(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people joined',
+      one: '1 person joined',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String voiceAnnounceUsersLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people left',
+      one: '1 person left',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get voiceAnnounceSomeone => 'Someone';
+
+  @override
+  String get voiceAnnounceConnected => 'Connected to voice';
+
+  @override
+  String get voiceAnnounceReconnecting => 'Reconnecting to voice';
+
+  @override
+  String get voiceAnnounceReconnected => 'Reconnected to voice';
+
+  @override
+  String get voiceAnnounceDisconnected => 'Disconnected from voice';
+
+  @override
+  String get voiceAnnounceMoved => 'Now in a different voice channel';
+
+  @override
+  String get voiceAnnounceServerMuted => 'A moderator muted you';
+
+  @override
+  String get voiceAnnounceServerUnmuted => 'A moderator unmuted you';
+
+  @override
+  String get voiceAnnounceServerDeafened => 'A moderator deafened you';
+
+  @override
+  String get voiceAnnounceServerUndeafened => 'A moderator undeafened you';
+
+  @override
+  String get voiceAnnounceMicMuted => 'Microphone muted';
+
+  @override
+  String get voiceAnnounceMicUnmuted => 'Microphone unmuted';
+
+  @override
+  String get accessibilityAnnounceCallJoinsAndLeavesLabel =>
+      'Announce call joins and leaves';
+
+  @override
+  String get accessibilityAnnounceCallJoinsAndLeavesDescription =>
+      'Let screen readers say who joins or leaves the voice call you\'re in. Connection changes and moderator actions are always announced.';
+
+  @override
   String get voiceConnectionDisconnected => 'Yhteys katkaistu';
 
   @override
@@ -5967,6 +6484,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get voiceParticipantMenuViewProfile => 'Näytä profiili';
 
   @override
+  String get voiceParticipantMenuReport => 'Ilmoita';
+
+  @override
   String get voiceParticipantMenuFocus => 'Kohdista tähän henkilöön';
 
   @override
@@ -6016,6 +6536,21 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get voiceOutputRouteHeadset => 'Kuulokkeet';
 
   @override
+  String get voiceOutputRouteBluetooth => 'Bluetooth';
+
+  @override
+  String get voiceOutputRouteBluetoothLe => 'Bluetooth LE';
+
+  @override
+  String get voiceOutputRouteHearingAid => 'Hearing aid';
+
+  @override
+  String get voiceOutputRouteUsb => 'USB headset';
+
+  @override
+  String get voiceChangeAudioOutputLabel => 'Vaihda äänilähtöä';
+
+  @override
   String get voicePanelOnlyShowVideosLabel => 'Näytä vain videot';
 
   @override
@@ -6047,6 +6582,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Kameran käyttöoikeus vaaditaan videota varten.';
 
   @override
+  String get voiceMicPermissionRequired =>
+      'Salli mikrofonin käyttö, jotta voit poistaa mykistyksen tässä puhelussa.';
+
+  @override
   String get voiceErrorScreenShareToggle =>
       'Näytönjaon käynnistäminen epäonnistui. Yritä uudelleen.';
 
@@ -6075,11 +6614,20 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get voiceScreenShareExitFullscreenTooltip => 'Poistu koko näytöstä';
 
   @override
+  String voiceVideoZoomLevel(String scale) {
+    return 'Zoomaus $scale';
+  }
+
+  @override
   String get voiceOwnScreenShareTitle => 'Lähetät';
 
   @override
   String get voiceOwnScreenShareSubtitle =>
       'Striimisi on livenä osallistujille.';
+
+  @override
+  String get voiceBlockedParticipantVideoHidden =>
+      'Video käyttäjältä, jonka olet estänyt';
 
   @override
   String get voiceLiveBadge => 'LIVE';
@@ -6231,6 +6779,15 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get characterCounterTooLong => 'Viesti on liian pitkä';
+
+  @override
+  String characterCounterTooLongToast(int maxLength) {
+    final intl.NumberFormat maxLengthNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String maxLengthString = maxLengthNumberFormat.format(maxLength);
+
+    return 'Viestin enimmäispituus on $maxLengthString merkkiä. Lyhennä tätä viestiä, jotta voit lähettää sen.';
+  }
 
   @override
   String characterCounterRemainingPlutoniumUpsell(
@@ -6885,6 +7442,47 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get notificationReplyFailed => 'Vastauksen lähettäminen epäonnistui';
 
   @override
+  String get notificationChannelMessages => 'Viestit';
+
+  @override
+  String get notificationChannelDirectMessages => 'Yksityisviestit';
+
+  @override
+  String get notificationChannelForumPosts => 'Uudet foorumijulkaisut';
+
+  @override
+  String get notificationChannelMessagesSilent => 'Viestit ilman ääntä';
+
+  @override
+  String get notificationChannelDirectMessagesSilent =>
+      'Yksityisviestit ilman ääntä';
+
+  @override
+  String get notificationChannelDescription => 'Viestit ja hälytykset';
+
+  @override
+  String get notificationNewMessageFallback => 'Uusi viesti';
+
+  @override
+  String get notificationLocalUserName => 'Minä';
+
+  @override
+  String get notificationGroupDmTitle => 'Ryhmäviesti';
+
+  @override
+  String get notificationUnknownSender => 'Tuntematon';
+
+  @override
+  String notificationAttachmentPreview(String filename) {
+    return 'Attachment: $filename';
+  }
+
+  @override
+  String notificationStickerPreview(String name) {
+    return 'Sticker: $name';
+  }
+
+  @override
   String get chatMessageForward => 'Välitä';
 
   @override
@@ -7051,6 +7649,21 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get chatMessageDebug => 'Viestin virheenkorjaus';
 
   @override
+  String get messageAlertNote => 'Huomautus';
+
+  @override
+  String get messageAlertTip => 'Vinkki';
+
+  @override
+  String get messageAlertImportant => 'Tärkeää';
+
+  @override
+  String get messageAlertWarning => 'Varoitus';
+
+  @override
+  String get messageAlertCaution => 'Huomio';
+
+  @override
   String get chatMessageDebugSheetTitle => 'Viestin virheenkorjaus';
 
   @override
@@ -7082,6 +7695,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get reportFlowTitleUserProfile => 'Ilmoita profiilista';
 
   @override
+  String get reportFlowTitleCommunity => 'Ilmoita yhteisöstä';
+
+  @override
   String get reportFlowSummaryTitle => 'Tarkista ilmoituksesi';
 
   @override
@@ -7104,7 +7720,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get reportFlowSelectedMessage => 'Viesti, josta ilmoitat';
 
   @override
-  String get reportFlowSelectedUser => 'Profiili, josta ilmoitat';
+  String get reportFlowSelectedPerson => 'Henkilö, josta ilmoitat';
+
+  @override
+  String get reportFlowSelectedCommunity => 'Yhteisö, josta ilmoitat';
 
   @override
   String get reportFlowReportCategory => 'Vastauksesi';
@@ -7131,6 +7750,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String reportFlowThankYouBody(String productName) {
     return '$productName-turvatiimi tarkistaa ilmoituksesi. Emme paljasta, että se tuli sinulta.';
   }
+
+  @override
+  String get reportFlowThankYouBodySelfHosted =>
+      'Tämän instanssin ylläpitäjät tarkistavat ilmoituksesi. Emme paljasta, että se tuli sinulta.';
 
   @override
   String get reportFlowThankYouNoReportBody =>
@@ -7179,6 +7802,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get reportFlowAlreadyReportedProfile =>
       'Olet jo ilmoittanut tästä profiilista tänään.';
+
+  @override
+  String get reportFlowAlreadyReportedCommunity =>
+      'Olet jo ilmoittanut tästä yhteisöstä.';
 
   @override
   String get reportFlowRateLimited =>
@@ -7275,6 +7902,12 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get chatMessagesLoadError => 'Viestien lataaminen epäonnistui.';
 
   @override
+  String get dmEmptyStateTitle => 'No messages yet';
+
+  @override
+  String get dmEmptyStateBody => 'Send a message to start the conversation.';
+
+  @override
   String get chatMessagesFailedToLoad => 'Viestien lataus epäonnistui';
 
   @override
@@ -7310,6 +7943,22 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get chatReplyMentionOff => 'POIS';
+
+  @override
+  String chatReplyingTo(String authorName) {
+    return 'Vastataan käyttäjälle $authorName';
+  }
+
+  @override
+  String chatForwardedFrom(String source) {
+    return 'Välitetty kohteesta $source';
+  }
+
+  @override
+  String get chatForwardedLabel => 'Välitetty';
+
+  @override
+  String get chatForwardedFromLabel => 'Välitetty kohteesta';
 
   @override
   String get chatReplyCancel => 'Peruuta vastaus';
@@ -7388,6 +8037,23 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get mediaViewerDismissBackdrop => 'Sulje';
+
+  @override
+  String get videoPlayerPlay => 'Toista';
+
+  @override
+  String get videoPlayerPause => 'Keskeytä';
+
+  @override
+  String get videoPlayerVolume => 'Äänenvoimakkuus';
+
+  @override
+  String videoPlayerPlaybackSpeed(String speed) {
+    return 'Toistonopeus ${speed}x';
+  }
+
+  @override
+  String get videoPlayerFullScreen => 'Koko näyttö';
 
   @override
   String get chatAttachmentVideoToggleControls =>
@@ -8371,6 +9037,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Ilmoitusasetukset, mykistetty';
 
   @override
+  String get channelHeaderOpenDetails => 'Avaa kanavan tiedot';
+
+  @override
   String get channelDetailsSearchTitle => 'Haku';
 
   @override
@@ -9030,11 +9699,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   }
 
   @override
-  String channelWelcomeHeading(String channelName) {
-    return 'Tervetuloa kanavalle $channelName';
-  }
-
-  @override
   String channelWelcomeDescription(String channelName) {
     return 'Tämä on alku $channelName:lle.';
   }
@@ -9071,6 +9735,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get composerCloseAttachmentPanel => 'Sulje liitteiden valitsin';
+
+  @override
+  String get composerSendMessage => 'Lähetä viesti';
 
   @override
   String get chatAttachmentPanelPhotos => 'Kuvat';
@@ -9410,14 +10077,37 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get premiumSelfServeRefundButton => 'Palauta viimeisin ostos';
 
   @override
-  String get premiumDisclaimerAgreementPrefix => 'Ostamalla hyväksyt meidän ';
+  String premiumDisclaimerAgreement(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both':
+          'Ostamalla hyväksyt <terms>käyttöehdot</terms> ja <privacy>tietosuojakäytännön</privacy>.',
+      'terms': 'Ostamalla hyväksyt <terms>käyttöehdot</terms>.',
+      'other': 'Ostamalla hyväksyt <privacy>tietosuojakäytännön</privacy>.',
+    });
+    return '$_temp0';
+  }
 
   @override
-  String get premiumDisclaimerAgreementPastPrefix =>
-      'Ostamalla hyväksyit meidän ';
+  String premiumDisclaimerAgreementPast(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both':
+          'Ostamalla hyväksyit <terms>käyttöehdot</terms> ja <privacy>tietosuojakäytännön</privacy>.',
+      'terms': 'Ostamalla hyväksyit <terms>käyttöehdot</terms>.',
+      'other': 'Ostamalla hyväksyit <privacy>tietosuojakäytännön</privacy>.',
+    });
+    return '$_temp0';
+  }
 
   @override
-  String get premiumDisclaimerAgreementMiddle => ' ja ';
+  String instanceLegalLinksList(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both':
+          '<terms>Käyttöehdot</terms> ja <privacy>Tietosuojakäytäntö</privacy>',
+      'terms': '<terms>Käyttöehdot</terms>',
+      'other': '<privacy>Tietosuojakäytäntö</privacy>',
+    });
+    return '$_temp0';
+  }
 
   @override
   String premiumActiveUntil(String date) {
@@ -9475,6 +10165,11 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get premiumPlanUnavailableSelfHosted =>
       'Tämä tilaus ei ole saatavilla. Ota yhteyttä tämän instanssin ylläpitäjiin.';
+
+  @override
+  String premiumDistributionPriceNote(String percent) {
+    return 'Tämän sovellusversion hinnat ovat hieman korkeammat, koska $percent jokaisesta maksusta menee sovelluksen jakelukustannuksiin.';
+  }
 
   @override
   String get premiumCompletePaymentTitle => 'Suorita maksu';
@@ -9613,6 +10308,23 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Jaa täyspitkiä videoita ja suuria tiedostoja pienentämättä niitä ensin. Ilmaisilla tileillä voi lähettää enintään 25 Mt.';
 
   @override
+  String get storePlutoniumStreamTitle => 'Striimaa 4K-laatuisena 60 FPS:llä';
+
+  @override
+  String get storePlutoniumStreamBody =>
+      'Jaa näyttösi tai kamerasi jopa 4K-tarkkuudella 60 kuvaa sekunnissa. Ilmaiset tilit striimaavat jopa 720p-tarkkuudella 30 kuvaa sekunnissa.';
+
+  @override
+  String get storePlutoniumStreamTitleIos => 'Striimaa paremmalla laadulla';
+
+  @override
+  String get storePlutoniumStreamBodyIos =>
+      'Jaa näyttösi tai kamerasi sovelluksessa jopa 1080p-tarkkuudella 60 kuvaa sekunnissa ja työpöytäsovelluksessa jopa 4K-tarkkuudella 60 kuvaa sekunnissa. Ilmaiset tilit striimaavat jopa 720p-tarkkuudella 30 kuvaa sekunnissa.';
+
+  @override
+  String get storePlutoniumManageHeading => 'Tilauksesi';
+
+  @override
   String get storePlutoniumCompareTitle => 'Vertaa ilmaista ja Plutoniumia';
 
   @override
@@ -9687,8 +10399,16 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get storePlutoniumVideoPlutonium => 'Jopa 4K 60 FPS';
 
   @override
+  String get storePlutoniumVideoPlutoniumIos =>
+      'Sovelluksessa jopa 1080p 60 FPS:llä, työpöydällä jopa 4K 60 FPS:llä';
+
+  @override
   String get storePlutoniumTagFootnote =>
       'Voit valita vain tunnisteen, jota kenelläkään muulla samalla käyttäjänimellä ei vielä ole. Käyttäjänimissä isoilla ja pienillä kirjaimilla ei ole eroa, joten Mina#4821 ja mina#4821 lasketaan samaksi. Tunniste #0000 on varattu Fluxer Visionary -jäsenille.';
+
+  @override
+  String get storePlutoniumTagFootnoteIos =>
+      'Voit valita vain tunnisteen, jota kenelläkään muulla samalla käyttäjänimellä ei vielä ole. Käyttäjänimissä isoilla ja pienillä kirjaimilla ei ole eroa, joten Mina#4821 ja mina#4821 lasketaan samaksi.';
 
   @override
   String get storePlutoniumLearnVisionary => 'Lue lisää Visionarysta.';
@@ -9735,11 +10455,37 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Uusiutuu automaattisesti App Storen kautta, kunnes peruutat tilauksen.';
 
   @override
+  String get storePlutoniumAppleEula =>
+      'Applen vakiomuotoiset käyttöehdot (EULA)';
+
+  @override
   String get storePlutoniumRestorePurchases => 'Palauta ostot';
+
+  @override
+  String get storePlutoniumRestoreDone => 'Plutonium-tilauksesi palautettiin.';
+
+  @override
+  String get storePlutoniumRestoreNothing =>
+      'Tällä Apple Accountilla ei ole palautettavaa Plutonium-tilausta.';
+
+  @override
+  String get storePlutoniumRestoreFailed =>
+      'Ostoja ei voitu palauttaa. Yritä hetken kuluttua uudelleen.';
 
   @override
   String get storePlutoniumAlreadySubscribed =>
       'Sinulla on jo Fluxer Plutonium -tilaus.';
+
+  @override
+  String get storePlutoniumOwnedByOtherAccount =>
+      'Tämän laitteen Apple Account maksaa jo Plutoniumista toisella Fluxer-tilillä.';
+
+  @override
+  String get storePlutoniumClaimFailedTitle => 'Plutoniumia ei lisätty';
+
+  @override
+  String get storePlutoniumClaimFailedBody =>
+      'App Store vahvisti ostoksesi, mutta Plutoniumia ei voitu lisätä tälle tilille. Yritä uudelleen napauttamalla ”Palauta ostot” tai ota yhteyttä tukeen, jos se ei vieläkään toimi.';
 
   @override
   String storePlutoniumSavePercent(int percent) {
@@ -9751,8 +10497,15 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Ostos vastaanotettu. Plutonium näkyy tässä, kun se aktivoituu.';
 
   @override
-  String get storePlutoniumUnavailable =>
-      'Sovelluksen sisäiset tilaukset eivät ole vielä saatavilla tällä laitteella.';
+  String get storePlutoniumApprovalPending =>
+      'Ostoksesi odottaa hyväksyntää. Plutonium lisätään tilillesi, kun osto on hyväksytty.';
+
+  @override
+  String get storePlutoniumLoadFailed =>
+      'Plutonium-tilausvaihtoehtoja ei voitu ladata. Tarkista yhteytesi ja yritä uudelleen.';
+
+  @override
+  String get storePlutoniumRetry => 'Yritä uudelleen';
 
   @override
   String get storePlutoniumVisionaryStatus =>
@@ -10272,6 +11025,14 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get pushRelayConsentDecline => 'Ei nyt';
 
   @override
+  String pushRelayConsentDeclinedToast(String settingLabel) {
+    return 'Push notifications stay off for this account on this device. You can turn them on later with \"$settingLabel\" in notification settings.';
+  }
+
+  @override
+  String get pushRelayConsentDeclinedToastAction => 'Open settings';
+
+  @override
   String get userSettingsNavLanguageAndTime => 'Kieli ja aika';
 
   @override
@@ -10409,18 +11170,18 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get advancedCrashReportingDescription =>
-      'Raportit menevät Fluxerin virheenseurantaan, vaikka olisit kirjautuneena toiseen instanssiin. Ne eivät sisällä instanssien nimiä, tunnuksia tai viestien sisältöä.';
+      'Raportit menevät Fluxerin virheenseurantaan, vaikka olisit kirjautuneena toiseen instanssiin. Ne on liitetty tämän asennuksen satunnaiseen tunnukseen, eivätkä ne sisällä tilisi tunnusta, instanssien nimiä tai viestien sisältöä.';
 
   @override
   String get observabilityReportingConsentTitle => 'Auta korjaamaan kaatumisia';
 
   @override
   String get observabilityReportingConsentSubtitle =>
-      'Fluxer sulkeutui odottamatta. Nimettömien kaatumis- ja virhetietojen jakaminen auttaa meitä korjaamaan ongelmat nopeammin.';
+      'Fluxer sulkeutui odottamatta. Kaatumisraportin lähettäminen auttaa meitä löytämään ja korjaamaan ongelman nopeammin.';
 
   @override
   String get observabilityReportingConsentBody =>
-      'Raportit sisältävät kaatumislokeja, virheitä ja perustason suorituskykytietoja. Niitä ei jaeta kolmansille osapuolille, ja voit poistaa tämän käytöstä milloin tahansa.';
+      'Raportit sisältävät kaatumislokeja, virheitä, suorituskykytietoja, verkkopyyntöjen ajoituksia sekä näkymät ja napautukset, jotka johtivat ongelmaan, ja ne yhdistetään tämän asennuksen satunnaiseen tunnukseen. Ne eivät koskaan sisällä viestien sisältöä, ja ne menevät vain Fluxerin omaan virheenseurantaan. Voit poistaa tämän käytöstä milloin tahansa.';
 
   @override
   String observabilityReportingConsentEnableLater(String reportingToggle) {
@@ -10431,7 +11192,10 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get observabilityReportingConsentAgree => 'Lähetä kaatumisraportteja';
 
   @override
-  String get observabilityReportingConsentDecline => 'En halua ottaa käyttöön';
+  String get observabilityReportingConsentDecline => 'Älä kysy uudelleen';
+
+  @override
+  String get observabilityReportingConsentNotNow => 'Ei nyt';
 
   @override
   String get advancedSettingsConfigure => 'Määritä';
@@ -10500,11 +11264,11 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
       'Loitonna logoa, kun poistut aloitusnäytöstä';
 
   @override
-  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+  String get advancedSettingSplashQuotesLabel => 'Aloitusnäytön lainaukset';
 
   @override
   String get advancedSettingSplashQuotesDescription =>
-      'Show a random quote on the splash screen. Won\'t sync across devices.';
+      'Näytä satunnainen lainaus aloitusnäytössä. Ei synkronoidu laitteiden välillä.';
 
   @override
   String get advancedSettingKeyboardHintsLabel => 'Näppäimistövihjeet';
@@ -10857,7 +11621,7 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get advancedSettingBuiltInReverseImageSearchDescription =>
-      'Ota käyttöön tai poista käytöstä sisäänrakennetut käänteisen kuvahaun tarjoajat. Käytössä olevat tarjoajat näkyvät kuvien, avatarien, bannerien, tarrojen ja emojien pikavalikossa.';
+      'Ota sisäänrakennettuja käänteisen kuvahaun palveluja käyttöön tai poista niitä käytöstä. Käytössä olevat palvelut näkyvät kuvien valinnoissa.';
 
   @override
   String get advancedSettingCustomReverseImageSearchLabel =>
@@ -10871,6 +11635,16 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get advancedSettingAddReverseImageSearchLabel =>
       'Lisää käänteinen kuvahaku';
+
+  @override
+  String searchProviderSearchWith(String engine) {
+    return 'Hae palvelulla $engine';
+  }
+
+  @override
+  String searchProviderTranslateWith(String engine) {
+    return 'Käännä palvelulla $engine';
+  }
 
   @override
   String get advancedSettingEnableAtLeastOneReverseImageSearchLabel =>
@@ -10976,6 +11750,16 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get userSettingsNavAppLogs => 'Sovelluksen lokit';
 
   @override
+  String get userSettingsNavFluxerAppPrivacyPolicy =>
+      'Fluxer-sovelluksen tietosuojakäytäntö';
+
+  @override
+  String get userSettingsTitle => 'Asetukset';
+
+  @override
+  String get userSettingsCopyAppInfo => 'Kopioi sovelluksen tiedot';
+
+  @override
   String get userSettingsNavDeveloperTools => 'Kehittäjän työkalut';
 
   @override
@@ -10983,6 +11767,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get userSettingsNavFeatureFlags => 'Ominaisuusliput';
+
+  @override
+  String get userSettingsNavHelp => 'Ohje ja tuki';
 
   @override
   String get userSettingsNavWhatsNew => 'Uutta';
@@ -11044,6 +11831,33 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get quickSwitcherEmptyHint =>
       'Kokeile toista nimeä tai käytä suodatukseen etuliitteitä @ / # / ! / *.';
+
+  @override
+  String get quickSwitcherTitle => 'Quick switcher';
+
+  @override
+  String quickSwitcherFooterPrefixHint(
+    String peoplePrefix,
+    String textChannelPrefix,
+    String voiceChannelPrefix,
+    String communityPrefix,
+  ) {
+    return 'Start searches with $peoplePrefix $textChannelPrefix $voiceChannelPrefix $communityPrefix to narrow down results.';
+  }
+
+  @override
+  String get discoverySidebarApps => 'Apps';
+
+  @override
+  String get discoverySidebarThemes => 'Themes';
+
+  @override
+  String get discoverySidebarComingSoon => 'Coming soon';
+
+  @override
+  String discoverySidebarComingSoonItem(String itemLabel) {
+    return '$itemLabel, coming soon';
+  }
 
   @override
   String get quickSwitcherSectionPeople => 'Ihmiset';
@@ -11277,6 +12091,11 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   }
 
   @override
+  String instanceInsecureConnection(String domain) {
+    return '$domain ei käytä suojattua yhteyttä (https). Fluxer muodostaa http-yhteyden vain lähiverkkosi instansseihin.';
+  }
+
+  @override
   String get instanceCompatibilityTitle => 'Tätä instanssia ei voi käyttää';
 
   @override
@@ -11308,9 +12127,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get instanceConnectionRequired => 'Yhdistä instanssiin kirjautuaksesi';
-
-  @override
-  String get comingSoon => 'Tulossa pian';
 
   @override
   String get guildNavbarDirectMessages => 'Yksityisviestit';
@@ -11402,9 +12218,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get discoveryCommunities => 'Yhteisöt';
-
-  @override
-  String get discoveryApps => 'Sovellukset';
 
   @override
   String get discoveryJoinErrorGenericTitle =>
@@ -11521,6 +12334,80 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get friendsOpenInbox => 'Saapuneet';
+
+  @override
+  String get friendsPageTitle => 'Kaverini';
+
+  @override
+  String get friendsActiveNowTitle => 'Aktiiviset nyt';
+
+  @override
+  String get friendsActiveNowEmptyTitle => 'Hiljaista toistaiseksi...';
+
+  @override
+  String get friendsActiveNowEmptyBody =>
+      'Kun kaverit ovat aktiivisia äänikanavilla, heidän toimintansa näkyy täällä.';
+
+  @override
+  String get friendsTabOnline => 'Paikalla';
+
+  @override
+  String get friendsTabAll => 'Kaikki';
+
+  @override
+  String get friendsTabPending => 'Odottaa';
+
+  @override
+  String get friendsTabBlocked => 'Estetyt';
+
+  @override
+  String get friendsSearchOnline => 'Hae paikalla olevia kavereita';
+
+  @override
+  String get friendsSearchAll => 'Hae kavereita';
+
+  @override
+  String get friendsSearchPending => 'Hae odottavia pyyntöjä';
+
+  @override
+  String get friendsSearchBlocked => 'Hae estettyjä käyttäjiä';
+
+  @override
+  String get friendsEmptySearchTitle => 'Hakua vastaavia kavereita ei löytynyt';
+
+  @override
+  String get friendsEmptySearchBody =>
+      'Kokeile toista nimeä tai tarkista kirjoitusasu.';
+
+  @override
+  String get friendsEmptyOnlineTitle => 'Ei kavereita paikalla';
+
+  @override
+  String get friendsEmptyOnlineBody =>
+      'Kun he tulevat online-tilaan, he näkyvät tässä.';
+
+  @override
+  String get friendsEmptyAllTitle => 'Ei vielä kavereita';
+
+  @override
+  String get friendsEmptyAllBody =>
+      'Tarvitsemme lisää kavereita sinne, minne olemme menossa.';
+
+  @override
+  String get friendsEmptyPendingTitle => 'Ei odottavia pyyntöjä';
+
+  @override
+  String get friendsEmptyPendingBody =>
+      'Tässä näkyvät odottavat kaveripyynnöt.';
+
+  @override
+  String get friendsEmptyBlockedBody => 'Et ole estänyt ketään.';
+
+  @override
+  String get friendsOutgoingStatus => 'Lähetetty kaveripyyntö';
+
+  @override
+  String get friendsBlockedStatus => 'Estetty';
 
   @override
   String get profileRemoveFriend => 'Poista kaveri';
@@ -11805,6 +12692,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   }
 
   @override
+  String get channelMutedHint => 'Mykistetty';
+
+  @override
   String guildNavbarStaffOnlyAccessible(String productName) {
     return 'Vain $productName-henkilökunnan käytettävissä';
   }
@@ -11879,6 +12769,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get guildMenuCopyCommunityId => 'Kopioi yhteisön tunnus';
+
+  @override
+  String get guildMenuReportCommunity => 'Ilmoita yhteisöstä';
 
   @override
   String guildMenuMutedUntil(String formattedTime) {
@@ -11991,6 +12884,84 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String guildSettingsRolesAllowMentionsHelper(String permission) {
     return 'Jäsenet, joilla on $permission-oikeus, voivat aina mainita rooleja tästä asetuksesta riippumatta.';
+  }
+
+  @override
+  String get guildSettingsRolesRoleIcon => 'Roolin kuvake';
+
+  @override
+  String get guildSettingsRolesRoleIconHelper =>
+      'Lataa kuva tai valitse emoji. Jäsenen nimen vieressä näkyy hänen korkeimman sellaisen roolinsa kuvake, jolla on kuvake.';
+
+  @override
+  String guildSettingsRolesRoleIconUploadHint(
+    String formats,
+    String minimumSize,
+    String maxSize,
+  ) {
+    return '$formats. Vähintään $minimumSize, enintään $maxSize.';
+  }
+
+  @override
+  String get guildSettingsRolesRoleIconUploadAccessibility =>
+      'Lataa roolin kuvake';
+
+  @override
+  String guildSettingsRolesRoleIconCurrentEmojiAccessibility(String emojiName) {
+    return 'Roolin nykyinen kuvake, $emojiName';
+  }
+
+  @override
+  String get guildSettingsRolesRoleIconCurrentImageAccessibility =>
+      'Roolin nykyinen kuvake, ladattu kuva';
+
+  @override
+  String get guildSettingsRolesRoleIconChooseEmoji => 'Valitse emoji';
+
+  @override
+  String get guildSettingsRolesRoleIconUploadImage => 'Lataa kuva';
+
+  @override
+  String get guildSettingsRolesRoleIconRemove => 'Poista kuvake';
+
+  @override
+  String get guildSettingsRolesRoleIconAnimatedError =>
+      'Animoituja kuvakkeita ei tueta. Käytä staattista kuvaa.';
+
+  @override
+  String guildSettingsRolesRoleIconUnsupportedTypeError(String formats) {
+    return 'Tätä tiedostotyyppiä ei tueta. Tuetut tyypit ovat $formats.';
+  }
+
+  @override
+  String get guildSettingsRolesRoleIconLoadError =>
+      'Kuvaa ei voitu ladata. Kokeile toista.';
+
+  @override
+  String get guildSettingsRolesRoleIconUsagePreviewMessage =>
+      'Näin viestit näkyvät';
+
+  @override
+  String roleIconAccessibilityLabel(String roleName) {
+    return 'Roolin kuvake, $roleName';
+  }
+
+  @override
+  String get roleIconCropTitle => 'Rajaa roolin kuvake';
+
+  @override
+  String get roleIconCropSave => 'Tallenna kuvake';
+
+  @override
+  String get roleIconCropSkip => 'Ohita rajaus';
+
+  @override
+  String get roleIconCropFailed =>
+      'Kuvakkeen rajaus epäonnistui. Yritä uudelleen.';
+
+  @override
+  String roleIconCropDescription(int minimumWidth, int minimumHeight) {
+    return 'Siirrä roolin kuvaketta vetämällä ja zoomaa vierityspyörällä tai nipistämällä. Suositeltu vähimmäiskoko on $minimumWidth×$minimumHeight pikseliä.';
   }
 
   @override
@@ -13358,6 +14329,29 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   }
 
   @override
+  String auditLogChangeRoleEmojiSet(String emoji) {
+    return 'Roolin kuvakkeeksi asetettiin $emoji';
+  }
+
+  @override
+  String auditLogChangeRoleEmojiChanged(String oldEmoji, String newEmoji) {
+    return 'Muutettiin roolin kuvake muodosta $oldEmoji muotoon $newEmoji';
+  }
+
+  @override
+  String get auditLogChangeRoleEmojiRemoved => 'Poistettu roolin kuvake';
+
+  @override
+  String get auditLogChangeRoleIconSet => 'Asetettu mukautettu roolikuvake';
+
+  @override
+  String get auditLogChangeRoleIconChanged => 'Muutettu mukautettu roolikuvake';
+
+  @override
+  String get auditLogChangeRoleIconRemoved =>
+      'Poistettu mukautettu roolikuvake';
+
+  @override
   String auditLogOptionChannel(String value) {
     return 'Kanava: $value.';
   }
@@ -14587,6 +15581,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get dmListDirectMessagesTitle => 'Yksityisviestit';
 
   @override
+  String get dmListFriendsButton => 'Kaverit';
+
+  @override
   String get keybindsSearchShortcuts => 'Hae pikanäppäimiä';
 
   @override
@@ -15226,6 +16223,13 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get forumPostStarterDeleted => 'Alkuperäinen viesti on poistettu.';
 
   @override
+  String get forumPostBlockedAuthor =>
+      'Julkaisu käyttäjältä, jonka olet estänyt';
+
+  @override
+  String get threadBlockedAuthor => 'Ketju käyttäjältä, jonka olet estänyt';
+
+  @override
   String forumPostSnippet(String author, String content) {
     return '$author: $content';
   }
@@ -15240,6 +16244,23 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String forumPostNewMessagesShort(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new',
+      one: '1 new',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get forumPostHasNewMessagesShort => 'New';
+
+  @override
+  String get forumPostHasNewMessages => 'New messages';
 
   @override
   String get forumPostReact => 'Lisää oletusreaktio';
@@ -15272,6 +16293,9 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get forumMarkPostRead => 'Merkitse luetuksi';
+
+  @override
+  String get forumReportPost => 'Ilmoita julkaisusta';
 
   @override
   String get forumCopyPostLink => 'Kopioi linkki';
@@ -15611,6 +16635,21 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get errorUnexpectedTryAgain =>
       'Tapahtui odottamaton virhe. Yritä uudelleen.';
+
+  @override
+  String get errorTwoFactorRequiredTitle =>
+      'Two-factor authentication required';
+
+  @override
+  String get errorTwoFactorRequiredMessage =>
+      'This community requires two-factor authentication for moderation actions. Set up 2FA on your account to continue.';
+
+  @override
+  String get errorTwoFactorRequiredSetUp => 'Set up 2FA';
+
+  @override
+  String get memberRolesUpdateFailed =>
+      'Couldn\'t update this member\'s roles. Try again.';
 
   @override
   String get errorMessagingPausedTitle => 'Viestien lähettäminen on tauolla';
@@ -16183,4 +17222,275 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get premiumCheckoutBlockedBodySelfHosted =>
       'Ostaminen on estetty tällä tilillä.';
+
+  @override
+  String splashGatewayUnreachable(String domain) {
+    return 'Yhteyttä palveluun $domain ei saada. Tarkista internetyhteytesi ja yritä uudelleen.';
+  }
+
+  @override
+  String get appLockSettingTitle => 'App lock';
+
+  @override
+  String get appLockConfigure => 'Configure';
+
+  @override
+  String get appLockSettingDescription =>
+      'Fluxer asks for your PIN after it has been in the background for the time you choose. App lock applies to every account on this device.';
+
+  @override
+  String get appLockTimeoutLabel => 'Lock after';
+
+  @override
+  String get appLockTimeoutImmediately => 'Immediately';
+
+  @override
+  String get appLockTimeoutThirtySeconds => '30 seconds';
+
+  @override
+  String get appLockTimeoutOneMinute => '1 minute';
+
+  @override
+  String get appLockTimeoutFiveMinutes => '5 minutes';
+
+  @override
+  String get appLockTimeoutFifteenMinutes => '15 minutes';
+
+  @override
+  String get appLockTimeoutOneHour => '1 hour';
+
+  @override
+  String get appLockTurnOff => 'Turn off app lock';
+
+  @override
+  String get appLockTurnOffConfirmTitle => 'Turn off app lock?';
+
+  @override
+  String get appLockTurnOffConfirmBody =>
+      'Fluxer will open without asking for your PIN.';
+
+  @override
+  String get appLockEnterCurrentPinTitle => 'Enter your PIN';
+
+  @override
+  String appLockEnterCurrentPinSubtitle(int digits) {
+    return 'Enter your current $digits-digit PIN to continue.';
+  }
+
+  @override
+  String get appLockSetPinTitle => 'Set a PIN';
+
+  @override
+  String appLockCreatePinSubtitle(int digits) {
+    return 'Choose a $digits-digit PIN.';
+  }
+
+  @override
+  String get appLockConfirmPinSubtitle => 'Enter the PIN again to confirm';
+
+  @override
+  String get appLockPinMismatch => 'The PINs don\'t match. Try again.';
+
+  @override
+  String get appLockTooManyAttemptsShort =>
+      'Too many attempts. Wait before trying again.';
+
+  @override
+  String get appLockUnlockTitle => 'Unlock Fluxer';
+
+  @override
+  String appLockUnlockSubtitlePin(int digits) {
+    return 'Enter your $digits-digit PIN';
+  }
+
+  @override
+  String appLockCooldownMessage(String time) {
+    return 'Too many attempts. Try again in $time.';
+  }
+
+  @override
+  String get appLockWrongPin => 'Incorrect PIN';
+
+  @override
+  String get appLockForgotPin => 'Forgot PIN? Sign out';
+
+  @override
+  String get appLockSignOutConfirmTitle => 'Sign out and turn off app lock?';
+
+  @override
+  String get appLockSignOutConfirmBody =>
+      'Every account on this device will be signed out and app lock will be turned off.';
+
+  @override
+  String get appLockBiometricReason => 'Unlock Fluxer';
+
+  @override
+  String get appLockPinFieldLabel => 'PIN';
+
+  @override
+  String get appLockBiometricFailed => 'That didn\'t match. Try again.';
+
+  @override
+  String get appLockBiometricFaceId => 'Face ID';
+
+  @override
+  String get appLockBiometricFaceUnlock => 'face unlock';
+
+  @override
+  String get appLockBiometricFingerprint => 'fingerprint';
+
+  @override
+  String get appLockBiometricTouchId => 'Touch ID';
+
+  @override
+  String get appLockBiometricGeneric => 'biometrics';
+
+  @override
+  String appLockUseBiometric(String method) {
+    return 'Use $method';
+  }
+
+  @override
+  String appLockUnlockSubtitleWithBiometric(String method) {
+    return 'Use $method or enter your PIN';
+  }
+
+  @override
+  String appLockBiometricSwitchLabel(String method) {
+    return 'Unlock with $method';
+  }
+
+  @override
+  String get appLockSetPinButton => 'Set PIN';
+
+  @override
+  String get appLockChangePinButton => 'Change PIN';
+
+  @override
+  String get appLockRowDescription => 'Require a PIN to open Fluxer';
+
+  @override
+  String appLockRowDescriptionEnabled(String duration) {
+    return 'On. Locks after $duration in the background.';
+  }
+
+  @override
+  String get appLockRowDescriptionEnabledImmediately =>
+      'On. Locks as soon as you leave Fluxer.';
+
+  @override
+  String appLockRowDescriptionWithBiometric(String method) {
+    return 'Require a PIN or $method to open Fluxer';
+  }
+
+  @override
+  String get appLockBiometricSwitchHint => 'Your PIN still works too';
+
+  @override
+  String appLockBiometricEither(String first, String second) {
+    return '$first or $second';
+  }
+
+  @override
+  String get voiceDiagnosticsCopy => 'Copy voice diagnostics';
+
+  @override
+  String get voiceDiagnosticsCopyDescription =>
+      'Share with the developers to help fix call issues';
+
+  @override
+  String get voiceDiagnosticsCopied => 'Copied voice diagnostics to clipboard';
+
+  @override
+  String get voiceDiagnosticsInCallHint => 'In a call';
+
+  @override
+  String get oxygenUpdateAvailable => 'Update available';
+
+  @override
+  String get oxygenUpdating => 'Updating…';
+
+  @override
+  String desktopTrayShow(String productName) {
+    return 'Show $productName';
+  }
+
+  @override
+  String desktopTrayHide(String productName) {
+    return 'Hide $productName';
+  }
+
+  @override
+  String get desktopTrayOpenSettings => 'Open settings';
+
+  @override
+  String get desktopTrayStatus => 'Status';
+
+  @override
+  String get desktopTrayAccounts => 'Accounts';
+
+  @override
+  String get desktopTrayMuteMic => 'Mute microphone';
+
+  @override
+  String get desktopTrayUnmuteMic => 'Unmute microphone';
+
+  @override
+  String get desktopTrayDeafen => 'Deafen';
+
+  @override
+  String get desktopTrayUndeafen => 'Undeafen';
+
+  @override
+  String desktopTrayDisconnectFrom(String channel) {
+    return 'Disconnect from $channel';
+  }
+
+  @override
+  String get desktopTrayDisconnectVoice => 'Disconnect from voice';
+
+  @override
+  String get desktopTrayCheckForUpdates => 'Check for updates';
+
+  @override
+  String desktopTrayUpdateNow(String productName) {
+    return 'Update $productName now';
+  }
+
+  @override
+  String get desktopTrayCopyBuildInfo => 'Copy build info';
+
+  @override
+  String desktopTrayRestart(String productName) {
+    return 'Restart $productName';
+  }
+
+  @override
+  String desktopTrayQuit(String productName) {
+    return 'Quit $productName';
+  }
+
+  @override
+  String get userSettingsNavDesktop => 'Desktop';
+
+  @override
+  String get desktopSettingsWindowSectionTitle => 'Desktop window';
+
+  @override
+  String get desktopSettingsShowTrayIcon => 'Show system tray icon';
+
+  @override
+  String get desktopSettingsShowMenuBarIcon => 'Show menu bar icon';
+
+  @override
+  String get desktopSettingsMinimizeToTray => 'Minimize to tray';
+
+  @override
+  String get desktopSettingsMinimizeToMenuBar => 'Minimize to menu bar';
+
+  @override
+  String get desktopSettingsCloseToTray => 'Close to tray';
+
+  @override
+  String get desktopSettingsCloseToMenuBar => 'Close to menu bar';
 }

@@ -6,8 +6,8 @@ import 'package:fluxer_app/core/instance/instance_constants.dart';
 import 'package:fluxer_app/core/instance/instance_discovery_service.dart';
 import 'package:fluxer_app/core/instance/instance_endpoint_normalizer.dart';
 import 'package:fluxer_app/core/instance/instance_runtime_config.dart';
-import 'package:fluxer_app/core/providers/active_instance_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
+import 'package:fluxer_app/core/providers/instance/active_instance_provider.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/auth/providers/add_account_instance_guard_provider.dart';
 import 'package:fluxer_app/features/auth/providers/pending_registration_url_code_provider.dart';
@@ -233,6 +233,9 @@ class InstanceSelector extends _$InstanceSelector {
             .touchRecentInstance(
               domain: snapshot.displayDomain,
               name: snapshot.instanceDisplayName,
+              url: _normalizer.describeApiEndpoint(
+                _normalizer.normalizeEndpoint(url),
+              ),
             );
         if (connectId != _connectSeq) {
           return false;
@@ -280,14 +283,15 @@ class InstanceSelector extends _$InstanceSelector {
         '${error.message}',
       );
       state = AsyncData(
-        current.copyWith(
-          instanceUrl: url,
-          status: InstanceDiscoveryStatus.error,
-          requiresDiscovery: true,
-          errorMessage: error.reason == null ? error.message : null,
-          discoveryFailureReason: error.reason,
-          clearPendingSnapshot: true,
-        ),
+        current
+            .copyWith(clearError: true)
+            .copyWith(
+              instanceUrl: url,
+              status: InstanceDiscoveryStatus.error,
+              requiresDiscovery: true,
+              discoveryFailureReason: error.reason,
+              clearPendingSnapshot: true,
+            ),
       );
       return false;
     } on Object catch (error, stackTrace) {

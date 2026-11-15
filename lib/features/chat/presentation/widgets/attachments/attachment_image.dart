@@ -14,8 +14,8 @@ import 'package:fluxer_app/features/chat/utils/attachments/attachment_display_ut
 import 'package:fluxer_app/features/chat/utils/embeds/embed_animated_image_url.dart';
 import 'package:fluxer_app/features/chat/utils/media/hdr_aware_image_url.dart';
 import 'package:fluxer_app/features/chat/utils/media/media_dimension_utils.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/chat_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/media_viewer/attachment_media_viewer.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
@@ -154,8 +154,8 @@ class AttachmentImage extends ConsumerWidget {
                   ),
                 ),
                 if (showGifIndicator && animate)
-                  Positioned(
-                    left: 8,
+                  PositionedDirectional(
+                    start: 8,
                     bottom: 8,
                     child: DecoratedBox(
                       decoration: BoxDecoration(

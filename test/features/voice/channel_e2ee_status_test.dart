@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxer_app/features/voice/utils/channel_e2ee_status.dart';
+import 'package:fluxer_app/features/voice/utils/e2ee/e2ee_status.dart';
 import 'package:fluxer_dart/gateway.dart';
 
 VoiceState _voiceState({
@@ -100,6 +100,19 @@ void main() {
           guildHasVoiceE2ee: false,
         ),
         ChannelE2eeStatus.encrypted,
+      );
+    });
+
+    test('an empty DM call is never shown as encrypted', () {
+      expect(
+        computeChannelE2eeStatus(
+          voiceStates: <String, VoiceState>{},
+          guildId: null,
+          channelId: 'dm',
+          guildHasVoiceE2ee: true,
+          emptyChannelStatus: ChannelE2eeStatus.encrypted,
+        ),
+        ChannelE2eeStatus.none,
       );
     });
   });

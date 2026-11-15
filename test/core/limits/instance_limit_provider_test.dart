@@ -4,7 +4,7 @@ import 'package:fluxer_app/core/limits/instance_limit_provider.dart';
 import 'package:fluxer_app/core/limits/limit_context.dart';
 import 'package:fluxer_app/core/limits/limit_key.dart';
 import 'package:fluxer_app/core/premium/should_show_premium_commerce_provider.dart';
-import 'package:fluxer_app/core/providers/well_known_provider.dart';
+import 'package:fluxer_app/core/providers/instance/well_known_provider.dart';
 import 'package:fluxer_dart/export.dart';
 
 class _EveryoneModeWellKnown extends WellKnown {
@@ -16,10 +16,14 @@ class _EveryoneModeWellKnown extends WellKnown {
   Future<WellKnownFluxerResponse> build() async => response;
 }
 
-WellKnownFluxerResponse _buildEveryoneModeWellKnown() {
-  return const WellKnownFluxerResponse(
+WellKnownFluxerResponse _buildEveryoneModeWellKnown({
+  Map<String, num> overrides = const <String, num>{
+    'feature_global_expressions': 1,
+  },
+}) {
+  return WellKnownFluxerResponse(
     apiCodeVersion: 1,
-    endpoints: InstanceEndpointsSchema(
+    endpoints: const InstanceEndpointsSchema(
       api: 'https://example.test/api',
       apiClient: 'https://example.test/api/client',
       apiPublic: 'https://example.test/api/public',
@@ -32,10 +36,8 @@ WellKnownFluxerResponse _buildEveryoneModeWellKnown() {
       gift: 'https://example.test/gift',
       webapp: 'https://example.test/webapp',
     ),
-    captcha: InstanceCaptchaSchema(
-      provider: InstanceCaptchaProviderSchema.none,
-    ),
-    features: InstanceFeaturesSchema(
+    captcha: const InstanceCaptchaSchema(provider: CaptchaProviderSchema.none),
+    features: const InstanceFeaturesSchema(
       voiceEnabled: true,
       stripeEnabled: false,
       premiumEnabled: false,
@@ -47,45 +49,45 @@ WellKnownFluxerResponse _buildEveryoneModeWellKnown() {
       accountIdentity: AccountIdentityModeSchema.email,
       tagStyle: TagStyleSchema.random,
     ),
-    gif: InstanceGifSchema(
+    gif: const InstanceGifSchema(
       provider: 'tenor',
       displayName: 'Tenor',
       attributionRequired: false,
     ),
-    sso: InstanceSsoSchema(
+    sso: const InstanceSsoSchema(
       enabled: false,
       enforced: false,
+      usernameFromProvider: false,
       displayName: null,
+      buttonLabel: null,
       redirectUri: 'https://example.test/sso',
     ),
-    registration: InstanceRegistrationSchema(
+    registration: const InstanceRegistrationSchema(
       mode: InstanceRegistrationModeSchema.open,
       adminRegistrationUrlsEnabled: false,
     ),
-    community: InstanceCommunitySchema(
+    community: const InstanceCommunitySchema(
       singleCommunity: false,
       singleCommunityGuildId: null,
       directMessagesDisabled: false,
       guildCreateAccess: true,
     ),
-    services: InstanceServicesSchema(
+    services: const InstanceServicesSchema(
+      connectionProviders: <InstanceConnectionProviderSchema>[],
       gifEnabled: true,
       youtubeEnabled: true,
       blueskyEnabled: false,
     ),
     limits: WellKnownFluxerResponseLimits(
       version: 2,
-      traitDefinitions: <String>[],
+      traitDefinitions: const <String>[],
       defaultsHash: 'test',
       rules: <WellKnownFluxerResponseLimitsRules>[
-        WellKnownFluxerResponseLimitsRules(
-          id: 'default',
-          overrides: <String, num>{'feature_global_expressions': 1},
-        ),
+        WellKnownFluxerResponseLimitsRules(id: 'default', overrides: overrides),
       ],
     ),
-    push: InstancePushSchema(publicVapidKey: null),
-    appPublic: InstanceAppPublicSchema(
+    push: const InstancePushSchema(publicVapidKey: null),
+    appPublic: const InstanceAppPublicSchema(
       branding: InstanceBrandingSchema(
         productName: 'Fluxer',
         iconUrl: null,
@@ -95,9 +97,20 @@ WellKnownFluxerResponse _buildEveryoneModeWellKnown() {
         faviconUrl: null,
         themeColor: null,
         statusPageUrl: null,
+        statusPageInstatus: false,
         statusPageIncidentHistoryUrl: null,
         premiumProductName: 'Plutonium',
         premiumInfoUrl: null,
+        faviconDarkUrl: null,
+        signInBackdropUrl: null,
+        premiumPageColor: null,
+        premiumShowcaseExpressionsUrl: null,
+        premiumShowcaseProfileUrl: null,
+        premiumShowcaseStreamUrl: null,
+        premiumShowcaseUploadUrl: null,
+        customCss: null,
+        uploadLimitMessage: null,
+        trustedDomains: <String>[],
       ),
       setup: InstanceSetupSchema(configured: true, adminUrl: null),
       legal: InstanceAppPublicSchemaLegal(
@@ -109,10 +122,53 @@ WellKnownFluxerResponse _buildEveryoneModeWellKnown() {
         collectDateOfBirth: true,
       ),
     ),
+    agePolicy: const InstanceAgePolicySchema(geos: []),
   );
 }
 
+Future<ProviderContainer> _containerWith(
+  WellKnownFluxerResponse response,
+) async {
+  final ProviderContainer container = ProviderContainer(
+    overrides: [
+      wellKnownProvider.overrideWith(() => _EveryoneModeWellKnown(response)),
+      currentUserLimitContextProvider.overrideWith(
+        (Ref ref) => buildUserLimitContext(traits: const <String>[]),
+      ),
+    ],
+  );
+  await container.read(wellKnownProvider.future);
+  return container;
+}
+
 void main() {
+  group('maxBioLength', () {
+    test('follows an instance that raises the bio limit to 1000', () async {
+      final ProviderContainer container = await _containerWith(
+        _buildEveryoneModeWellKnown(
+          overrides: const <String, num>{'max_bio_length': 1000},
+        ),
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(instanceLimitProvider(LimitKeys.maxBioLength)),
+        1000,
+      );
+    });
+
+    test('stays at 320 when the instance sets no bio limit', () async {
+      final ProviderContainer container = await _containerWith(
+        _buildEveryoneModeWellKnown(overrides: const <String, num>{}),
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(instanceLimitProvider(LimitKeys.maxBioLength)),
+        320,
+      );
+    });
+  });
   group('instanceFeatureEnabledProvider', () {
     test('returns true when everyone-mode limits enable the feature', () async {
       final ProviderContainer container = ProviderContainer(

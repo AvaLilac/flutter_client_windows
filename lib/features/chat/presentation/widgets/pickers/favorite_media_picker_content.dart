@@ -4,7 +4,8 @@ import 'dart:math';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
+import 'package:fluxer_app/core/api/attachment_request_auth.dart';
+import 'package:fluxer_app/core/providers/app/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/favorite_meme.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/media/fluxer_animated_image.dart';
@@ -25,9 +26,9 @@ import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/gestures/expandable_sheet_gestures.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart' as mkv;
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const _kGridGap = 8.0;
 const _kGridHorizontalPadding = 10.0;
@@ -103,6 +104,7 @@ class _FavoriteMediaPickerContentState
   }
 
   void _showActions(FavoriteMeme meme) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     unawaited(
       FluxerBottomSheet.show<void>(
         context,
@@ -113,7 +115,7 @@ class _FavoriteMediaPickerContentState
           child: FluxerMenuGroup(
             children: [
               FluxerBottomSheetMenuItem(
-                label: 'Edit',
+                label: l10n.savedMediaEdit,
                 icon: PhosphorIconsFill.pencilSimple,
                 onTap: () {
                   close();
@@ -121,7 +123,7 @@ class _FavoriteMediaPickerContentState
                 },
               ),
               FluxerBottomSheetMenuItem(
-                label: 'Delete',
+                label: l10n.delete,
                 icon: PhosphorIconsFill.trash,
                 isDanger: true,
                 onTap: () {
@@ -139,7 +141,7 @@ class _FavoriteMediaPickerContentState
   Future<void> _showEditSheet(FavoriteMeme meme) {
     return FluxerBottomSheet.show<void>(
       context,
-      title: 'Edit saved media',
+      title: FluxerLocalizations.of(context).savedMediaEditTitle,
       builder: (sheetContext, close) =>
           _FavoriteMediaEditSheet(meme: meme, close: close),
     );
@@ -148,7 +150,7 @@ class _FavoriteMediaPickerContentState
   Future<void> _showDeleteSheet(FavoriteMeme meme) {
     return FluxerBottomSheet.show<void>(
       context,
-      title: 'Delete saved media',
+      title: FluxerLocalizations.of(context).savedMediaDeleteTitle,
       builder: (sheetContext, close) =>
           _FavoriteMediaDeleteSheet(meme: meme, close: close),
     );
@@ -158,12 +160,13 @@ class _FavoriteMediaPickerContentState
   Widget build(BuildContext context) {
     final memes = ref.watch(favoriteMemesProvider);
 
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     return Column(
       children: [
         _wrapSearchHeader(
           PickerSearchInput(
             controller: _searchController,
-            hintText: 'Search saved media',
+            hintText: l10n.savedMediaSearchHint,
             horizontalPadding: widget.searchHorizontalPadding ?? 12,
             topPadding: widget.searchTopPadding ?? 12,
             bottomPadding: widget.searchBottomPadding ?? 8,
@@ -179,10 +182,10 @@ class _FavoriteMediaPickerContentState
           child: memes.when(
             data: _buildBody,
             loading: () => const _FavoriteMediaSkeleton(),
-            error: (_, _) => const _FavoriteMediaEmptyState(
+            error: (_, _) => _FavoriteMediaEmptyState(
               icon: PhosphorIconsDuotone.smileySad,
-              title: 'Saved Media Unavailable',
-              description: 'Try again in a moment.',
+              title: l10n.savedMediaUnavailableTitle,
+              description: l10n.savedMediaUnavailableBody,
             ),
           ),
         ),
@@ -199,11 +202,12 @@ class _FavoriteMediaPickerContentState
   }
 
   Widget _buildBody(List<FavoriteMeme> allMemes) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     if (allMemes.isEmpty) {
-      return const _FavoriteMediaEmptyState(
+      return _FavoriteMediaEmptyState(
         icon: PhosphorIconsDuotone.smileySad,
-        title: 'No Saved Media',
-        description: 'Save some media from messages to get started!',
+        title: l10n.savedMediaEmptyTitle,
+        description: l10n.savedMediaEmptyBody,
       );
     }
 
@@ -220,10 +224,10 @@ class _FavoriteMediaPickerContentState
       );
     }
     if (filtered.isEmpty) {
-      return const _FavoriteMediaEmptyState(
+      return _FavoriteMediaEmptyState(
         icon: PhosphorIconsDuotone.smileySad,
-        title: 'No Results',
-        description: 'Try a different search term or filter',
+        title: l10n.savedMediaNoResultsTitle,
+        description: l10n.savedMediaNoResultsBody,
       );
     }
 
@@ -244,27 +248,32 @@ class _FilterPills extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     final options =
         <({FavoriteMemeMediaFilter filter, String label, IconData? icon})>[
-          (filter: FavoriteMemeMediaFilter.all, label: 'All', icon: null),
+          (
+            filter: FavoriteMemeMediaFilter.all,
+            label: l10n.savedMediaFilterAll,
+            icon: null,
+          ),
           (
             filter: FavoriteMemeMediaFilter.images,
-            label: 'Images',
+            label: l10n.savedMediaFilterImages,
             icon: PhosphorIconsFill.image,
           ),
           (
             filter: FavoriteMemeMediaFilter.videos,
-            label: 'Videos',
+            label: l10n.savedMediaFilterVideos,
             icon: PhosphorIconsFill.videoCamera,
           ),
           (
             filter: FavoriteMemeMediaFilter.audio,
-            label: 'Audio',
+            label: l10n.savedMediaFilterAudio,
             icon: PhosphorIconsFill.musicNote,
           ),
           (
             filter: FavoriteMemeMediaFilter.gifs,
-            label: 'GIFs',
+            label: l10n.savedMediaFilterGifs,
             icon: PhosphorIconsFill.gif,
           ),
         ];
@@ -419,7 +428,11 @@ class _FavoriteMediaDeleteSheetState
       }
     } on Object {
       if (mounted) {
-        setState(() => _errorText = 'Could not delete saved media.');
+        setState(
+          () => _errorText = FluxerLocalizations.of(
+            context,
+          ).savedMediaDeleteFailed,
+        );
       }
     }
   }
@@ -428,6 +441,7 @@ class _FavoriteMediaDeleteSheetState
   Widget build(BuildContext context) {
     final layout = context.layout;
     final colors = context.colors;
+    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
 
     return FluxerBottomSheetContent(
       scrollable: false,
@@ -436,7 +450,7 @@ class _FavoriteMediaDeleteSheetState
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Remove "${widget.meme.name}" from your saved media?',
+            l10n.savedMediaDeleteConfirm(widget.meme.name),
             style: context.textStyles.bodySmall.copyWith(
               color: colors.textSecondary,
             ),
@@ -452,9 +466,12 @@ class _FavoriteMediaDeleteSheetState
             ),
           ],
           SizedBox(height: layout.s4),
-          FluxerButton.dangerPrimary(label: 'Delete', onPressedAsync: _delete),
+          FluxerButton.dangerPrimary(
+            label: l10n.delete,
+            onPressedAsync: _delete,
+          ),
           SizedBox(height: layout.s2),
-          FluxerButton.secondary(label: 'Cancel', onPressed: widget.close),
+          FluxerButton.secondary(label: l10n.cancel, onPressed: widget.close),
         ],
       ),
     );
@@ -629,9 +646,9 @@ class _FavoriteMediaMasonryGridState extends State<_FavoriteMediaMasonryGrid> {
           child: Stack(
             children: [
               for (final position in visiblePositions)
-                Positioned(
+                PositionedDirectional(
                   key: ValueKey<String>(widget.memes[position.index].id),
-                  left: position.left,
+                  start: position.left,
                   top: position.top,
                   width: position.width,
                   height: position.height,
@@ -850,10 +867,14 @@ class _FavoriteMediaTile extends StatelessWidget {
                       ),
                     ),
                     if (meme.mediaType == FavoriteMemeMediaType.gif)
-                      const Positioned(
-                        left: 8,
+                      PositionedDirectional(
+                        start: 8,
                         top: 8,
-                        child: _MediaBadge(label: 'GIF'),
+                        child: _MediaBadge(
+                          label: FluxerLocalizations.of(
+                            context,
+                          ).savedMediaGifBadge,
+                        ),
                       ),
                     Positioned(
                       left: 8,
@@ -948,6 +969,7 @@ class _FavoriteMediaPreview extends StatelessWidget {
       );
       return CachedNetworkImage(
         imageUrl: meme.url,
+        httpHeaders: AttachmentRequestAuth.headersFor(meme.url),
         fit: BoxFit.cover,
         memCacheWidth: cache.width,
         memCacheHeight: cache.height,
@@ -1046,7 +1068,13 @@ class _FavoriteMediaVideoPreviewState
   Future<void> _openPlayer(Player player, String url) async {
     try {
       await player.open(
-        Media(url, httpHeaders: _kFavoriteMediaVideoHttpHeaders),
+        Media(
+          url,
+          httpHeaders: <String, String>{
+            ..._kFavoriteMediaVideoHttpHeaders,
+            ...?AttachmentRequestAuth.headersFor(url),
+          },
+        ),
         play: widget.isVisible && widget.allowPlayback,
       );
       if (!mounted || _player != player) {

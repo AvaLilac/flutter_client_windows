@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
@@ -90,6 +90,19 @@ GuildUserDisplay watchMessageAuthorDisplay({
   );
 }
 
+GuildUserDisplay? watchGuildScopedUserDisplay({
+  required WidgetRef ref,
+  required String userId,
+  required String? guildId,
+  required String? currentUserId,
+}) {
+  final bool isCurrentUser = currentUserId != null && userId == currentUserId;
+  final AsyncValue<GuildUserDisplay?> async = isCurrentUser
+      ? ref.watch(guildUserDisplayFromDbProvider((userId, guildId)))
+      : ref.watch(guildUserDisplayProvider((userId, guildId)));
+  return async.value;
+}
+
 final StreamProviderFamily<db.User?, String> _userRowProvider = StreamProvider
     .autoDispose
     .family<db.User?, String>(
@@ -122,6 +135,7 @@ bool _isSettling(AsyncValue<Object?> value) =>
 class GuildUserDisplayWarmer {
   final Map<String, List<ProviderSubscription<Future<Object?>>>> _held =
       <String, List<ProviderSubscription<Future<Object?>>>>{};
+  final Map<String, Object> _warmTokens = <String, Object>{};
 
   Future<void> warm(
     Ref ref, {
@@ -130,6 +144,8 @@ class GuildUserDisplayWarmer {
     required Iterable<String> userIds,
   }) async {
     final bool inGuild = guildId != null && guildId.isNotEmpty;
+    final Object token = Object();
+    _warmTokens[channelId] = token;
     final List<ProviderSubscription<Future<Object?>>> next =
         <ProviderSubscription<Future<Object?>>>[
           for (final String userId in userIds.toSet()) ...[
@@ -150,15 +166,26 @@ class GuildUserDisplayWarmer {
         ),
       );
     } finally {
-      _close(_held[channelId]);
-      _held[channelId] = next;
+      if (identical(_warmTokens[channelId], token)) {
+        _warmTokens.remove(channelId);
+        _close(_held[channelId]);
+        _held[channelId] = next;
+      } else {
+        _close(next);
+      }
     }
   }
 
-  void release(String channelId) => _close(_held.remove(channelId));
+  void release(String channelId) {
+    _warmTokens.remove(channelId);
+    _close(_held.remove(channelId));
+  }
 
   void releaseAll() {
-    for (final String channelId in _held.keys.toList()) {
+    for (final String channelId in <String>{
+      ..._held.keys,
+      ..._warmTokens.keys,
+    }) {
       release(channelId);
     }
   }
@@ -173,16 +200,60 @@ class GuildUserDisplayWarmer {
 
 void _ignoreChange(Object? previous, Object? next) {}
 
+int _userProfileSignature(db.User user) {
+  return Object.hash(
+    user.username,
+    user.globalName,
+    user.avatar,
+    user.avatarColor,
+    user.accentColor,
+    user.banner,
+    user.bio,
+    user.pronouns,
+    user.bot,
+    user.system,
+    user.hiddenProfileBadgesJson,
+    user.mentionFlags,
+  );
+}
+
+int guildUserProfileSignature(db.User user) => _userProfileSignature(user);
+
+int? _memberProfileSignature(db.Member? member) {
+  if (member == null) {
+    return null;
+  }
+  return Object.hash(
+    member.nick,
+    member.serverAvatar,
+    member.profileFlags,
+    member.roleIdsJson,
+  );
+}
+
 AsyncValue<GuildUserDisplay?> _combine(
   Ref ref,
   (String, String?) args, {
   required bool fetchOnMiss,
 }) {
   final (String userId, String? guildId) = args;
-  final AsyncValue<db.User?> userAsync = ref.watch(_userRowProvider(userId));
+  ref.watch(
+    _userRowProvider(userId).select(
+      (AsyncValue<db.User?> async) =>
+          async.value == null ? null : _userProfileSignature(async.value!),
+    ),
+  );
+  final AsyncValue<db.User?> userAsync = ref.read(_userRowProvider(userId));
+  if (guildId != null && guildId.isNotEmpty) {
+    ref.watch(
+      memberRowByGuildProvider((userId, guildId)).select(
+        (AsyncValue<db.Member?> async) => _memberProfileSignature(async.value),
+      ),
+    );
+  }
   final AsyncValue<db.Member?> memberAsync =
       guildId != null && guildId.isNotEmpty
-      ? ref.watch(memberRowByGuildProvider((userId, guildId)))
+      ? ref.read(memberRowByGuildProvider((userId, guildId)))
       : const AsyncValue<db.Member?>.data(null);
   final AsyncValue<String?> friendNicknameAsync = ref.watch(
     friendNicknameProvider(userId),

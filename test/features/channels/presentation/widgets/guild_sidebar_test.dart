@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -25,12 +26,15 @@ import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/presentation/channel_settings/channel_settings_nav_page.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/channel_unread_indicator.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/guild_sidebar.dart';
+import 'package:fluxer_app/features/channels/presentation/widgets/guild_sidebar/guild_sidebar.dart'
+    show GuildSidebarHeaderBody, kGuildSidebarHeaderMinHeight;
 import 'package:fluxer_app/features/channels/presentation/widgets/guild_sidebar_skeleton.dart';
 import 'package:fluxer_app/features/channels/providers/channel_list_view_model.dart';
 import 'package:fluxer_app/features/channels/providers/channel_mute_provider.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
 import 'package:fluxer_app/features/channels/providers/channel_settings_providers.dart';
 import 'package:fluxer_app/features/channels/providers/channel_sidebar_icon_connect_bits_provider.dart';
+import 'package:fluxer_app/features/channels/providers/guild_channel_unread_snapshot_provider.dart';
 import 'package:fluxer_app/features/channels/providers/guild_collapsed_categories_provider.dart';
 import 'package:fluxer_app/features/channels/providers/unread_provider.dart';
 import 'package:fluxer_app/features/favorites/providers/favorite_channels_provider.dart';
@@ -45,8 +49,9 @@ import 'package:fluxer_app/features/guilds/providers/guild_read_state_provider.d
 import 'package:fluxer_app/features/mature_content/domain/mature_content_types.dart';
 import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
 import 'package:fluxer_app/features/mature_content/providers/sensitive_content_provider.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
+import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_sheet_motion.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
@@ -55,6 +60,7 @@ import 'package:fluxer_dart/export.dart' show FluxerClient;
 import 'package:go_router/go_router.dart';
 import 'package:riverpod/src/framework.dart' show Override;
 
+import '../../../../helpers/input_modality_override.dart';
 import '../../../../helpers/open_test_database.dart';
 import '../../../../helpers/pump_fluxer_app.dart';
 import '../../../../helpers/rendered_text_test_helpers.dart';
@@ -80,6 +86,7 @@ class _GuildSwitchTestHarness {
   String activeGuildId = _guildId;
   String? activeChannelId;
   late ChannelListState channelListState;
+  final Set<String> unreadBlockedGuildIds = <String>{};
 }
 
 void main() {
@@ -507,7 +514,7 @@ void main() {
       await releaseTestWidgetTree(tester);
     });
 
-    testWidgets('tablet channel menu opens near the pressed row', (
+    testWidgets('tablet channel menu stays a sheet for touch input', (
       tester,
     ) async {
       _setWideSurface(tester);
@@ -521,18 +528,42 @@ void main() {
       );
       await _pumpSidebar(tester);
 
-      final Offset channelCenter = tester.getCenter(find.text('general'));
       await tester.longPress(find.text('general'));
       await _pumpSidebar(tester);
 
       expect(find.text('Copy link'), findsOneWidget);
       expect(
-        find.ancestor(
-          of: find.text('Copy link'),
-          matching: find.byType(Material),
-        ),
-        findsWidgets,
+        ModalRoute.of(tester.element(find.text('Copy link'))),
+        isA<FluxerSheetRoute<dynamic>>(),
       );
+      await releaseTestWidgetTree(tester);
+    });
+
+    testWidgets('channel menu opens near the row for a mouse', (tester) async {
+      _setWideSurface(tester);
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            ..._buildOverrides(
+              channelListState: _state(),
+              unread: const {'c1': UnreadState(), 'c2': UnreadState()},
+            ),
+            inputModalityOverride(touch: false),
+          ],
+        ),
+      );
+      await _pumpSidebar(tester);
+
+      final Offset channelCenter = tester.getCenter(find.text('general'));
+      await tester.tap(
+        find.text('general'),
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      );
+      await _pumpSidebar(tester);
+
+      expect(find.text('Copy link'), findsOneWidget);
+      expect(find.byType(FluxerDesktopMenuPanel), findsOneWidget);
 
       final Offset menuTopLeft = tester.getTopLeft(find.text('Copy link'));
       expect(menuTopLeft.dx, greaterThan(channelCenter.dx - 40));
@@ -1855,6 +1886,183 @@ void main() {
       expect(find.text('channel-20'), findsOneWidget);
       await releaseTestWidgetTree(tester);
     });
+
+    testWidgets('keeps a scrolled guild banner collapsed while switching', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final List<Channel> guildAChannels = List<Channel>.generate(
+        40,
+        (int index) => _channel('c${index + 1}', 'channel-${index + 1}'),
+      );
+      final List<Channel> guildBChannels = List<Channel>.generate(
+        40,
+        (int index) => Channel(
+          id: 'b${index + 1}',
+          guildId: _otherGuildId,
+          name: 'guild-b-${index + 1}',
+          parentId: 'cat-b1',
+        ),
+      );
+      const Guild guildA = Guild(
+        id: _guildId,
+        name: 'Test Guild',
+        banner: 'banner-a',
+      );
+      const Guild guildB = Guild(
+        id: _otherGuildId,
+        name: 'Other Guild',
+        banner: 'banner-b',
+      );
+      final _GuildSwitchTestHarness harness = _GuildSwitchTestHarness();
+      final ChannelListState guildAState = ChannelListState(
+        guild: guildA,
+        categories: <ChannelCategory>[
+          ChannelCategory(
+            id: 'cat1',
+            name: 'My Category',
+            channels: guildAChannels,
+          ),
+        ],
+        selectedChannelId: 'c1',
+        hasReceivedInitialChannelList: true,
+      );
+      final ChannelListState guildBState = ChannelListState(
+        guild: guildB,
+        categories: <ChannelCategory>[
+          ChannelCategory(
+            id: 'cat-b1',
+            name: 'Other Category',
+            channels: guildBChannels,
+          ),
+        ],
+        selectedChannelId: 'b1',
+        hasReceivedInitialChannelList: true,
+      );
+      harness.channelListState = guildAState;
+      final ProviderContainer container = ProviderContainer(
+        overrides: <Override>[
+          ..._buildOverrides(
+            channelListState: guildAState,
+            selectedChannelId: 'c1',
+            unread: <String, UnreadState>{
+              for (final Channel channel in guildAChannels)
+                channel.id: const UnreadState(),
+            },
+            activeGuildIdReader: (Ref ref) => harness.activeGuildId,
+            channelListViewModelFactory: () =>
+                _HarnessChannelListViewModel(harness),
+          ),
+          guildListedChannelUnreadReadyProvider.overrideWith(
+            (Ref ref, String guildId) =>
+                !harness.unreadBlockedGuildIds.contains(guildId),
+          ),
+          guildMuteProvider(guildB.id).overrideWithValue(
+            const AsyncData<GuildMuteState>(GuildMuteState()),
+          ),
+          mutedChannelIdsProvider(
+            guildB.id,
+          ).overrideWithValue(const AsyncData<Set<String>>(<String>{})),
+          guildCollapsedCategoriesProvider(
+            guildB.id,
+          ).overrideWithValue(const AsyncData<Set<String>>(<String>{})),
+          for (final Channel channel in guildBChannels)
+            channelUnreadProvider(channel.id).overrideWith(
+              (Ref ref) => Stream<UnreadState>.value(const UnreadState()),
+            ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final colorTheme = buildDarkColorTheme();
+      Future<void> pumpSidebar() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: kTestLocale,
+              localizationsDelegates: fluxerLocalizationsDelegates,
+              supportedLocales: FluxerLocalizations.supportedLocales,
+              theme: buildFluxerTheme(
+                colorTheme: colorTheme,
+                textTheme: FluxerTextTheme.fromColors(colorTheme),
+                layoutTheme: FluxerLayoutTheme.scaled(),
+              ),
+              home: const Scaffold(body: GuildSidebar()),
+            ),
+          ),
+        );
+        await _pumpSidebar(tester);
+      }
+
+      void switchTo(String guildId, ChannelListState state) {
+        harness
+          ..activeGuildId = guildId
+          ..channelListState = state;
+        container
+          ..invalidate(activeGuildIdProvider)
+          ..invalidate(channelListViewModelProvider);
+      }
+
+      Future<void> scrollChannelListToEnd() async {
+        final ScrollableState scrollable = tester.state<ScrollableState>(
+          find
+              .ancestor(
+                of: find.byType(GuildSidebarHeaderBody),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+        await tester.pump();
+      }
+
+      void expectBannerCollapsed() {
+        expect(
+          tester.getSize(find.byType(GuildSidebarHeaderBody)).height,
+          kGuildSidebarHeaderMinHeight,
+        );
+      }
+
+      await pumpSidebar();
+      for (int i = 0; i < 6; i += 1) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await scrollChannelListToEnd();
+      expectBannerCollapsed();
+
+      switchTo(_otherGuildId, guildBState);
+      await tester.pump();
+      for (int i = 0; i < 6; i += 1) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await scrollChannelListToEnd();
+      expectBannerCollapsed();
+
+      harness.unreadBlockedGuildIds.add(_guildId);
+      switchTo(_guildId, guildAState);
+      final List<double> heights = <double>[];
+      for (int frame = 0; frame < 4; frame += 1) {
+        await tester.pump(const Duration(milliseconds: 16));
+        heights.add(tester.getSize(find.byType(GuildSidebarHeaderBody)).height);
+      }
+      harness.unreadBlockedGuildIds.remove(_guildId);
+      container.invalidate(guildListedChannelUnreadReadyProvider(_guildId));
+      for (int frame = 0; frame < 4; frame += 1) {
+        await tester.pump(const Duration(milliseconds: 16));
+        heights.add(tester.getSize(find.byType(GuildSidebarHeaderBody)).height);
+      }
+      expect(heights, everyElement(kGuildSidebarHeaderMinHeight));
+
+      switchTo(_otherGuildId, guildBState);
+      await tester.pump();
+      expectBannerCollapsed();
+      await tester.pump(kGuildUnreadPrimeLimit);
+      await releaseTestWidgetTree(tester);
+    });
   });
 
   group('GuildSidebar selected channel anchoring', () {
@@ -2338,7 +2546,7 @@ List<Override> _buildOverrides({
     for (final entry in unreadStreams.entries)
       channelUnreadProvider(entry.key).overrideWith((ref) => entry.value),
     guildReadStateProvider.overrideWithValue(guildReadState),
-    guildPermissionsProvider.overrideWith(
+    guildPermissionsProvider('me').overrideWith(
       () => _FakeGuildPermissions(<String, int>{_guildId: guildPermissions}),
     ),
   ];
@@ -2350,7 +2558,7 @@ class _FakeGuildPermissions extends GuildPermissions {
   final Map<String, int> _initial;
 
   @override
-  Map<String, int> build() => _initial;
+  Map<String, int> build(String accountUserId) => _initial;
 
   @override
   Future<void> refreshPermissions(String guildId) async {}
@@ -2459,8 +2667,11 @@ class _FakeUserSettings extends UserSettingsViewModel {
 
 class _FakeSensitiveContent extends SensitiveContent {
   @override
-  SensitiveContentState build() =>
-      const SensitiveContentState(isLoading: false);
+  SensitiveContentState build() => const SensitiveContentState(
+    isLoading: false,
+    access: MatureAccess.allowed,
+    showLocked: false,
+  );
 }
 
 class _FakeMatureAgreements extends MatureContentAgreements {

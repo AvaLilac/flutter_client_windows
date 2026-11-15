@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
+import 'package:fluxer_app/features/chat/data/reaction_delta_utils.dart';
 import 'package:fluxer_app/features/chat/domain/message_translation.dart';
 import 'package:fluxer_app/features/chat/utils/attachments/attachment_display_utils.dart';
-import 'package:fluxer_app/features/chat/utils/messages/url_sanitization_utils.dart';
 import 'package:fluxer_app/features/gifts/utils/gift_code_utils.dart';
+import 'package:fluxer_app/features/guilds/utils/invites/invite_link_parser.dart';
 import 'package:fluxer_app/features/themes/utils/shared_theme_links.dart';
 import 'package:fluxer_app/shared/utils/guild_user_display.dart';
 import 'package:fluxer_app/shared/utils/sdk_converters.dart';
@@ -560,6 +562,7 @@ class MessageSticker {
   };
 }
 
+@immutable
 class Reaction {
   final String emoji;
   final String? emojiId;
@@ -606,6 +609,19 @@ class Reaction {
   bool get isCustom => emojiId != null;
 
   String get apiParam => isCustom ? '$emoji:$emojiId' : emoji;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Reaction &&
+          emoji == other.emoji &&
+          emojiId == other.emojiId &&
+          animated == other.animated &&
+          count == other.count &&
+          hasReacted == other.hasReacted;
+
+  @override
+  int get hashCode => Object.hash(emoji, emojiId, animated, count, hasReacted);
 }
 
 class MessageReference {
@@ -1376,11 +1392,7 @@ class Message {
           other.stickers,
           (s) => s.toJson(),
         ) &&
-        _encodedListEquals<Reaction>(
-          reactions,
-          other.reactions,
-          (r) => r.toJson(),
-        ) &&
+        _reactionsListEquals(reactions, other.reactions) &&
         _encodedListEquals<MessageSnapshot>(
           messageSnapshots,
           other.messageSnapshots,
@@ -1409,6 +1421,27 @@ class Message {
         a.sourceContent == b.sourceContent &&
         a.targetLanguageCode == b.targetLanguageCode &&
         a.showOriginal == b.showOriginal;
+  }
+
+  static bool _reactionsListEquals(List<Reaction> a, List<Reaction> b) {
+    if (identical(a, b)) {
+      return true;
+    }
+    if (a.length != b.length) {
+      return false;
+    }
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static List<Reaction> reactionsFromStorageJson(String json) {
+    return decodeMessageReactionsJson(
+      json,
+    ).map(Reaction.fromJson).toList(growable: false);
   }
 
   static bool _encodedListEquals<T>(
@@ -1743,27 +1776,7 @@ class Message {
     return Uri.tryParse(trimmed)?.hasAbsolutePath ?? false;
   }
 
-  static final RegExp _invitesRegExp = RegExp(
-    r'(?:https?://)?(?:fluxer\.gg/(?!invite/)([a-zA-Z0-9\-]{2,32})|(?:web\.)?fluxer\.app/invite/([a-zA-Z0-9\-]{2,32}))(?![a-zA-Z0-9\-])',
-  );
-
-  List<String> get invites {
-    final seen = <String>{};
-    final result = <String>[];
-    for (final m in _invitesRegExp.allMatches(content)) {
-      if (matchOverlapsMarkdownCodeSpan(content, m)) {
-        continue;
-      }
-      final code = m.group(1) ?? m.group(2);
-      if (code != null && seen.add(code)) {
-        result.add(code);
-        if (result.length == 10) {
-          break;
-        }
-      }
-    }
-    return result;
-  }
+  List<String> get invites => findMessageInviteCodes(content);
 
   List<String> get themes => findSharedThemeIds(content);
 

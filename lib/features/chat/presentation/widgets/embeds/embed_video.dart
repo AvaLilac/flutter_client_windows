@@ -9,7 +9,7 @@ import 'package:fluxer_app/features/chat/presentation/widgets/wallpaper/chat_wal
 import 'package:fluxer_app/features/chat/utils/embeds/embed_youtube_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/media_dimension_utils.dart';
 import 'package:fluxer_app/features/mature_content/presentation/widgets/mature_media_overlay.dart';
-import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/chat_preferences_provider.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 class EmbedVideo extends StatelessWidget {
@@ -112,7 +112,9 @@ class EmbedVideo extends StatelessWidget {
           constraints: BoxConstraints(maxWidth: dimensions.maxWidth),
           decoration: BoxDecoration(
             color: context.colors.embedBackground,
-            border: Border(left: BorderSide(color: sideColor, width: 4)),
+            border: BorderDirectional(
+              start: BorderSide(color: sideColor, width: 4),
+            ),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Column(

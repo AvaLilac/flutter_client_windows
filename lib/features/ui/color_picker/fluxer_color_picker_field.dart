@@ -14,7 +14,7 @@ import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 
 const double _kSwatchWidth = 48;
 const double _kColorAreaHeight = 160;
@@ -377,7 +377,12 @@ class _ColorPickerContentState extends State<_ColorPickerContent> {
     final layout = context.layout;
 
     return Padding(
-      padding: EdgeInsets.all(layout.s4),
+      padding: EdgeInsets.fromLTRB(
+        layout.s4,
+        layout.s4,
+        layout.s4,
+        FluxerBottomSheet.isInSheet(context) ? 0 : layout.s4,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

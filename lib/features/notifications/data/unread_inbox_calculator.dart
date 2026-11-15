@@ -1,6 +1,8 @@
 import 'package:fluxer_app/core/database/fluxer_database.dart';
+import 'package:fluxer_app/features/channels/data/own_guild_unread_permissions.dart';
+import 'package:fluxer_app/features/channels/data/read_state_effective.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
-import 'package:fluxer_app/features/channels/data/unread_permission_utils.dart';
+import 'package:fluxer_app/features/channels/data/read_state_write_batcher.dart';
 import 'package:fluxer_app/features/channels/data/unread_settings_resolver.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart'
     show
@@ -58,6 +60,7 @@ class UnreadInboxCalculator {
     required Map<String, bool> collapsedByChannelId,
     String? currentUserId,
     bool unreadBadgeCustomizationEnabled = false,
+    ReadStateWriteBatcher? readStateBatcher,
   }) async {
     final int nowMs = DateTime.now().millisecondsSinceEpoch;
     final List<UnreadInboxEntry> entries = <UnreadInboxEntry>[];
@@ -78,9 +81,33 @@ class UnreadInboxCalculator {
     final Map<String, ReadState> readStateMap = <String, ReadState>{
       for (final ReadState r in readStatesList) r.channelId: r,
     };
+    final ReadStateWriteBatcher? batcher = readStateBatcher;
+    if (batcher != null) {
+      for (final String channelId in batcher.overlayChannelIds()) {
+        final ReadState? row = readStateMap[channelId];
+        final effective = batcher.effectiveFields(channelId, row);
+        readStateMap[channelId] = ReadState(
+          channelId: channelId,
+          lastMessageId: effective.lastMessageId,
+          mentionCount: effective.mentionCount,
+          manual: row?.manual ?? false,
+          stickyUnreadMessageId: row?.stickyUnreadMessageId,
+          lastPinTimestamp: row?.lastPinTimestamp,
+          version: row?.version,
+          flags: row?.flags,
+        );
+      }
+    }
     final List<UserGuildSettingsTableData> userGuildRows = await db
         .userGuildSettingsDao
         .getAll();
+
+    final OwnGuildUnreadPermissions permissions = OwnGuildUnreadPermissions(
+      db: db,
+      currentUserId: currentUserId,
+      servers: await db.guildDao.getServers(),
+      channelsById: channelsById,
+    );
 
     final Map<String, int> joinTimeMsByGuildId = <String, int>{};
     Future<int> resolveFallbackAckMs(String guildId, String channelId) async {
@@ -88,15 +115,11 @@ class UnreadInboxCalculator {
         return joinTimeMsByGuildId[guildId]!;
       }
       int resolved = 0;
-      if (currentUserId != null && currentUserId.isNotEmpty) {
-        final Member? member = await db.memberDao.getMemberByUserId(
-          currentUserId,
-          guildId,
-        );
-        final DateTime? joinedAt = member?.joinedAt;
-        if (joinedAt != null) {
-          resolved = joinedAt.millisecondsSinceEpoch;
-        }
+      final DateTime? joinedAt = (await permissions.ownMember(
+        guildId,
+      ))?.joinedAt;
+      if (joinedAt != null) {
+        resolved = joinedAt.millisecondsSinceEpoch;
       }
       if (resolved == 0) {
         final DateTime? chTime = dateTimeFromUserSnowflakeOrNull(channelId);
@@ -120,11 +143,7 @@ class UnreadInboxCalculator {
       if (isGuildCategoryChannelType(channel.type)) {
         continue;
       }
-      if (!await canReadChannelForUnread(
-        database: db,
-        channel: channel,
-        currentUserId: currentUserId,
-      )) {
+      if (!await permissions.canRead(channel)) {
         continue;
       }
 
@@ -282,4 +301,96 @@ class UnreadInboxCalculator {
 
     return entries;
   }
+}
+
+List<UnreadInboxEntry>? inboxEntriesWithAckCursor(
+  List<UnreadInboxEntry> entries,
+  ReadStateWriteBatcher batcher,
+) {
+  final Set<String> overlayIds = batcher.overlayChannelIds();
+  if (overlayIds.isEmpty) {
+    return entries;
+  }
+  final Map<String, UnreadInboxEntry> byId = <String, UnreadInboxEntry>{
+    for (final UnreadInboxEntry entry in entries) entry.channelId: entry,
+  };
+  final Map<String, ReadStateEffectiveFields> effectiveById =
+      <String, ReadStateEffectiveFields>{};
+  for (final String channelId in overlayIds) {
+    final UnreadInboxEntry? entry = byId[channelId];
+    final ReadState? stored = batcher.persistedReadState(channelId);
+    final int baselineMentions =
+        stored?.mentionCount ??
+        (entry == null || entry.isDm ? 0 : entry.mentionCount);
+    final ReadStateEffectiveFields effective = batcher.effectiveFields(
+      channelId,
+      stored ??
+          (entry == null
+              ? null
+              : ReadState(
+                  channelId: channelId,
+                  lastMessageId: entry.ackMessageId,
+                  mentionCount: entry.isDm ? 0 : entry.mentionCount,
+                  manual: false,
+                )),
+    );
+    if (effective.mentionCount > baselineMentions) {
+      return null;
+    }
+    if (entry == null && effective.mentionCount > 0) {
+      return null;
+    }
+    effectiveById[channelId] = effective;
+  }
+  var changed = false;
+  final List<UnreadInboxEntry> next = <UnreadInboxEntry>[];
+  for (final UnreadInboxEntry entry in entries) {
+    final ReadStateEffectiveFields? effective = effectiveById[entry.channelId];
+    if (effective == null) {
+      next.add(entry);
+      continue;
+    }
+    final int count = entry.isDm
+        ? dmUnreadCountFromReadState(
+            latestMessageId: entry.lastMessageId,
+            ackLastMessageId: effective.lastMessageId,
+            fallbackAckMs: snowflakeTimestampMs(entry.channelId),
+            mentionCount: effective.mentionCount,
+            cachedUnreadCount: 0,
+          )
+        : effective.mentionCount;
+    final bool stillUnread = entry.isDm
+        ? count > 0
+        : count > 0 ||
+              _hasGuildUnreadByWebRules(
+                channelLastMessageId: entry.lastMessageId,
+                ackLastMessageId: effective.lastMessageId,
+                fallbackAckMs: snowflakeTimestampMs(entry.channelId),
+                mentionCount: 0,
+              );
+    if (!stillUnread) {
+      changed = true;
+      continue;
+    }
+    if (count == entry.mentionCount &&
+        effective.lastMessageId == entry.ackMessageId) {
+      next.add(entry);
+      continue;
+    }
+    changed = true;
+    next.add(
+      UnreadInboxEntry(
+        channelId: entry.channelId,
+        guildId: entry.guildId,
+        isDm: entry.isDm,
+        mentionCount: count,
+        isCollapsed: entry.isCollapsed,
+        recencyComparator: entry.recencyComparator,
+        ackMessageId: effective.lastMessageId,
+        lastMessageId: entry.lastMessageId,
+        isThreadOnly: entry.isThreadOnly,
+      ),
+    );
+  }
+  return changed ? next : entries;
 }

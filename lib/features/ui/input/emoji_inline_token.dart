@@ -3,9 +3,9 @@ import 'package:fluxer_app/core/media/fluxer_media_url.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/ui/input/inline_token_text_editing_controller.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:fluxer_app/shared/utils/emoji_registry.dart';
-import 'package:fluxer_app/shared/utils/emoji_sprite_sheet.dart';
-import 'package:fluxer_app/shared/utils/emoji_utils.dart'
+import 'package:fluxer_app/shared/utils/emoji/emoji_registry.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_sprite_sheet.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_utils.dart'
     show kSkinToneSurrogates;
 import 'package:fluxer_markdown/fluxer_markdown.dart';
 
@@ -97,16 +97,15 @@ UnicodeEmojiSubstitution substituteUnicodeEmojiTokens(
   String raw,
   String Function(EmojiInlineToken token) allocate,
 ) {
-  final RegExp? unicodePattern = EmojiRegistry.unicodeEmojiRegexSync;
-  if (unicodePattern == null ||
-      raw.codeUnits.every((int unit) => unit < 0xA9)) {
+  final UnicodeEmojiMatcher? matcher = EmojiRegistry.unicodeEmojiMatcherSync;
+  if (matcher == null || raw.codeUnits.every((int unit) => unit < 0xA9)) {
     return (text: raw, replaced: const <UnicodeEmojiRange>[]);
   }
   final List<UnicodeEmojiRange> replaced = <UnicodeEmojiRange>[];
   final StringBuffer buffer = StringBuffer();
   int cursor = 0;
-  for (final RegExpMatch match in unicodePattern.allMatches(raw)) {
-    final String surrogate = match.group(0)!;
+  for (final UnicodeEmojiRange match in matcher.matches(raw)) {
+    final String surrogate = raw.substring(match.start, match.end);
     final EmojiEntry? entry = EmojiRegistry.entryBySurrogates(surrogate);
     if (entry == null) {
       continue;
@@ -119,7 +118,7 @@ UnicodeEmojiSubstitution substituteUnicodeEmojiTokens(
         ),
       );
     cursor = match.end;
-    replaced.add((start: match.start, end: match.end));
+    replaced.add(match);
   }
   if (replaced.isEmpty) {
     return (text: raw, replaced: const <UnicodeEmojiRange>[]);

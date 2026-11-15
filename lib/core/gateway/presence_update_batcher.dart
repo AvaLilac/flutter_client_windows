@@ -45,7 +45,9 @@ class PresenceUpdateBatcher {
     if (userId == _currentUserId) {
       unawaited(() async {
         if (user != null) {
-          await _database.userDao.upsertUser(user);
+          await _database.userDao.upsertUsersIfChanged(<db.UsersCompanion>[
+            user,
+          ]);
         }
         await _database.userDao.updateUserPresence(
           userId,
@@ -78,7 +80,7 @@ class PresenceUpdateBatcher {
     _pendingUsers.clear();
     _flushTimer?.cancel();
     _flushTimer = null;
-    await _database.userDao.upsertUsers(users);
+    await _database.userDao.upsertUsersIfChanged(users);
     await _database.userDao.updateUserPresencesBatch(updates);
   }
 

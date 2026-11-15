@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
+import 'package:fluxer_app/core/providers/app/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_list_unread_review.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -61,6 +61,7 @@ class ChatReadViewport extends _$ChatReadViewport {
   double _distanceFromBottom = 0;
   String? _sampledTailId;
   bool _followsLiveTail = false;
+  int _pendingViewportUpdates = 0;
 
   @override
   ChatReadViewportState build() =>
@@ -108,14 +109,24 @@ class ChatReadViewport extends _$ChatReadViewport {
     required String? sampledTailId,
     bool followsLiveTail = false,
   }) {
+    final double quantizedDistance = quantizeReadViewportDistance(
+      distanceFromBottom,
+    );
+    if (_pendingViewportUpdates == 0 &&
+        _channelId == channelId &&
+        _nearLoadedTail == nearLoadedTail &&
+        _distanceFromBottom == quantizedDistance &&
+        _sampledTailId == sampledTailId &&
+        _followsLiveTail == followsLiveTail) {
+      return;
+    }
+    _pendingViewportUpdates += 1;
     unawaited(
       Future<void>.microtask(() {
+        _pendingViewportUpdates -= 1;
         if (_channelId != channelId) {
           return;
         }
-        final double quantizedDistance = quantizeReadViewportDistance(
-          distanceFromBottom,
-        );
         if (_nearLoadedTail == nearLoadedTail &&
             _distanceFromBottom == quantizedDistance &&
             _sampledTailId == sampledTailId &&
@@ -169,7 +180,7 @@ class ChatReadViewport extends _$ChatReadViewport {
   }
 }
 
-bool isAutoAckEligible({
+bool isAtLiveTail({
   required ChatReadViewportState viewport,
   required String channelId,
   required bool hasMoreNewerMessages,
@@ -179,5 +190,28 @@ bool isAutoAckEligible({
     viewport.channelId == channelId &&
     viewport.nearLoadedTail &&
     viewport.sampledTailId == currentTailId &&
-    !hasMoreNewerMessages &&
+    !hasMoreNewerMessages;
+
+String? ackTargetForLiveTail({
+  required bool eligible,
+  required String? loadedTailId,
+}) {
+  if (!eligible || loadedTailId == null || loadedTailId.isEmpty) {
+    return null;
+  }
+  return loadedTailId;
+}
+
+bool isAutoAckEligible({
+  required ChatReadViewportState viewport,
+  required String channelId,
+  required bool hasMoreNewerMessages,
+  required String? currentTailId,
+}) =>
+    isAtLiveTail(
+      viewport: viewport,
+      channelId: channelId,
+      hasMoreNewerMessages: hasMoreNewerMessages,
+      currentTailId: currentTailId,
+    ) &&
     viewport.canAutoAck;

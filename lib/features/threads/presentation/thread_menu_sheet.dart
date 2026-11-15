@@ -5,16 +5,17 @@ import 'package:fluxer_app/core/permissions/thread_permissions.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
 import 'package:fluxer_app/features/channels/providers/unread_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_app/features/threads/domain/thread_channel.dart';
 import 'package:fluxer_app/features/threads/presentation/thread_members_sheet.dart';
 import 'package:fluxer_app/features/threads/presentation/thread_settings_sheet.dart';
 import 'package:fluxer_app/features/threads/providers/thread_ui_providers.dart';
 import 'package:fluxer_app/features/threads/utils/thread_actions.dart';
+import 'package:fluxer_app/features/threads/utils/thread_title.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 
 Future<void> showThreadMenuSheet(
   BuildContext context,
@@ -23,7 +24,11 @@ Future<void> showThreadMenuSheet(
 ) {
   return FluxerBottomSheet.show<void>(
     context,
-    title: thread.name,
+    title: readThreadTitleText(
+      hostRef,
+      thread,
+      FluxerLocalizations.of(context),
+    ),
     variant: FluxerBottomSheetVariant.menu,
     builder: (sheetContext, close) => _ThreadMenuBody(
       threadId: thread.id,

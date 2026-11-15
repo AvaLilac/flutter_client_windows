@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/permissions/channel_permission_cache_provider.dart';
-import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/channel_icon.dart';
 import 'package:fluxer_app/features/ui/voice/voice_channel_join_button.dart';
@@ -12,8 +12,8 @@ import 'package:fluxer_app/features/voice/providers/voice_channel_e2ee_status_pr
 import 'package:fluxer_app/features/voice/providers/voice_join_eligibility_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
-import 'package:fluxer_app/features/voice/utils/channel_e2ee_status.dart';
-import 'package:fluxer_app/features/voice/utils/voice_connection_actions.dart';
+import 'package:fluxer_app/features/voice/utils/connection/connection_actions.dart';
+import 'package:fluxer_app/features/voice/utils/e2ee/e2ee_status.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 
@@ -47,7 +47,9 @@ class VoiceChannelJoinEmptyState extends ConsumerWidget {
     final int? effectivePermissionBits = channel == null
         ? null
         : ref.watch(
-            channelPermissionCacheProvider.select((m) => m[channel!.id]),
+            channelPermissionCacheProvider(
+              watchAccountUserId(ref),
+            ).select((m) => m[channel!.id]),
           );
     final ChannelE2eeStatus e2eeStatus = ref.watch(
       voiceChannelE2eeStatusProvider(
@@ -68,14 +70,14 @@ class VoiceChannelJoinEmptyState extends ConsumerWidget {
               ? ChannelIcon(
                   type: ChannelType.guildVoice,
                   size: layout.iconSize,
-                  color: context.colors.textPrimary,
+                  color: voiceJoinEmptyMarkForeground(context),
                 )
               : ChannelIcon(
                   type: channel!.type,
                   channel: channel,
                   effectivePermissionBits: effectivePermissionBits,
                   size: layout.iconSize,
-                  color: context.colors.textPrimary,
+                  color: voiceJoinEmptyMarkForeground(context),
                   e2eeEncrypted: showE2eeIcon,
                 ),
         ),

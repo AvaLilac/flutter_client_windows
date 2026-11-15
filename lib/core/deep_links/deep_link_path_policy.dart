@@ -1,17 +1,16 @@
 import 'package:fluxer_app/core/instance/instance_endpoints.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
 import 'package:fluxer_app/core/utils/channel_jump_link.dart';
-import 'package:fluxer_app/features/guilds/utils/invite_link_parser.dart';
+import 'package:fluxer_app/features/guilds/utils/invites/invite_link_parser.dart';
 
 const String appProtocolScheme = 'fluxer';
 
 const Set<String> kInviteShortLinkHosts = <String>{'fluxer.gg'};
 
 const Set<String> kOfficialAppLinkHosts = <String>{
-  'web.fluxer.app',
-  'web.canary.fluxer.app',
-  'web.fluxer.com',
-  'web.canary.fluxer.com',
+  'fluxer.com',
+  'fluxer.app',
+  'canary.fluxer.com',
   'fluxer.gg',
 };
 
@@ -115,6 +114,25 @@ bool isFluxerOAuthDeepLinkUri(Uri uri, {String? instanceWebAppBase}) {
   return fluxerOAuthDeepLinkHosts(
     instanceWebAppBase: instanceWebAppBase,
   ).contains(uri.host.toLowerCase());
+}
+
+bool isOfficialLinkForOtherInstance(
+  Uri uri, {
+  required String instanceWebAppBase,
+}) {
+  if (uri.scheme != 'http' && uri.scheme != 'https') {
+    return false;
+  }
+  final Set<String> officialHosts = <String>{
+    ...kOfficialAppLinkHosts,
+    ...kOfficialChannelJumpHosts,
+    ...kInviteShortLinkHosts,
+  };
+  if (!officialHosts.contains(uri.host.toLowerCase())) {
+    return false;
+  }
+  final String? instanceHost = channelJumpHostFromBaseUrl(instanceWebAppBase);
+  return instanceHost != null && !officialHosts.contains(instanceHost);
 }
 
 bool isAllowedDeepLinkPath(Uri uri) {

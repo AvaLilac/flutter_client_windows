@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as database;
 import 'package:fluxer_app/core/gateway/providers/gateway_event_providers.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_channel_participants_provider.dart';
 import 'package:fluxer_dart/gateway.dart';
@@ -36,20 +37,22 @@ void main() {
         overrides: [fluxerDatabaseProvider.overrideWithValue(db)],
       );
       addTearDown(container.dispose);
-      container.read(voiceStatesMapProvider.notifier).updateBulk(<VoiceState>[
-        const VoiceState(
-          userId: 'u1',
-          guildId: 'g1',
-          channelId: 'c1',
-          connectionId: 'conn-1',
-        ),
-        const VoiceState(
-          userId: 'u1',
-          guildId: 'g2',
-          channelId: 'c2',
-          connectionId: 'conn-2',
-        ),
-      ]);
+      container
+          .read(voiceStatesMapProvider(readAccountUserId(container)).notifier)
+          .updateBulk(<VoiceState>[
+            const VoiceState(
+              userId: 'u1',
+              guildId: 'g1',
+              channelId: 'c1',
+              connectionId: 'conn-1',
+            ),
+            const VoiceState(
+              userId: 'u1',
+              guildId: 'g2',
+              channelId: 'c2',
+              connectionId: 'conn-2',
+            ),
+          ]);
       container
         ..listen(voiceChannelSidebarParticipantsProvider('g1|c1'), (_, _) {})
         ..listen(voiceChannelSidebarParticipantsProvider('g2|c2'), (_, _) {});
@@ -77,6 +80,43 @@ void main() {
       );
     },
   );
+
+  test('sidebar shows a participant whose user row arrives later', () async {
+    clearVoiceParticipantUsersCache();
+    final database.FluxerDatabase db = openTestDatabase();
+    addTearDown(db.close);
+    addTearDown(clearVoiceParticipantUsersCache);
+    final ProviderContainer container = ProviderContainer(
+      overrides: [fluxerDatabaseProvider.overrideWithValue(db)],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(voiceStatesMapProvider(readAccountUserId(container)).notifier)
+        .updateBulk(<VoiceState>[
+          const VoiceState(
+            userId: 'late',
+            guildId: 'g1',
+            channelId: 'c1',
+            connectionId: 'conn-late',
+          ),
+        ]);
+    final List<List<VoiceSidebarParticipant>> emitted =
+        <List<VoiceSidebarParticipant>>[];
+    container.listen(
+      voiceChannelSidebarParticipantsProvider('g1|c1'),
+      (_, List<VoiceSidebarParticipant> next) => emitted.add(next),
+      fireImmediately: true,
+    );
+    await container.read(voiceParticipantUsersLoaderProvider('late').future);
+    expect(emitted.last, isEmpty);
+
+    await db.userDao.upsertUser(
+      database.UsersCompanion.insert(id: 'late', username: 'latecomer'),
+    );
+    await pumpEventQueue();
+
+    expect(emitted.last.single.displayName, 'latecomer');
+  });
 
   test('uniqueVoiceChannelParticipants keeps one entry per user', () {
     const VoiceState first = VoiceState(userId: '1');
@@ -128,6 +168,7 @@ void main() {
             system: false,
             status: 'online',
             mobile: false,
+            hiddenProfileBadgesJson: '[]',
           ),
         );
 

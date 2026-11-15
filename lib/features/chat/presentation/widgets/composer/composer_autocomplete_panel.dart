@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:cached_network_image_ce/cached_network_image.dart';
+import 'package:fluxer_app/core/api/attachment_request_auth.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/channel_icon.dart';
@@ -9,8 +10,8 @@ import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_avatar.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/widgets/unicode_emoji_widget.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const double kComposerAutocompletePanelMaxHeight = 490;
 const double kComposerAutocompletePanelSafeGap = 8;
@@ -476,6 +477,9 @@ class ComposerAutocompletePanelListTile extends StatelessWidget {
                       height: _kAutocompleteMediaPreviewSize,
                       child: CachedNetworkImage(
                         imageUrl: mediaPreviewUrl!,
+                        httpHeaders: AttachmentRequestAuth.headersFor(
+                          mediaPreviewUrl!,
+                        ),
                         cacheKey: mediaPreviewCacheKey,
                         width: _kAutocompleteMediaPreviewSize,
                         height: _kAutocompleteMediaPreviewSize,
@@ -660,6 +664,9 @@ class ComposerAutocompleteGifGrid extends StatelessWidget {
                               height: _kAutocompleteGifTileHeight,
                               child: CachedNetworkImage(
                                 imageUrl: gif.imageUrl,
+                                httpHeaders: AttachmentRequestAuth.headersFor(
+                                  gif.imageUrl,
+                                ),
                                 fit: BoxFit.cover,
                                 width: _kAutocompleteGifTileWidth,
                                 height: _kAutocompleteGifTileHeight,

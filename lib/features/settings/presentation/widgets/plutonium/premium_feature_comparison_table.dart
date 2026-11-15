@@ -4,13 +4,13 @@ import 'package:fluxer_app/core/limits/limit_defaults.dart';
 import 'package:fluxer_app/core/limits/limit_key.dart';
 import 'package:fluxer_app/core/limits/limit_resolver.dart';
 import 'package:fluxer_app/core/limits/limit_types.dart';
-import 'package:fluxer_app/core/providers/well_known_provider.dart';
+import 'package:fluxer_app/core/providers/instance/well_known_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/gifts/utils/gift_duration_text.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_dart/export.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class PremiumFeatureComparisonTable extends ConsumerWidget {
   const PremiumFeatureComparisonTable({super.key});

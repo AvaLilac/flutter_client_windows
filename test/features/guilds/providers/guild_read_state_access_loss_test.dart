@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_ready_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_read_state_provider.dart';
@@ -167,6 +167,26 @@ void main() {
           name: const Value('general'),
           type: const Value(0),
           parentId: const Value(_categoryId),
+          permissionOverwritesJson: Value(_denyEveryoneView()),
+        ),
+      );
+
+      await _expectMentionCleared(container);
+    },
+  );
+
+  test(
+    'a category overwrite that hides it clears its channel mention',
+    () async {
+      final FluxerDatabase db = await _seed();
+      final ProviderContainer container = await _mentionedContainer(db);
+
+      await db.channelDao.upsertChannel(
+        ChannelsCompanion(
+          id: const Value(_categoryId),
+          guildId: const Value(_guildId),
+          name: const Value('category'),
+          type: const Value(4),
           permissionOverwritesJson: Value(_denyEveryoneView()),
         ),
       );

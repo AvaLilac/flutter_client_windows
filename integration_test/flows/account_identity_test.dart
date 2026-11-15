@@ -5,11 +5,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/auth/providers/instance_selector_provider.dart';
 import 'package:fluxer_app/features/settings/presentation/user_settings_modal.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/checkbox/fluxer_checkbox.dart';
 import 'package:fluxer_app/features/ui/input/fluxer_input.dart';
@@ -71,8 +71,8 @@ Future<void> _registerWithUsername(WidgetTester tester) async {
   expect(await isOnLoginScreen(tester), isTrue);
   expect(_inputLabeled('Username'), findsOneWidget);
   expect(_inputLabeled('Email'), findsNothing);
-  await _tap(tester, find.text('Register'));
-  await _pumpUntil(tester, find.text('Create an account'));
+  await _tap(tester, find.text('Create an account'));
+  await _pumpUntil(tester, find.text('Already have an account? '));
   expect(_inputLabeled('Email'), findsNothing);
   expect(
     find.text('A 4-digit tag will be added automatically to ensure uniqueness'),
@@ -162,8 +162,8 @@ Future<void> _recoverWithKit(WidgetTester tester) async {
 Future<void> _registerWithEmail(WidgetTester tester) async {
   expect(await isOnLoginScreen(tester), isTrue);
   expect(_inputLabeled('Email'), findsOneWidget);
-  await _tap(tester, find.text('Register'));
-  await _pumpUntil(tester, find.text('Create an account'));
+  await _tap(tester, find.text('Create an account'));
+  await _pumpUntil(tester, find.text('Already have an account? '));
   expect(
     find.text('A 4-digit tag will be added automatically to ensure uniqueness'),
     findsOneWidget,

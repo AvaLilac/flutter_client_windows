@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/domain/pending_attachment.dart';
@@ -10,7 +11,7 @@ import 'package:fluxer_app/features/chat/providers/upload/cloud_upload_controlle
 import 'package:fluxer_app/features/chat/utils/attachments/attachment_display_utils.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 
 class ChannelAttachmentArea extends ConsumerWidget {
   const ChannelAttachmentArea({
@@ -29,7 +30,7 @@ class ChannelAttachmentArea extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final List<PendingAttachment> attachments = ref
-        .watch(cloudUploadControllerProvider(channelId))
+        .watch(cloudUploadControllerProvider(readAccountUserId(ref), channelId))
         .items;
     final Widget body = attachments.isNotEmpty
         ? _AttachmentAreaBody(channelId: channelId, attachments: attachments)
@@ -74,7 +75,12 @@ class _AttachmentAreaBody extends ConsumerWidget {
             itemCount: attachments.length,
             onReorderItem: (int oldIndex, int newIndex) {
               ref
-                  .read(cloudUploadControllerProvider(channelId).notifier)
+                  .read(
+                    cloudUploadControllerProvider(
+                      readAccountUserId(ref),
+                      channelId,
+                    ).notifier,
+                  )
                   .reorderAttachments(oldIndex, newIndex);
             },
             proxyDecorator:
@@ -99,7 +105,7 @@ class _AttachmentAreaBody extends ConsumerWidget {
                 key: ValueKey<int>(att.id),
                 index: index,
                 child: Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: _AttachmentChip(channelId: channelId, attachment: att),
                 ),
               );
@@ -178,8 +184,8 @@ class _AttachmentChip extends ConsumerWidget {
                           ),
                         ),
                       if (altText != null && !isSpoiler)
-                        Positioned(
-                          right: 6,
+                        PositionedDirectional(
+                          end: 6,
                           bottom: 6,
                           child: IgnorePointer(
                             child: AltTextBadge(altText: altText),
@@ -210,9 +216,9 @@ class _AttachmentChip extends ConsumerWidget {
                             ),
                           ),
                         ),
-                      Positioned(
+                      PositionedDirectional(
                         top: 4,
-                        right: 4,
+                        end: 4,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -232,6 +238,7 @@ class _AttachmentChip extends ConsumerWidget {
                                 ref
                                     .read(
                                       cloudUploadControllerProvider(
+                                        readAccountUserId(ref),
                                         channelId,
                                       ).notifier,
                                     )
@@ -262,6 +269,7 @@ class _AttachmentChip extends ConsumerWidget {
                               onPressed: () => ref
                                   .read(
                                     cloudUploadControllerProvider(
+                                      readAccountUserId(ref),
                                       channelId,
                                     ).notifier,
                                   )
@@ -355,7 +363,7 @@ class _RoundIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Padding(
-      padding: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsetsDirectional.only(start: 4),
       child: Semantics(
         button: true,
         label: tooltip,

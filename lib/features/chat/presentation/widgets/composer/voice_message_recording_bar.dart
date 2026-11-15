@@ -12,7 +12,7 @@ import 'package:fluxer_app/features/ui/button/fluxer_button_size.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button_variant.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 
 class VoiceMessageDiscardButton extends StatelessWidget {
   const VoiceMessageDiscardButton({
@@ -135,9 +135,10 @@ class VoiceMessageRecordingBar extends StatelessWidget {
 
   static double heightFor(
     FluxerButtonSize actionSize, {
-    double verticalPadding = WideComposerLayout.densePaddingY,
+    required bool touchPrimary,
   }) {
-    return actionSize.height + verticalPadding * 2;
+    return actionSize.height +
+        WideComposerLayout.densePaddingYFor(touchPrimary: touchPrimary) * 2;
   }
 
   static ShapeBorder wideBackgroundShape({required bool hasActionStack}) {

@@ -6,10 +6,10 @@ import 'package:dio/dio.dart';
 import 'package:fluxer_app/core/api/dio_error_message.dart';
 import 'package:fluxer_app/core/api/retry_interceptor.dart';
 import 'package:fluxer_app/core/talker.dart';
+import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_dart/export.dart';
 
 const Duration kAckBatchDelay = Duration(seconds: 3);
-const Duration kAckForegroundBatchDelay = Duration(milliseconds: 750);
 const int kAckBatchSize = 100;
 const Duration kAckRetryBaseDelay = Duration(seconds: 5);
 const Duration kAckRetryMaxDelay = Duration(seconds: 60);
@@ -33,9 +33,7 @@ class AckBatcher {
     this.retryBaseDelay = kAckRetryBaseDelay,
     this.retryMaxDelay = kAckRetryMaxDelay,
     Random? random,
-  }) : _random = random ?? Random() {
-    _queueBatchDelay = batchDelay;
-  }
+  }) : _random = random ?? Random();
 
   final FluxerClient _client;
 
@@ -51,15 +49,13 @@ class AckBatcher {
   Timer? _flushTimer;
   Future<void>? _inflightFlush;
   bool _disposed = false;
-  late Duration _queueBatchDelay;
 
   void setForegroundBatching({required bool foreground}) {
-    _queueBatchDelay = foreground ? kAckForegroundBatchDelay : batchDelay;
-    if (_disposed || _pending.isEmpty) {
+    if (_disposed || _pending.isEmpty || foreground) {
       return;
     }
     final DateTime now = clock.now();
-    final DateTime cap = now.add(_queueBatchDelay);
+    final DateTime cap = now.add(batchDelay);
     for (final _PendingAck entry in _pending.values) {
       if (entry.deadline.isAfter(cap)) {
         entry.deadline = cap;
@@ -78,9 +74,7 @@ class AckBatcher {
       return;
     }
     final now = clock.now();
-    final deadline = (immediate || hadMentions)
-        ? now
-        : now.add(_queueBatchDelay);
+    final deadline = (immediate || hadMentions) ? now : now.add(batchDelay);
     final existing = _pending[channelId];
     if (existing == null && _inFlight[channelId] == messageId) {
       return;
@@ -90,13 +84,34 @@ class AckBatcher {
         messageId: messageId,
         deadline: deadline,
       );
+    } else if (compareSnowflakeIds(messageId, existing.messageId) < 0) {
+      return;
     } else {
-      existing.messageId = messageId;
+      if (compareSnowflakeIds(messageId, existing.messageId) > 0) {
+        existing.messageId = messageId;
+      }
       if (deadline.isBefore(existing.deadline)) {
         existing.deadline = deadline;
       }
     }
     _rescheduleTimer();
+  }
+
+  void cancelIfCovered(String channelId, String ackedMessageId) {
+    final _PendingAck? pending = _pending[channelId];
+    if (pending == null) {
+      return;
+    }
+    if (compareSnowflakeIds(ackedMessageId, pending.messageId) < 0) {
+      return;
+    }
+    cancel(channelId);
+  }
+
+  String? outstandingAck(String channelId) {
+    final String? pending = _pending[channelId]?.messageId;
+    final String? inFlight = _inFlight[channelId];
+    return compareSnowflakeIds(pending, inFlight) >= 0 ? pending : inFlight;
   }
 
   void clear() {
@@ -183,7 +198,8 @@ class AckBatcher {
     }
     final List<_SentAck> due = <_SentAck>[
       for (final MapEntry<String, _PendingAck> entry in _pending.entries)
-        (channelId: entry.key, messageId: entry.value.messageId),
+        if (force || !entry.value.deadline.isAfter(now))
+          (channelId: entry.key, messageId: entry.value.messageId),
     ];
 
     final chunks = <List<_SentAck>>[];
@@ -193,51 +209,61 @@ class AckBatcher {
     }
 
     for (final chunk in chunks) {
-      final body = ReadStateAckRequest(
-        readStates: chunk
-            .map(
-              (_SentAck e) => ReadStateAckRequestReadStates(
-                channelId: e.channelId,
-                messageId: e.messageId,
-              ),
-            )
-            .toList(),
-      );
-      for (final _SentAck entry in chunk) {
-        _inFlight[entry.channelId] = entry.messageId;
-      }
-      try {
-        final response = await _client.readStates.ackReadStates(body: body);
-        _clearInFlight(chunk);
-        _removeSent(chunk);
-        final onResponse = this.onResponse;
-        if (onResponse != null) {
-          await onResponse(response);
-        }
-      } on Object catch (e, s) {
-        _clearInFlight(chunk);
-        _logFailure('bulk ack chunk failed', e, s);
-        if (_isRejected(e)) {
-          _removeSent(chunk);
-          continue;
-        }
-        final int retryAfterMs = e is DioException
-            ? retryAfterMsFromDioException(e) ?? 0
-            : 0;
-        for (final _SentAck entry in chunk) {
-          final current = _pending[entry.channelId];
-          if (current == null || current.messageId != entry.messageId) {
-            continue;
-          }
-          current.attempt += 1;
-          final Duration backoff = _retryDelay(current.attempt);
-          current.deadline = clock.now().add(
-            Duration(milliseconds: max(backoff.inMilliseconds, retryAfterMs)),
-          );
-        }
-      }
+      await _sendChunk(chunk);
     }
     _rescheduleTimer();
+  }
+
+  Future<void> _sendChunk(List<_SentAck> chunk) async {
+    final body = ReadStateAckRequest(
+      readStates: chunk
+          .map(
+            (_SentAck e) => ReadStateAckRequestReadStates(
+              channelId: e.channelId,
+              messageId: e.messageId,
+            ),
+          )
+          .toList(),
+    );
+    for (final _SentAck entry in chunk) {
+      _inFlight[entry.channelId] = entry.messageId;
+    }
+    try {
+      final response = await _client.readStates.ackReadStates(body: body);
+      _clearInFlight(chunk);
+      _removeSent(chunk);
+      final onResponse = this.onResponse;
+      if (onResponse != null) {
+        await onResponse(response);
+      }
+    } on Object catch (e, s) {
+      _clearInFlight(chunk);
+      _logFailure('bulk ack chunk failed', e, s);
+      if (_isRejected(e)) {
+        if (chunk.length > 1) {
+          for (final _SentAck entry in chunk) {
+            await _sendChunk(<_SentAck>[entry]);
+          }
+          return;
+        }
+        _removeSent(chunk);
+        return;
+      }
+      final int retryAfterMs = e is DioException
+          ? retryAfterMsFromDioException(e) ?? 0
+          : 0;
+      for (final _SentAck entry in chunk) {
+        final current = _pending[entry.channelId];
+        if (current == null || current.messageId != entry.messageId) {
+          continue;
+        }
+        current.attempt += 1;
+        final Duration backoff = _retryDelay(current.attempt);
+        current.deadline = clock.now().add(
+          Duration(milliseconds: max(backoff.inMilliseconds, retryAfterMs)),
+        );
+      }
+    }
   }
 
   void _removeSent(List<_SentAck> chunk) {

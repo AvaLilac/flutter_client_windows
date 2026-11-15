@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-const int _expectedSchemaVersion = 99;
+const int _expectedSchemaVersion = 110;
 
 const int _guardedBaselineVersion = 67;
 
@@ -15,6 +15,7 @@ const Map<String, List<String>> _guardedColumns = <String, List<String>>{
     'custom_theme_css',
     'sync_theme_colors_from_theme_studio',
     'sync_theme_colors_to_theme_studio',
+    'use_system_dynamic_colors',
     'show_media_delete_button',
     'show_media_download_button',
     'show_media_favorite_button',
@@ -42,6 +43,7 @@ const Map<String, List<String>> _guardedColumns = <String, List<String>>{
     'save_gif_favorites_as_saved_media',
     'search_engines_json',
     'screen_reader_announce_new_messages',
+    'announce_call_joins_and_leaves',
     'sync_reduced_motion_with_system',
     'reduced_motion_override',
     'enable_tts_command',
@@ -459,6 +461,115 @@ void main() {
       expect(_userVersion(raw), _expectedSchemaVersion);
     });
 
+    test('upgrade from 100 adds guild and profile badge columns', () async {
+      final Database raw = sqlite3.openInMemory();
+      addTearDown(raw.close);
+      await _stampCurrentSchemaAsVersion(raw, 100);
+      raw
+        ..execute('ALTER TABLE servers DROP COLUMN badge_ids_json')
+        ..execute('ALTER TABLE users DROP COLUMN hidden_profile_badges_json')
+        ..execute("INSERT INTO servers (id, name) VALUES ('g1', 'Guild')");
+      expect(_userVersion(raw), 100);
+
+      final FluxerDatabase db = FluxerDatabase.forTesting(
+        NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+      );
+      addTearDown(db.close);
+      await db.customSelect('SELECT 1').get();
+
+      expect(_tableColumns(raw, 'servers'), contains('badge_ids_json'));
+      expect(
+        _tableColumns(raw, 'users'),
+        contains('hidden_profile_badges_json'),
+      );
+      expect((await db.guildDao.getServerById('g1'))?.name, 'Guild');
+      expect(_userVersion(raw), _expectedSchemaVersion);
+    });
+
+    test('upgrade from 101 adds role icon columns', () async {
+      final Database raw = sqlite3.openInMemory();
+      addTearDown(raw.close);
+      await _stampCurrentSchemaAsVersion(raw, 101);
+      raw
+        ..execute('ALTER TABLE roles DROP COLUMN icon')
+        ..execute('ALTER TABLE roles DROP COLUMN unicode_emoji')
+        ..execute(
+          "INSERT INTO roles (id, guild_id, name) VALUES ('r1', 'g1', 'Mods')",
+        );
+      expect(_userVersion(raw), 101);
+
+      final FluxerDatabase db = FluxerDatabase.forTesting(
+        NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+      );
+      addTearDown(db.close);
+      await db.customSelect('SELECT 1').get();
+
+      expect(
+        _tableColumns(raw, 'roles'),
+        containsAll(<String>['icon', 'unicode_emoji']),
+      );
+      final List<Role> roles = await db.roleDao.getRoles('g1');
+      expect(roles.single.name, 'Mods');
+      expect(roles.single.icon, isNull);
+      expect(roles.single.unicodeEmoji, isNull);
+      expect(_userVersion(raw), _expectedSchemaVersion);
+    });
+
+    test('upgrade from 103 adds the DM channel nsfw column', () async {
+      final Database raw = sqlite3.openInMemory();
+      addTearDown(raw.close);
+      await _stampCurrentSchemaAsVersion(raw, 103);
+      raw
+        ..execute('ALTER TABLE dm_channels DROP COLUMN nsfw')
+        ..execute(
+          "INSERT INTO dm_channels (id, type, recipient_id) VALUES ('d1', 3, 'u1')",
+        );
+      expect(_userVersion(raw), 103);
+
+      final FluxerDatabase db = FluxerDatabase.forTesting(
+        NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+      );
+      addTearDown(db.close);
+      await db.customSelect('SELECT 1').get();
+
+      expect(_tableColumns(raw, 'dm_channels'), contains('nsfw'));
+      final DmChannel? row = await db.dmChannelDao.getDmChannelById('d1');
+      expect(row?.nsfw, isFalse);
+      expect(_userVersion(raw), _expectedSchemaVersion);
+    });
+
+    test('upgrade from 105 keeps recent instances without a url', () async {
+      final Database raw = sqlite3.openInMemory();
+      addTearDown(raw.close);
+      await _stampCurrentSchemaAsVersion(raw, 105);
+      raw
+        ..execute('ALTER TABLE recent_instances DROP COLUMN url')
+        ..execute(
+          'INSERT INTO recent_instances (domain, name, last_used) '
+          "VALUES ('192.168.1.20', 'Home', 1700000000)",
+        );
+
+      final FluxerDatabase db = FluxerDatabase.forTesting(
+        NativeDatabase.opened(raw, closeUnderlyingOnClose: false),
+      );
+      addTearDown(db.close);
+
+      final List<RecentInstance> rows = await db.recentInstancesDao
+          .getRecentInstances();
+      expect(rows.single.domain, '192.168.1.20');
+      expect(rows.single.url, isNull);
+      await db.recentInstancesDao.touchRecentInstance(
+        domain: '192.168.1.20',
+        name: 'Home',
+        url: 'http://192.168.1.20:8080',
+      );
+      expect(
+        (await db.recentInstancesDao.getRecentInstances()).single.url,
+        'http://192.168.1.20:8080',
+      );
+      expect(_userVersion(raw), _expectedSchemaVersion);
+    });
+
     test('upgrade from 98 drops the read state missing column', () async {
       final Database raw = sqlite3.openInMemory();
       addTearDown(raw.close);
@@ -565,14 +676,9 @@ void main() {
             .map((Row row) => row['name'] as String),
         <String>['id', 'channel_id'],
       );
-      expect(
-        _schemaIndexes(raw),
-        containsAll(<String>[
-          'idx_messages_channel',
-          'idx_messages_author',
-          'idx_messages_channel_timestamp',
-        ]),
-      );
+      expect(_schemaIndexes(raw), contains('idx_messages_channel_timestamp'));
+      expect(_schemaIndexes(raw), isNot(contains('idx_messages_channel')));
+      expect(_schemaIndexes(raw), isNot(contains('idx_messages_author')));
       expect(_userVersion(raw), _expectedSchemaVersion);
     });
 

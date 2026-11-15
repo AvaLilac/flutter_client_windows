@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
-project(fluxer_app LANGUAGES CXX)
+project(fluxer_oxygen LANGUAGES CXX)
 
-set(BINARY_NAME "fluxer_app")
+set(BINARY_NAME "fluxer_oxygen")
 
 cmake_policy(VERSION 3.14...3.25)
 
@@ -23,6 +23,7 @@ set(CMAKE_C_FLAGS_PROFILE "${CMAKE_C_FLAGS_RELEASE}")
 set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 
 add_definitions(-DUNICODE -D_UNICODE)
+add_definitions(-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
 
 function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_features(${TARGET} PUBLIC cxx_std_17)

@@ -1,15 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/presentation/widgets/guild_bottom_sheet_avatar.dart';
 import 'package:fluxer_app/features/guilds/presentation/widgets/guild_bottom_sheet_stats.dart';
 import 'package:fluxer_app/features/guilds/presentation/widgets/guild_menu_data.dart';
-import 'package:fluxer_app/features/settings/providers/use_12_hour_time_format_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/time_format_providers.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
@@ -60,6 +60,10 @@ Future<GuildAction?> showGuildBottomSheet(
 
   final result = await FluxerBottomSheet.showScrollable<GuildAction>(
     context,
+    desktop: const FluxerDesktopPresentation(
+      surface: FluxerDesktopSurface.menu,
+      width: 260,
+    ),
     title: guild.name,
     leading: GuildBottomSheetAvatar(guild: guild),
     subtitle: GuildBottomSheetStats(guildId: guild.id, fallbackGuild: guild),
@@ -84,12 +88,7 @@ Future<GuildAction?> showGuildBottomSheet(
         controller: scrollController,
         padding: FluxerBottomSheet.scrollViewPadding(
           sheetContext,
-          padding: EdgeInsets.fromLTRB(
-            layout.s4,
-            0,
-            layout.s4,
-            FluxerBottomSheet.bottomGapOf(sheetContext),
-          ),
+          padding: EdgeInsets.symmetric(horizontal: layout.s4),
         ),
         children: [FluxerBottomSheetGroupColumn(children: menuGroups)],
       );
@@ -162,12 +161,7 @@ void _openSubmenu(BuildContext context, GuildMenuSubmenu submenu) {
           controller: scrollController,
           padding: FluxerBottomSheet.scrollViewPadding(
             sheetContext,
-            padding: EdgeInsets.fromLTRB(
-              layout.s4,
-              0,
-              layout.s4,
-              FluxerBottomSheet.bottomGapOf(sheetContext),
-            ),
+            padding: EdgeInsets.symmetric(horizontal: layout.s4),
           ),
           children: [
             FluxerBottomSheetGroupColumn(

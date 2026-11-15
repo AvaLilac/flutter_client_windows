@@ -1,4 +1,6 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/permissions/channel_permission_cache_provider.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/domain/channel_overview_update.dart';
@@ -123,17 +125,21 @@ Future<int?> channelSettingsPermissionBits(Ref ref, String channelId) async {
     ..watch(guildListViewModelProvider)
     ..watch(currentUserMemberIdentityProvider(guildId))
     ..watch(guildRolePermissionsIdentityProvider(guildId))
-    ..watch(channelPermissionCacheProvider);
+    ..watch(
+      channelPermissionCacheProvider(
+        readAccountUserId(ref),
+      ).select((ChannelPermissionCaches caches) => caches[channelId]),
+    );
   final int? cachedBits = ref
-      .read(channelPermissionCacheProvider.notifier)
+      .read(channelPermissionCacheProvider(readAccountUserId(ref)).notifier)
       .getChannelBits(channelId);
   if (cachedBits != null) {
     return cachedBits;
   }
   await ref
-      .read(channelPermissionCacheProvider.notifier)
+      .read(channelPermissionCacheProvider(readAccountUserId(ref)).notifier)
       .rebuildChannel(channelId);
   return ref
-      .read(channelPermissionCacheProvider.notifier)
+      .read(channelPermissionCacheProvider(readAccountUserId(ref)).notifier)
       .getChannelBits(channelId);
 }

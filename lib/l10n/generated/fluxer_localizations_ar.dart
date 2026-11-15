@@ -102,8 +102,32 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get gatewayConnectedToast => 'متصل';
 
   @override
+  String get gatewayOfflineToast =>
+      'أنت غير متصل بالإنترنت. سيعيد Fluxer الاتصال عند عودتك إلى الإنترنت.';
+
+  @override
   String get sessionExpiredToast =>
       'انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.';
+
+  @override
+  String accountDeletionScheduledNotice(String date) {
+    return 'سيُحذف حسابك في $date. يؤدي تسجيل الدخول قبل ذلك إلى إلغاء الحذف.';
+  }
+
+  @override
+  String get accountDeletionScheduledNoticeNoDate =>
+      'حسابك مُجدول للحذف. يؤدي تسجيل الدخول قبل موعد الحذف إلى إلغائه.';
+
+  @override
+  String get accountDeletionImmediateNotice =>
+      'نحن نحذف حسابك الآن. إذا كان لحسابك عنوان بريد إلكتروني، فسنرسل إليك رسالة عند الانتهاء.';
+
+  @override
+  String get accountDeletionImmediateNoticeNoEmail => 'نحن نحذف حسابك الآن.';
+
+  @override
+  String get accountDisabledNotice =>
+      'حسابك معطّل. سجّل الدخول مرة أخرى متى أردت استخدامه.';
 
   @override
   String splashStartupFailed(String error) {
@@ -158,6 +182,17 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   }
 
   @override
+  String get verificationResendEmail => 'إعادة إرسال البريد الإلكتروني';
+
+  @override
+  String get verificationEmailSent =>
+      'تم إرسال رسالة تحقق إلى بريدك الإلكتروني. تحقق من صندوق الوارد.';
+
+  @override
+  String get verificationEmailRateLimited =>
+      'لقد طلبت عددًا كبيرًا جدًا من رسائل البريد الإلكتروني للتحقق. يُرجى الانتظار لحظة والمحاولة مرة أخرى.';
+
+  @override
   String get nagbarOpenSettings => 'فتح الإعدادات';
 
   @override
@@ -192,8 +227,21 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   }
 
   @override
+  String nagbarPremiumGracePeriodNoAction(
+    String productName,
+    String graceDate,
+  ) {
+    return 'تعذّر تجديد اشتراكك في $productName. ستحتفظ بمزايا $productName حتى $graceDate.';
+  }
+
+  @override
   String nagbarPremiumExpired(String productName) {
     return 'انتهت صلاحية اشتراكك في $productName. جدّده الآن للاحتفاظ بمزاياك.';
+  }
+
+  @override
+  String nagbarPremiumExpiredNoAction(String productName) {
+    return 'انتهت صلاحية اشتراكك في $productName.';
   }
 
   @override
@@ -232,15 +280,13 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get nagbarEnableMfa => 'تمكين المصادقة الثنائية';
 
   @override
-  String get nagbarTermsAcceptance =>
-      'لقد قمنا بتحديث شروطنا. يُرجى مراجعتها وقبولها للمتابعة.';
-
-  @override
-  String get nagbarReviewTerms => 'مراجعة الشروط';
-
-  @override
   String nagbarGuildMembershipCta(String communityName) {
     return 'انضم إلى $communityName للدردشة مع الفريق والبقاء على اطلاع دائم.';
+  }
+
+  @override
+  String nagbarGuildMfaRequirement(String communityName) {
+    return 'Moderation actions in $communityName require two-factor authentication. Enable 2FA to kick, ban, time out, or delete messages here.';
   }
 
   @override
@@ -254,9 +300,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get nagbarEnableNotifications => 'تفعيل الإشعارات';
-
-  @override
-  String get welcomeBack => 'أهلاً بعودتك';
 
   @override
   String get email => 'البريد الإلكتروني';
@@ -275,6 +318,29 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get logInWithPasskey => 'تسجيل الدخول باستخدام مفتاح المرور';
+
+  @override
+  String get signInWithBrowser => 'Sign in with your browser';
+
+  @override
+  String get signInWithBrowserPasskeyHint =>
+      'To use a passkey on this instance, sign in with your browser.';
+
+  @override
+  String get browserSignInFailed =>
+      'Couldn\'t sign in with your browser. Try again.';
+
+  @override
+  String loginLegalAgreement(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both':
+          'بتسجيل الدخول، فإنك توافق على <terms>شروط الخدمة</terms> و<privacy>سياسة الخصوصية</privacy>.',
+      'terms': 'بتسجيل الدخول، فإنك توافق على <terms>شروط الخدمة</terms>.',
+      'other':
+          'بتسجيل الدخول، فإنك توافق على <privacy>سياسة الخصوصية</privacy>.',
+    });
+    return '$_temp0';
+  }
 
   @override
   String continueWithSso(String provider) {
@@ -301,6 +367,19 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get register => 'تسجيل';
+
+  @override
+  String loginHeading(String productName) {
+    return 'Sign in to $productName';
+  }
+
+  @override
+  String loginNewAccountPrompt(String productName) {
+    return 'New to $productName? ';
+  }
+
+  @override
+  String get loginCreateAccountLink => 'Create an account';
 
   @override
   String get orDivider => 'أو';
@@ -373,8 +452,18 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get mfaTryAnotherMethod => 'جرب طريقة أخرى';
 
   @override
+  String get mfaPasskeyUnavailable =>
+      'مفاتيح المرور من هذا المثيل لا تعمل في هذا التطبيق، وليس لحسابك أي طريقة تحقق أخرى. سجّل الدخول عبر الويب بدلاً من ذلك.';
+
+  @override
   String get mfaUseSecurityKey =>
       'جرّب مفتاح الأمان / مفتاح المرور بدلاً من ذلك';
+
+  @override
+  String get mfaUseBackupCode => 'استخدم رمزًا احتياطيًا';
+
+  @override
+  String get mfaUseAuthenticatorCode => 'استخدم رمزًا من تطبيق المصادقة';
 
   @override
   String get accountSelectorTitle => 'اختر حسابًا';
@@ -399,8 +488,8 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get accountExpired => 'انتهت الصلاحية';
 
   @override
-  String accountSessionExpired(String identifier) {
-    return 'انتهت صلاحية الجلسة لـ $identifier. يرجى تسجيل الدخول مرة أخرى.';
+  String accountSessionExpiredNotice(String name) {
+    return 'انتهت صلاحية جلستك للحساب $name. سجّل الدخول مرة أخرى.';
   }
 
   @override
@@ -503,78 +592,68 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get signOut => 'تسجيل الخروج';
 
   @override
-  String get suspendedPermanentTitle => 'تم تعليق الحساب بشكل دائم';
-
-  @override
   String get suspendedTemporaryTitle => 'تم تعليق الحساب';
 
   @override
-  String get suspendedPermanentDescription =>
-      'تم تعليق حسابك بشكل دائم لانتهاكه شروط الخدمة الخاصة بنا.';
+  String get suspendedBannedTitle => 'تم حظر الحساب';
 
   @override
-  String get suspendedTemporaryDescription =>
-      'تم تعليق حسابك مؤقتًا. ستتمكن من الوصول إلى حسابك بمجرد انتهاء فترة التعليق.';
+  String get suspendedClosedTitle => 'تم إغلاق الحساب';
 
   @override
-  String get suspendedIssuedAt => 'صدر في';
+  String get suspendedWhatHappened => 'ما الذي حدث';
 
   @override
-  String get suspendedEndsAt => 'ينتهي في';
+  String get suspendedWhy => 'السبب';
 
   @override
-  String get suspendedDuration => 'المدة';
+  String get suspendedHowWeDecided => 'كيف اتخذنا القرار';
 
   @override
-  String get suspendedPermanent => 'دائم';
+  String get suspendedHowToAppeal => 'كيفية الطعن';
 
   @override
-  String get suspendedReason => 'السبب';
-
-  @override
-  String get suspendedAppealDeadline => 'موعد استئناف الحظر';
-
-  @override
-  String suspendedDeletionWarning(String date) {
-    return 'حسابك مجدول للحذف في $date.';
+  String suspendedNoteFromTeam(String statement) {
+    return 'ملاحظة من فريقنا: $statement';
   }
 
   @override
-  String get suspendedRecheck => 'التحقق من وجود تحديثات';
+  String suspendedDecisionId(String decisionId) {
+    return 'معرّف القرار: $decisionId';
+  }
 
   @override
-  String suspendedRecheckCooldown(int seconds) {
-    return 'حاول مرة أخرى بعد $seconds ثوانٍ';
+  String suspendedRule(String title) {
+    return 'القاعدة: $title';
+  }
+
+  @override
+  String suspendedAppealNoDeadline(String email) {
+    return 'إذا كنت تعتقد أننا أخطأنا، فراسل $email وأرفق اسم المستخدم الخاص بك.';
+  }
+
+  @override
+  String suspendedAppealNoEmail(String email, String deadline) {
+    return 'إذا كنت تعتقد أننا أخطأنا، فراسل $email في موعد أقصاه $deadline. اذكر معرّف القرار واسم المستخدم الخاص بك. الطعون مجانية، ويراجع كل طعن شخصٌ من فريقنا.';
+  }
+
+  @override
+  String suspendedAppealWithEmail(String email, String deadline) {
+    return 'إذا كنت تعتقد أننا أخطأنا، فراسل $email في موعد أقصاه $deadline. اكتب من عنوان البريد الإلكتروني المرتبط بحسابك إن أمكن، واذكر معرّف القرار. الطعون مجانية، ويراجع كل طعن شخصٌ من فريقنا.';
+  }
+
+  @override
+  String suspendedDeletionRequest(String email) {
+    return 'لتطلب منا حذف حسابك وبياناتك، راسل $email من العنوان المرتبط بحسابك.';
+  }
+
+  @override
+  String suspendedDeletionRequestNoEmail(String email) {
+    return 'لتطلب منا حذف حسابك وبياناتك، راسل $email وأرفق اسم المستخدم الخاص بك.';
   }
 
   @override
   String get suspendedBackToLogin => 'العودة إلى تسجيل الدخول';
-
-  @override
-  String get suspendedAppealTitle => 'استئناف';
-
-  @override
-  String get suspendedAppealHint =>
-      'اشرح لماذا يجب إعادة النظر في تعليقك (50 حرفًا على الأقل)...';
-
-  @override
-  String get suspendedAppealSubmit => 'تقديم الاستئناف';
-
-  @override
-  String get suspendedAppealPending => 'قيد المراجعة';
-
-  @override
-  String get suspendedAppealAccepted => 'تم قبول الاستئناف';
-
-  @override
-  String get suspendedAppealRejected => 'تم رفض الاستئناف';
-
-  @override
-  String get suspendedAppealAcceptedDescription =>
-      'تم قبول استئنافك وتمت استعادة حسابك.';
-
-  @override
-  String get suspendedSignIn => 'تسجيل الدخول إلى حسابك';
 
   @override
   String get forgotPasswordTitle => 'هل نسيت كلمة المرور؟';
@@ -780,9 +859,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'حسابك لم تتم المطالبة به بعد. بدون اسم مستخدم وكلمة مرور، لن تتمكن من تسجيل الدخول من أجهزة أخرى وقد تفقد الوصول إلى حسابك. طالب بحسابك الآن لتأمينه.';
 
   @override
-  String get addFriendUsernameOnlyHint => 'اسم المستخدم';
-
-  @override
   String get registerTitle => 'إنشاء حساب';
 
   @override
@@ -805,6 +881,12 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get registerDateOfBirth => 'تاريخ الميلاد';
 
   @override
+  String get registerDateOfBirthDone => 'تم';
+
+  @override
+  String get registerDateOfBirthNotSet => 'غير محدد';
+
+  @override
   String get registerMonth => 'الشهر';
 
   @override
@@ -814,16 +896,19 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get registerYear => 'السنة';
 
   @override
-  String get registerConsentPrefix => 'أوافق على ';
+  String registerConsentLinks(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both':
+          'أوافق على <terms>شروط الخدمة</terms> و<privacy>سياسة الخصوصية</privacy>',
+      'terms': 'أوافق على <terms>شروط الخدمة</terms>',
+      'other': 'أوافق على <privacy>سياسة الخصوصية</privacy>',
+    });
+    return '$_temp0';
+  }
 
   @override
-  String get registerConsentTerms => 'شروط الخدمة';
-
-  @override
-  String get registerConsentAnd => ' و ';
-
-  @override
-  String get registerConsentPrivacy => 'سياسة الخصوصية';
+  String get registerConsentBuiltInRules =>
+      'أوافق على أن هذا المثيل لا يتسامح مطلقًا مع المحتوى المرفوض أو المستخدمين المسيئين، وأن مسؤوليه يمكنهم إزالة المحتوى والحسابات التي تخالف هذه القواعد.';
 
   @override
   String get registerConfirmPassword => 'تأكيد كلمة المرور';
@@ -845,6 +930,10 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get passkeyNoCredentials =>
       'لم يتم العثور على مفاتيح مرور لهذا التطبيق. قم بتسجيل الدخول باستخدام البريد الإلكتروني وكلمة المرور بدلاً من ذلك.';
+
+  @override
+  String get passkeyNoCredentialsForAccount =>
+      'لا يحتوي هذا الجهاز على مفتاح مرور لهذا الحساب. استخدم الجهاز أو مدير كلمات المرور الذي حفظته فيه.';
 
   @override
   String get passkeyDeviceNotSupported =>
@@ -902,8 +991,18 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   }
 
   @override
-  String embedInviteMembers(String count) {
-    return '$count عضو';
+  String embedInviteMembers(int count, String formattedCount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$formattedCount عضو',
+      many: '$formattedCount عضوًا',
+      few: '$formattedCount أعضاء',
+      two: 'عضوان',
+      one: 'عضو واحد',
+      zero: '$formattedCount عضو',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1005,9 +1104,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'يمكنك استيراد السمات على الويب أو سطح المكتب فقط.';
 
   @override
-  String get embedThemeImport => 'استيراد السمة';
-
-  @override
   String embedGiftVisionaryLifetime(String productName) {
     return 'رؤيوي (مدى الحياة $productName)';
   }
@@ -1096,6 +1192,10 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get giftAcceptAlreadyClaimed => 'تم استلام هذه الهدية بالفعل.';
+
+  @override
+  String get giftAcceptLifetimeNotInApp =>
+      'لا يمكن المطالبة بهذه الهدية في تطبيق iOS. يمكنك المطالبة بها في تطبيق سطح المكتب.';
 
   @override
   String get giftAcceptMaybeLater => 'ربما لاحقًا';
@@ -1285,6 +1385,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get incomingVoiceCallTitle => 'مكالمة صوتية واردة';
 
   @override
+  String get incomingVoiceCallSubtitle => 'Voice call';
+
+  @override
   String get incomingVoiceCallAccept => 'قبول';
 
   @override
@@ -1337,7 +1440,17 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String dmGroupMemberCount(int count) {
-    return '$count أعضاء';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count عضو',
+      many: '$count عضوًا',
+      few: '$count أعضاء',
+      two: 'عضوان',
+      one: 'عضو واحد',
+      zero: '$count عضو',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1459,9 +1572,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get addFriendSheetTitle => 'إضافة صديق';
-
-  @override
-  String get addFriendUsernameHint => 'اسم المستخدم#0000';
 
   @override
   String get addFriendUsernameLabel => 'اسم مستخدم الصديق';
@@ -1728,6 +1838,52 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       locale: localeName,
       other: '$count مجتمعات',
       one: '1 مجتمع',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get stickerPickerSearchHint => 'ابحث عن الملصق المثالي';
+
+  @override
+  String get stickerPickerEmptyNoCommunitiesTitle => 'لا توجد ملصقات متاحة';
+
+  @override
+  String get stickerPickerEmptyNoCommunitiesBody =>
+      'انضم إلى مجتمع يحتوي على ملصقات لاستخدامها هنا.';
+
+  @override
+  String get stickerPickerEmptyHereTitle => 'لا توجد ملصقات متاحة';
+
+  @override
+  String get stickerPickerEmptyHereBody =>
+      'لا توجد ملصقات متاحة في هذه المحادثة.';
+
+  @override
+  String get stickerPickerNoResultsTitle => 'لم يتم العثور على ملصقات';
+
+  @override
+  String get stickerPickerNoResultsBody => 'جرّب عبارة بحث مختلفة.';
+
+  @override
+  String stickerPlutoniumUpsellText(
+    String stickerCount,
+    String communityCount,
+  ) {
+    return 'افتح $stickerCount من أصل $communityCount باستخدام Plutonium.';
+  }
+
+  @override
+  String stickerPlutoniumUpsellStickerCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ملصق',
+      many: '$count ملصقًا',
+      few: '$count ملصقات',
+      two: 'ملصقان',
+      one: 'ملصق واحد',
+      zero: '$count ملصق',
     );
     return '$_temp0';
   }
@@ -2004,6 +2160,51 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get emojiPickerTitle => 'رموز تعبيرية';
 
   @override
+  String get profileBadgesSettingsTitle => 'الشارات';
+
+  @override
+  String get profileBadgesSettingsDescription =>
+      'اختر الشارات التي يراها الآخرون في ملفك الشخصي.';
+
+  @override
+  String get profileBadgesSettingsEmpty => 'ليست لديك أي شارات بعد.';
+
+  @override
+  String get profileBadgesSettingsLoadFailed => 'تعذّر تحميل شاراتك.';
+
+  @override
+  String profileBadgesShowOnProfile(String badgeLabel) {
+    return 'إظهار $badgeLabel في ملفك الشخصي';
+  }
+
+  @override
+  String profileBadgesOverflowButton(int count) {
+    return '+$count';
+  }
+
+  @override
+  String get profileBadgesShowAllTooltip => 'عرض كل الشارات';
+
+  @override
+  String profileBadgesShowAllSemantic(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '+$count شارة إضافية، عرض الكل',
+      many: '+$count شارة إضافية، عرض الكل',
+      few: '+$count شارات إضافية، عرض الكل',
+      two: '+$count شارتان إضافيتان، عرض الكل',
+      one: '+$count شارة إضافية، عرض الكل',
+      zero: '+$count شارة إضافية، عرض الكل',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get profileBadgesVisionaryNumberNote =>
+      'يظهر فقط عندما تكون شارة Visionary ظاهرة وغير معروضة كاشتراك.';
+
+  @override
   String get plutoniumBadgePrivacyTitle => 'خصوصية شارة Plutonium';
 
   @override
@@ -2048,6 +2249,25 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get hideVisionaryIdDescription => 'إزالة شارة Visionary ID الخاصة بك';
 
   @override
+  String get operatorPassName => 'Operator Pass';
+
+  @override
+  String operatorPassSince(String since) {
+    return 'Operator Pass منذ $since';
+  }
+
+  @override
+  String get operatorPassShowBadgeOnProfile => 'إظهار الشارة في ملفي الشخصي';
+
+  @override
+  String operatorPassHideDate(String operatorPassName) {
+    return 'إخفاء موعد حصولك على $operatorPassName';
+  }
+
+  @override
+  String get operatorPassHideCount => 'إخفاء عدد Operator Pass لديك';
+
+  @override
   String get avatarDescriptionNonPremium =>
       'JPEG، PNG، WebP. بحد أقصى 10 ميجابايت. موصى به: 512×512 بكسل. تتطلب الصور الرمزية المتحركة (GIF) Plutonium.';
 
@@ -2062,8 +2282,8 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get plutoniumNotAvailableTitle => 'Plutonium';
 
   @override
-  String get plutoniumNotAvailableBody =>
-      'عمليات الشراء داخل التطبيق غير متاحة على هذه المنصة بعد. ترقبوا — قريبًا!';
+  String get plutoniumNotSoldHere =>
+      'لا يمكن شراء Plutonium في هذا الإصدار من التطبيق.';
 
   @override
   String get profilePreviewLabel => 'معاينة';
@@ -2134,6 +2354,41 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get sudoVerificationFailed => 'فشل التحقق. يرجى المحاولة مرة أخرى.';
 
   @override
+  String get sudoWrongPassword => 'كلمة المرور هذه غير صحيحة. حاول مرة أخرى.';
+
+  @override
+  String get sudoEmailCodeSend => 'أرسل لي رمزًا عبر البريد الإلكتروني';
+
+  @override
+  String get sudoEmailCodeSent =>
+      'أرسلنا رمزًا مكونًا من 6 أرقام إلى عنوان بريدك الإلكتروني.';
+
+  @override
+  String get sudoEmailCodeLabel => 'الرمز من البريد الإلكتروني';
+
+  @override
+  String get sudoEmailCodeResend => 'إرسال رمز جديد';
+
+  @override
+  String get sudoSsoReauthHint => 'سجّل الدخول مرة أخرى لتأكيد هويتك.';
+
+  @override
+  String get sudoSsoReauthButtonGeneric => 'سجّل الدخول مرة أخرى';
+
+  @override
+  String sudoSsoReauthButton(String provider) {
+    return 'تسجيل الدخول باستخدام $provider';
+  }
+
+  @override
+  String get sudoSsoReauthWrongAccount =>
+      'سجّلت الدخول إلى حساب مختلف. سجّل الدخول بالحساب الذي تستخدمه هنا.';
+
+  @override
+  String get sudoPasskeyUnavailable =>
+      'مفاتيح المرور من هذا المثيل لا تعمل في هذا التطبيق. استخدم تطبيق المصادقة أو رمزًا احتياطيًا، أو أكّد عبر الويب.';
+
+  @override
   String get securityAccountTitle => 'الحساب';
 
   @override
@@ -2146,6 +2401,10 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get securitySectionDescription =>
       'احمِ حسابك بالمصادقة الثنائية ومفاتيح المرور';
+
+  @override
+  String get securitySectionDescriptionNoPasskeys =>
+      'احمِ حسابك بالمصادقة الثنائية';
 
   @override
   String get securityLoginEmailSectionTitle => 'إعدادات البريد الإلكتروني';
@@ -2475,6 +2734,58 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'تعطيل حسابك مؤقتًا. يمكنك إعادة تنشيطه لاحقًا بتسجيل الدخول مرة أخرى.';
 
   @override
+  String get dangerZoneDeleteEntryDescription =>
+      'احذف حسابك وبياناتك الشخصية. يمكنك حذف رسائلك أيضًا.';
+
+  @override
+  String get dangerZoneDeleteIntro =>
+      'سيُحذف حسابك وملفك الشخصي وبياناتك الشخصية. الرسائل التي لا تحذفها تبقى حيث أرسلتها، بدون اسمك أو ملفك الشخصي.';
+
+  @override
+  String get dangerZoneDeleteMessagesLabel => 'احذف رسائلي أيضًا';
+
+  @override
+  String get dangerZoneDeleteMessagesHint =>
+      'يحذف كل رسالة أرسلتها في الرسائل المباشرة والمحادثات الجماعية والمجتمعات، مع حسابك.';
+
+  @override
+  String dangerZoneDeleteExportHint(String privacyDashboard) {
+    return 'للاحتفاظ بنسخة من بياناتك، اطلب تصديرًا من $privacyDashboard أولاً.';
+  }
+
+  @override
+  String get dangerZoneDeleteLater => 'الحذف بعد 14 يومًا';
+
+  @override
+  String get dangerZoneDeleteLaterHint =>
+      'يمكنك الإلغاء بتسجيل الدخول خلال الأيام الـ14.';
+
+  @override
+  String get dangerZoneDeleteSchedule => 'جدولة الحذف';
+
+  @override
+  String get dangerZoneDeleteScheduleHint =>
+      'سيُحذف حسابك بعد انقضاء فترة الانتظار الخاصة بهذا المثيل. يؤدي تسجيل الدخول قبل ذلك إلى إلغاء الحذف.';
+
+  @override
+  String get dangerZoneDeleteNow => 'الحذف الآن';
+
+  @override
+  String get dangerZoneDeleteNowConfirmTitle => 'هل تريد حذف حسابك الآن؟';
+
+  @override
+  String get dangerZoneDeleteNowConfirmBody =>
+      'سيُحذف حسابك فورًا ولا يمكن استعادته.';
+
+  @override
+  String get dangerZoneDeleteAppStoreBilling =>
+      'تتم فوترة اشتراكك في Plutonium عن طريق Apple. حذف حسابك لا يلغي الاشتراك، لذا ألغِه في App Store أولاً.';
+
+  @override
+  String get dangerZoneDeleteGooglePlayBilling =>
+      'تتم فوترة اشتراكك في Plutonium عن طريق Google Play. حذف حسابك لا يلغي الاشتراك، لذا ألغِه في Google Play أولاً.';
+
+  @override
   String get dangerZoneDisableConfirmDescription =>
       'سيؤدي تعطيل حسابك إلى تسجيل خروجك من جميع الجلسات. يمكنك إعادة تمكين حسابك في أي وقت عن طريق تسجيل الدخول مرة أخرى.';
 
@@ -2482,47 +2793,15 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get dangerZoneDeleteTitle => 'حذف الحساب';
 
   @override
-  String get dangerZoneDeleteDescription =>
-      'احذف حسابك وجميع البيانات المرتبطة به نهائيًا. لا يمكن التراجع عن هذا الإجراء.';
-
-  @override
   String get dangerZoneDeleteCannotDeleteAccount => 'لا يمكن حذف الحساب';
 
   @override
-  String get dangerZoneDeleteOwnsCommunities =>
-      'لا يمكنك حذف حسابك أثناء امتلاكك لمجتمعات. يجب نقل ملكية المجتمعات التالية أولاً:';
+  String get dangerZoneDeleteOwnsCommunitiesList =>
+      'أنت تملك هذه المجتمعات. احذف كلاً منها، أو انقل ملكيته إلى عضو آخر، قبل حذف حسابك.';
 
   @override
-  String dangerZoneDeleteAndXMore(int count) {
-    return 'و $count أخرى';
-  }
-
-  @override
-  String dangerZoneDeleteTransferInstructions(String settingsPath) {
-    return 'لتحويل الملكية، انتقل إلى $settingsPath واستخدم خيار تحويل الملكية.';
-  }
-
-  @override
-  String get dangerZoneDeleteConfirmDescription =>
-      'هل أنت متأكد أنك تريد حذف حسابك؟ سيؤدي هذا الإجراء إلى جدولة حسابك للحذف الدائم.';
-
-  @override
-  String get dangerZoneDeleteBullet1 => 'يمكنك إلغاء عملية الحذف خلال 14 يومًا';
-
-  @override
-  String get dangerZoneDeleteBullet2 => 'بعد 14 يومًا، سيتم حذف حسابك نهائيًا';
-
-  @override
-  String get dangerZoneDeleteBullet3 =>
-      'بعد معالجة الحذف، لن تتمكن من استعادة الوصول إلى حسابك';
-
-  @override
-  String get dangerZoneDeleteBullet4 =>
-      'لن تتمكن من حذف رسائلك المرسلة بعد حذف حسابك';
-
-  @override
-  String get dangerZoneDeleteDisclaimer =>
-      'إذا كنت ترغب في تصدير بياناتك أو حذف رسائلك أولاً، فيرجى زيارة قسم لوحة تحكم الخصوصية في إعدادات المستخدم قبل المتابعة.';
+  String get dangerZoneDeleteOwnedCommunitiesHelp =>
+      'انقر على مجتمع لفتح إعداداته. ستجد «حذف المجتمع» في الأسفل. لنقل ملكيته، افتح «الأعضاء»، وانقر على عضو، ثم انقر على النقاط الثلاث في ملفه الشخصي واختر «نقل الملكية».';
 
   @override
   String get claimAccountTitle => 'المطالبة بحسابك';
@@ -2546,9 +2825,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get claimAccountSuccess => 'تمت المطالبة بالحساب بنجاح';
-
-  @override
-  String get importantInformation => 'معلومات هامة:';
 
   @override
   String get genericError => 'حدث خطأ';
@@ -4059,6 +4335,11 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get chatAttachmentDownloadFailedToast => 'تعذر تنزيل المرفق';
 
   @override
+  String chatAttachmentDownloadPhotosAccessToast(String productName) {
+    return 'يحتاج $productName إلى الوصول إلى مكتبة الصور الخاصة بك لحفظ هذا المرفق.';
+  }
+
+  @override
   String get chatAttachmentExpiredTooltip => 'انتهت صلاحية المرفق';
 
   @override
@@ -4184,7 +4465,14 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get matureMediaRevealButton => 'إظهار';
 
   @override
-  String get matureMediaRevealHint => 'انقر للإظهار';
+  String get matureMediaRevealLabel => 'إظهار الوسائط الحساسة';
+
+  @override
+  String get matureMediaAppLockedLabel =>
+      'الوسائط الحساسة مخفية على iPhone وiPad.';
+
+  @override
+  String get matureMediaMinorLockedLabel => 'الوسائط الحساسة مخفية لحسابك.';
 
   @override
   String get matureContentTitle => 'محتوى للبالغين';
@@ -4235,12 +4523,69 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'هذا المجتمع المخصص للبالغين غير متاح لحسابك.';
 
   @override
+  String matureContentIosWebOptInInstanceBody(String webAddress) {
+    return 'Turn on age-restricted communities and channels at $webAddress in your browser or in the desktop app. They stay hidden in the iOS app until you do.';
+  }
+
+  @override
   String get matureCategoryUnavailableBody =>
       'هذه الفئة المخصصة للبالغين غير متاحة لحسابك.';
 
   @override
   String get matureChannelUnavailableBody =>
       'هذه القناة المخصصة للبالغين غير متاحة لحسابك.';
+
+  @override
+  String get matureContentAppLockedBody =>
+      'محتوى 18+ معطّل على iPhone وiPad. لعرض المجتمعات والقنوات المصنّفة 18+ هنا، افتح Fluxer على الويب أو على سطح المكتب، وانتقل إلى «الخصوصية» في إعداداتك وفعّل «السماح بمحتوى 18+ على iPhone وiPad».';
+
+  @override
+  String get matureContentRegionLockedBody =>
+      'بسبب قوانين المحتوى للبالغين في المكان الذي توجد فيه، المحتوى للبالغين غير متاح من هنا.';
+
+  @override
+  String get matureMessageHiddenPreview => 'رسالة في قناة 18+';
+
+  @override
+  String get ageRangeUnderMinimumTitle => 'Fluxer غير متاح على هذا الحساب';
+
+  @override
+  String get ageRangeUnderMinimumBody =>
+      'الفئة العمرية التي يشاركها Apple Account الخاص بك أقل من 13 عامًا. Fluxer مخصص فقط للأشخاص الذين تبلغ أعمارهم 13 عامًا فأكثر.';
+
+  @override
+  String get ageRangeUnderMinimumBodyGoogle =>
+      'The age range shared by your Google Account is under 13. Fluxer is only for people aged 13 and over.';
+
+  @override
+  String get ageRangeUnlockBody =>
+      'Where you are, the law says a date of birth you type in isn\'t enough for mature content, and you can use the age range on your Apple Account to unlock it. Fluxer only gets the age range if it\'s 18 or over. An age range under 18 stays on this device.';
+
+  @override
+  String get ageRangeUnlockBodyGoogle =>
+      'Where you are, the law says a date of birth you type in isn\'t enough for mature content, and you can use the age range on your Google Account to unlock it. Fluxer only gets the age range if it\'s 18 or over. An age range under 18 stays on this device.';
+
+  @override
+  String get ageRangeUnlockHelpLink => 'How unlocking mature content works';
+
+  @override
+  String get ageRangeUnlockButton => 'Unlock mature content';
+
+  @override
+  String get ageRangeUnlockUnderAdult =>
+      'Mature content stays off because the age range on your Apple Account is under 18. The age range stays on this device and isn\'t sent to Fluxer.';
+
+  @override
+  String get ageRangeUnlockUnderAdultGoogle =>
+      'Mature content stays off because the age range on your Google Account is under 18. The age range stays on this device and isn\'t sent to Fluxer.';
+
+  @override
+  String get ageRangeUnlockFailed =>
+      'Fluxer couldn\'t unlock mature content. Please try again later.';
+
+  @override
+  String get ageRangeUnlockDateOfBirthRequired =>
+      'Your account needs a date of birth before Fluxer can use your age range.';
 
   @override
   String get matureContentProceedButton => 'متابعة';
@@ -4274,6 +4619,18 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get sensitiveContentSaveButton => 'حفظ';
+
+  @override
+  String get sensitiveContentAppLockedHint =>
+      'لاختيار «إظهار» هنا، افتح Fluxer على الويب أو على سطح المكتب، وانتقل إلى «الخصوصية» في إعداداتك وفعّل «السماح بمحتوى 18+ على iPhone وiPad».';
+
+  @override
+  String get sensitiveContentInstallFromPlayHint =>
+      'Unlocking mature content with your Google Account needs the copy of Fluxer from Google Play.';
+
+  @override
+  String get sensitiveContentFinishInPlayHint =>
+      'Google Play needs one more step before it can share an age range. Open the Play Store to finish it, then come back and press \"Unlock mature content\" again.';
 
   @override
   String chatUploadingAttachmentsSummary(int count) {
@@ -4492,7 +4849,7 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get lookAndFeelThemeSectionDescription =>
-      'اختر بين المظهر الداكن أو الفحمي أو الفاتح.';
+      'اختر بين مظهر النظام أو المظهر الداكن أو الفحمي أو الفاتح.';
 
   @override
   String get lookAndFeelHdrSectionTitle => 'النطاق الديناميكي العالي';
@@ -4545,6 +4902,14 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get lookAndFeelSyncThemeAcrossDevicesSystemDescription =>
       'تعطّل سمة النظام تلقائيًا المزامنة لتتبع تفضيلات نظامك على هذا الجهاز.';
+
+  @override
+  String get lookAndFeelUseSystemDynamicColorsLabel =>
+      'Use Material You colors';
+
+  @override
+  String get lookAndFeelUseSystemDynamicColorsDescription =>
+      'Tint the theme with your device\'s system colors.';
 
   @override
   String get lookAndFeelThemeSyncFailed =>
@@ -4707,6 +5072,11 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String lookAndFeelMessageGroupSpacingValue(int spacing) {
     return '$spacing بكسل';
+  }
+
+  @override
+  String lookAndFeelPixelsAccessibleValue(int value) {
+    return '$value pixels';
   }
 
   @override
@@ -5011,6 +5381,62 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get savedMediaNameRequired => 'الاسم مطلوب.';
+
+  @override
+  String get savedMediaEdit => 'تعديل';
+
+  @override
+  String get savedMediaEditTitle => 'تعديل الوسائط المحفوظة';
+
+  @override
+  String get savedMediaDeleteTitle => 'حذف الوسائط المحفوظة';
+
+  @override
+  String savedMediaDeleteConfirm(String name) {
+    return 'هل تريد إزالة «$name» من الوسائط المحفوظة؟';
+  }
+
+  @override
+  String get savedMediaDeleteFailed => 'تعذّر حذف الوسائط المحفوظة.';
+
+  @override
+  String get savedMediaSearchHint => 'البحث في الوسائط المحفوظة';
+
+  @override
+  String get savedMediaUnavailableTitle => 'الوسائط المحفوظة غير متاحة';
+
+  @override
+  String get savedMediaUnavailableBody => 'حاول مرة أخرى بعد قليل.';
+
+  @override
+  String get savedMediaEmptyTitle => 'لا توجد وسائط محفوظة';
+
+  @override
+  String get savedMediaEmptyBody => 'احفظ الوسائط من الرسائل لتظهر هنا.';
+
+  @override
+  String get savedMediaNoResultsTitle => 'لا توجد نتائج';
+
+  @override
+  String get savedMediaNoResultsBody => 'جرّب عبارة بحث أو عامل تصفية مختلفًا.';
+
+  @override
+  String get savedMediaFilterAll => 'الكل';
+
+  @override
+  String get savedMediaFilterImages => 'الصور';
+
+  @override
+  String get savedMediaFilterVideos => 'الفيديوهات';
+
+  @override
+  String get savedMediaFilterAudio => 'الصوت';
+
+  @override
+  String get savedMediaFilterGifs => 'صور GIF';
+
+  @override
+  String get savedMediaGifBadge => 'GIF';
 
   @override
   String get gifFavoriteFirstTimeTitle => 'كيف تريد حفظ صور GIF المفضلة لديك؟';
@@ -5833,6 +6259,108 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get voiceConnectionDismiss => 'تجاهل';
 
   @override
+  String get voiceCallControlsSheetLabel => 'عناصر التحكم في المكالمة الصوتية';
+
+  @override
+  String get voiceCallBarOpenCallHint => 'Opens the call';
+
+  @override
+  String get voiceParticipantSpeaking => 'Speaking';
+
+  @override
+  String get voiceParticipantOptionsAction => 'Participant options';
+
+  @override
+  String voiceParticipantOtherDevicesLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Show $count more devices',
+      one: 'Show 1 more device',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get voicePipReturnToCallLabel => 'Return to call';
+
+  @override
+  String voiceAnnounceUserJoined(String name) {
+    return '$name joined';
+  }
+
+  @override
+  String voiceAnnounceUserLeft(String name) {
+    return '$name left';
+  }
+
+  @override
+  String voiceAnnounceUsersJoined(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people joined',
+      one: '1 person joined',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String voiceAnnounceUsersLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people left',
+      one: '1 person left',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get voiceAnnounceSomeone => 'Someone';
+
+  @override
+  String get voiceAnnounceConnected => 'Connected to voice';
+
+  @override
+  String get voiceAnnounceReconnecting => 'Reconnecting to voice';
+
+  @override
+  String get voiceAnnounceReconnected => 'Reconnected to voice';
+
+  @override
+  String get voiceAnnounceDisconnected => 'Disconnected from voice';
+
+  @override
+  String get voiceAnnounceMoved => 'Now in a different voice channel';
+
+  @override
+  String get voiceAnnounceServerMuted => 'A moderator muted you';
+
+  @override
+  String get voiceAnnounceServerUnmuted => 'A moderator unmuted you';
+
+  @override
+  String get voiceAnnounceServerDeafened => 'A moderator deafened you';
+
+  @override
+  String get voiceAnnounceServerUndeafened => 'A moderator undeafened you';
+
+  @override
+  String get voiceAnnounceMicMuted => 'Microphone muted';
+
+  @override
+  String get voiceAnnounceMicUnmuted => 'Microphone unmuted';
+
+  @override
+  String get accessibilityAnnounceCallJoinsAndLeavesLabel =>
+      'Announce call joins and leaves';
+
+  @override
+  String get accessibilityAnnounceCallJoinsAndLeavesDescription =>
+      'Let screen readers say who joins or leaves the voice call you\'re in. Connection changes and moderator actions are always announced.';
+
+  @override
   String get voiceConnectionDisconnected => 'غير متصل';
 
   @override
@@ -5926,6 +6454,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get voiceParticipantMenuViewProfile => 'عرض الملف الشخصي';
 
   @override
+  String get voiceParticipantMenuReport => 'إبلاغ';
+
+  @override
   String get voiceParticipantMenuFocus => 'التركيز على هذا الشخص';
 
   @override
@@ -5975,6 +6506,21 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get voiceOutputRouteHeadset => 'سماعات الرأس';
 
   @override
+  String get voiceOutputRouteBluetooth => 'بلوتوث';
+
+  @override
+  String get voiceOutputRouteBluetoothLe => 'Bluetooth LE';
+
+  @override
+  String get voiceOutputRouteHearingAid => 'Hearing aid';
+
+  @override
+  String get voiceOutputRouteUsb => 'USB headset';
+
+  @override
+  String get voiceChangeAudioOutputLabel => 'تغيير مخرج الصوت';
+
+  @override
   String get voicePanelOnlyShowVideosLabel => 'إظهار مقاطع الفيديو فقط';
 
   @override
@@ -6005,6 +6551,10 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get voiceCameraPermissionRequired => 'إذن الكاميرا مطلوب للفيديو.';
 
   @override
+  String get voiceMicPermissionRequired =>
+      'اسمح بالوصول إلى الميكروفون لإلغاء الكتم في هذه المكالمة.';
+
+  @override
   String get voiceErrorScreenShareToggle =>
       'تعذر بدء مشاركة الشاشة. يرجى المحاولة مرة أخرى.';
 
@@ -6033,10 +6583,18 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get voiceScreenShareExitFullscreenTooltip => 'الخروج من ملء الشاشة';
 
   @override
+  String voiceVideoZoomLevel(String scale) {
+    return 'التكبير $scale';
+  }
+
+  @override
   String get voiceOwnScreenShareTitle => 'أنت تبث';
 
   @override
   String get voiceOwnScreenShareSubtitle => 'البث الخاص بك مباشر للمشاركين.';
+
+  @override
+  String get voiceBlockedParticipantVideoHidden => 'فيديو من شخص حظرته';
 
   @override
   String get voiceLiveBadge => 'مباشر';
@@ -6188,6 +6746,15 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get characterCounterTooLong => 'الرسالة طويلة جدًا';
+
+  @override
+  String characterCounterTooLongToast(int maxLength) {
+    final intl.NumberFormat maxLengthNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String maxLengthString = maxLengthNumberFormat.format(maxLength);
+
+    return 'يمكن أن تصل الرسائل إلى $maxLengthString حرف. اختصر هذه الرسالة لإرسالها.';
+  }
 
   @override
   String characterCounterRemainingPlutoniumUpsell(
@@ -6840,6 +7407,47 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get notificationReplyFailed => 'تعذّر إرسال الرد';
 
   @override
+  String get notificationChannelMessages => 'الرسائل';
+
+  @override
+  String get notificationChannelDirectMessages => 'الرسائل المباشرة';
+
+  @override
+  String get notificationChannelForumPosts => 'منشورات المنتدى الجديدة';
+
+  @override
+  String get notificationChannelMessagesSilent => 'الرسائل بدون صوت';
+
+  @override
+  String get notificationChannelDirectMessagesSilent =>
+      'الرسائل المباشرة بدون صوت';
+
+  @override
+  String get notificationChannelDescription => 'الرسائل والتنبيهات';
+
+  @override
+  String get notificationNewMessageFallback => 'رسالة جديدة';
+
+  @override
+  String get notificationLocalUserName => 'أنا';
+
+  @override
+  String get notificationGroupDmTitle => 'رسالة جماعية';
+
+  @override
+  String get notificationUnknownSender => 'غير معروف';
+
+  @override
+  String notificationAttachmentPreview(String filename) {
+    return 'Attachment: $filename';
+  }
+
+  @override
+  String notificationStickerPreview(String name) {
+    return 'Sticker: $name';
+  }
+
+  @override
   String get chatMessageForward => 'إعادة توجيه';
 
   @override
@@ -7002,6 +7610,21 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get chatMessageDebug => 'تصحيح أخطاء الرسالة';
 
   @override
+  String get messageAlertNote => 'ملاحظة';
+
+  @override
+  String get messageAlertTip => 'نصيحة';
+
+  @override
+  String get messageAlertImportant => 'مهم';
+
+  @override
+  String get messageAlertWarning => 'تحذير';
+
+  @override
+  String get messageAlertCaution => 'تنبيه';
+
+  @override
   String get chatMessageDebugSheetTitle => 'تصحيح أخطاء الرسالة';
 
   @override
@@ -7033,6 +7656,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get reportFlowTitleUserProfile => 'الإبلاغ عن الملف الشخصي';
 
   @override
+  String get reportFlowTitleCommunity => 'الإبلاغ عن المجتمع';
+
+  @override
   String get reportFlowSummaryTitle => 'راجع بلاغك';
 
   @override
@@ -7055,7 +7681,10 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get reportFlowSelectedMessage => 'الرسالة التي تبلغ عنها';
 
   @override
-  String get reportFlowSelectedUser => 'الملف الشخصي الذي تبلّغ عنه';
+  String get reportFlowSelectedPerson => 'الشخص الذي تبلّغ عنه';
+
+  @override
+  String get reportFlowSelectedCommunity => 'المجتمع الذي تبلّغ عنه';
 
   @override
   String get reportFlowReportCategory => 'إجاباتك';
@@ -7082,6 +7711,10 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String reportFlowThankYouBody(String productName) {
     return 'سيراجع فريق السلامة في $productName بلاغك. لن نكشف أن البلاغ جاء منك.';
   }
+
+  @override
+  String get reportFlowThankYouBodySelfHosted =>
+      'سيراجع مسؤولو هذا المثيل بلاغك. لن نكشف أنه جاء منك.';
 
   @override
   String get reportFlowThankYouNoReportBody =>
@@ -7128,6 +7761,10 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get reportFlowAlreadyReportedProfile =>
       'لقد أبلغت عن هذا الملف الشخصي بالفعل اليوم.';
+
+  @override
+  String get reportFlowAlreadyReportedCommunity =>
+      'لقد أبلغت عن هذا المجتمع بالفعل.';
 
   @override
   String get reportFlowRateLimited =>
@@ -7221,6 +7858,12 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get chatMessagesLoadError => 'تعذر تحميل الرسائل.';
 
   @override
+  String get dmEmptyStateTitle => 'No messages yet';
+
+  @override
+  String get dmEmptyStateBody => 'Send a message to start the conversation.';
+
+  @override
   String get chatMessagesFailedToLoad => 'فشل تحميل الرسائل';
 
   @override
@@ -7256,6 +7899,22 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get chatReplyMentionOff => 'معطّل';
+
+  @override
+  String chatReplyingTo(String authorName) {
+    return 'ردًا على $authorName';
+  }
+
+  @override
+  String chatForwardedFrom(String source) {
+    return 'مُعاد توجيهها من $source';
+  }
+
+  @override
+  String get chatForwardedLabel => 'تمت إعادة توجيهها';
+
+  @override
+  String get chatForwardedFromLabel => 'مُعاد توجيهها من';
 
   @override
   String get chatReplyCancel => 'إلغاء الرد';
@@ -7334,6 +7993,23 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get mediaViewerDismissBackdrop => 'تجاهل';
+
+  @override
+  String get videoPlayerPlay => 'تشغيل';
+
+  @override
+  String get videoPlayerPause => 'إيقاف مؤقت';
+
+  @override
+  String get videoPlayerVolume => 'مستوى الصوت';
+
+  @override
+  String videoPlayerPlaybackSpeed(String speed) {
+    return 'سرعة التشغيل ${speed}x';
+  }
+
+  @override
+  String get videoPlayerFullScreen => 'ملء الشاشة';
 
   @override
   String get chatAttachmentVideoToggleControls => 'تبديل عناصر تحكم الفيديو';
@@ -8300,6 +8976,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'إعدادات الإشعارات، مكتوم';
 
   @override
+  String get channelHeaderOpenDetails => 'فتح تفاصيل القناة';
+
+  @override
   String get channelDetailsSearchTitle => 'بحث';
 
   @override
@@ -8948,11 +9627,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   }
 
   @override
-  String channelWelcomeHeading(String channelName) {
-    return 'مرحباً بك في $channelName';
-  }
-
-  @override
   String channelWelcomeDescription(String channelName) {
     return 'هذه بداية $channelName.';
   }
@@ -8989,6 +9663,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get composerCloseAttachmentPanel => 'إغلاق محدد المرفقات';
+
+  @override
+  String get composerSendMessage => 'إرسال الرسالة';
 
   @override
   String get chatAttachmentPanelPhotos => 'صور';
@@ -9325,15 +10002,38 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get premiumSelfServeRefundButton => 'استرداد آخر عملية شراء';
 
   @override
-  String get premiumDisclaimerAgreementPrefix =>
-      'بإتمام عملية الشراء، أنت توافق على ';
+  String premiumDisclaimerAgreement(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both':
+          'بإتمام الشراء، فإنك توافق على <terms>شروط الخدمة</terms> و<privacy>سياسة الخصوصية</privacy>.',
+      'terms': 'بإتمام الشراء، فإنك توافق على <terms>شروط الخدمة</terms>.',
+      'other':
+          'بإتمام الشراء، فإنك توافق على <privacy>سياسة الخصوصية</privacy>.',
+    });
+    return '$_temp0';
+  }
 
   @override
-  String get premiumDisclaimerAgreementPastPrefix =>
-      'بشرائك، تكون قد وافقت على ';
+  String premiumDisclaimerAgreementPast(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both':
+          'بإتمام الشراء، فقد وافقت على <terms>شروط الخدمة</terms> و<privacy>سياسة الخصوصية</privacy>.',
+      'terms': 'بإتمام الشراء، فقد وافقت على <terms>شروط الخدمة</terms>.',
+      'other':
+          'بإتمام الشراء، فقد وافقت على <privacy>سياسة الخصوصية</privacy>.',
+    });
+    return '$_temp0';
+  }
 
   @override
-  String get premiumDisclaimerAgreementMiddle => ' و ';
+  String instanceLegalLinksList(String links) {
+    String _temp0 = intl.Intl.selectLogic(links, {
+      'both': '<terms>شروط الخدمة</terms> و<privacy>سياسة الخصوصية</privacy>',
+      'terms': '<terms>شروط الخدمة</terms>',
+      'other': '<privacy>سياسة الخصوصية</privacy>',
+    });
+    return '$_temp0';
+  }
 
   @override
   String premiumActiveUntil(String date) {
@@ -9390,6 +10090,11 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get premiumPlanUnavailableSelfHosted =>
       'هذه الخطة غير متاحة. اتصل بمسؤولي هذا المثيل.';
+
+  @override
+  String premiumDistributionPriceNote(String percent) {
+    return 'الأسعار في هذا الإصدار من التطبيق أعلى قليلًا لأن $percent من كل دفعة يذهب إلى تكلفة توزيعه.';
+  }
 
   @override
   String get premiumCompletePaymentTitle => 'إتمام الدفع';
@@ -9528,6 +10233,24 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'شارك مقاطع الفيديو كاملة الطول والملفات الكبيرة دون تصغيرها أولاً. يمكن للحسابات المجانية إرسال ما يصل إلى 25 ميجابايت.';
 
   @override
+  String get storePlutoniumStreamTitle =>
+      'بث بدقة 4K بمعدل 60 إطارًا في الثانية';
+
+  @override
+  String get storePlutoniumStreamBody =>
+      'شارك شاشتك أو كاميرتك بدقة تصل إلى 4K بمعدل 60 إطارًا في الثانية. الحسابات المجانية تبث بدقة تصل إلى 720p بمعدل 30.';
+
+  @override
+  String get storePlutoniumStreamTitleIos => 'بث بجودة أعلى';
+
+  @override
+  String get storePlutoniumStreamBodyIos =>
+      'شارك شاشتك أو كاميرتك بدقة تصل إلى 1080p بمعدل 60 إطارًا في الثانية في التطبيق، وبدقة تصل إلى 4K بمعدل 60 في تطبيق سطح المكتب. الحسابات المجانية تبث بدقة تصل إلى 720p بمعدل 30.';
+
+  @override
+  String get storePlutoniumManageHeading => 'اشتراكك';
+
+  @override
   String get storePlutoniumCompareTitle => 'قارن بين المجاني وPlutonium';
 
   @override
@@ -9600,8 +10323,16 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'حتى 4K بمعدل 60 إطارًا في الثانية';
 
   @override
+  String get storePlutoniumVideoPlutoniumIos =>
+      'حتى 1080p بمعدل 60 FPS في التطبيق، وحتى 4K بمعدل 60 FPS على سطح المكتب';
+
+  @override
   String get storePlutoniumTagFootnote =>
       'يمكنك اختيار علامة لا يمتلكها أي شخص آخر بنفس اسم المستخدم. أسماء المستخدمين لا تميز بين الأحرف الكبيرة والصغيرة، لذا فإن Mina#4821 وmina#4821 يعتبران متطابقين. العلامة #0000 محجوزة لأعضاء Fluxer Visionary.';
+
+  @override
+  String get storePlutoniumTagFootnoteIos =>
+      'لا يمكنك اختيار إلا علامة لا يملكها أي شخص آخر لديه اسم المستخدم نفسه. أسماء المستخدمين لا تميّز بين الأحرف الكبيرة والصغيرة، لذا يُعتبر Mina#4821 وmina#4821 الاسم نفسه.';
 
   @override
   String get storePlutoniumLearnVisionary => 'تعرّف على المزيد حول Visionary.';
@@ -9648,11 +10379,37 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'يتجدد تلقائيًا عبر App Store حتى تقوم بالإلغاء.';
 
   @override
+  String get storePlutoniumAppleEula =>
+      'شروط الاستخدام القياسية من Apple (EULA)';
+
+  @override
   String get storePlutoniumRestorePurchases => 'استعادة المشتريات';
+
+  @override
+  String get storePlutoniumRestoreDone => 'تمت استعادة اشتراكك في Plutonium.';
+
+  @override
+  String get storePlutoniumRestoreNothing =>
+      'لا يوجد اشتراك Plutonium لاستعادته لحساب Apple Account هذا.';
+
+  @override
+  String get storePlutoniumRestoreFailed =>
+      'تعذّرت استعادة المشتريات. حاول مرة أخرى بعد لحظة.';
 
   @override
   String get storePlutoniumAlreadySubscribed =>
       'لديك بالفعل اشتراك في Fluxer Plutonium.';
+
+  @override
+  String get storePlutoniumOwnedByOtherAccount =>
+      'حساب Apple Account على هذا الجهاز يدفع بالفعل مقابل Plutonium على حساب Fluxer مختلف.';
+
+  @override
+  String get storePlutoniumClaimFailedTitle => 'لم تتم إضافة Plutonium';
+
+  @override
+  String get storePlutoniumClaimFailedBody =>
+      'أكّد App Store عملية الشراء، لكن تعذّرت إضافة Plutonium إلى هذا الحساب. انقر على «استعادة المشتريات» للمحاولة مرة أخرى، أو تواصل مع الدعم إذا استمرت المشكلة.';
 
   @override
   String storePlutoniumSavePercent(int percent) {
@@ -9664,8 +10421,15 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'تم استلام عملية الشراء. سيظهر Plutonium هنا بمجرد تفعيله.';
 
   @override
-  String get storePlutoniumUnavailable =>
-      'الاشتراكات داخل التطبيق غير متاحة على هذا الجهاز بعد.';
+  String get storePlutoniumApprovalPending =>
+      'عملية الشراء بانتظار الموافقة. ستتم إضافة Plutonium إلى حسابك بمجرد الموافقة عليها.';
+
+  @override
+  String get storePlutoniumLoadFailed =>
+      'تعذّر تحميل خطط Plutonium. تحقق من اتصالك وحاول مرة أخرى.';
+
+  @override
+  String get storePlutoniumRetry => 'حاول مرة أخرى';
 
   @override
   String get storePlutoniumVisionaryStatus =>
@@ -10177,6 +10941,14 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get pushRelayConsentDecline => 'ليس الآن';
 
   @override
+  String pushRelayConsentDeclinedToast(String settingLabel) {
+    return 'Push notifications stay off for this account on this device. You can turn them on later with \"$settingLabel\" in notification settings.';
+  }
+
+  @override
+  String get pushRelayConsentDeclinedToastAction => 'Open settings';
+
+  @override
   String get userSettingsNavLanguageAndTime => 'اللغة والوقت';
 
   @override
@@ -10313,18 +11085,18 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get advancedCrashReportingDescription =>
-      'تُرسَل التقارير إلى متتبّع الأخطاء الخاص بـ Fluxer، حتى عندما تكون مسجّلًا الدخول إلى مثيل آخر. لا تتضمن أسماء المثيلات أو المعرّفات أو محتوى الرسائل.';
+      'تُرسَل التقارير إلى متتبّع الأخطاء الخاص بـ Fluxer، حتى عندما تكون مسجّلًا الدخول إلى مثيل آخر. ترتبط بمعرّف عشوائي لهذا التثبيت، ولا تتضمن معرّف حسابك أو أسماء المثيلات أو محتوى الرسائل.';
 
   @override
   String get observabilityReportingConsentTitle => 'ساعد في إصلاح الأعطال';
 
   @override
   String get observabilityReportingConsentSubtitle =>
-      'أُغلق Fluxer بشكل غير متوقع. تساعدنا مشاركة بيانات الأعطال والأخطاء المجهولة على إصلاح المشكلات بشكل أسرع.';
+      'أُغلق Fluxer بشكل غير متوقع. يساعدنا إرسال تقرير عطل على العثور على المشكلة وإصلاحها بشكل أسرع.';
 
   @override
   String get observabilityReportingConsentBody =>
-      'تتضمن التقارير سجلات الأعطال والأخطاء وبيانات الأداء الأساسية. لا تتم مشاركتها مع أطراف ثالثة ويمكنك إيقاف هذا في أي وقت.';
+      'تتضمن التقارير سجلات الأعطال والأخطاء وبيانات الأداء وأوقات طلبات الشبكة والشاشات والنقرات التي سبقت المشكلة، مرتبطةً بمعرّف عشوائي لهذا التثبيت. لا تتضمن أبدًا محتوى الرسائل، ولا تُرسل إلا إلى أداة تتبع الأخطاء الخاصة بـ Fluxer. يمكنك إيقاف هذا في أي وقت.';
 
   @override
   String observabilityReportingConsentEnableLater(String reportingToggle) {
@@ -10335,7 +11107,10 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get observabilityReportingConsentAgree => 'إرسال تقارير الأعطال';
 
   @override
-  String get observabilityReportingConsentDecline => 'لا أريد التفعيل';
+  String get observabilityReportingConsentDecline => 'لا تسألني مرة أخرى';
+
+  @override
+  String get observabilityReportingConsentNotNow => 'ليس الآن';
 
   @override
   String get advancedSettingsConfigure => 'تكوين';
@@ -10402,11 +11177,11 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
       'تصغير شعار التطبيق عند مغادرة شاشة البداية';
 
   @override
-  String get advancedSettingSplashQuotesLabel => 'Splash screen quotes';
+  String get advancedSettingSplashQuotesLabel => 'اقتباسات شاشة البداية';
 
   @override
   String get advancedSettingSplashQuotesDescription =>
-      'Show a random quote on the splash screen. Won\'t sync across devices.';
+      'عرض اقتباس عشوائي على شاشة البداية. لا تتم مزامنته بين الأجهزة.';
 
   @override
   String get advancedSettingKeyboardHintsLabel => 'تلميحات لوحة المفاتيح';
@@ -10757,7 +11532,7 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get advancedSettingBuiltInReverseImageSearchDescription =>
-      'تفعيل أو تعطيل مزوّدي البحث العكسي عن الصور المدمجين. يظهر المزوّدون المفعّلون في قائمة السياق للصور والصور الرمزية واللافتات والملصقات والرموز التعبيرية.';
+      'فعّل أو عطّل موفري البحث العكسي عن الصور المضمّنين. يظهر الموفرون المفعّلون في خيارات الصور.';
 
   @override
   String get advancedSettingCustomReverseImageSearchLabel =>
@@ -10771,6 +11546,16 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get advancedSettingAddReverseImageSearchLabel =>
       'إضافة بحث عكسي بالصور';
+
+  @override
+  String searchProviderSearchWith(String engine) {
+    return 'البحث باستخدام $engine';
+  }
+
+  @override
+  String searchProviderTranslateWith(String engine) {
+    return 'الترجمة باستخدام $engine';
+  }
 
   @override
   String get advancedSettingEnableAtLeastOneReverseImageSearchLabel =>
@@ -10876,6 +11661,16 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get userSettingsNavAppLogs => 'سجلات التطبيق';
 
   @override
+  String get userSettingsNavFluxerAppPrivacyPolicy =>
+      'سياسة خصوصية تطبيق Fluxer';
+
+  @override
+  String get userSettingsTitle => 'الإعدادات';
+
+  @override
+  String get userSettingsCopyAppInfo => 'نسخ معلومات التطبيق';
+
+  @override
   String get userSettingsNavDeveloperTools => 'أدوات المطور';
 
   @override
@@ -10883,6 +11678,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get userSettingsNavFeatureFlags => 'علامات الميزات';
+
+  @override
+  String get userSettingsNavHelp => 'المساعدة والدعم';
 
   @override
   String get userSettingsNavWhatsNew => 'ما الجديد';
@@ -10943,6 +11741,33 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get quickSwitcherEmptyHint =>
       'جرّب اسمًا مختلفًا أو استخدم البادئات @ / # / ! / * لتصفية النتائج.';
+
+  @override
+  String get quickSwitcherTitle => 'Quick switcher';
+
+  @override
+  String quickSwitcherFooterPrefixHint(
+    String peoplePrefix,
+    String textChannelPrefix,
+    String voiceChannelPrefix,
+    String communityPrefix,
+  ) {
+    return 'Start searches with $peoplePrefix $textChannelPrefix $voiceChannelPrefix $communityPrefix to narrow down results.';
+  }
+
+  @override
+  String get discoverySidebarApps => 'Apps';
+
+  @override
+  String get discoverySidebarThemes => 'Themes';
+
+  @override
+  String get discoverySidebarComingSoon => 'Coming soon';
+
+  @override
+  String discoverySidebarComingSoonItem(String itemLabel) {
+    return '$itemLabel, coming soon';
+  }
 
   @override
   String get quickSwitcherSectionPeople => 'الأشخاص';
@@ -11175,6 +12000,11 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   }
 
   @override
+  String instanceInsecureConnection(String domain) {
+    return 'لا يستخدم $domain اتصالاً آمنًا (https). يتصل Fluxer عبر http فقط بالمثيلات الموجودة على شبكتك المحلية.';
+  }
+
+  @override
   String get instanceCompatibilityTitle => 'لا يمكن استخدام هذا المثيل';
 
   @override
@@ -11206,9 +12036,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get instanceConnectionRequired => 'اتصل بالخادم لتسجيل الدخول';
-
-  @override
-  String get comingSoon => 'قريبًا';
 
   @override
   String get guildNavbarDirectMessages => 'الرسائل المباشرة';
@@ -11299,9 +12126,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get discoveryCommunities => 'المجتمعات';
-
-  @override
-  String get discoveryApps => 'التطبيقات';
 
   @override
   String get discoveryJoinErrorGenericTitle => 'تعذّر الانضمام إلى هذا المجتمع';
@@ -11415,6 +12239,77 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get friendsOpenInbox => 'صندوق الوارد';
+
+  @override
+  String get friendsPageTitle => 'أصدقائي';
+
+  @override
+  String get friendsActiveNowTitle => 'نشط الآن';
+
+  @override
+  String get friendsActiveNowEmptyTitle => 'الجو هادئ حاليًا...';
+
+  @override
+  String get friendsActiveNowEmptyBody =>
+      'عندما يكون أصدقاؤك نشطين في القنوات الصوتية، سيظهر نشاطهم هنا.';
+
+  @override
+  String get friendsTabOnline => 'متصل';
+
+  @override
+  String get friendsTabAll => 'الكل';
+
+  @override
+  String get friendsTabPending => 'معلّق';
+
+  @override
+  String get friendsTabBlocked => 'محظور';
+
+  @override
+  String get friendsSearchOnline => 'البحث عن الأصدقاء المتصلين';
+
+  @override
+  String get friendsSearchAll => 'البحث في الأصدقاء';
+
+  @override
+  String get friendsSearchPending => 'البحث عن الطلبات المعلقة';
+
+  @override
+  String get friendsSearchBlocked => 'البحث في المستخدمين المحظورين';
+
+  @override
+  String get friendsEmptySearchTitle => 'لا يوجد أصدقاء يطابقون هذا البحث';
+
+  @override
+  String get friendsEmptySearchBody => 'جرّب اسمًا آخر أو تحقق من الإملاء.';
+
+  @override
+  String get friendsEmptyOnlineTitle => 'لا يوجد أصدقاء متصلون';
+
+  @override
+  String get friendsEmptyOnlineBody => 'عندما يصبحون متصلين، سيظهرون هنا.';
+
+  @override
+  String get friendsEmptyAllTitle => 'لا يوجد أصدقاء بعد';
+
+  @override
+  String get friendsEmptyAllBody =>
+      'حيث نحن ذاهبون، نحتاج إلى مزيد من الأصدقاء.';
+
+  @override
+  String get friendsEmptyPendingTitle => 'لا توجد طلبات معلقة';
+
+  @override
+  String get friendsEmptyPendingBody => 'تظهر طلبات الصداقة المعلقة هنا.';
+
+  @override
+  String get friendsEmptyBlockedBody => 'لم تحظر أي شخص.';
+
+  @override
+  String get friendsOutgoingStatus => 'طلب صداقة صادر';
+
+  @override
+  String get friendsBlockedStatus => 'محظور';
 
   @override
   String get profileRemoveFriend => 'إزالة صديق';
@@ -11696,6 +12591,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   }
 
   @override
+  String get channelMutedHint => 'مكتوم';
+
+  @override
   String guildNavbarStaffOnlyAccessible(String productName) {
     return 'متاح لموظفي $productName فقط';
   }
@@ -11770,6 +12668,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get guildMenuCopyCommunityId => 'نسخ معرف المجتمع';
+
+  @override
+  String get guildMenuReportCommunity => 'الإبلاغ عن المجتمع';
 
   @override
   String guildMenuMutedUntil(String formattedTime) {
@@ -11880,6 +12781,83 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String guildSettingsRolesAllowMentionsHelper(String permission) {
     return 'يمكن للأعضاء الذين لديهم صلاحية \"$permission\" دائمًا الإشارة إلى الأدوار، بغض النظر عن هذا الإعداد.';
+  }
+
+  @override
+  String get guildSettingsRolesRoleIcon => 'أيقونة الدور';
+
+  @override
+  String get guildSettingsRolesRoleIconHelper =>
+      'حمّل صورة أو اختر رمزًا تعبيريًا. يظهر بجانب اسم كل عضو أيقونة أعلى دور لديه يحمل أيقونة.';
+
+  @override
+  String guildSettingsRolesRoleIconUploadHint(
+    String formats,
+    String minimumSize,
+    String maxSize,
+  ) {
+    return '$formats. بحجم $minimumSize على الأقل، وحتى $maxSize.';
+  }
+
+  @override
+  String get guildSettingsRolesRoleIconUploadAccessibility =>
+      'تحميل أيقونة الدور';
+
+  @override
+  String guildSettingsRolesRoleIconCurrentEmojiAccessibility(String emojiName) {
+    return 'أيقونة الدور الحالية، $emojiName';
+  }
+
+  @override
+  String get guildSettingsRolesRoleIconCurrentImageAccessibility =>
+      'أيقونة الدور الحالية، صورة مرفوعة';
+
+  @override
+  String get guildSettingsRolesRoleIconChooseEmoji => 'اختيار رمز تعبيري';
+
+  @override
+  String get guildSettingsRolesRoleIconUploadImage => 'تحميل صورة';
+
+  @override
+  String get guildSettingsRolesRoleIconRemove => 'إزالة الأيقونة';
+
+  @override
+  String get guildSettingsRolesRoleIconAnimatedError =>
+      'الأيقونات المتحركة غير مدعومة. استخدم صورة ثابتة.';
+
+  @override
+  String guildSettingsRolesRoleIconUnsupportedTypeError(String formats) {
+    return 'نوع هذا الملف غير مدعوم. الأنواع المدعومة هي $formats.';
+  }
+
+  @override
+  String get guildSettingsRolesRoleIconLoadError =>
+      'تعذّر تحميل هذه الصورة. جرّب صورة أخرى.';
+
+  @override
+  String get guildSettingsRolesRoleIconUsagePreviewMessage =>
+      'هكذا تظهر الرسائل';
+
+  @override
+  String roleIconAccessibilityLabel(String roleName) {
+    return 'أيقونة الدور، $roleName';
+  }
+
+  @override
+  String get roleIconCropTitle => 'قص أيقونة الدور';
+
+  @override
+  String get roleIconCropSave => 'حفظ الأيقونة';
+
+  @override
+  String get roleIconCropSkip => 'تخطي الاقتصاص';
+
+  @override
+  String get roleIconCropFailed => 'تعذّر قص الأيقونة. حاول مرة أخرى.';
+
+  @override
+  String roleIconCropDescription(int minimumWidth, int minimumHeight) {
+    return 'اسحب لتغيير موضع أيقونة الدور واستخدم عجلة التمرير أو إصبعين للتكبير والتصغير. الحد الأدنى الموصى به للحجم هو $minimumWidth×$minimumHeight بكسل.';
   }
 
   @override
@@ -13238,6 +14216,28 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   }
 
   @override
+  String auditLogChangeRoleEmojiSet(String emoji) {
+    return 'تم تعيين أيقونة الدور إلى $emoji';
+  }
+
+  @override
+  String auditLogChangeRoleEmojiChanged(String oldEmoji, String newEmoji) {
+    return 'تم تغيير أيقونة الدور من $oldEmoji إلى $newEmoji';
+  }
+
+  @override
+  String get auditLogChangeRoleEmojiRemoved => 'تمت إزالة أيقونة الدور';
+
+  @override
+  String get auditLogChangeRoleIconSet => 'تم تعيين أيقونة مخصصة للدور';
+
+  @override
+  String get auditLogChangeRoleIconChanged => 'تم تغيير أيقونة الدور المخصص';
+
+  @override
+  String get auditLogChangeRoleIconRemoved => 'تمت إزالة أيقونة الدور المخصصة';
+
+  @override
   String auditLogOptionChannel(String value) {
     return 'القناة: $value.';
   }
@@ -14456,6 +15456,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get dmListDirectMessagesTitle => 'الرسائل المباشرة';
 
   @override
+  String get dmListFriendsButton => 'الأصدقاء';
+
+  @override
   String get keybindsSearchShortcuts => 'البحث عن الاختصارات';
 
   @override
@@ -15105,6 +16108,12 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get forumPostStarterDeleted => 'تم حذف الرسالة الأصلية.';
 
   @override
+  String get forumPostBlockedAuthor => 'منشور من شخص حظرته';
+
+  @override
+  String get threadBlockedAuthor => 'سلسلة من شخص حظرته';
+
+  @override
   String forumPostSnippet(String author, String content) {
     return '$author: $content';
   }
@@ -15119,6 +16128,23 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String forumPostNewMessagesShort(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new',
+      one: '1 new',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get forumPostHasNewMessagesShort => 'New';
+
+  @override
+  String get forumPostHasNewMessages => 'New messages';
 
   @override
   String get forumPostReact => 'إضافة رد الفعل الافتراضي';
@@ -15154,6 +16180,9 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get forumMarkPostRead => 'وضع علامة كمقروءة';
+
+  @override
+  String get forumReportPost => 'الإبلاغ عن المنشور';
 
   @override
   String get forumCopyPostLink => 'نسخ الرابط';
@@ -15491,6 +16520,21 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get errorUnexpectedTryAgain =>
       'حدث خطأ غير متوقع. يُرجى المحاولة مرة أخرى.';
+
+  @override
+  String get errorTwoFactorRequiredTitle =>
+      'Two-factor authentication required';
+
+  @override
+  String get errorTwoFactorRequiredMessage =>
+      'This community requires two-factor authentication for moderation actions. Set up 2FA on your account to continue.';
+
+  @override
+  String get errorTwoFactorRequiredSetUp => 'Set up 2FA';
+
+  @override
+  String get memberRolesUpdateFailed =>
+      'Couldn\'t update this member\'s roles. Try again.';
 
   @override
   String get errorMessagingPausedTitle => 'إرسال الرسائل متوقف مؤقتًا';
@@ -16055,4 +17099,275 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get premiumCheckoutBlockedBodySelfHosted =>
       'تم حظر الدفع لهذا الحساب.';
+
+  @override
+  String splashGatewayUnreachable(String domain) {
+    return 'تعذّر الاتصال بـ $domain. تحقّق من اتصالك بالإنترنت ثم حاول مرة أخرى.';
+  }
+
+  @override
+  String get appLockSettingTitle => 'App lock';
+
+  @override
+  String get appLockConfigure => 'Configure';
+
+  @override
+  String get appLockSettingDescription =>
+      'Fluxer asks for your PIN after it has been in the background for the time you choose. App lock applies to every account on this device.';
+
+  @override
+  String get appLockTimeoutLabel => 'Lock after';
+
+  @override
+  String get appLockTimeoutImmediately => 'Immediately';
+
+  @override
+  String get appLockTimeoutThirtySeconds => '30 seconds';
+
+  @override
+  String get appLockTimeoutOneMinute => '1 minute';
+
+  @override
+  String get appLockTimeoutFiveMinutes => '5 minutes';
+
+  @override
+  String get appLockTimeoutFifteenMinutes => '15 minutes';
+
+  @override
+  String get appLockTimeoutOneHour => '1 hour';
+
+  @override
+  String get appLockTurnOff => 'Turn off app lock';
+
+  @override
+  String get appLockTurnOffConfirmTitle => 'Turn off app lock?';
+
+  @override
+  String get appLockTurnOffConfirmBody =>
+      'Fluxer will open without asking for your PIN.';
+
+  @override
+  String get appLockEnterCurrentPinTitle => 'Enter your PIN';
+
+  @override
+  String appLockEnterCurrentPinSubtitle(int digits) {
+    return 'Enter your current $digits-digit PIN to continue.';
+  }
+
+  @override
+  String get appLockSetPinTitle => 'Set a PIN';
+
+  @override
+  String appLockCreatePinSubtitle(int digits) {
+    return 'Choose a $digits-digit PIN.';
+  }
+
+  @override
+  String get appLockConfirmPinSubtitle => 'Enter the PIN again to confirm';
+
+  @override
+  String get appLockPinMismatch => 'The PINs don\'t match. Try again.';
+
+  @override
+  String get appLockTooManyAttemptsShort =>
+      'Too many attempts. Wait before trying again.';
+
+  @override
+  String get appLockUnlockTitle => 'Unlock Fluxer';
+
+  @override
+  String appLockUnlockSubtitlePin(int digits) {
+    return 'Enter your $digits-digit PIN';
+  }
+
+  @override
+  String appLockCooldownMessage(String time) {
+    return 'Too many attempts. Try again in $time.';
+  }
+
+  @override
+  String get appLockWrongPin => 'Incorrect PIN';
+
+  @override
+  String get appLockForgotPin => 'Forgot PIN? Sign out';
+
+  @override
+  String get appLockSignOutConfirmTitle => 'Sign out and turn off app lock?';
+
+  @override
+  String get appLockSignOutConfirmBody =>
+      'Every account on this device will be signed out and app lock will be turned off.';
+
+  @override
+  String get appLockBiometricReason => 'Unlock Fluxer';
+
+  @override
+  String get appLockPinFieldLabel => 'PIN';
+
+  @override
+  String get appLockBiometricFailed => 'That didn\'t match. Try again.';
+
+  @override
+  String get appLockBiometricFaceId => 'Face ID';
+
+  @override
+  String get appLockBiometricFaceUnlock => 'face unlock';
+
+  @override
+  String get appLockBiometricFingerprint => 'fingerprint';
+
+  @override
+  String get appLockBiometricTouchId => 'Touch ID';
+
+  @override
+  String get appLockBiometricGeneric => 'biometrics';
+
+  @override
+  String appLockUseBiometric(String method) {
+    return 'Use $method';
+  }
+
+  @override
+  String appLockUnlockSubtitleWithBiometric(String method) {
+    return 'Use $method or enter your PIN';
+  }
+
+  @override
+  String appLockBiometricSwitchLabel(String method) {
+    return 'Unlock with $method';
+  }
+
+  @override
+  String get appLockSetPinButton => 'Set PIN';
+
+  @override
+  String get appLockChangePinButton => 'Change PIN';
+
+  @override
+  String get appLockRowDescription => 'Require a PIN to open Fluxer';
+
+  @override
+  String appLockRowDescriptionEnabled(String duration) {
+    return 'On. Locks after $duration in the background.';
+  }
+
+  @override
+  String get appLockRowDescriptionEnabledImmediately =>
+      'On. Locks as soon as you leave Fluxer.';
+
+  @override
+  String appLockRowDescriptionWithBiometric(String method) {
+    return 'Require a PIN or $method to open Fluxer';
+  }
+
+  @override
+  String get appLockBiometricSwitchHint => 'Your PIN still works too';
+
+  @override
+  String appLockBiometricEither(String first, String second) {
+    return '$first or $second';
+  }
+
+  @override
+  String get voiceDiagnosticsCopy => 'Copy voice diagnostics';
+
+  @override
+  String get voiceDiagnosticsCopyDescription =>
+      'Share with the developers to help fix call issues';
+
+  @override
+  String get voiceDiagnosticsCopied => 'Copied voice diagnostics to clipboard';
+
+  @override
+  String get voiceDiagnosticsInCallHint => 'In a call';
+
+  @override
+  String get oxygenUpdateAvailable => 'Update available';
+
+  @override
+  String get oxygenUpdating => 'Updating…';
+
+  @override
+  String desktopTrayShow(String productName) {
+    return 'Show $productName';
+  }
+
+  @override
+  String desktopTrayHide(String productName) {
+    return 'Hide $productName';
+  }
+
+  @override
+  String get desktopTrayOpenSettings => 'Open settings';
+
+  @override
+  String get desktopTrayStatus => 'Status';
+
+  @override
+  String get desktopTrayAccounts => 'Accounts';
+
+  @override
+  String get desktopTrayMuteMic => 'Mute microphone';
+
+  @override
+  String get desktopTrayUnmuteMic => 'Unmute microphone';
+
+  @override
+  String get desktopTrayDeafen => 'Deafen';
+
+  @override
+  String get desktopTrayUndeafen => 'Undeafen';
+
+  @override
+  String desktopTrayDisconnectFrom(String channel) {
+    return 'Disconnect from $channel';
+  }
+
+  @override
+  String get desktopTrayDisconnectVoice => 'Disconnect from voice';
+
+  @override
+  String get desktopTrayCheckForUpdates => 'Check for updates';
+
+  @override
+  String desktopTrayUpdateNow(String productName) {
+    return 'Update $productName now';
+  }
+
+  @override
+  String get desktopTrayCopyBuildInfo => 'Copy build info';
+
+  @override
+  String desktopTrayRestart(String productName) {
+    return 'Restart $productName';
+  }
+
+  @override
+  String desktopTrayQuit(String productName) {
+    return 'Quit $productName';
+  }
+
+  @override
+  String get userSettingsNavDesktop => 'Desktop';
+
+  @override
+  String get desktopSettingsWindowSectionTitle => 'Desktop window';
+
+  @override
+  String get desktopSettingsShowTrayIcon => 'Show system tray icon';
+
+  @override
+  String get desktopSettingsShowMenuBarIcon => 'Show menu bar icon';
+
+  @override
+  String get desktopSettingsMinimizeToTray => 'Minimize to tray';
+
+  @override
+  String get desktopSettingsMinimizeToMenuBar => 'Minimize to menu bar';
+
+  @override
+  String get desktopSettingsCloseToTray => 'Close to tray';
+
+  @override
+  String get desktopSettingsCloseToMenuBar => 'Close to menu bar';
 }

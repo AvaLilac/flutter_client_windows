@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxer_app/core/push/push_notification_ids.dart';
+import 'package:fluxer_app/core/push/notification/ids.dart';
 
 void main() {
   group('javaStringHashCode', () {
@@ -7,6 +7,10 @@ void main() {
       expect(javaStringHashCode(''), 0);
       expect(javaStringHashCode('a'), 97);
       expect(javaStringHashCode('msg-1'), 104190181);
+    });
+
+    test('wraps at 32 bits like Java', () {
+      expect(javaStringHashCode('summary:channel:1234567890'), 1353116102);
     });
   });
 

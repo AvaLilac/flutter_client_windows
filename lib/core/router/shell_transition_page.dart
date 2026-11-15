@@ -3,12 +3,13 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:fluxer_app/core/router/route_names.dart';
 import 'package:fluxer_app/core/theme/fluxer_motion_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/shell/hosted_ui/hosted_ui_root_scaffold.dart';
 import 'package:fluxer_app/features/shell/navigation/shell_transition_policy.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/shell/presentation/sidebar_drawer.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_sheet_motion.dart';
-import 'package:fluxer_app/features/voice/utils/voice_phone_call_layout.dart';
-import 'package:fluxer_app/features/voice/utils/voice_pip_morph.dart';
+import 'package:fluxer_app/features/voice/utils/pip/phone_call_layout.dart';
+import 'package:fluxer_app/features/voice/utils/pip/pip_morph.dart';
 import 'package:go_router/go_router.dart';
 
 ValueKey<String> guildChatPageKey(String guildId) =>
@@ -108,6 +109,7 @@ CustomTransitionPage<void> shellSlideTransitionPage({
           Widget child,
         ) {
           return SlideTransition(
+            textDirection: Directionality.of(context),
             position: SidebarDrawerSliderScope.isPresentingOf(context)
                 ? _kSettledOffset
                 : Tween<Offset>(
@@ -220,7 +222,7 @@ class _ShellCupertinoPushRoute extends PageRoute<void>
 
   @override
   Widget buildContent(BuildContext context) =>
-      FluxerSheetBackdrop(child: _page.child);
+      FluxerSheetBackdrop(child: HostedUiRootScaffold(child: _page.child));
 
   @override
   String? get title => null;

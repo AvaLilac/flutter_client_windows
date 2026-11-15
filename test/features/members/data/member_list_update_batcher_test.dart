@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart'
     show FluxerDatabase, Server, ServersCompanion;
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/features/members/data/member_list_update_batcher.dart';
 import 'package:fluxer_app/features/members/domain/member_list_viewport_state.dart';
 import 'package:fluxer_app/features/members/providers/member_list_viewport_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:fluxer_dart/gateway.dart';
 
@@ -30,7 +31,9 @@ void main() {
 
   MemberListViewportListState? listState(ProviderContainer container) =>
       container
-          .read(memberListViewportProvider.notifier)
+          .read(
+            memberListViewportProvider(readAccountUserId(container)).notifier,
+          )
           .getList(guildId: 'g1', channelId: 'c1');
 
   String? rowStatus(ProviderContainer container, String userId) {
@@ -43,11 +46,15 @@ void main() {
   }
 
   void enqueue(ProviderContainer container, GuildMemberListUpdateEvent update) {
-    container.read(memberListUpdateBatcherProvider).enqueue(update);
+    container
+        .read(memberListUpdateBatcherProvider(readAccountUserId(container)))
+        .enqueue(update);
   }
 
   void clearAll(ProviderContainer container) {
-    container.read(memberListUpdateBatcherProvider).clearAll();
+    container
+        .read(memberListUpdateBatcherProvider(readAccountUserId(container)))
+        .clearAll();
   }
 
   Future<void> waitForBatchWindow() => Future<void>.delayed(
@@ -177,10 +184,36 @@ void main() {
     },
   );
 
+  test('an unchanged SYNC flood writes no member or user rows', () async {
+    final container = buildContainer();
+    final FluxerDatabase database = container.read(fluxerDatabaseProvider);
+    MemberListOp page() => syncMembers(0, [
+      for (int i = 0; i < 100; i++) memberItem('u$i', status: 'online'),
+    ]);
+
+    enqueue(container, event(memberCount: 100, ops: [page()]));
+    await pumpEventQueue(times: 50);
+    expect(await database.memberDao.getMembers('g1'), hasLength(100));
+
+    final List<String> written = <String>[];
+    final subscription = database.tableUpdates().listen(
+      (updates) => written.addAll(updates.map((update) => update.table)),
+    );
+    addTearDown(subscription.cancel);
+    for (int i = 0; i < 20; i++) {
+      enqueue(container, event(memberCount: 100, ops: [page()]));
+    }
+    await waitForBatchWindow();
+    await pumpEventQueue(times: 50);
+
+    expect(listState(container)!.rows, hasLength(100));
+    expect(written, isNot(anyOf(contains('members'), contains('users'))));
+  });
+
   test('applies the local user own presence change immediately', () async {
     final container = buildContainer();
     container
-        .read(memberListViewportProvider.notifier)
+        .read(memberListViewportProvider(readAccountUserId(container)).notifier)
         .setSubscribedRanges(
           guildId: 'g1',
           channelId: 'c1',

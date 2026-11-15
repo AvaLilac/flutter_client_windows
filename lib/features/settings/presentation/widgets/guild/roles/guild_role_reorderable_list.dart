@@ -4,8 +4,8 @@ import 'package:fluxer_app/features/members/domain/member.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/guild/roles/guild_role_list_item.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/wide_settings_content_layout.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const double kGuildRoleDragTouchSize = 44;
 
@@ -50,7 +50,9 @@ class GuildRoleReorderableList extends ConsumerWidget {
       horizontalPadding,
       0,
       horizontalPadding,
-      kSettingsScrollBottomPadding,
+      !useMobileTileStyle && usesDesktopPointerUi(context)
+          ? 8
+          : kSettingsScrollBottomPadding,
     );
   }
 
@@ -86,6 +88,7 @@ class GuildRoleReorderableList extends ConsumerWidget {
     required MemberRole role,
     required int index,
     required bool useDragHandle,
+    required bool reserveIconSlot,
   }) {
     final bool canDrag = _canDragRole(role);
     return GuildRoleListItem(
@@ -94,6 +97,7 @@ class GuildRoleReorderableList extends ConsumerWidget {
       isLocked: isRoleLocked(role),
       showChevron: showChevron,
       useMobileTileStyle: useMobileTileStyle,
+      reserveIconSlot: reserveIconSlot,
       dragHandle: useDragHandle && canDrag
           ? _buildDragHandle(context, index, true)
           : null,
@@ -104,6 +108,8 @@ class GuildRoleReorderableList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bool useDragHandle = isTouchPrimaryInput(ref);
+    final bool reserveIconSlot =
+        !useMobileTileStyle && items.any((MemberRole role) => role.hasIcon);
     if (!canManageRoles) {
       return ListView.builder(
         padding: _listPadding(context),
@@ -116,6 +122,7 @@ class GuildRoleReorderableList extends ConsumerWidget {
               role: items[index],
               index: index,
               useDragHandle: false,
+              reserveIconSlot: reserveIconSlot,
             ),
           );
         },
@@ -135,6 +142,7 @@ class GuildRoleReorderableList extends ConsumerWidget {
             role: role,
             index: index,
             useDragHandle: useDragHandle,
+            reserveIconSlot: reserveIconSlot,
           ),
         );
         if (useDragHandle) {

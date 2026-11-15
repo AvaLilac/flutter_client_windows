@@ -2,14 +2,16 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/api/dio_error_message.dart';
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
+import 'package:fluxer_app/core/build/app_build_config.dart';
 import 'package:fluxer_app/core/constants/contact_emails.dart';
 import 'package:fluxer_app/core/premium/premium_billing_service.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
-import 'package:fluxer_app/features/settings/providers/premium_settings_state_provider.dart';
-import 'package:fluxer_app/features/settings/utils/premium_purchases_disabled_l10n.dart';
-import 'package:fluxer_app/features/settings/utils/premium_subscription_manage.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/features/settings/providers/commerce/premium_settings_state_provider.dart';
+import 'package:fluxer_app/features/settings/utils/commerce/premium_purchases_disabled_l10n.dart';
+import 'package:fluxer_app/features/settings/utils/commerce/premium_subscription_manage.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
-import 'package:fluxer_app/features/shell/providers/current_user_private_provider.dart';
+import 'package:fluxer_app/features/shell/providers/user/current_user_private_provider.dart';
 import 'package:fluxer_app/features/ui/modal/fluxer_modal.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
@@ -96,6 +98,7 @@ Future<void> startPremiumCheckout({
       priceId: priceId,
       countryCode: countryCode,
       paymentMethod: paymentMethod,
+      distribution: AppBuildConfig.distribution,
     );
     final UrlResponse response = selected.isGift
         ? await client.billing.createGiftCheckoutSession(body: body)
@@ -178,7 +181,9 @@ Future<void> openPremiumManageAction(
 }
 
 Future<void> _refreshPremiumBillingState(WidgetRef ref) async {
-  await ref.read(currentUserPrivateReadProvider.notifier).refresh();
+  await ref
+      .read(currentUserPrivateReadProvider(readAccountUserId(ref)).notifier)
+      .refresh();
   await ref.read(premiumSettingsStateProvider.notifier).refresh();
 }
 

@@ -29,6 +29,20 @@ class AppBuildConfig {
   static const String _canaryNumberValue = String.fromEnvironment(
     'CANARY_NUMBER',
   );
+  // ignore: do_not_use_environment -- compile-time build flavor config
+  static const String _observabilityReportingValue = String.fromEnvironment(
+    'OBSERVABILITY_REPORTING',
+    defaultValue: 'true',
+  );
+  // ignore: do_not_use_environment -- compile-time build flavor config
+  static const String _distributionValue = String.fromEnvironment(
+    'FLUXER_DISTRIBUTION',
+  );
+  static const String _playIntegrityCloudProjectNumberValue =
+      // ignore: do_not_use_environment -- compile-time build flavor config
+      String.fromEnvironment('PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER');
+  static String get playIntegrityCloudProjectNumber =>
+      _playIntegrityCloudProjectNumberValue.trim();
   static AppBuildEnvironment get environment {
     switch (_environmentValue) {
       case 'canary':
@@ -73,9 +87,33 @@ class AppBuildConfig {
     }
   }
 
-  /// OSS Android builds use UnifiedPush and expose Stripe web checkout in settings.
-  static bool get isOssWebCheckout =>
-      pushProvider == PushProviderKind.unifiedPush;
+  static String? get distribution => parseDistribution(_distributionValue);
+
+  static final RegExp _distributionPattern = RegExp(r'^[a-z0-9_]{1,32}$');
+
+  static String? parseDistribution(String raw) {
+    if (raw.isEmpty) {
+      return null;
+    }
+    if (!_distributionPattern.hasMatch(raw)) {
+      throw StateError(
+        'FLUXER_DISTRIBUTION "$raw" is not a valid distribution id',
+      );
+    }
+    return raw;
+  }
+
+  static bool get isWebCheckout => resolveWebCheckout(
+    pushProvider: pushProvider,
+    distribution: distribution,
+  );
+
+  static bool resolveWebCheckout({
+    required PushProviderKind pushProvider,
+    required String? distribution,
+  }) {
+    return pushProvider == PushProviderKind.unifiedPush || distribution != null;
+  }
 
   static bool get isBlueskyEnabled => _blueskyEnabled;
   static String get buildTimestamp => _buildTimestampValue;
@@ -96,7 +134,21 @@ class AppBuildConfig {
     return int.tryParse(trimmed);
   }
 
+  static bool parseObservabilityReportingEnabled(String raw) {
+    final String normalized = raw.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return true;
+    }
+    return normalized != 'false' && normalized != '0';
+  }
+
+  static bool get _observabilityReportingEnabled =>
+      parseObservabilityReportingEnabled(_observabilityReportingValue);
+
   static bool get hasObservabilityConfig {
+    if (!_observabilityReportingEnabled) {
+      return false;
+    }
     if (kIsWeb) {
       return false;
     }

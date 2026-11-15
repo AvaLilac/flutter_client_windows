@@ -10,7 +10,7 @@ import 'package:fluxer_app/core/theme/fluxer_color_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/providers/channel_providers.dart';
-import 'package:fluxer_app/features/channels/utils/navigate_to_channel_content.dart';
+import 'package:fluxer_app/features/channels/utils/navigation/navigate_to_channel_content.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/composer_autocomplete_field.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/message_character_counter.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/composer/slowmode_send_blocked_notice.dart';
@@ -28,7 +28,7 @@ import 'package:fluxer_app/features/ui/input/fluxer_clipboard_scope.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 
 const int kShareMediaSelectionLimit = 5;
 
@@ -41,6 +41,7 @@ Future<void> showShareMediaSheet(
   return FluxerBottomSheet.showScrollable<void>(
     context,
     title: l10n.shareMediaTitle,
+    bottomGap: false,
     builder: (sheetContext, scrollController, close) => _ShareMediaSheetBody(
       files: files,
       initialMessage: initialMessage,
@@ -527,8 +528,8 @@ class _ShareMediaSheetBodyState extends ConsumerState<_ShareMediaSheetBody> {
                   ),
           ),
           if (widget.files.length > 1)
-            Positioned(
-              right: 0,
+            PositionedDirectional(
+              end: 0,
               bottom: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -609,7 +610,7 @@ class _ShareMediaSheetBodyState extends ConsumerState<_ShareMediaSheetBody> {
                       vertical: 10,
                     ),
                     suffixIcon: Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsetsDirectional.only(end: 8),
                       child: FluxerGestureDetector(
                         onTap: messageDisabled ? null : _openEmojiPicker,
                         child: Icon(

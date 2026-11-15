@@ -11,10 +11,12 @@ import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/forum/data/forum_repository.dart';
 import 'package:fluxer_app/features/forum/domain/forum_channel.dart';
+import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
 import 'package:fluxer_app/features/threads/presentation/thread_browser_sheet.dart';
 import 'package:fluxer_app/features/threads/providers/thread_ui_providers.dart';
 import 'package:fluxer_app/material_ui.dart';
 
+import '../../helpers/open_test_database.dart';
 import '../../helpers/pump_fluxer_app.dart';
 
 const Channel _parent = Channel(id: '100', guildId: 'g1', name: 'general');
@@ -69,12 +71,13 @@ class _FakeRepository implements ForumRepository {
 void main() {
   late _FakeRepository repository;
 
-  Future<void> openBrowser(WidgetTester tester) async {
+  Future<void> openBrowser(WidgetTester tester, {bool gated = false}) async {
     await tester.binding.setSurfaceSize(const Size(400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       pumpFluxerApp(
         overrides: <Override>[
+          fluxerDatabaseProvider.overrideWithValue(openTestDatabase()),
           forumRepositoryProvider.overrideWithValue(repository),
           parentThreadActorProvider('g1', '100').overrideWithValue(
             ThreadActor(
@@ -91,9 +94,9 @@ void main() {
             const AsyncData<Set<String>>(<String>{}),
           ),
           currentUserIdProvider.overrideWithValue('u1'),
-          fluxerDatabaseProvider.overrideWith(
-            (Ref ref) => throw UnimplementedError(),
-          ),
+          shouldShowMatureContentGateProvider(
+            '100',
+          ).overrideWith((Ref ref) => Future<bool>.value(gated)),
         ],
         child: Consumer(
           builder: (BuildContext context, WidgetRef ref, _) => Scaffold(
@@ -117,6 +120,15 @@ void main() {
   }
 
   setUp(() => repository = _FakeRepository());
+
+  testWidgets('a locked 18+ parent opens no thread list', (
+    WidgetTester tester,
+  ) async {
+    await openBrowser(tester, gated: true);
+
+    expect(find.text('Release notes'), findsNothing);
+    expect(find.text('Bug triage'), findsNothing);
+  });
 
   testWidgets('a matching query lists only the matching threads', (
     WidgetTester tester,
@@ -144,6 +156,7 @@ void main() {
     expect(repository.queries.last.archived, isTrue);
     expect(find.text('Old bug bash'), findsOneWidget);
     expect(find.text('Bug triage'), findsNothing);
+    await releaseTestWidgetTree(tester);
   });
 
   testWidgets('a query without matches shows the empty state', (
@@ -157,6 +170,7 @@ void main() {
       find.text('Try a different name or check the other tab.'),
       findsOneWidget,
     );
+    await releaseTestWidgetTree(tester);
   });
 
   testWidgets('a failed search shows an error with retry', (
@@ -175,6 +189,7 @@ void main() {
     await pumpFluxerFrames(tester);
 
     expect(find.text('Bug triage'), findsOneWidget);
+    await releaseTestWidgetTree(tester);
   });
 
   testWidgets('clearing the query restores the tab list', (
@@ -186,5 +201,6 @@ void main() {
 
     expect(find.text('Release notes'), findsOneWidget);
     expect(repository.queries, hasLength(1));
+    await releaseTestWidgetTree(tester);
   });
 }

@@ -4,7 +4,7 @@ import 'package:fluxer_app/features/channels/providers/channel_typing_provider.d
 import 'package:fluxer_app/features/chat/utils/composer/typing_indicator_text.dart';
 import 'package:fluxer_app/features/friends/providers/friend_providers.dart';
 import 'package:fluxer_app/features/profile/providers/user_presence_provider.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_avatar.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_avatar_stack.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_typing_dots.dart';
@@ -63,7 +63,7 @@ class ChannelListTypingIndicator extends ConsumerWidget {
         ? colors.textPrimary
         : colors.textSecondary;
     return Padding(
-      padding: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsetsDirectional.only(start: 4),
       child: FluxerTooltip(
         richMessage: _TypingTooltipText(userIds: userIds, guildId: guildId),
         child: RepaintBoundary(

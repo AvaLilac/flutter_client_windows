@@ -2,6 +2,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_ready_provider.dart';
+import 'package:fluxer_app/core/push/notification/pending_path_provider.dart';
 import 'package:fluxer_app/core/router/app_location_persistence.dart';
 import 'package:fluxer_app/core/router/guild_root_redirect.dart';
 import 'package:fluxer_app/core/router/pending_app_location.dart';
@@ -376,14 +378,66 @@ void main() {
         '/channels/guild-2/chan-2',
       );
     });
+
+    Future<(String, String?)> restoreUnknownDm({
+      required bool gatewayReady,
+    }) async {
+      const String path = '${RoutePaths.me}/new-dm-123';
+      final PendingAppLocation pending = PendingAppLocation(
+        store: _PendingStore(),
+      );
+      addTearDown(pending.dispose);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      if (gatewayReady) {
+        container.read(gatewayReadyProvider.notifier).setReady();
+      }
+      container.read(pendingPushNotificationPathProvider.notifier).store(path);
+
+      final String location = await container
+          .read(preReconnectingLocationProvider.notifier)
+          .takeOrRestore(
+            db,
+            currentUserId: null,
+            pending: pending,
+            preferredPath: path,
+          );
+      return (
+        location,
+        container.read(pendingPushNotificationPathProvider)?.path,
+      );
+    }
+
+    test(
+      'keeps a pending push path the cache cannot resolve before READY',
+      () async {
+        final (String location, String? stillPending) = await restoreUnknownDm(
+          gatewayReady: false,
+        );
+        expect(location, RoutePaths.me);
+        expect(stillPending, '${RoutePaths.me}/new-dm-123');
+      },
+    );
+
+    test('drops an unresolvable pending push path after READY', () async {
+      final (String location, String? stillPending) = await restoreUnknownDm(
+        gatewayReady: true,
+      );
+      expect(location, RoutePaths.me);
+      expect(stillPending, isNull);
+    });
   });
 
   group('clearPersistedLocation', () {
     test('clears app location and guild last channel', () async {
+      await addGuild('guild-1');
+      await addGuildChannel('chan-1', 'guild-1');
+      await addGuild('guild-2');
+      await addGuildChannel('other', 'guild-2');
       persistAppLocation(db, '/channels/guild-1/chan-1');
       persistGuildChannelFromLocation(db, '/channels/guild-1/chan-1');
       persistGuildChannelFromLocation(db, '/channels/guild-2/other');
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue();
 
       await clearPersistedLocation(db, '/channels/guild-1/chan-1');
 

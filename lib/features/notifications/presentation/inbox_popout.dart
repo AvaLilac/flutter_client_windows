@@ -13,13 +13,17 @@ import 'package:fluxer_app/features/notifications/presentation/widgets/mention_f
 import 'package:fluxer_app/features/notifications/presentation/widgets/notifications_mentions_body.dart';
 import 'package:fluxer_app/features/notifications/presentation/widgets/notifications_unreads_body.dart';
 import 'package:fluxer_app/features/notifications/providers/notifications_providers.dart';
-import 'package:fluxer_app/features/settings/providers/advanced_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/advanced_preferences_provider.dart';
+import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
+import 'package:fluxer_app/features/ui/desktop_surface/fluxer_desktop_surface.dart';
 import 'package:fluxer_app/features/ui/settings/fluxer_settings_confirm_sheet.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
+import 'package:fluxer_app/features/ui/tappable/fluxer_tappable.dart';
 import 'package:fluxer_app/features/ui/tooltip/fluxer_tooltip.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
+import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 
 enum InboxTab { unreads, bookmarks, mentions }
 
@@ -41,18 +45,16 @@ class InboxPopoutButton extends StatefulWidget {
 
 class _InboxPopoutButtonState extends State<InboxPopoutButton>
     with SingleTickerProviderStateMixin {
-  static const double _kMaxHeight = 900;
-  static const double _kMaxWidth = 600;
-  static const double _kBlockGap = 48;
-  static const double _kInlineGap = 24;
+  static const double _kDefaultHeight = 900;
+  static const double _kDefaultWidth = 600;
+  static const double _kMinHeight = 400;
+  static const double _kViewportPadding = 16;
+  static const double _kAnchorGap = 8;
 
-  final LayerLink _layerLink = LayerLink();
   final OverlayPortalController _overlayController = OverlayPortalController();
 
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
-
-  bool _openUpward = false;
 
   @override
   void initState() {
@@ -84,8 +86,7 @@ class _InboxPopoutButtonState extends State<InboxPopoutButton>
       _close();
       return;
     }
-    _computeDirection();
-    _overlayController.show();
+    setState(_overlayController.show);
     _animationController.forward();
   }
 
@@ -93,45 +94,55 @@ class _InboxPopoutButtonState extends State<InboxPopoutButton>
     unawaited(
       _animationController.reverse().then((_) {
         if (mounted && _overlayController.isShowing) {
-          _overlayController.hide();
+          setState(_overlayController.hide);
         }
       }),
     );
   }
 
-  void _computeDirection() {
-    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) {
-      _openUpward = false;
-      return;
-    }
-    final double screenHeight = MediaQuery.sizeOf(context).height;
-    final double anchorBottom = renderBox
-        .localToGlobal(Offset(0, renderBox.size.height))
-        .dy;
-    final double popoutHeight = _popoutHeight(context);
-    _openUpward = screenHeight - anchorBottom < popoutHeight + 8;
-  }
-
-  double _popoutHeight(BuildContext context) {
-    final double viewportHeight = MediaQuery.sizeOf(context).height;
-    return math.min(_kMaxHeight, viewportHeight - _kBlockGap);
-  }
-
-  double _popoutWidth(BuildContext context) {
-    final Size viewport = MediaQuery.sizeOf(context);
-    final double proportional = math.max(0, viewport.height * 0.666667 - 32);
-    return math.min(
-      _kMaxWidth,
-      math.min(proportional, viewport.width - _kInlineGap),
-    );
-  }
-
-  Widget _buildOverlay(BuildContext context) {
+  Widget _buildOverlay(BuildContext context, OverlayChildLayoutInfo info) {
     final FluxerColorTheme colors = context.colors;
     final FluxerLayoutTheme layout = context.layout;
-    final double width = _popoutWidth(context);
-    final double height = _popoutHeight(context);
+    final bool desktop = usesDesktopPointerUi(context);
+    final EdgeInsets insets = MediaQuery.paddingOf(context);
+    final Size overlay = info.overlaySize;
+    final Rect anchor = MatrixUtils.transformRect(
+      info.childPaintTransform,
+      Offset.zero & info.childSize,
+    );
+
+    final double minLeft = insets.left + _kViewportPadding;
+    final double maxRight = overlay.width - insets.right - _kViewportPadding;
+    final double minTop = insets.top + _kViewportPadding;
+    final double maxBottom = overlay.height - insets.bottom - _kViewportPadding;
+
+    final double width = math.max(
+      0,
+      math.min(_kDefaultWidth, maxRight - minLeft),
+    );
+    final double desiredHeight = math.max(
+      0,
+      math.min(_kDefaultHeight, maxBottom - minTop),
+    );
+    final double spaceBelow = maxBottom - anchor.bottom - _kAnchorGap;
+    final double spaceAbove = anchor.top - _kAnchorGap - minTop;
+    final bool openUpward =
+        spaceBelow < math.min(desiredHeight, _kMinHeight) &&
+        spaceAbove > spaceBelow;
+    final double height = math.max(
+      0,
+      math.min(desiredHeight, openUpward ? spaceAbove : spaceBelow),
+    );
+    final double preferredLeft = Directionality.of(context) == TextDirection.rtl
+        ? anchor.left
+        : anchor.right - width;
+    final double left = math.max(
+      minLeft,
+      math.min(preferredLeft, maxRight - width),
+    );
+    final double top = openUpward
+        ? anchor.top - _kAnchorGap - height
+        : anchor.bottom + _kAnchorGap;
 
     return Stack(
       children: <Widget>[
@@ -142,42 +153,31 @@ class _InboxPopoutButtonState extends State<InboxPopoutButton>
             child: const ColoredBox(color: Colors.transparent),
           ),
         ),
-        FadeTransition(
-          opacity: _fadeAnimation,
-          child: CompositedTransformFollower(
-            link: _layerLink,
-            targetAnchor: _openUpward
-                ? Alignment.topRight
-                : Alignment.bottomRight,
-            followerAnchor: _openUpward
-                ? Alignment.bottomRight
-                : Alignment.topRight,
-            offset: Offset(0, _openUpward ? -4 : 4),
-            child: Align(
-              alignment: _openUpward
-                  ? Alignment.bottomRight
-                  : Alignment.topRight,
-              child: SizedBox(
-                width: width,
-                height: height,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.backgroundSecondary,
-                    borderRadius: layout.radiusLg,
-                    border: Border.all(color: colors.backgroundModifierAccent),
-                    boxShadow: const <BoxShadow>[
-                      BoxShadow(
-                        color: Color.fromRGBO(0, 0, 0, 0.2),
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
+        Positioned(
+          left: left,
+          top: top,
+          width: width,
+          height: height,
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: desktop
+                    ? fluxerFormSurfaceBackground(context)
+                    : colors.backgroundSecondary,
+                borderRadius: layout.radiusLg,
+                border: Border.all(color: colors.backgroundModifierAccent),
+                boxShadow: const <BoxShadow>[
+                  BoxShadow(
+                    color: Color.fromRGBO(0, 0, 0, 0.2),
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
                   ),
-                  child: ClipRRect(
-                    borderRadius: layout.radiusLg,
-                    child: InboxPopout(onClose: _close),
-                  ),
-                ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: layout.radiusLg,
+                child: InboxPopout(onClose: _close),
               ),
             ),
           ),
@@ -189,13 +189,10 @@ class _InboxPopoutButtonState extends State<InboxPopoutButton>
   @override
   Widget build(BuildContext context) {
     final bool isOpen = _overlayController.isShowing;
-    return OverlayPortal(
+    return OverlayPortal.overlayChildLayoutBuilder(
       controller: _overlayController,
       overlayChildBuilder: _buildOverlay,
-      child: CompositedTransformTarget(
-        link: _layerLink,
-        child: widget.anchorBuilder(context, isOpen: isOpen, toggle: _toggle),
-      ),
+      child: widget.anchorBuilder(context, isOpen: isOpen, toggle: _toggle),
     );
   }
 }
@@ -260,15 +257,18 @@ class _InboxPopoutState extends ConsumerState<InboxPopout> {
       data: (List<UnreadInboxEntry> list) => list.isNotEmpty,
       orElse: () => false,
     );
+    final bool desktop = usesDesktopPointerUi(context);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         DecoratedBox(
           decoration: BoxDecoration(
-            color: colors.backgroundSecondary,
-            border: Border(
-              right: BorderSide(color: colors.backgroundModifierAccent),
+            color: desktop
+                ? fluxerFormSurfaceBackground(context)
+                : colors.backgroundSecondary,
+            border: BorderDirectional(
+              end: BorderSide(color: colors.backgroundModifierAccent),
             ),
           ),
           child: SizedBox(
@@ -285,14 +285,16 @@ class _InboxPopoutState extends ConsumerState<InboxPopout> {
                 const SizedBox(height: 8),
                 _InboxSidebarTab(
                   tooltip: l10n.notificationsBookmarksTooltip,
-                  icon: PhosphorIconsBold.bookmarkSimple,
+                  icon: desktop
+                      ? PhosphorIconsRegular.bookmarkSimple
+                      : PhosphorIconsBold.bookmarkSimple,
                   isActive: _activeTab == InboxTab.bookmarks,
                   onTap: () => setState(() => _activeTab = InboxTab.bookmarks),
                 ),
                 const SizedBox(height: 8),
                 _InboxSidebarTab(
                   tooltip: l10n.notificationsFilterMentions,
-                  icon: PhosphorIconsFill.at,
+                  icon: desktop ? PhosphorIconsBold.at : PhosphorIconsFill.at,
                   isActive: _activeTab == InboxTab.mentions,
                   onTap: () => setState(() => _activeTab = InboxTab.mentions),
                 ),
@@ -305,7 +307,7 @@ class _InboxPopoutState extends ConsumerState<InboxPopout> {
                       position: FluxerTooltipPosition.right,
                       child: _InboxSidebarActionButton(
                         icon: PhosphorIconsBold.funnel,
-                        tooltip: l10n.notificationsMentionFilterTooltip,
+                        label: l10n.notificationsMentionFilterTooltip,
                         onPressed: () => unawaited(
                           showMentionFiltersSheet(
                             context,
@@ -323,7 +325,7 @@ class _InboxPopoutState extends ConsumerState<InboxPopout> {
                       position: FluxerTooltipPosition.right,
                       child: _InboxSidebarActionButton(
                         icon: PhosphorIconsBold.check,
-                        tooltip: l10n.notificationsMarkAsRead,
+                        label: l10n.notificationsMarkAsRead,
                         onPressed: canMarkAllRead
                             ? () => unawaited(_confirmAndMarkAllAsRead())
                             : null,
@@ -362,15 +364,107 @@ class _InboxSidebarTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FluxerColorTheme colors = context.colors;
+    if (!usesDesktopPointerUi(context)) {
+      return FluxerTooltip(
+        message: tooltip,
+        position: FluxerTooltipPosition.right,
+        child: _InboxTouchIconButton(
+          icon: icon,
+          onTap: onTap,
+          isActive: isActive,
+        ),
+      );
+    }
     return FluxerTooltip(
       message: tooltip,
       position: FluxerTooltipPosition.right,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(6),
-          hoverColor: colors.backgroundModifierHover,
-          onTap: onTap,
+      child: FluxerTappable(
+        selected: isActive,
+        onTap: onTap,
+        builder: (BuildContext context, Set<WidgetState> states) {
+          final bool hovered = states.contains(WidgetState.hovered);
+          return AnimatedContainer(
+            duration: context.motion.fast,
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isActive
+                  ? colors.backgroundModifierSelected
+                  : hovered
+                  ? colors.backgroundModifierHover
+                  : Colors.transparent,
+              borderRadius: context.layout.radiusMd,
+            ),
+            child: PhosphorIcon(
+              icon,
+              size: 16,
+              color: isActive || hovered
+                  ? colors.textPrimary
+                  : colors.textPrimaryMuted,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _InboxSidebarActionButton extends StatelessWidget {
+  const _InboxSidebarActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (usesDesktopPointerUi(context)) {
+      return FluxerButton.desktop(
+        icon: icon,
+        semanticLabel: label,
+        extent: 30,
+        borderRadius: 6,
+        duration: Duration.zero,
+        onPressed: onPressed,
+      );
+    }
+    return Semantics(
+      button: true,
+      label: label,
+      enabled: onPressed != null,
+      child: _InboxTouchIconButton(icon: icon, onTap: onPressed),
+    );
+  }
+}
+
+class _InboxTouchIconButton extends StatelessWidget {
+  const _InboxTouchIconButton({
+    required this.icon,
+    required this.onTap,
+    this.isActive = false,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final FluxerColorTheme colors = context.colors;
+    final bool enabled = onTap != null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        hoverColor: enabled ? colors.backgroundModifierHover : null,
+        onTap: onTap,
+        child: Opacity(
+          opacity: enabled ? 1 : 0.5,
           child: Container(
             width: 30,
             height: 30,
@@ -385,50 +479,6 @@ class _InboxSidebarTab extends StatelessWidget {
               icon,
               size: 16,
               color: isActive ? colors.textPrimary : colors.textPrimaryMuted,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InboxSidebarActionButton extends StatelessWidget {
-  const _InboxSidebarActionButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final FluxerColorTheme colors = context.colors;
-    final bool enabled = onPressed != null;
-    return Semantics(
-      button: true,
-      label: tooltip,
-      enabled: enabled,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(6),
-          hoverColor: enabled ? colors.backgroundModifierHover : null,
-          onTap: onPressed,
-          child: Opacity(
-            opacity: enabled ? 1 : 0.5,
-            child: Container(
-              width: 30,
-              height: 30,
-              alignment: Alignment.center,
-              child: PhosphorIcon(
-                icon,
-                size: 16,
-                color: colors.textPrimaryMuted,
-              ),
             ),
           ),
         ),

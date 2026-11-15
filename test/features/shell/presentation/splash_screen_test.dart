@@ -3,22 +3,23 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/api/service_unavailable.dart';
+import 'package:fluxer_app/core/bootstrap/startup_first_frame_gate.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart'
     show FluxerDatabase;
-import 'package:fluxer_app/core/providers/app_startup_provider.dart';
+import 'package:fluxer_app/core/providers/app/app_startup_provider.dart';
+import 'package:fluxer_app/core/providers/app/splash_exit_allowed_provider.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
-import 'package:fluxer_app/core/providers/splash_exit_allowed_provider.dart';
-import 'package:fluxer_app/core/providers/well_known_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_ready_provider.dart';
+import 'package:fluxer_app/core/providers/instance/well_known_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/auth/domain/stored_account.dart';
 import 'package:fluxer_app/features/auth/providers/account_manager_provider.dart';
 import 'package:fluxer_app/features/dm/providers/unread_dm_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_read_state_ready_provider.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
 import 'package:fluxer_app/features/shell/domain/service_status_incident.dart';
 import 'package:fluxer_app/features/shell/presentation/splash_screen.dart';
-import 'package:fluxer_app/features/shell/providers/service_status_incident_provider.dart';
+import 'package:fluxer_app/features/shell/providers/service_status/service_status_incident_provider.dart';
 import 'package:fluxer_app/features/ui/icons/instance_branding_image.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:riverpod/src/framework.dart' show Override;
@@ -39,6 +40,18 @@ class _UnavailableAppStartup extends AppStartup {
       Future<void>.error(const ServiceUnavailableException(statusCode: 503));
 }
 
+int _unavailableBuilds = 0;
+
+class _AutoRetriedUnavailableAppStartup extends AppStartup {
+  @override
+  Future<void> build() {
+    _unavailableBuilds++;
+    return Future<void>.error(
+      const ServiceUnavailableException(statusCode: 502),
+    );
+  }
+}
+
 class _GenericFailAppStartup extends AppStartup {
   @override
   Future<void> build() => Future<void>.error(Exception('boot failure'));
@@ -47,6 +60,11 @@ class _GenericFailAppStartup extends AppStartup {
 class _ReadyAppStartup extends AppStartup {
   @override
   Future<void> build() async {}
+}
+
+class _SlowAppStartup extends AppStartup {
+  @override
+  Future<void> build() => Future<void>.delayed(const Duration(seconds: 3));
 }
 
 class _ReadyGateway extends GatewayReady {
@@ -111,13 +129,16 @@ List<Override> _splashOverrides(List<Override> overrides) {
 Future<bool> _revealCompleteAfter(
   WidgetTester tester, {
   required bool switching,
+  bool lingered = true,
 }) async {
   await tester.pumpWidget(
     pumpFluxerApp(
       disableAnimations: false,
       overrides: _splashOverrides(<Override>[
         fluxerDatabaseProvider.overrideWithValue(_database),
-        appStartupProvider.overrideWith(_ReadyAppStartup.new),
+        appStartupProvider.overrideWith(
+          lingered ? _SlowAppStartup.new : _ReadyAppStartup.new,
+        ),
         gatewayReadyProvider.overrideWith(_ReadyGateway.new),
         authStateProvider.overrideWith(_Authenticated.new),
         appearancePreferencesProvider.overrideWithValue(
@@ -135,6 +156,9 @@ Future<bool> _revealCompleteAfter(
   final ProviderContainer container = ProviderScope.containerOf(
     tester.element(find.byType(SplashScreen)),
   );
+  if (lingered) {
+    await tester.pump(const Duration(seconds: 3));
+  }
   container.read(guildReadStateReadyProvider.notifier).markReady();
   await tester.pump();
   await tester.pump();
@@ -195,10 +219,118 @@ void main() {
     await releaseTestWidgetTree(tester);
   });
 
+  testWidgets('quick launch reveal fades without the logo zoom', (
+    tester,
+  ) async {
+    expect(
+      await _revealCompleteAfter(tester, switching: false, lingered: false),
+      isTrue,
+    );
+    await releaseTestWidgetTree(tester);
+  });
+
   testWidgets('account switch reveal skips the logo zoom', (tester) async {
     expect(await _revealCompleteAfter(tester, switching: true), isTrue);
     await releaseTestWidgetTree(tester);
   });
+
+  testWidgets('hydration wait exits the splash with animations disabled', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      pumpFluxerApp(
+        overrides: _splashOverrides(<Override>[
+          fluxerDatabaseProvider.overrideWithValue(_database),
+          appStartupProvider.overrideWith(_ReadyAppStartup.new),
+          gatewayReadyProvider.overrideWith(_ReadyGateway.new),
+          authStateProvider.overrideWith(_Authenticated.new),
+          appearancePreferencesProvider.overrideWithValue(
+            const AppearancePreferencesState(),
+          ),
+          unreadDmChannelsProvider.overrideWithValue(const UnreadDmState()),
+        ]),
+        child: const SplashScreen(),
+      ),
+    );
+    await tester.pump();
+    final ProviderContainer container = ProviderScope.containerOf(
+      tester.element(find.byType(SplashScreen)),
+    );
+    container.read(guildReadStateReadyProvider.notifier).markReady();
+    await tester.pump();
+    expect(container.read(splashExitAllowedProvider), isFalse);
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    expect(container.read(splashExitAllowedProvider), isTrue);
+    await releaseTestWidgetTree(tester);
+  });
+
+  testWidgets(
+    'a held cached launch releases the frame and fades into the shell',
+    (tester) async {
+      StartupFirstFrameGate.hold(limit: const Duration(minutes: 1));
+      await tester.pumpWidget(
+        pumpFluxerApp(
+          disableAnimations: false,
+          overrides: _splashOverrides(<Override>[
+            fluxerDatabaseProvider.overrideWithValue(_database),
+            appStartupProvider.overrideWith(_ReadyAppStartup.new),
+            gatewayReadyProvider.overrideWith(_ReadyGateway.new),
+            authStateProvider.overrideWith(_Authenticated.new),
+            appearancePreferencesProvider.overrideWithValue(
+              const AppearancePreferencesState(),
+            ),
+            unreadDmChannelsProvider.overrideWithValue(
+              const UnreadDmState(loaded: true),
+            ),
+          ]),
+          child: const SplashScreen(),
+        ),
+      );
+      await tester.pump();
+      final ProviderContainer container = ProviderScope.containerOf(
+        tester.element(find.byType(SplashScreen)),
+      );
+      container.read(guildReadStateReadyProvider.notifier).markReady();
+      await tester.pump();
+      await tester.pump();
+
+      expect(container.read(splashExitAllowedProvider), isTrue);
+      expect(container.read(splashRevealZoomProvider), isTrue);
+      expect(container.read(splashRevealCompleteProvider), isFalse);
+      expect(StartupFirstFrameGate.isHeld, isFalse);
+
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(container.read(splashRevealCompleteProvider), isTrue);
+      await releaseTestWidgetTree(tester);
+    },
+  );
+
+  testWidgets(
+    'a launch waiting for the gateway releases the held first frame',
+    (tester) async {
+      StartupFirstFrameGate.hold(limit: const Duration(minutes: 1));
+      await tester.pumpWidget(
+        pumpFluxerApp(
+          overrides: _splashOverrides(<Override>[
+            fluxerDatabaseProvider.overrideWithValue(_database),
+            appStartupProvider.overrideWith(_ReadyAppStartup.new),
+            authStateProvider.overrideWith(_Authenticated.new),
+          ]),
+          child: const SplashScreen(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(StartupFirstFrameGate.isHeld, isFalse);
+      expect(find.byType(InstanceBrandMark), findsOneWidget);
+      await releaseTestWidgetTree(tester);
+    },
+  );
 
   testWidgets('503 startup shows outage copy and status links', (tester) async {
     await tester.pumpWidget(
@@ -220,6 +352,37 @@ void main() {
     expect(find.text(testL10n.splashStatusPageLink), findsOneWidget);
     expect(find.text(testL10n.retry), findsOneWidget);
     expect(find.textContaining('Failed to start'), findsNothing);
+    await releaseTestWidgetTree(tester);
+  });
+
+  testWidgets('outage copy and Retry stay up across automatic retries', (
+    tester,
+  ) async {
+    _unavailableBuilds = 0;
+    await tester.pumpWidget(
+      pumpFluxerApp(
+        overrides: _splashOverrides(<Override>[
+          fluxerDatabaseProvider.overrideWithValue(_database),
+          appStartupProvider.overrideWith(
+            _AutoRetriedUnavailableAppStartup.new,
+          ),
+          serviceStatusIncidentReadProvider.overrideWith(_NoopIncidentRead.new),
+        ]),
+        child: const SplashScreen(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text(testL10n.splashConnectionLost), findsOneWidget);
+    expect(find.text(testL10n.retry), findsOneWidget);
+
+    for (final int ms in <int>[200, 400, 800]) {
+      await tester.pump(Duration(milliseconds: ms));
+      await tester.pump();
+      expect(find.text(testL10n.splashConnectionLost), findsOneWidget);
+      expect(find.text(testL10n.retry), findsOneWidget);
+    }
+    expect(_unavailableBuilds, greaterThanOrEqualTo(3));
     await releaseTestWidgetTree(tester);
   });
 
@@ -296,6 +459,36 @@ void main() {
       await releaseTestWidgetTree(tester);
     },
   );
+
+  testWidgets('keeps the logo at the screen center when copy is shown', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.625;
+    tester.view.padding = const FakeViewPadding(top: 126, bottom: 63);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      pumpFluxerApp(
+        retry: (int retryCount, Object error) => null,
+        overrides: _splashOverrides(<Override>[
+          fluxerDatabaseProvider.overrideWithValue(_database),
+          appStartupProvider.overrideWith(_UnavailableAppStartup.new),
+          serviceStatusIncidentReadProvider.overrideWith(_NoopIncidentRead.new),
+        ]),
+        child: const SplashScreen(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text(testL10n.retry), findsOneWidget);
+    final Size screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    expect(
+      tester.getCenter(find.byType(InstanceBrandMark)),
+      screen.center(Offset.zero),
+    );
+    await releaseTestWidgetTree(tester);
+  });
 
   testWidgets('exposes a live status region and hides decorative branding', (
     tester,

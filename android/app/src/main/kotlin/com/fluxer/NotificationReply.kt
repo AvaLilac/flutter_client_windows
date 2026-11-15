@@ -10,11 +10,15 @@ internal const val EXTRA_CHANNEL_ID = "channel_id"
 internal const val EXTRA_MESSAGE_ID = "message_id"
 internal const val EXTRA_USER_ID = "target_user_id"
 internal const val EXTRA_FEATURES = "fluxer_features"
+internal const val EXTRA_REPLY_MENTION = "fluxer_reply_mention"
+internal const val EXTRA_FAILURE_TITLE = "fluxer_failure_title"
+internal const val EXTRA_FAILURE_BODY = "fluxer_failure_body"
 internal const val FEATURES_HEADER = "X-Fluxer-Features"
 
 internal const val FAILED_REPLY_NOTIFICATION_ID = 900001
 internal const val FAILED_REPLY_NOTIFICATION_TAG = "fluxer_reply_failed"
 internal const val MESSAGE_NOTIFICATION_CHANNEL_ID = "fluxer_messages"
+internal const val PUSH_ACCENT_COLOR = 0xFF4641D9.toInt()
 
 internal data class NotificationReplyAccount(
     val token: String,
@@ -39,6 +43,7 @@ internal data class NotificationReplyInput(
     val userId: String,
     val notificationId: Int,
     val tag: String?,
+    val replyMention: Boolean,
     val features: String? = null,
 )
 
@@ -74,6 +79,7 @@ internal fun buildNotificationReplyRequest(
     channelId: String,
     messageId: String,
     content: String,
+    replyMention: Boolean,
     features: String? = null,
 ): NotificationReplyRequest? {
     val base = account.apiBaseUrl.trim().trimEnd('/')
@@ -85,16 +91,20 @@ internal fun buildNotificationReplyRequest(
     return NotificationReplyRequest(
         url = "$base/channels/$encodedChannel/messages",
         authorization = authorization,
-        body = notificationReplyBody(content, messageId),
+        body = notificationReplyBody(content, messageId, replyMention),
         features = features?.trim()?.takeIf { it.isNotEmpty() },
     )
 }
 
-internal fun notificationReplyBody(content: String, messageId: String): String {
+internal fun notificationReplyBody(
+    content: String,
+    messageId: String,
+    replyMention: Boolean,
+): String {
     return "{" +
         "\"content\":${jsonString(content)}," +
         "\"message_reference\":{\"message_id\":${jsonString(messageId)}}," +
-        "\"allowed_mentions\":{\"replied_user\":true}" +
+        "\"allowed_mentions\":{\"replied_user\":$replyMention}" +
         "}"
 }
 
@@ -121,6 +131,7 @@ internal class NotificationReplyDispatcher(
                 input.channelId,
                 input.messageId,
                 content,
+                input.replyMention,
                 input.features,
             )
         }

@@ -6,10 +6,13 @@ import 'package:flutter_riverpod/misc.dart'
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/gateway/channel_last_message_index.dart';
 import 'package:fluxer_app/core/permissions/thread_permissions.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_performance_providers.dart';
-import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_performance_providers.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_session_recovery_provider.dart';
+import 'package:fluxer_app/core/providers/keep_alive_for.dart';
 import 'package:fluxer_app/core/talker.dart';
+import 'package:fluxer_app/features/channels/data/read_state_utils.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/forum/data/forum_repository.dart';
 import 'package:fluxer_app/features/forum/domain/forum_channel.dart';
@@ -107,6 +110,8 @@ class ForumViewState {
       : copyWith(archived: value);
 }
 
+const Duration kForumPostsIdleRetention = Duration(minutes: 5);
+
 class ForumPostsController extends Notifier<ForumViewState> {
   ForumPostsController(this.forumId);
 
@@ -124,6 +129,7 @@ class ForumPostsController extends Notifier<ForumViewState> {
       ..onAddListener(() => _listeners++)
       ..onRemoveListener(() => _listeners--)
       ..listen<int>(gatewayFullRecoveryProvider, (_, _) => _resetAfterReady());
+    keepAliveFor(ref, kForumPostsIdleRetention);
     ref.onDispose(() {
       _searchTimer?.cancel();
       for (final Timer timer in _retryTimers.values) {
@@ -295,7 +301,7 @@ class ForumPostsController extends Notifier<ForumViewState> {
         case ForumSearchPage():
           _attempts.remove(kind);
           ref
-              .read(forumFirstMessagesProvider.notifier)
+              .read(forumFirstMessagesProvider(readAccountUserId(ref)).notifier)
               .putAll(outcome.firstMessages);
           state = state.withList(
             kind,
@@ -393,8 +399,8 @@ class ForumPostsController extends Notifier<ForumViewState> {
 }
 
 final NotifierProviderFamily<ForumPostsController, ForumViewState, String>
-forumPostsProvider =
-    NotifierProvider.family<ForumPostsController, ForumViewState, String>(
+forumPostsProvider = NotifierProvider.autoDispose
+    .family<ForumPostsController, ForumViewState, String>(
       ForumPostsController.new,
     );
 
@@ -415,25 +421,62 @@ final StreamProviderFamily<ForumStoredPosts, String> forumStoredPostsProvider =
     ) {
       final db.FluxerDatabase database = ref.watch(fluxerDatabaseProvider);
       final ChannelLastMessageIndex lastMessageIndex = ref.watch(
-        channelLastMessageIndexProvider,
+        channelLastMessageIndexProvider(readAccountUserId(ref)),
       );
-      Set<String> postIds = const <String>{};
+      ForumStoredPosts current = const ForumStoredPosts();
+      bool rowsChanged = true;
+      final Map<String, String> flushed = <String, String>{};
+      String newer(String? stored, String incoming) =>
+          stored == null || compareSnowflakeIds(incoming, stored) >= 0
+          ? incoming
+          : stored;
+      bool collectFlush(Map<String, String> updates) {
+        bool touched = false;
+        for (final MapEntry<String, String> update in updates.entries) {
+          if (current.lastMessageIds.containsKey(update.key)) {
+            flushed[update.key] = newer(flushed[update.key], update.value);
+            touched = true;
+          }
+        }
+        return touched;
+      }
+
       return mergeVoidStreams(<Stream<dynamic>>[
-        database.threadDao.watchThreadsForParent(forumId),
-        lastMessageIndex.flushStream.where(
-          (Map<String, String> updates) => updates.keys.any(postIds.contains),
-        ),
+        database.threadDao
+            .watchThreadsForParent(forumId)
+            .map((_) => rowsChanged = true),
+        lastMessageIndex.flushStream.map(collectFlush).where((bool hit) => hit),
       ]).asyncMap((_) async {
-        final List<db.Channel> rows = await database.threadDao
-            .getThreadsForParent(forumId);
-        postIds = <String>{for (final db.Channel row in rows) row.id};
-        return ForumStoredPosts(
-          posts: <Channel>[
-            for (final db.Channel row in rows) Channel.fromRow(row),
-          ],
-          lastMessageIds: <String, String?>{
-            for (final db.Channel row in rows) row.id: row.lastMessageId,
-          },
+        if (rowsChanged) {
+          rowsChanged = false;
+          flushed.clear();
+          final List<db.Channel> rows = await database.threadDao
+              .getThreadsForParent(forumId);
+          return current = ForumStoredPosts(
+            posts: <Channel>[
+              for (final db.Channel row in rows) Channel.fromRow(row),
+            ],
+            lastMessageIds: <String, String?>{
+              for (final db.Channel row in rows) row.id: row.lastMessageId,
+            },
+          );
+        }
+        if (flushed.isEmpty) {
+          return current;
+        }
+        final Map<String, String?> lastMessageIds = <String, String?>{
+          ...current.lastMessageIds,
+        };
+        for (final MapEntry<String, String> update in flushed.entries) {
+          lastMessageIds[update.key] = newer(
+            lastMessageIds[update.key],
+            update.value,
+          );
+        }
+        flushed.clear();
+        return current = ForumStoredPosts(
+          posts: current.posts,
+          lastMessageIds: lastMessageIds,
         );
       });
     });

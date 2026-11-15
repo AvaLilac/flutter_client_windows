@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
@@ -17,6 +18,7 @@ import 'package:fluxer_app/features/settings/domain/guild/guild_invites_state.da
 import 'package:fluxer_app/features/settings/domain/guild/guild_settings_details.dart';
 import 'package:fluxer_app/features/settings/domain/guild/guild_settings_tab.dart';
 import 'package:fluxer_app/features/settings/presentation/delete_community_flow.dart';
+import 'package:fluxer_app/features/settings/presentation/widgets/desktop_settings_modal_header.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/guild/audit_log/guild_audit_log_widget.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/guild/bans/guild_bans_widget.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/guild/channels/guild_channels_settings_widget.dart';
@@ -47,13 +49,12 @@ import 'package:fluxer_app/features/settings/providers/guild/guild_settings_tab_
 import 'package:fluxer_app/features/settings/providers/guild/guild_sticker_settings_provider.dart';
 import 'package:fluxer_app/features/settings/providers/guild/guild_webhooks_provider.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
-import 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
-import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
+import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 import 'package:fluxer_dart/export.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class GuildSettingsModal extends ConsumerStatefulWidget {
   const GuildSettingsModal({
@@ -116,7 +117,9 @@ class _GuildSettingsModalState extends ConsumerState<GuildSettingsModal> {
       if (!mounted) {
         return;
       }
-      ref.read(guildSyncProvider.notifier).syncIfNeeded(widget.guildId);
+      ref
+          .read(guildSyncProvider(readAccountUserId(ref)).notifier)
+          .syncIfNeeded(widget.guildId);
       if (widget.initialTab == GuildSettingsTab.members &&
           !isMobileLayout(context)) {
         context.pop();
@@ -169,6 +172,61 @@ class _GuildSettingsModalState extends ConsumerState<GuildSettingsModal> {
     final Color contentBackground = wideSettingsContentBackground(context);
     final bool showRolesSidebar =
         activeTab == GuildSettingsTab.roles && !_rolesSidebarDismissed;
+
+    if (usesDesktopPointerUi(context)) {
+      return WideSettingsModalFrame(
+        includeOuterPadding: false,
+        backgroundColor: contentBackground,
+        child: Scaffold(
+          backgroundColor: contentBackground,
+          body: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              GuildSettingsDesktopSidebar(
+                guild: guild,
+                sidebarItems: sidebarItems,
+                selectedIndex: sidebarSelectedIndex,
+                showRolesSidebar: showRolesSidebar,
+                rolesBridge: _rolesBridge,
+                onItemSelected: (int index) => _handleSettingsSidebarSelected(
+                  l10n: l10n,
+                  sidebarItems: sidebarItems,
+                  visibleTabs: visibleTabs,
+                  index: index,
+                ),
+                onBackToSettings: () =>
+                    setState(() => _rolesSidebarDismissed = true),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    DesktopSettingsModalHeader(
+                      title: guildSettingsTabTitle(l10n, activeTab),
+                      backgroundColor: contentBackground,
+                      onClose: () => context.pop(),
+                    ),
+                    Expanded(
+                      child: WideSettingsContentLayout(
+                        child: GuildSettingsAccessGate(
+                          guildId: widget.guildId,
+                          tab: activeTab,
+                          child: GuildSettingsTabBody(
+                            guildId: widget.guildId,
+                            tab: activeTab,
+                            rolesBridge: _rolesBridge,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return WideSettingsModalFrame(
       includeOuterPadding: false,
@@ -235,16 +293,20 @@ class _GuildSettingsModalState extends ConsumerState<GuildSettingsModal> {
     );
   }
 
-  Widget _buildCloseButton(BuildContext context) => InkWell(
-    onTap: () => context.pop(),
-    borderRadius: BorderRadius.circular(20),
-    child: SizedBox(
-      width: 36,
-      height: 36,
-      child: PhosphorIcon(
-        PhosphorIconsBold.x,
-        size: 18,
-        color: context.colors.interactiveNormal,
+  Widget _buildCloseButton(BuildContext context) => Semantics(
+    button: true,
+    label: FluxerLocalizations.of(context).uiClose,
+    child: InkWell(
+      onTap: () => context.pop(),
+      borderRadius: BorderRadius.circular(20),
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: PhosphorIcon(
+          PhosphorIconsBold.x,
+          size: 18,
+          color: context.colors.interactiveNormal,
+        ),
       ),
     ),
   );
@@ -274,12 +336,6 @@ class _GuildSettingsModalState extends ConsumerState<GuildSettingsModal> {
     for (final GuildSettingsTab tab in visibleTabs) {
       if (guildSettingsTabTitle(l10n, tab) != label) {
         continue;
-      }
-      if (isGuildSettingsTabComingSoon(tab)) {
-        ref
-            .read(toastProvider.notifier)
-            .show(FluxerToast(message: l10n.comingSoon));
-        return;
       }
       if (tab == GuildSettingsTab.members) {
         context.pop();
@@ -311,30 +367,6 @@ class GuildSettingsTabBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final FluxerLocalizations l10n = FluxerLocalizations.of(context);
-
-    if (isGuildSettingsTabComingSoon(tab)) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            PhosphorIcon(
-              PhosphorIconsFill.clockCountdown,
-              size: 64,
-              color: context.colors.textPrimaryMuted,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.comingSoon,
-              style: context.textStyles.heading.copyWith(
-                color: context.colors.textPrimaryMuted,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return switch (tab) {
       GuildSettingsTab.overview => GuildSettingsAsyncBody<GuildSettingsDetails>(
         value: ref.watch(guildSettingsOverviewProvider(guildId)),

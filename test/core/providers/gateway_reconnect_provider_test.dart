@@ -5,11 +5,11 @@ import 'package:dio/dio.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_connection_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_reconnect_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_session_recovery_provider.dart';
-import 'package:fluxer_app/core/push/pending_push_notification_path_provider.dart';
+import 'package:fluxer_app/core/providers/app/app_ui_lifecycle_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_connection_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_reconnect_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_session_recovery_provider.dart';
+import 'package:fluxer_app/core/push/notification/pending_path_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/features/auth/providers/account_manager_provider.dart';
 import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
@@ -427,7 +427,7 @@ void main() {
       expect(
         isPendingNavigationReady(
           isAuthenticated: false,
-          isGatewayReady: true,
+          isShellReady: true,
           isConnectionFailed: false,
         ),
         isFalse,
@@ -435,7 +435,7 @@ void main() {
       expect(
         isPendingNavigationReady(
           isAuthenticated: true,
-          isGatewayReady: false,
+          isShellReady: false,
           isConnectionFailed: false,
         ),
         isFalse,
@@ -443,7 +443,7 @@ void main() {
       expect(
         isPendingNavigationReady(
           isAuthenticated: true,
-          isGatewayReady: true,
+          isShellReady: true,
           isConnectionFailed: true,
         ),
         isFalse,
@@ -451,7 +451,7 @@ void main() {
       expect(
         isPendingNavigationReady(
           isAuthenticated: true,
-          isGatewayReady: true,
+          isShellReady: true,
           isConnectionFailed: false,
         ),
         isTrue,
@@ -745,6 +745,9 @@ void main() {
           overrides: <Override>[
             gatewayConnectionProvider.overrideWithValue(connection),
             appUiForegroundProvider.overrideWithValue(true),
+            gatewayConnectivityCheckProvider.overrideWithValue(
+              () async => true,
+            ),
           ],
         )..read(gatewayStateListenerProvider);
 
@@ -753,8 +756,42 @@ void main() {
         expect(connection.reconnectNowCalls, 1);
         expect(container.read(gatewayConnectionFailedProvider), isFalse);
 
-        async.elapse(kGatewayReconnectFailureTimeout);
+        async
+          ..elapse(kGatewayReconnectFailureTimeout)
+          ..flushMicrotasks();
         expect(container.read(gatewayConnectionFailedProvider), isTrue);
+        expect(container.read(gatewayDeviceOfflineProvider), isFalse);
+
+        container.dispose();
+        unawaited(connection.dispose());
+      });
+    });
+
+    test('no takeover while the device is offline', () {
+      fakeAsync((FakeAsync async) {
+        final _ForceReconnectGatewayConnection connection =
+            _ForceReconnectGatewayConnection();
+        final ProviderContainer container = ProviderContainer(
+          overrides: <Override>[
+            gatewayConnectionProvider.overrideWithValue(connection),
+            appUiForegroundProvider.overrideWithValue(true),
+            gatewayConnectivityCheckProvider.overrideWithValue(
+              () async => false,
+            ),
+          ],
+        )..read(gatewayStateListenerProvider);
+
+        connection.emit(GatewayState.reconnecting);
+        for (var i = 0; i < 6; i++) {
+          async
+            ..elapse(kGatewayReconnectFailureTimeout)
+            ..flushMicrotasks();
+        }
+        expect(container.read(gatewayConnectionFailedProvider), isFalse);
+        expect(container.read(gatewayDeviceOfflineProvider), isTrue);
+
+        connection.emit(GatewayState.connected);
+        expect(container.read(gatewayDeviceOfflineProvider), isFalse);
 
         container.dispose();
         unawaited(connection.dispose());

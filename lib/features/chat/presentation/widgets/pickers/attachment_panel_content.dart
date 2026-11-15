@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/system_permissions/system_permission_kind.dart';
 import 'package:fluxer_app/core/system_permissions/system_permission_service.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
@@ -22,8 +23,8 @@ import 'package:fluxer_app/features/ui/button/fluxer_button_size.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class AttachmentPanelContent extends ConsumerStatefulWidget {
   const AttachmentPanelContent({required this.scrollController, super.key});
@@ -99,7 +100,7 @@ class _AttachmentPanelContentState extends ConsumerState<AttachmentPanelContent>
       return;
     }
     final int attachmentCount = ref
-        .read(cloudUploadControllerProvider(_channelId))
+        .read(cloudUploadControllerProvider(readAccountUserId(ref), _channelId))
         .items
         .length;
     final FileUploadValidationResult? result = await ref
@@ -115,7 +116,7 @@ class _AttachmentPanelContentState extends ConsumerState<AttachmentPanelContent>
 
   Future<void> _onPhotosPressed() async {
     final int attachmentCount = ref
-        .read(cloudUploadControllerProvider(_channelId))
+        .read(cloudUploadControllerProvider(readAccountUserId(ref), _channelId))
         .items
         .length;
     final FileUploadValidationResult? result = await ref
@@ -215,7 +216,12 @@ class _AttachmentLimitedLibraryBannerHost extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Padding(
-          padding: EdgeInsets.fromLTRB(layout.s3, layout.s1, layout.s2, 0),
+          padding: EdgeInsetsDirectional.fromSTEB(
+            layout.s3,
+            layout.s1,
+            layout.s2,
+            0,
+          ),
           child: _AttachmentLimitedLibraryBanner(
             message: l10n.chatAttachmentLibraryLimitedBody,
             manageLabel: l10n.chatAttachmentLibraryLimitedManage,
@@ -273,7 +279,7 @@ class _AttachmentGalleryBodyHost extends ConsumerWidget {
     );
     final Set<String> selectedIds = <String>{
       ...ref.watch(
-        cloudUploadControllerProvider(channelId).select(
+        cloudUploadControllerProvider(readAccountUserId(ref), channelId).select(
           (CloudComposerAttachments attachments) =>
               selectedGalleryAssetIds(attachments.items),
         ),

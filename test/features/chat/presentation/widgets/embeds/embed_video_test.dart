@@ -10,11 +10,13 @@ import 'package:fluxer_app/features/chat/presentation/widgets/embeds/embed_video
 import 'package:fluxer_app/features/chat/presentation/widgets/media/chat_inline_video_player.dart';
 import 'package:fluxer_app/material_ui.dart';
 
+import '../../../../../helpers/core_test_provider_overrides.dart';
 import '../../../../../helpers/test_l10n.dart';
 
 Widget _wrap(Widget child) {
   final colorTheme = buildDarkColorTheme();
   return ProviderScope(
+    overrides: coreTestProviderOverrides(),
     child: MaterialApp(
       locale: kTestLocale,
       localizationsDelegates: fluxerLocalizationsDelegates,
@@ -37,10 +39,8 @@ bool _hasEmbedChrome(WidgetTester tester) {
     if (decoration is! BoxDecoration) {
       return false;
     }
-    final Border? border = decoration.border is Border
-        ? decoration.border! as Border
-        : null;
-    return border != null && border.left.width == 4;
+    final BoxBorder? border = decoration.border;
+    return border is BorderDirectional && border.start.width == 4;
   });
 }
 

@@ -1,19 +1,22 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/voice_mic_test_section.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/wide_settings_content_layout.dart';
-import 'package:fluxer_app/features/settings/providers/voice_prompts_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/voice_settings_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/voice_prompts_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/voice_settings_provider.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/features/voice/domain/voice_output_route.dart';
 import 'package:fluxer_app/features/voice/domain/voice_settings_state.dart';
 import 'package:fluxer_app/features/voice/presentation/widgets/voice_audio_processing_options.dart';
+import 'package:fluxer_app/features/voice/presentation/widgets/voice_change_audio_output_row.dart';
 import 'package:fluxer_app/features/voice/providers/voice_media_devices_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_video_quality_provider.dart';
-import 'package:fluxer_app/features/voice/utils/screen_share_presets.dart';
-import 'package:fluxer_app/features/voice/utils/voice_camera_platform.dart';
+import 'package:fluxer_app/features/voice/utils/audio/speaker_route.dart';
+import 'package:fluxer_app/features/voice/utils/media/camera_platform.dart';
+import 'package:fluxer_app/features/voice/utils/screen_share/screen_share_presets.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:livekit_client/livekit_client.dart';
@@ -113,11 +116,15 @@ class _UserAudioAndVideoState extends ConsumerState<UserAudioAndVideo> {
     final VoicePromptsPreferences promptsNotifier = ref.read(
       voicePromptsPreferencesProvider.notifier,
     );
-    final bool higherQualityEnabled = ref.watch(
-      voiceHigherVideoQualityProvider,
+    final VideoQualityCaps videoQualityCaps = ref.watch(
+      voiceVideoQualityCapsProvider,
     );
     final bool canSwitchSpeaker = AudioManager.instance.canSwitchSpeakerphone;
     final bool showCameraDevicePicker = !isMobileVoiceCameraPlatform();
+    final bool useNativeVoiceAudioRoutePicker =
+        showNativeVoiceAudioRoutePicker();
+    final bool useAndroidVoiceOutputRoutePicker =
+        defaultTargetPlatform == TargetPlatform.android && canSwitchSpeaker;
 
     return SingleChildScrollView(
       controller: widget.scrollController,
@@ -131,34 +138,39 @@ class _UserAudioAndVideoState extends ConsumerState<UserAudioAndVideo> {
             description: l10n.audioAndVideoAudioSectionDescription,
             isFirst: true,
             children: [
-              FluxerSelect<String>(
-                label: l10n.audioAndVideoInputDeviceLabel,
-                value: settings.inputDeviceId,
-                items: _deviceItems(l10n, devices.audioInputs),
-                onChanged: (String value) =>
-                    unawaited(settingsNotifier.setInputDeviceId(value)),
-              ),
-              if (canSwitchSpeaker)
-                FluxerSettingsSwitchItem(
-                  label: l10n.audioAndVideoUseSpeakerLabel,
-                  description: l10n.audioAndVideoUseSpeakerDescription,
-                  value: settings.outputRoute == VoiceOutputRoute.speaker,
-                  onChanged: (bool value) => unawaited(
-                    settingsNotifier.setOutputRoute(
-                      value
-                          ? VoiceOutputRoute.speaker
-                          : VoiceOutputRoute.earpiece,
-                    ),
-                  ),
-                )
-              else if (devices.audioOutputs.length > 1)
+              if (useNativeVoiceAudioRoutePicker ||
+                  useAndroidVoiceOutputRoutePicker)
+                const VoiceChangeAudioOutputSettingsRow()
+              else ...<Widget>[
                 FluxerSelect<String>(
-                  label: l10n.audioAndVideoOutputDeviceLabel,
-                  value: settings.outputDeviceId,
-                  items: _deviceItems(l10n, devices.audioOutputs),
+                  label: l10n.audioAndVideoInputDeviceLabel,
+                  value: settings.inputDeviceId,
+                  items: _deviceItems(l10n, devices.audioInputs),
                   onChanged: (String value) =>
-                      unawaited(settingsNotifier.setOutputDeviceId(value)),
+                      unawaited(settingsNotifier.setInputDeviceId(value)),
                 ),
+                if (canSwitchSpeaker)
+                  FluxerSettingsSwitchItem(
+                    label: l10n.audioAndVideoUseSpeakerLabel,
+                    description: l10n.audioAndVideoUseSpeakerDescription,
+                    value: settings.outputRoute == VoiceOutputRoute.speaker,
+                    onChanged: (bool value) => unawaited(
+                      settingsNotifier.setOutputRoute(
+                        value
+                            ? VoiceOutputRoute.speaker
+                            : VoiceOutputRoute.earpiece,
+                      ),
+                    ),
+                  )
+                else if (devices.audioOutputs.length > 1)
+                  FluxerSelect<String>(
+                    label: l10n.audioAndVideoOutputDeviceLabel,
+                    value: settings.outputDeviceId,
+                    items: _deviceItems(l10n, devices.audioOutputs),
+                    onChanged: (String value) =>
+                        unawaited(settingsNotifier.setOutputDeviceId(value)),
+                  ),
+              ],
               FluxerSettingsSubsection(
                 title: l10n.audioAndVideoInputVolumeLabel,
                 children: [
@@ -218,8 +230,7 @@ class _UserAudioAndVideoState extends ConsumerState<UserAudioAndVideo> {
                   FluxerRadioGroup<CameraResolution>(
                     value: settings.cameraResolution,
                     onChanged: (CameraResolution value) {
-                      if (!higherQualityEnabled &&
-                          isHigherVideoQualityCameraResolution(value)) {
+                      if (!videoQualityCaps.allowsCameraResolution(value)) {
                         return;
                       }
                       unawaited(settingsNotifier.setCameraResolution(value));
@@ -247,8 +258,9 @@ class _UserAudioAndVideoState extends ConsumerState<UserAudioAndVideo> {
                   FluxerRadioGroup<ScreenshareResolution>(
                     value: settings.screenshareResolution,
                     onChanged: (ScreenshareResolution value) {
-                      if (!higherQualityEnabled &&
-                          isHigherVideoQualityScreenShareResolution(value)) {
+                      if (!videoQualityCaps.allowsScreenShareResolution(
+                        value,
+                      )) {
                         return;
                       }
                       unawaited(
@@ -278,8 +290,7 @@ class _UserAudioAndVideoState extends ConsumerState<UserAudioAndVideo> {
                   FluxerRadioGroup<int>(
                     value: settings.videoFrameRate,
                     onChanged: (int value) {
-                      if (!higherQualityEnabled &&
-                          isHigherVideoQualityFrameRate(value)) {
+                      if (!videoQualityCaps.allowsFrameRate(value)) {
                         return;
                       }
                       unawaited(settingsNotifier.setVideoFrameRate(value));
@@ -301,7 +312,10 @@ class _UserAudioAndVideoState extends ConsumerState<UserAudioAndVideo> {
                   ),
                 ],
               ),
-              if (!higherQualityEnabled)
+              if (!videoQualityCaps.allowsScreenShareResolution(
+                    ScreenshareResolution.high,
+                  ) &&
+                  !videoQualityCaps.allowsFrameRate(60))
                 Padding(
                   padding: EdgeInsets.only(top: layout.s3),
                   child: Text(

@@ -5,7 +5,7 @@ import 'package:fluxer_app/core/deep_links/deep_link_path_policy.dart';
 import 'package:fluxer_app/core/deep_links/user_settings_deep_link.dart';
 import 'package:fluxer_app/core/instance/instance_endpoints.dart';
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/core/utils/channel_jump_link.dart';
 import 'package:fluxer_app/features/channels/utils/channel_mention_utils.dart';
@@ -15,16 +15,17 @@ import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_m
 import 'package:fluxer_app/features/chat/utils/channel_jump_navigator.dart';
 import 'package:fluxer_app/features/chat/utils/messages/spoiler_utils.dart';
 import 'package:fluxer_app/features/emoji/presentation/sheets/emoji_info_bottom_sheet.dart';
-import 'package:fluxer_app/features/guilds/utils/invite_link_navigator.dart';
-import 'package:fluxer_app/features/settings/utils/open_user_settings_deep_link.dart';
+import 'package:fluxer_app/features/guilds/utils/invites/invite_link_navigator.dart';
+import 'package:fluxer_app/features/profile/presentation/user_profile_sheet.dart';
+import 'package:fluxer_app/features/settings/utils/user_settings/open_user_settings_deep_link.dart';
 import 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
 import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/shared/external_links/external_link_handler.dart';
 import 'package:fluxer_app/shared/markdown/ansi_palette_from_context.dart';
 import 'package:fluxer_app/shared/markdown/message_markdown_settings.dart';
-import 'package:fluxer_app/shared/utils/emoji_registry.dart';
-import 'package:fluxer_app/shared/utils/emoji_utils.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_registry.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_utils.dart';
 import 'package:fluxer_markdown/fluxer_markdown.dart';
 import 'package:go_router/go_router.dart';
 
@@ -41,6 +42,8 @@ String _fluxerAppLinkToHttps(String href) {
   }
   return href;
 }
+
+final RegExp _userProfilePathPattern = RegExp(r'^/users/([0-9]{1,20})/?$');
 
 Widget _fluxerUserMentionBuilder(
   BuildContext context,
@@ -170,6 +173,15 @@ Future<void> _fluxerOnTapLink(BuildContext context, String href) async {
       GoRouter.of(context).go(path);
       return;
     }
+    final String? userId = _userProfilePathPattern.firstMatch(path)?.group(1);
+    if (userId != null) {
+      await FluxerUserProfileSheet.show(
+        context,
+        userId: userId,
+        guildId: MessageMarkdownBinding.maybeOf(context)?.guildId,
+      );
+      return;
+    }
     if (isUserSettingsDeepLinkPath(fluxerPath)) {
       await openUserSettingsDeepLinkFromContext(
         context,
@@ -273,7 +285,7 @@ FluxerMarkdownConfig createFluxerMarkdownConfig({
   return FluxerMarkdownConfig(
     unicodeEmojiUrlBuilder: getTwemojiUrl,
     customEmojiUrlBuilder: FluxerMediaUrl.customEmoji,
-    unicodeEmojiPattern: EmojiRegistry.unicodeEmojiRegexSync,
+    unicodeEmojiMatcher: EmojiRegistry.unicodeEmojiMatcherSync,
     animateCustomEmoji: animateCustomEmoji,
     linkColor: context?.colors.textLink,
     blockquoteBorderColor: context?.colors.interactiveMuted,

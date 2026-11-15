@@ -60,7 +60,9 @@ class _GuildIconPeekGestureHostState
   }
 
   void _removePeekOverlay() {
-    _peekOverlay?.remove();
+    _peekOverlay
+      ?..remove()
+      ..dispose();
     _peekOverlay = null;
     _peekVisible = false;
     _selectingPeekItem = false;
@@ -91,7 +93,9 @@ class _GuildIconPeekGestureHostState
           anchorKey: _anchorKey,
           estimatedMenuHeight: widget.content.estimateMenuHeight(context),
           child: ContextMenuEntranceAnimationHost(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart.resolve(
+              Directionality.of(context),
+            ),
             child: widget.content.buildPanel(
               context: context,
               onSelect: (Object action) {

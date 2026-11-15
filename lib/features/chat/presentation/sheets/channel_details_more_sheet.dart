@@ -16,8 +16,6 @@ Future<void> _showDetailsMoreSheet(
   required Future<void> Function() onMarkRead,
   required Future<void> Function({required bool isFavorite}) onToggleFavorite,
   required Future<void> Function({required bool isPinned}) onToggleDmPin,
-  required Future<void> Function(UserNotificationSettings setting)
-  onSetNotification,
   required Future<void> Function(String value) onCopy,
   required Future<void> Function() onCloseDm,
   required Future<void> Function() onDeleteMyMessages,
@@ -102,7 +100,7 @@ Future<void> _showDetailsMoreSheet(
           ),
         if (canOfferAnnouncementFollow(
           channel,
-          ref.read(guildPermissionsProvider),
+          ref.read(guildPermissionsProvider(readAccountUserId(ref))),
         ))
           FluxerBottomSheetMenuItem(
             label: l10n.channelMenuFollow,
@@ -147,11 +145,7 @@ Future<void> _showDetailsMoreSheet(
             onTap: () {
               close();
               unawaited(
-                showChannelNotificationSettingsSheet(
-                  context,
-                  channel: channel,
-                  onSetNotification: onSetNotification,
-                ),
+                showChannelNotificationSettingsSheet(context, channel: channel),
               );
             },
           ),
@@ -510,6 +504,7 @@ String? _detailsSubtitle({
   required FluxerLocalizations l10n,
   required Channel? channel,
   required DmConversation? dm,
+  required bool uniqueUsernames,
 }) {
   if (dm != null) {
     if (dm.isPersonalNotes) {
@@ -518,7 +513,7 @@ String? _detailsSubtitle({
     if (dm.isGroup) {
       return l10n.channelDetailsGroupDmSubtitle(dm.memberCount);
     }
-    return dm.recipientTag ??
+    return dm.recipientTag(uniqueUsernames: uniqueUsernames) ??
         (dm.isSystem ? l10n.channelDetailsSystemMessage : null);
   }
   if (channel != null) {

@@ -1,15 +1,24 @@
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
+import 'package:fluxer_app/features/members/domain/member.dart';
+import 'package:fluxer_app/features/members/presentation/widgets/role_icon.dart';
 import 'package:fluxer_app/features/members/utils/member_list_access.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
+import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 
 const double kMemberListRowHeight = 50;
+const double kMemberListDesktopRowHeight = 44;
 const double kMemberListGroupHeaderHeight = 28;
 const double kMemberListDetailsGroupHeaderHeight = 36;
 const double kMemberListDetailsMemberRowHeight = 56;
+
+double memberListRowHeightOf(BuildContext context) =>
+    usesDesktopPointerUi(context)
+    ? kMemberListDesktopRowHeight
+    : kMemberListRowHeight;
 
 enum MemberListSkeletonStyle { sidebar, details }
 
@@ -115,7 +124,7 @@ class _MemberListSidebarMemberSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final FluxerLayoutTheme layout = context.layout;
     return SizedBox(
-      height: kMemberListRowHeight,
+      height: memberListRowHeightOf(context),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 1),
         child: Padding(
@@ -185,7 +194,7 @@ class _MemberListDetailsGroupHeaderSkeleton extends StatelessWidget {
           right: context.layout.s4,
         ),
         child: const Align(
-          alignment: Alignment.centerLeft,
+          alignment: AlignmentDirectional.centerStart,
           child: _MemberListSkeletonBar(width: 108, height: 10),
         ),
       ),
@@ -225,22 +234,37 @@ class MemberListSidebarGroupHeader extends StatelessWidget {
   const MemberListSidebarGroupHeader({
     required this.groupName,
     required this.count,
+    this.iconRole,
     super.key,
   });
 
   final String groupName;
   final int count;
+  final MemberRole? iconRole;
 
   @override
   Widget build(BuildContext context) {
     final FluxerLayoutTheme layout = context.layout;
     return Padding(
       padding: EdgeInsets.fromLTRB(layout.s2, layout.s3, layout.s2, layout.s1),
-      child: Text(
-        '$groupName — $count',
-        style: context.textStyles.categoryName.copyWith(
-          color: context.colors.textPrimaryMuted,
-        ),
+      child: Row(
+        children: <Widget>[
+          if (iconRole != null && iconRole!.hasIcon) ...<Widget>[
+            RoleIcon(role: iconRole!, size: 16, decorative: true),
+            SizedBox(width: layout.s1),
+          ],
+          Expanded(
+            child: Text(
+              '$groupName — $count',
+              style: context.textStyles.categoryName.copyWith(
+                color: context.colors.textPrimaryMuted,
+                height: usesDesktopPointerUi(context) ? 16 / 14 : null,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -250,11 +274,13 @@ class MemberListDetailsGroupHeader extends StatelessWidget {
   const MemberListDetailsGroupHeader({
     required this.groupName,
     required this.count,
+    this.iconRole,
     super.key,
   });
 
   final String groupName;
   final int count;
+  final MemberRole? iconRole;
 
   @override
   Widget build(BuildContext context) {
@@ -268,12 +294,24 @@ class MemberListDetailsGroupHeader extends StatelessWidget {
           right: context.layout.s4,
         ),
         child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            '$groupName — $count',
-            style: context.textStyles.categoryName.copyWith(
-              color: context.colors.textPrimaryMuted,
-            ),
+          alignment: AlignmentDirectional.centerStart,
+          child: Row(
+            children: <Widget>[
+              if (iconRole != null && iconRole!.hasIcon) ...<Widget>[
+                RoleIcon(role: iconRole!, size: 16, decorative: true),
+                SizedBox(width: context.layout.s1),
+              ],
+              Expanded(
+                child: Text(
+                  '$groupName — $count',
+                  style: context.textStyles.categoryName.copyWith(
+                    color: context.colors.textPrimaryMuted,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ),

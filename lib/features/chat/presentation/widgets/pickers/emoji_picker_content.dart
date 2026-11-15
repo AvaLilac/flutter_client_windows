@@ -26,11 +26,12 @@ import 'package:fluxer_app/features/ui/avatar/fluxer_guild_acronym.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/providers/guild_user_display_provider.dart';
-import 'package:fluxer_app/shared/utils/emoji_image_cache.dart';
-import 'package:fluxer_app/shared/utils/emoji_registry.dart';
-import 'package:fluxer_app/shared/utils/emoji_sprite_sheet.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_image_cache.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_registry.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_search.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_sprite_sheet.dart';
 
 const _kGridColumns = 9;
 const _kMobileGridColumns = 9;
@@ -72,6 +73,7 @@ class EmojiPickerContent extends ConsumerStatefulWidget {
     this.skinTone = '',
     this.isMobile = false,
     this.channelId,
+    this.roleIconGuildId,
     this.scrollController,
     this.onBackspace,
     super.key,
@@ -84,6 +86,7 @@ class EmojiPickerContent extends ConsumerStatefulWidget {
   final String skinTone;
   final bool isMobile;
   final String? channelId;
+  final String? roleIconGuildId;
   final ScrollController? scrollController;
 
   @override
@@ -457,11 +460,18 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
 
   _EmojiPickerData _watchPickerData() {
     ref.watch(emojiRegistryLoadedProvider);
-    final activeGuildId = resolveGuildIdForChannel(ref, widget.channelId);
-    final guilds = _guildsFor(
-      organized: ref.watch(organizedGuildListProvider),
-      activeGuildId: activeGuildId,
-    );
+    final String? roleIconGuildId = widget.roleIconGuildId;
+    final String? activeGuildId =
+        roleIconGuildId ?? resolveGuildIdForChannel(ref, widget.channelId);
+    final guilds = roleIconGuildId != null
+        ? _guildsFor(
+            organized: ref.watch(organizedGuildListProvider),
+            activeGuildId: roleIconGuildId,
+          ).where((Guild guild) => guild.id == roleIconGuildId).toList()
+        : _guildsFor(
+            organized: ref.watch(organizedGuildListProvider),
+            activeGuildId: activeGuildId,
+          );
     final bool hasGlobalExpressions = ref.watch(
       instanceFeatureEnabledProvider(LimitKeys.featureGlobalExpressions),
     );
@@ -485,11 +495,15 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
             guildEmojisByGuild,
           );
     final rankedUsageKeys = _pinnedRankedUsageKeys(watch: true);
-    final frecent = _frecentFor(
-      rankedUsageKeys: rankedUsageKeys,
-      guildEmojisByGuild: guildEmojisByGuild,
-    );
-    final favoriteItems = _favoriteEmojiItems(favoriteKeys, guildEmojisByGuild);
+    final frecent = roleIconGuildId != null
+        ? const <FrecentEmojiItem>[]
+        : _frecentFor(
+            rankedUsageKeys: rankedUsageKeys,
+            guildEmojisByGuild: guildEmojisByGuild,
+          );
+    final favoriteItems = roleIconGuildId != null
+        ? const <_FavoriteEmojiItem>[]
+        : _favoriteEmojiItems(favoriteKeys, guildEmojisByGuild);
 
     return _EmojiPickerData(
       guilds: guilds,
@@ -813,7 +827,8 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
                   child: _buildEmojiGrid(context, colors, data),
                 ),
               ),
-              _buildInspector(context, colors),
+              if (widget.roleIconGuildId == null)
+                _buildInspector(context, colors),
             ],
           ),
         ),
@@ -871,10 +886,25 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
   ) {
     final unicodeResults = EmojiRegistry.search(widget.searchQuery);
     final guildEmojis = data.guildEmojisByGuild.values.expand((e) => e);
-    final query = widget.searchQuery.toLowerCase();
-    final customResults = guildEmojis
-        .where((e) => e.name.toLowerCase().contains(query))
-        .toList();
+    final query = normalizeEmojiSearchQuery(widget.searchQuery);
+    final rankedCustom = <(int, GuildEmojiEntry)>[];
+    for (final GuildEmojiEntry e in guildEmojis) {
+      final int? tier = query.isEmpty
+          ? null
+          : emojiMatchTier(
+              names: <String>[e.name],
+              namesLower: <String>[e.nameLower],
+              keywordsLower: const <String>[],
+              query: query,
+            );
+      if (tier != null) {
+        rankedCustom.add((tier, e));
+      }
+    }
+    rankedCustom.sort(
+      (a, b) => a.$1 != b.$1 ? a.$1 - b.$1 : a.$2.name.compareTo(b.$2.name),
+    );
+    final customResults = rankedCustom.map((r) => r.$2).toList();
 
     if (unicodeResults.isEmpty && customResults.isEmpty) {
       return Center(
@@ -1124,7 +1154,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     final l10n = FluxerLocalizations.of(context);
     return labelOverride ??
         switch (category) {
-          'favorites' => 'Favorites',
+          'favorites' => l10n.favoritesTitle,
           'frequently-used' => l10n.emojiFrequentlyUsed,
           _ => _categoryLabel(category, l10n),
         };
@@ -1196,7 +1226,11 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
               ),
               const SizedBox(width: 8),
               AnimatedRotation(
-                turns: isCollapsed ? -0.25 : 0,
+                turns: !isCollapsed
+                    ? 0
+                    : Directionality.of(context) == TextDirection.rtl
+                    ? 0.25
+                    : -0.25,
                 duration: context.motion.panel,
                 child: PhosphorIcon(
                   PhosphorIconsBold.caretDown,
@@ -1214,12 +1248,12 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
   Widget _buildEmojiCell(EmojiEntry emoji, FluxerColorTheme colors) {
     final hasTone = widget.skinTone.isNotEmpty && emoji.hasDiversity;
     final usesHover = emojiPickerUsesHoverTracking(isMobile: widget.isMobile);
+    final String surrogates = hasTone
+        ? EmojiRegistry.resolveSkinToneSurrogates(emoji, widget.skinTone)
+        : emoji.surrogates;
     final sprite = hasTone
         ? SpriteEmoji(
-            emoji: EmojiRegistry.resolveSkinToneSurrogates(
-              emoji,
-              widget.skinTone,
-            ),
+            emoji: surrogates,
             index: emoji.spriteIndex,
             diversityIndex: emoji.diversityIndex,
             size: _unicodeEmojiSize,
@@ -1233,7 +1267,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
 
     if (!usesHover) {
       return _PressableEmojiCell(
-        semanticLabel: emoji.primaryName,
+        semanticLabel: surrogates,
         onTap: () => _onEmojiSelected(emoji),
         onLongPress: () => _showUnicodeEmojiActions(emoji),
         child: Center(child: sprite),
@@ -1241,7 +1275,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
     }
 
     return _PressableEmojiCell(
-      semanticLabel: emoji.primaryName,
+      semanticLabel: surrogates,
       onTap: () => _onEmojiSelected(emoji),
       onLongPress: () => _showUnicodeEmojiActions(emoji),
       child: MouseRegion(
@@ -1357,8 +1391,8 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
       width: 46,
       decoration: BoxDecoration(
         color: colors.backgroundPrimary,
-        border: Border(
-          right: BorderSide(color: colors.backgroundModifierAccent),
+        border: BorderDirectional(
+          end: BorderSide(color: colors.backgroundModifierAccent),
         ),
       ),
       child: ListenableBuilder(
@@ -1373,7 +1407,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
                 _CategoryButton(
                   key: _keyForCategoryButton('favorites'),
                   icon: PhosphorIconsFill.star,
-                  tooltip: 'Favorites',
+                  tooltip: l10n.favoritesTitle,
                   isActive: activeCategory == 'favorites',
                   onTap: () => _scrollToCategory('favorites'),
                 ),
@@ -1440,7 +1474,7 @@ class _EmojiPickerContentState extends ConsumerState<EmojiPickerContent> {
                     if (data.favoriteItems.isNotEmpty)
                       ExpressionRailButton(
                         key: _keyForCategoryButton('favorites'),
-                        label: 'Favorites',
+                        label: l10n.favoritesTitle,
                         icon: PhosphorIconsFill.star,
                         isActive: activeCategory == 'favorites',
                         onTap: () => _scrollToCategory('favorites'),

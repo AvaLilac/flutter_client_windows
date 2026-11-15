@@ -16,12 +16,13 @@ void main() {
     List<Map<String, dynamic>> presences = const <Map<String, dynamic>>[],
     List<Map<String, dynamic>>? users,
     Map<String, String>? notes,
+    List<UserGuildSettingsResponse>? userGuildSettings,
+    List<Map<String, dynamic>>? rtcRegions,
   }) {
     return handler.handle(
       ReadyEvent(
         sessionId: sessionId,
         user: _user(),
-        guilds: const [],
         rawGuilds: rawGuilds,
         privateChannels: privateChannels,
         relationships: const [],
@@ -29,6 +30,8 @@ void main() {
         presences: presences,
         users: users,
         notes: notes,
+        userGuildSettings: userGuildSettings,
+        rtcRegions: rtcRegions,
       ),
     );
   }
@@ -346,6 +349,71 @@ void main() {
           'version': 1,
         };
 
+    Map<String, Object?> voiceStateWithMember(String userId) =>
+        <String, Object?>{
+          ...voiceState(userId, 'conn-$userId'),
+          'member': <String, Object?>{
+            'user': _userPartial(userId),
+            'nick': 'Voice $userId',
+            'roles': <String>[],
+            'joined_at': '2026-01-01T00:00:00.000Z',
+            'mute': false,
+            'deaf': false,
+          },
+        };
+
+    test('READY stores members embedded in guild voice states', () async {
+      final FluxerDatabase database = openTestDatabase();
+      final GatewayEventHandler handler = GatewayEventHandler(
+        database: database,
+      );
+
+      await sendReady(
+        handler,
+        sessionId: 'session-1',
+        rawGuilds: <Map<String, dynamic>>[
+          _guild(
+            channelIds: <String>['voice-1'],
+            roleIds: <String>['g1'],
+            voiceStates: <Map<String, Object?>>[voiceStateWithMember('u1')],
+          ),
+        ],
+      );
+
+      expect((await database.userDao.getUserById('u1'))?.username, 'user-u1');
+      expect(
+        (await database.memberDao.getMemberByUserId('u1', 'g1'))?.nick,
+        'Voice u1',
+      );
+    });
+
+    test('GUILD_CREATE stores members embedded in voice states', () async {
+      final FluxerDatabase database = openTestDatabase();
+      final GatewayEventHandler handler = GatewayEventHandler(
+        database: database,
+      );
+
+      await handler.handle(
+        GuildCreateEvent(
+          guild: GuildCreateData.fromJson(
+            _guild(
+              channelIds: <String>['voice-1'],
+              roleIds: <String>['g1'],
+              voiceStates: <Map<String, Object?>>[voiceStateWithMember('u1')],
+            ),
+          ),
+        ),
+      );
+
+      Member? member;
+      for (int i = 0; i < 50 && member == null; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        member = await database.memberDao.getMemberByUserId('u1', 'g1');
+      }
+      expect(member?.nick, 'Voice u1');
+      expect(await database.userDao.getUserById('u1'), isNotNull);
+    });
+
     test('GUILD_SYNC hands over its voice states as a replacement', () async {
       final FluxerDatabase database = openTestDatabase();
       final List<(String, List<VoiceState>)> snapshots =
@@ -482,8 +550,86 @@ void main() {
         );
       },
     );
+
+    test('guild settings missing from READY go back to the defaults', () async {
+      final FluxerDatabase database = openTestDatabase();
+      final GatewayEventHandler handler = GatewayEventHandler(
+        database: database,
+      );
+      await sendReady(
+        handler,
+        sessionId: 'session-1',
+        userGuildSettings: <UserGuildSettingsResponse>[
+          _guildSettings('g-kept'),
+          _guildSettings('g-reset', muted: true),
+        ],
+      );
+
+      await sendReady(
+        handler,
+        sessionId: 'session-2',
+        userGuildSettings: <UserGuildSettingsResponse>[
+          _guildSettings('g-kept'),
+        ],
+      );
+
+      expect(
+        await database.userGuildSettingsDao.getByGuildId('g-kept'),
+        isNotNull,
+      );
+      expect(
+        await database.userGuildSettingsDao.getByGuildId('g-reset'),
+        isNull,
+      );
+    });
+
+    test('RTC regions missing from READY are removed', () async {
+      final FluxerDatabase database = openTestDatabase();
+      final GatewayEventHandler handler = GatewayEventHandler(
+        database: database,
+      );
+      await sendReady(
+        handler,
+        sessionId: 'session-1',
+        rtcRegions: <Map<String, dynamic>>[
+          <String, dynamic>{'id': 'eu'},
+          <String, dynamic>{'id': 'retired'},
+        ],
+      );
+
+      await sendReady(
+        handler,
+        sessionId: 'session-2',
+        rtcRegions: <Map<String, dynamic>>[
+          <String, dynamic>{'id': 'eu'},
+        ],
+      );
+
+      expect(
+        (await database.select(database.rtcRegionsTable).get())
+            .map((RtcRegionsTableData row) => row.id)
+            .toList(),
+        <String>['eu'],
+      );
+    });
   });
 }
+
+UserGuildSettingsResponse _guildSettings(
+  String guildId, {
+  bool muted = false,
+}) => UserGuildSettingsResponse(
+  guildId: guildId,
+  messageNotifications: UserNotificationSettings.allMessages,
+  muted: muted,
+  muteConfig: null,
+  mobilePush: true,
+  suppressEveryone: false,
+  suppressRoles: false,
+  hideMutedChannels: false,
+  channelOverrides: const {},
+  version: 1,
+);
 
 Map<String, dynamic> _userPartial(String id) => <String, dynamic>{
   'id': id,

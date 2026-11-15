@@ -4,7 +4,7 @@ import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/toggle_switch/fluxer_switch_control.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 
 typedef MentionFiltersSheetExtraGroupBuilder =
     Widget Function(BuildContext sheetContext, VoidCallback close);
@@ -20,12 +20,7 @@ Future<void> showMentionFiltersSheet(
     variant: FluxerBottomSheetVariant.menu,
     useRootNavigator: true,
     builder: (BuildContext sheetContext, VoidCallback close) => Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        0,
-        16,
-        FluxerBottomSheet.bottomGapOf(sheetContext),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: FluxerBottomSheetGroupColumn(
         children: <Widget>[
           const _MentionFilterSwitches(),

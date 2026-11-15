@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluxer_app/core/permissions/permission.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
-import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/channels/domain/channel.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/category_channel_route_handler.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/link_channel_route_handler.dart';
@@ -15,10 +15,12 @@ import 'package:fluxer_app/features/chat/presentation/widgets/wallpaper/chat_wal
 import 'package:fluxer_app/features/chat/providers/channel/channel_details_providers.dart';
 import 'package:fluxer_app/features/chat/providers/channel/channel_header_search_provider.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/bottom_input_slot_provider.dart';
+import 'package:fluxer_app/features/chat/utils/chat_shell_layout.dart';
 import 'package:fluxer_app/features/chat/utils/composer/bottom_input_slot_layout.dart';
 import 'package:fluxer_app/features/forum/presentation/forum_channel_view.dart';
 import 'package:fluxer_app/features/forum/providers/forum_header_search_provider.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
+import 'package:fluxer_app/features/guilds/presentation/widgets/guild_mfa_requirement_nagbar.dart';
 import 'package:fluxer_app/features/guilds/presentation/widgets/guild_unavailable_screen.dart';
 import 'package:fluxer_app/features/guilds/presentation/widgets/staff_only_guild_nagbar.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_availability_provider.dart';
@@ -29,6 +31,7 @@ import 'package:fluxer_app/features/mature_content/providers/mature_content_agre
 import 'package:fluxer_app/features/mature_content/providers/sensitive_content_provider.dart';
 import 'package:fluxer_app/features/mature_content/utils/channel_gate_navigator.dart';
 import 'package:fluxer_app/features/members/presentation/widgets/channel_members.dart';
+import 'package:fluxer_app/features/shell/hosted_ui/hosted_ui_background_bleed.dart';
 import 'package:fluxer_app/features/shell/hosted_ui/hosted_ui_chat_scaffold.dart';
 import 'package:fluxer_app/features/shell/presentation/mobile_chat_back_scope.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
@@ -153,7 +156,10 @@ class _ChannelLayoutState extends ConsumerState<ChannelLayout> {
         return isResolvedChannelGateBlocking(
           channel: channel,
           channelList: channelList,
-          nsfwAllowed: ref.read(sensitiveContentProvider).nsfwAllowed,
+          access: ref.read(sensitiveContentProvider).access,
+          allowInAppConsent: ref
+              .read(sensitiveContentProvider)
+              .inAppConsentAllowed,
           agreements: ref.read(matureContentAgreementsProvider),
         );
       },
@@ -255,89 +261,93 @@ class _ChannelLayoutState extends ConsumerState<ChannelLayout> {
     return HostedUiChatScaffold(
       channelId: widget.channelId,
       child: MobileChatBackScope(
-        child: ColoredBox(
-          color: isMobile
-              ? context.colors.chatInputBackground
-              : context.colors.chatBackground,
-          child: SafeArea(
-            bottom: reserveBottomSafeArea,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final bool showMemberList =
-                        isWide &&
-                        isMemberListVisible &&
-                        !isSearchActive &&
-                        constraints.maxWidth >=
-                            ChannelLayout._minWidthForMemberList;
-                    return Column(
-                      children: [
-                        if (isGuildStaffOnlyAccessible(guild))
-                          StaffOnlyGuildNagbar(guildId: widget.guildId),
-                        if (!hideableVoiceHeader) header,
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(child: primaryContent),
-                                  if (isSearchActive)
-                                    ChannelSearchResultsPanel(
-                                      channelId: widget.channelId,
-                                      guildId: widget.guildId,
-                                      onClose: () => ref
-                                          .read(
-                                            channelHeaderSearchProvider
-                                                .notifier,
-                                          )
-                                          .closeSearch(),
-                                    ),
-                                  if (showMemberList &&
-                                      channel != null &&
-                                      channel.isThread)
-                                    ThreadMembersPanel(
-                                      key: ValueKey<String>(widget.channelId),
-                                      thread: channel,
-                                    )
-                                  else if (showMemberList)
-                                    ChannelMembers(
-                                      key: ValueKey<String>(widget.channelId),
-                                      guildId: widget.guildId,
-                                      channelId: widget.channelId,
-                                    ),
-                                ],
-                              ),
-                              if (hideableVoiceHeader)
-                                Positioned(
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  child: IgnorePointer(
-                                    ignoring: !showsVoiceOverlay,
-                                    child: AnimatedOpacity(
-                                      duration: const Duration(
-                                        milliseconds: 240,
+        child: HostedUiBackgroundBleed(
+          color: channelChatHostedUiBleedColor(context),
+          child: ColoredBox(
+            color: channelChatShellBackgroundColor(context),
+            child: SafeArea(
+              bottom: reserveBottomSafeArea,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final bool showMemberList =
+                          isWide &&
+                          isMemberListVisible &&
+                          !isSearchActive &&
+                          constraints.maxWidth >=
+                              ChannelLayout._minWidthForMemberList;
+                      return Column(
+                        children: [
+                          if (isGuildStaffOnlyAccessible(guild))
+                            StaffOnlyGuildNagbar(guildId: widget.guildId),
+                          if (guild != null &&
+                              guild.mfaLevel == guildMfaLevelElevated)
+                            GuildMfaRequirementNagbar(guild: guild),
+                          if (!hideableVoiceHeader) header,
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(child: primaryContent),
+                                    if (isSearchActive)
+                                      ChannelSearchResultsPanel(
+                                        channelId: widget.channelId,
+                                        guildId: widget.guildId,
+                                        onClose: () => ref
+                                            .read(
+                                              channelHeaderSearchProvider
+                                                  .notifier,
+                                            )
+                                            .closeSearch(),
                                       ),
-                                      opacity: showsVoiceOverlay ? 1 : 0,
-                                      child: header,
+                                    if (showMemberList &&
+                                        channel != null &&
+                                        channel.isThread)
+                                      ThreadMembersPanel(
+                                        key: ValueKey<String>(widget.channelId),
+                                        thread: channel,
+                                      )
+                                    else if (showMemberList)
+                                      ChannelMembers(
+                                        key: ValueKey<String>(widget.channelId),
+                                        guildId: widget.guildId,
+                                        channelId: widget.channelId,
+                                      ),
+                                  ],
+                                ),
+                                if (hideableVoiceHeader)
+                                  Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: IgnorePointer(
+                                      ignoring: !showsVoiceOverlay,
+                                      child: AnimatedOpacity(
+                                        duration: const Duration(
+                                          milliseconds: 240,
+                                        ),
+                                        opacity: showsVoiceOverlay ? 1 : 0,
+                                        child: header,
+                                      ),
                                     ),
                                   ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                Positioned.fill(
-                  child: ChannelDetailsDrawerOverlay(
-                    channelId: widget.channelId,
+                        ],
+                      );
+                    },
                   ),
-                ),
-              ],
+                  Positioned.fill(
+                    child: ChannelDetailsDrawerOverlay(
+                      channelId: widget.channelId,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

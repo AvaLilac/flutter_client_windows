@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_providers.dart';
@@ -20,6 +21,7 @@ import 'package:fluxer_app/features/members/providers/member_list_viewport_provi
 import 'package:fluxer_app/features/members/providers/member_providers.dart';
 import 'package:fluxer_app/features/members/utils/member_list_access.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 import 'package:fluxer_dart/gateway.dart';
 
 const double _kPanelWidth = 264;
@@ -46,9 +48,11 @@ class _ChannelMembersState extends ConsumerState<ChannelMembers> {
   @override
   void initState() {
     super.initState();
-    _memberListViewport = ref.read(memberListViewportProvider.notifier);
+    _memberListViewport = ref.read(
+      memberListViewportProvider(readAccountUserId(ref)).notifier,
+    );
     _memberListDesiredRanges = ref.read(
-      memberListDesiredRangesProvider.notifier,
+      memberListDesiredRangesProvider(readAccountUserId(ref)).notifier,
     );
     _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -56,6 +60,7 @@ class _ChannelMembersState extends ConsumerState<ChannelMembers> {
         return;
       }
       prefetchGuildRolesIfMissing(
+        ref: ref,
         database: ref.read(fluxerDatabaseProvider),
         repository: ref.read(memberRepositoryProvider),
         guildId: widget.guildId,
@@ -98,12 +103,14 @@ class _ChannelMembersState extends ConsumerState<ChannelMembers> {
       return;
     }
     final MemberListViewportListState? listState = ref
-        .read(memberListViewportProvider.notifier)
+        .read(memberListViewportProvider(readAccountUserId(ref)).notifier)
         .getList(guildId: guildId, channelId: channelId);
     final int totalRows = listState?.totalRows ?? 0;
     if (!_scrollController.hasClients) {
       ref
-          .read(memberListDesiredRangesProvider.notifier)
+          .read(
+            memberListDesiredRangesProvider(readAccountUserId(ref)).notifier,
+          )
           .setRanges(
             guildId: guildId,
             channelId: channelId,
@@ -117,12 +124,12 @@ class _ChannelMembersState extends ConsumerState<ChannelMembers> {
     final List<MemberListRange> ranges = buildMemberListRangeWindow(
       scrollTop: _scrollController.position.pixels,
       clientHeight: _scrollController.position.viewportDimension,
-      rowHeight: kMemberListRowHeight,
+      rowHeight: memberListRowHeightOf(context),
       totalRows: totalRows > 0 ? totalRows : null,
       layouts: layouts.isNotEmpty ? layouts : null,
     );
     ref
-        .read(memberListDesiredRangesProvider.notifier)
+        .read(memberListDesiredRangesProvider(readAccountUserId(ref)).notifier)
         .setRanges(
           guildId: guildId,
           channelId: channelId,
@@ -155,9 +162,9 @@ class _ChannelMembersState extends ConsumerState<ChannelMembers> {
         ),
         (_, _) {},
       )
-      ..watch(memberListViewportProvider);
+      ..watch(memberListViewportProvider(readAccountUserId(ref)));
     final MemberListViewportListState? listState = ref
-        .read(memberListViewportProvider.notifier)
+        .read(memberListViewportProvider(readAccountUserId(ref)).notifier)
         .getList(guildId: guildId, channelId: channelId);
     final Map<String, db.Role> rolesById =
         ref.watch(guildRolesByIdProvider(guildId)).value ?? <String, db.Role>{};
@@ -168,7 +175,7 @@ class _ChannelMembersState extends ConsumerState<ChannelMembers> {
         child: ListView.builder(
           controller: _scrollController,
           padding: EdgeInsets.only(
-            top: 10,
+            top: usesDesktopPointerUi(context) ? 4 : 10,
             left: context.layout.s2,
             right: context.layout.s2,
             bottom: context.layout.s4,
@@ -191,7 +198,7 @@ class _ChannelMembersState extends ConsumerState<ChannelMembers> {
       child: ListView.builder(
         controller: _scrollController,
         padding: EdgeInsets.only(
-          top: 10,
+          top: usesDesktopPointerUi(context) ? 4 : 10,
           left: context.layout.s2,
           right: context.layout.s2,
           bottom: context.layout.s4,
@@ -209,6 +216,7 @@ class _ChannelMembersState extends ConsumerState<ChannelMembers> {
             return MemberListSidebarGroupHeader(
               groupName: header.name,
               count: header.count,
+              iconRole: header.iconRole,
             );
           }
           final MemberListViewportRow? row = listState.rows[rowIndex];
@@ -254,7 +262,9 @@ class _ChannelMembersPanel extends StatelessWidget {
       width: _kPanelWidth,
       decoration: BoxDecoration(
         color: context.colors.memberListBackground,
-        border: Border(left: BorderSide(color: context.colors.borderColor)),
+        border: BorderDirectional(
+          start: BorderSide(color: context.colors.borderColor),
+        ),
       ),
       child: child,
     );

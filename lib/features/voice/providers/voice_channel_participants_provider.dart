@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fluxer_app/core/database/fluxer_database.dart' as database;
 import 'package:fluxer_app/core/gateway/providers/gateway_event_providers.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/shared/utils/display_name.dart';
 import 'package:fluxer_app/shared/utils/guild_user_display.dart';
@@ -17,6 +18,17 @@ String voiceDmChannelParticipantsFamilyKey(String channelId) =>
 
 String voiceChannelParticipantsFamilyKey(String guildId, String channelId) {
   return '$guildId|$channelId';
+}
+
+String? voiceGuildIdFromParticipantsKey(String guildChannelKey) {
+  if (guildChannelKey.startsWith(kVoiceDmParticipantsKeyPrefix)) {
+    return null;
+  }
+  final int sep = guildChannelKey.indexOf('|');
+  if (sep <= 0) {
+    return null;
+  }
+  return guildChannelKey.substring(0, sep);
 }
 
 String voiceParticipantUserIdsKey(Set<String> userIds) {
@@ -69,7 +81,9 @@ void prefetchVoiceParticipantsForChannel(
   required String? guildId,
   required String channelId,
 }) {
-  final Map<String, VoiceState> map = ref.read(voiceStatesMapProvider);
+  final Map<String, VoiceState> map = ref.read(
+    voiceStatesMapProvider(readAccountUserId(ref)),
+  );
   final Set<String> ids = <String>{};
   for (final VoiceState vs in map.values) {
     if (vs.channelId != channelId) {
@@ -84,7 +98,20 @@ void prefetchVoiceParticipantsForChannel(
     }
     ids.add(vs.userId);
   }
+  if (ids.isEmpty) {
+    return;
+  }
   unawaited(prefetchVoiceParticipantUsers(ref, ids));
+  if (guildId != null && guildId.isNotEmpty) {
+    unawaited(
+      ref.read(
+        voiceGuildMembersLoaderProvider(
+          voiceGuildMembersKey(guildId, ids),
+        ).future,
+      ),
+    );
+  }
+  unawaited(ref.read(friendNicknamesLoaderProvider.future));
 }
 
 Future<Map<String, database.User>> _resolveVoiceParticipantUsers(
@@ -264,12 +291,21 @@ Future<void> friendNicknamesLoader(Ref ref) async {
 }
 
 @riverpod
-Future<void> voiceParticipantUsersLoader(Ref ref, String userIdsKey) async {
+Stream<int> voiceParticipantUsersLoader(Ref ref, String userIdsKey) {
   if (userIdsKey.isEmpty) {
-    return;
+    return Stream<int>.value(0);
   }
-  final Set<String> userIds = userIdsKey.split(',').toSet();
-  await _resolveVoiceParticipantUsers(ref, userIds);
+  int revision = 0;
+  return ref
+      .read(fluxerDatabaseProvider)
+      .userDao
+      .watchUsersByIds(userIdsKey.split(','))
+      .map((List<database.User> rows) {
+        for (final database.User user in rows) {
+          _voiceParticipantUsersCache[user.id] = user;
+        }
+        return ++revision;
+      });
 }
 
 @riverpod
@@ -306,17 +342,6 @@ String voiceChannelGridStructure(Ref ref, String guildChannelKey) {
   }
   parts.sort();
   return parts.join(';');
-}
-
-@riverpod
-String voiceChannelSidebarStructure(Ref ref, String guildChannelKey) {
-  final List<VoiceState> inChannel = _voiceStatesForGuildChannelKey(
-    ref,
-    guildChannelKey,
-  );
-  final List<String> userIds =
-      inChannel.map((VoiceState vs) => vs.userId).toSet().toList()..sort();
-  return userIds.join(',');
 }
 
 @riverpod

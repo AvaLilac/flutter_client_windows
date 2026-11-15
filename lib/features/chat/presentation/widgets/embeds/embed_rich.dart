@@ -15,7 +15,7 @@ import 'package:fluxer_app/features/chat/utils/embeds/embed_gallery_utils.dart';
 import 'package:fluxer_app/features/chat/utils/embeds/embed_media_viewer_utils.dart';
 import 'package:fluxer_app/features/chat/utils/embeds/embed_youtube_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/media_dimension_utils.dart';
-import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/chat_preferences_provider.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_markdown/fluxer_markdown.dart';
@@ -96,7 +96,9 @@ class EmbedRich extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 440),
           decoration: BoxDecoration(
             color: context.colors.embedBackground,
-            border: Border(left: BorderSide(color: sideColor, width: 4)),
+            border: BorderDirectional(
+              start: BorderSide(color: sideColor, width: 4),
+            ),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Padding(
@@ -331,7 +333,7 @@ class _EmbedFieldTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 6, right: 8),
+    padding: const EdgeInsetsDirectional.only(bottom: 6, end: 8),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

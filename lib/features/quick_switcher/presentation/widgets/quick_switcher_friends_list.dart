@@ -10,8 +10,8 @@ import 'package:fluxer_app/features/profile/presentation/user_profile_sheet.dart
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class QuickSwitcherFriendsList extends ConsumerWidget {
   const QuickSwitcherFriendsList({
@@ -63,7 +63,6 @@ class QuickSwitcherFriendsList extends ConsumerWidget {
         padding: EdgeInsets.only(
           left: context.layout.s3,
           right: context.layout.s3,
-          bottom: context.layout.s5,
         ),
       ),
       children: <Widget>[

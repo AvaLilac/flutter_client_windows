@@ -1,8 +1,14 @@
 import Foundation
 import UserNotifications
 
+struct PushConversationIdentity: Equatable {
+  let senderName: String
+  let groupName: String?
+}
+
 enum PushNotificationPayload {
   static let messageReplyCategoryId = "fluxer_message"
+  static let groupDmTitleSuffix = " (Group DM)"
   static let messageReplyActionId = "fluxer_reply"
 
   static func canReply(from userInfo: [AnyHashable: Any]) -> Bool {
@@ -42,11 +48,11 @@ enum PushNotificationPayload {
   }
 
   static func replyMessageId(from userInfo: [AnyHashable: Any]) -> String? {
-    if let messageId = userInfo["message_id"] as? String, !messageId.isEmpty {
+    if let messageId = nonEmptyText(userInfo["message_id"]) {
       return messageId
     }
     if let data = userInfo["data"] as? [AnyHashable: Any],
-      let messageId = data["message_id"] as? String, !messageId.isEmpty
+      let messageId = nonEmptyText(data["message_id"])
     {
       return messageId
     }
@@ -77,6 +83,89 @@ enum PushNotificationPayload {
     return nil
   }
 
+  static func resolveConversationIdentity(
+    from userInfo: [AnyHashable: Any],
+    title: String,
+    groupDmNames: [String: Any]? = storedGroupDmNames()
+  ) -> PushConversationIdentity? {
+    if payloadText("preview_kind", in: userInfo) == "mature" {
+      return nil
+    }
+    let storedName = resolveStoredGroupDmName(from: userInfo, groupDmNames: groupDmNames)
+    if let author = payloadText("author_name", in: userInfo) {
+      return PushConversationIdentity(
+        senderName: author,
+        groupName: structuredGroupName(from: userInfo, storedGroupDmName: storedName)
+      )
+    }
+    let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else {
+      return nil
+    }
+    let groupName = trimmed.hasSuffix(groupDmTitleSuffix)
+      ? storedName ?? groupDmLabel
+      : resolveSpeakableGroupName(title: trimmed, userInfo: userInfo)
+    guard groupName != nil, let open = trimmed.range(of: " (", options: .backwards) else {
+      return PushConversationIdentity(senderName: trimmed, groupName: nil)
+    }
+    return PushConversationIdentity(
+      senderName: String(trimmed[..<open.lowerBound]),
+      groupName: groupName
+    )
+  }
+
+  private static var groupDmLabel: String {
+    NativeStrings.text("PUSH_GROUP_DM", "Group DM")
+  }
+
+  private static func structuredGroupName(
+    from userInfo: [AnyHashable: Any],
+    storedGroupDmName: String?
+  ) -> String? {
+    let name = payloadText("conversation_name", in: userInfo)
+    switch payloadText("conversation_kind", in: userInfo) {
+    case "guild":
+      guard let name else {
+        return payloadText("guild_name", in: userInfo)
+      }
+      guard let guild = payloadText("guild_name", in: userInfo) else {
+        return "#\(name)"
+      }
+      return NativeStrings.format("PUSH_CHANNEL_IN_COMMUNITY", "#%1$@, %2$@", name, guild)
+    case "group_dm":
+      return name ?? storedGroupDmName ?? groupDmLabel
+    default:
+      return nil
+    }
+  }
+
+  static func localizedPreviewBody(from userInfo: [AnyHashable: Any]) -> String? {
+    let arg = payloadText("preview_arg", in: userInfo)
+    switch payloadText("preview_kind", in: userInfo) {
+    case "sticker":
+      return arg.map { NativeStrings.format("PUSH_PREVIEW_STICKER_NAMED", "Sticker: %@", $0) }
+        ?? NativeStrings.text("PUSH_PREVIEW_STICKER", "Sticker")
+    case "stickers":
+      return arg.map {
+        NativeStrings.format(
+          "PUSH_PREVIEW_STICKERS_NAMED",
+          "Stickers: %@",
+          ListFormatter.localizedString(byJoining: $0.components(separatedBy: "\n"))
+        )
+      } ?? NativeStrings.text("PUSH_PREVIEW_STICKERS", "Stickers")
+    case "attachment":
+      return arg.map { NativeStrings.format("PUSH_PREVIEW_ATTACHMENT_NAMED", "Attachment: %@", $0) }
+        ?? NativeStrings.text("PUSH_PREVIEW_ATTACHMENT", "Attachment")
+    case "mature":
+      if payloadText("conversation_kind", in: userInfo) == "group_dm" {
+        return NativeStrings.text("PUSH_PREVIEW_MATURE_GROUP_DM", "Message in an 18+ group DM")
+      }
+      return NativeStrings.text("PUSH_PREVIEW_MATURE", "Message in an 18+ channel")
+    default:
+      return nil
+    }
+  }
+
   static func resolveSpeakableGroupName(
     title: String,
     userInfo: [AnyHashable: Any]
@@ -94,8 +183,8 @@ enum PushNotificationPayload {
   }
 
   static func resolveSpeakableGroupName(title: String) -> String? {
-    if title.hasSuffix(" (Group DM)") {
-      return "Group DM"
+    if title.hasSuffix(groupDmTitleSuffix) {
+      return groupDmLabel
     }
     guard let open = title.range(of: " (#", options: .backwards),
       let comma = title.range(of: ", ", range: open.upperBound..<title.endIndex),
@@ -123,17 +212,85 @@ enum PushNotificationPayload {
     return Date(timeIntervalSince1970: TimeInterval(sentMs) / 1000)
   }
 
-  static func resolveMessageId(from userInfo: [AnyHashable: Any]) -> String? {
+  static func resolveMessageId(
+    from userInfo: [AnyHashable: Any],
+    channelId: String? = nil
+  ) -> String? {
     if let messageId = replyMessageId(from: userInfo) {
       return messageId
     }
-    if let id = userInfo["id"] as? String, !id.isEmpty {
+    if let id = nonEmptyText(userInfo["id"]) {
       return id
     }
     if let data = userInfo["data"] as? [AnyHashable: Any],
-      let id = data["id"] as? String, !id.isEmpty
+      let id = nonEmptyText(data["id"])
     {
       return id
+    }
+    if let channelId, !channelId.isEmpty {
+      if let messageId = messageIdFromPayloadTags(in: userInfo, channelId: channelId) {
+        return messageId
+      }
+      if let threadId = resolveChannelThreadIdentifier(from: userInfo),
+        let messageId = messageIdFromChannelTag(threadId, channelId: channelId)
+      {
+        return messageId
+      }
+    }
+    return nil
+  }
+
+  static func messageIdFromChannelTag(_ tag: String, channelId: String) -> String? {
+    let channelTag = "channel:\(channelId)"
+    let prefix = "\(channelTag):"
+    guard tag.hasPrefix(prefix) else {
+      return nil
+    }
+    let messageId = String(tag.dropFirst(prefix.count))
+    return messageId.isEmpty ? nil : messageId
+  }
+
+  static func deliveredNotificationIdentifiersToRemove(
+    from notifications: [UNNotification],
+    channelId: String,
+    upToMessageId: String?
+  ) -> [String] {
+    let matched = notifications.filter {
+      notificationMatchesChannel($0, channelId: channelId)
+    }
+    let entries = matched.map { notification -> (identifier: String, messageId: String?) in
+      let messageId = resolveMessageIdForDeliveredNotification(
+        notification.request.content,
+        channelId: channelId
+      )
+      return (notification.request.identifier, messageId)
+    }
+    let unreadRemain = entries.contains { entry in
+      !messageIsCoveredByAck(messageId: entry.messageId, upToMessageId: upToMessageId)
+    }
+    return entries.compactMap { entry in
+      if entry.messageId == nil {
+        return unreadRemain ? nil : entry.identifier
+      }
+      guard messageIsCoveredByAck(messageId: entry.messageId, upToMessageId: upToMessageId) else {
+        return nil
+      }
+      return entry.identifier
+    }
+  }
+
+  private static func resolveMessageIdForDeliveredNotification(
+    _ content: UNNotificationContent,
+    channelId: String
+  ) -> String? {
+    if let messageId = resolveMessageId(from: content.userInfo, channelId: channelId) {
+      return messageId
+    }
+    let threadId = content.threadIdentifier
+    if !threadId.isEmpty,
+      let messageId = messageIdFromChannelTag(threadId, channelId: channelId)
+    {
+      return messageId
     }
     return nil
   }
@@ -201,6 +358,16 @@ enum PushNotificationPayload {
     if let data = userInfo["data"] as? [AnyHashable: Any] {
       if isClearValue(data["type"]) || isClearValue(data["action"]) {
         return true
+      }
+    }
+    if let notification = userInfo["notification"] as? [AnyHashable: Any] {
+      if isClearValue(notification["type"]) || isClearValue(notification["action"]) {
+        return true
+      }
+      if let data = notification["data"] as? [AnyHashable: Any] {
+        if isClearValue(data["type"]) || isClearValue(data["action"]) {
+          return true
+        }
       }
     }
     return false
@@ -277,6 +444,35 @@ enum PushNotificationPayload {
       directMessageSoundSettingKey: directMessage,
     ]
     defaults.set(settings, forKey: notificationSoundSettingsKey)
+  }
+
+  static let groupDmNamesKey = "fluxer_push_group_dm_names"
+
+  static func storedGroupDmNames() -> [String: Any]? {
+    return UserDefaults(suiteName: appGroupSuiteName)?
+      .dictionary(forKey: groupDmNamesKey)
+  }
+
+  static func storeGroupDmNames(userId: String, names: [String: String]) {
+    guard let defaults = UserDefaults(suiteName: appGroupSuiteName) else {
+      return
+    }
+    var stored = defaults.dictionary(forKey: groupDmNamesKey) ?? [:]
+    stored[userId] = names
+    defaults.set(stored, forKey: groupDmNamesKey)
+  }
+
+  static func resolveStoredGroupDmName(
+    from userInfo: [AnyHashable: Any],
+    groupDmNames: [String: Any]?
+  ) -> String? {
+    guard let userId = targetUserId(from: userInfo),
+      let channelId = resolveChannelId(from: userInfo),
+      let names = groupDmNames?[userId] as? [String: String]
+    else {
+      return nil
+    }
+    return nonEmptyText(names[channelId])
   }
 
   static func resolveNotificationSound(
@@ -391,9 +587,17 @@ enum PushNotificationPayload {
     {
       return true
     }
-    let tag = (userInfo["tag"] as? String) ?? (userInfo["notification_tag"] as? String)
-    if let tag, tag == channelTag || tag.hasPrefix("\(channelTag):") {
-      return true
+    if let tag = nonEmptyText(userInfo["tag"]) ?? nonEmptyText(userInfo["notification_tag"]) {
+      if tag == channelTag || tag.hasPrefix("\(channelTag):") {
+        return true
+      }
+    }
+    if let data = userInfo["data"] as? [AnyHashable: Any] {
+      if let tag = nonEmptyText(data["tag"]) ?? nonEmptyText(data["notification_tag"]) {
+        if tag == channelTag || tag.hasPrefix("\(channelTag):") {
+          return true
+        }
+      }
     }
     return false
   }
@@ -404,6 +608,29 @@ enum PushNotificationPayload {
     }
     if let data = userInfo["data"] as? [AnyHashable: Any] {
       return nonEmptyText(data[key])
+    }
+    return nil
+  }
+
+  private static func messageIdFromPayloadTags(
+    in userInfo: [AnyHashable: Any],
+    channelId: String
+  ) -> String? {
+    for key in ["tag", "notification_tag"] {
+      if let tag = nonEmptyText(userInfo[key]),
+        let messageId = messageIdFromChannelTag(tag, channelId: channelId)
+      {
+        return messageId
+      }
+    }
+    if let data = userInfo["data"] as? [AnyHashable: Any] {
+      for key in ["tag", "notification_tag"] {
+        if let tag = nonEmptyText(data[key]),
+          let messageId = messageIdFromChannelTag(tag, channelId: channelId)
+        {
+          return messageId
+        }
+      }
     }
     return nil
   }
@@ -443,10 +670,17 @@ enum PushNotificationPayload {
   }
 
   private static func isClearValue(_ value: Any?) -> Bool {
-    guard let string = value as? String, !string.isEmpty else {
+    guard let string = nonEmptyText(value) else {
       return false
     }
     return string == "notification_clear" || string == "clear_channel"
+  }
+
+  static func parseBadgeCount(_ value: Any?) -> Int? {
+    guard let text = nonEmptyText(value) else {
+      return nil
+    }
+    return Int(text)
   }
 
   private static func nonEmptyText(_ value: Any?) -> String? {

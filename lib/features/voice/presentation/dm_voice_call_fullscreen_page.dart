@@ -6,7 +6,9 @@ import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/wallpaper/chat_wallpaper_text_theme.dart';
 import 'package:fluxer_app/features/chat/providers/core/chat_view_model.dart';
 import 'package:fluxer_app/features/chat/utils/chat_route_sync_guard.dart';
+import 'package:fluxer_app/features/dm/domain/dm_conversation.dart';
 import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
+import 'package:fluxer_app/features/shell/hosted_ui/iphone_duo_hosted_ui.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/voice/flip_camera_button.dart';
 import 'package:fluxer_app/features/ui/voice/local_camera_orientation_sync.dart';
@@ -72,7 +74,9 @@ class _DmVoiceCallFullscreenPageState
       dmViewModelProvider.select((s) => s.conversations),
     );
     final dm = findDmById(conversations, widget.channelId);
-    final String resolved = dm?.displayName ?? '';
+    final String resolved = dm == null
+        ? ''
+        : dmConversationDisplayName(l10n, dm);
     return resolved.isNotEmpty ? resolved : l10n.dmVoiceFullscreenTitle;
   }
 
@@ -114,7 +118,10 @@ class _DmVoiceCallFullscreenPageState
                       : context.colors.chatInputBackground,
                   foregroundColor: context.colors.textPrimary,
                   elevation: 0,
-                  leading: BackButton(onPressed: () => context.pop()),
+                  leading: showsInAppShellBackButton(context)
+                      ? BackButton(onPressed: () => context.pop())
+                      : null,
+                  automaticallyImplyLeading: false,
                   title: Text(
                     _resolveAppBarTitle(l10n),
                     style: context.textStyles.channelName,
@@ -122,7 +129,7 @@ class _DmVoiceCallFullscreenPageState
                   ),
                   actions: const <Widget>[
                     Padding(
-                      padding: EdgeInsets.only(right: 8),
+                      padding: EdgeInsetsDirectional.only(end: 8),
                       child: FlipCameraButton(),
                     ),
                   ],
@@ -135,19 +142,31 @@ class _DmVoiceCallFullscreenPageState
                   child: usePhoneVoiceOverlay
                       ? VoiceCallMobilePageLayout(
                           channelId: widget.channelId,
-                          child: VoiceChannelParticipantGrid(
-                            channelId: widget.channelId,
+                          child: RepaintBoundary(
+                            child: VoiceChannelParticipantGrid(
+                              key: const ValueKey<String>(
+                                'voice-participant-grid',
+                              ),
+                              channelId: widget.channelId,
+                            ),
                           ),
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: <Widget>[
                             Expanded(
-                              child: VoiceChannelParticipantGrid(
-                                channelId: widget.channelId,
+                              child: RepaintBoundary(
+                                child: VoiceChannelParticipantGrid(
+                                  key: const ValueKey<String>(
+                                    'voice-participant-grid',
+                                  ),
+                                  channelId: widget.channelId,
+                                ),
                               ),
                             ),
-                            const VoiceChannelControlBar(),
+                            const RepaintBoundary(
+                              child: VoiceChannelControlBar(),
+                            ),
                           ],
                         ),
                 )

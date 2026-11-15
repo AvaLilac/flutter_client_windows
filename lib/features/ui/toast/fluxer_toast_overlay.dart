@@ -8,7 +8,8 @@ import 'package:fluxer_app/features/ui/toast/fluxer_toast.dart';
 import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
+import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 
 class FluxerToastOverlay extends ConsumerWidget {
   const FluxerToastOverlay({required this.child, super.key});
@@ -22,11 +23,17 @@ class FluxerToastOverlay extends ConsumerWidget {
     FluxerToastVariant.info => null,
   };
 
-  Color _variantIconColor(BuildContext context, FluxerToastVariant variant) {
+  Color _variantIconColor(
+    BuildContext context,
+    FluxerToastVariant variant, {
+    required bool desktop,
+  }) {
     final colors = context.colors;
     return switch (variant) {
-      FluxerToastVariant.success => colors.accentSuccess,
-      FluxerToastVariant.danger => colors.accentDanger,
+      FluxerToastVariant.success =>
+        desktop ? colors.statusOnline : colors.accentSuccess,
+      FluxerToastVariant.danger =>
+        desktop ? colors.statusDanger : colors.accentDanger,
       FluxerToastVariant.warning => colors.accentWarning,
       FluxerToastVariant.info => colors.textPrimary,
     };
@@ -37,6 +44,7 @@ class FluxerToastOverlay extends ConsumerWidget {
     final entries = ref.watch(toastProvider);
     final layout = context.layout;
     final mediaQuery = MediaQuery.of(context);
+    final bool desktop = usesDesktopPointerUi(context);
 
     return Stack(
       fit: StackFit.expand,
@@ -46,7 +54,7 @@ class FluxerToastOverlay extends ConsumerWidget {
           Positioned(
             left: layout.s4,
             right: layout.s4,
-            top: mediaQuery.padding.top + layout.s4,
+            top: mediaQuery.padding.top + (desktop ? layout.s6 : layout.s4),
             child: CreaseAwareAlign(
               alignment: Alignment.topCenter,
               child: Column(
@@ -58,10 +66,14 @@ class FluxerToastOverlay extends ConsumerWidget {
                       child: _ToastItem(
                         key: ValueKey<int>(entry.id),
                         entry: entry,
-                        icon: _variantIcon(entry.toast.variant),
+                        desktop: desktop,
+                        icon: entry.toast.leading == null
+                            ? _variantIcon(entry.toast.variant)
+                            : null,
                         iconColor: _variantIconColor(
                           context,
                           entry.toast.variant,
+                          desktop: desktop,
                         ),
                         onDismiss: () =>
                             ref.read(toastProvider.notifier).dismiss(entry.id),
@@ -82,10 +94,12 @@ class _ToastItem extends StatefulWidget {
     required this.icon,
     required this.iconColor,
     required this.onDismiss,
+    this.desktop = false,
     super.key,
   });
 
   final ToastEntry entry;
+  final bool desktop;
   final IconData? icon;
   final Color iconColor;
   final VoidCallback onDismiss;
@@ -158,6 +172,8 @@ class _ToastItemState extends State<_ToastItem>
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
     final String message = widget.entry.toast.message;
     final FluxerToastAction? action = widget.entry.toast.action;
+    final Widget? leading = widget.entry.toast.leading;
+    final bool centerMessage = message.contains('\n') && leading != null;
 
     return SlideTransition(
       position: _slideAnimation,
@@ -183,11 +199,20 @@ class _ToastItemState extends State<_ToastItem>
                 child: Material(
                   type: MaterialType.transparency,
                   child: Container(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: layout.s4,
-                      vertical: layout.s3,
+                    constraints: BoxConstraints(
+                      maxWidth: widget.desktop
+                          ? MediaQuery.sizeOf(context).width * 0.9
+                          : 400,
                     ),
+                    padding: widget.desktop
+                        ? const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          )
+                        : EdgeInsets.symmetric(
+                            horizontal: layout.s4,
+                            vertical: layout.s3,
+                          ),
                     decoration: BoxDecoration(
                       color: colors.backgroundPrimary,
                       borderRadius: layout.radiusFull,
@@ -198,11 +223,13 @@ class _ToastItemState extends State<_ToastItem>
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 15,
+                          spreadRadius: widget.desktop ? -3 : 0,
                           offset: const Offset(0, 10),
                         ),
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 6,
+                          spreadRadius: widget.desktop ? -4 : 0,
                           offset: const Offset(0, 4),
                         ),
                       ],
@@ -210,7 +237,10 @@ class _ToastItemState extends State<_ToastItem>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (widget.icon != null) ...[
+                        if (leading != null) ...[
+                          leading,
+                          SizedBox(width: layout.s3),
+                        ] else if (widget.icon != null) ...[
                           PhosphorIcon(
                             widget.icon!,
                             size: 20,
@@ -221,8 +251,10 @@ class _ToastItemState extends State<_ToastItem>
                         Flexible(
                           child: Text(
                             message,
+                            textAlign: centerMessage ? TextAlign.center : null,
                             style: textStyles.bodyMedium.copyWith(
                               fontWeight: FontWeight.w600,
+                              height: widget.desktop ? 1.375 : null,
                             ),
                           ),
                         ),

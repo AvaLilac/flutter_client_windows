@@ -54,20 +54,21 @@ class _RightTooltipState extends State<_RightTooltip>
     final borderColor =
         widget.borderColor ?? context.colors.backgroundHeaderSecondary;
 
+    final TextDirection direction = Directionality.of(context);
     _entry = OverlayEntry(
       builder: (_) => UnconstrainedBox(
         child: CompositedTransformFollower(
           link: _layerLink,
-          targetAnchor: Alignment.centerRight,
-          followerAnchor: Alignment.centerLeft,
-          offset: const Offset(8, 0),
+          targetAnchor: AlignmentDirectional.centerEnd.resolve(direction),
+          followerAnchor: AlignmentDirectional.centerStart.resolve(direction),
+          offset: Offset(direction == TextDirection.rtl ? -8 : 8, 0),
           showWhenUnlinked: false,
           child: IgnorePointer(
             child: FadeTransition(
               opacity: _fadeAnim,
               child: ScaleTransition(
                 scale: _scaleAnim,
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart.resolve(direction),
                 child: Material(
                   color: Colors.transparent,
                   child: ConstrainedBox(
@@ -78,11 +79,12 @@ class _RightTooltipState extends State<_RightTooltip>
                       painter: _TooltipShapePainter(
                         fillColor: bgColor,
                         borderColor: borderColor,
+                        textDirection: direction,
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.only(
-                          left: _kArrowWidth + 16,
-                          right: 16,
+                        padding: const EdgeInsetsDirectional.only(
+                          start: _kArrowWidth + 16,
+                          end: 16,
                           top: 12,
                           bottom: 12,
                         ),
@@ -107,7 +109,9 @@ class _RightTooltipState extends State<_RightTooltip>
     }
     unawaited(
       _animController.reverse().then((_) {
-        _entry?.remove();
+        _entry
+          ?..remove()
+          ..dispose();
         _entry = null;
       }),
     );
@@ -116,7 +120,9 @@ class _RightTooltipState extends State<_RightTooltip>
   @override
   void dispose() {
     _animController.dispose();
-    _entry?.remove();
+    _entry
+      ?..remove()
+      ..dispose();
     _entry = null;
     super.dispose();
   }
@@ -255,20 +261,22 @@ class _GuildTooltipContent extends ConsumerWidget {
     this.muteEndTime,
   });
 
-  String _mutedText(FluxerLocalizations l10n) {
+  String _mutedText(FluxerLocalizations l10n, {required bool use12Hour}) {
     if (muteEndTime == null) {
       return l10n.voiceParticipantTooltipMuted;
     }
-    final String formattedDate = DateFormat(
-      'MMM d, y h:mm a',
+    final String formattedDate = formatUserDateTime(
+      muteEndTime!.toLocal(),
       l10n.localeName,
-    ).format(muteEndTime!);
+      use12Hour: use12Hour,
+    );
     return l10n.guildNavbarMutedUntil(formattedDate);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
+    final bool use12Hour = ref.watch(use12HourTimeFormatProvider);
     final voiceRows =
         ref.watch(guildVoiceParticipantsProvider(guild.id)).value ??
         const <VoiceParticipantRow>[];
@@ -341,7 +349,7 @@ class _GuildTooltipContent extends ConsumerWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        _mutedText(l10n),
+                        _mutedText(l10n, use12Hour: use12Hour),
                         style: context.textStyles.bodySmall.copyWith(
                           color: context.colors.textSecondary,
                           fontSize: 13,

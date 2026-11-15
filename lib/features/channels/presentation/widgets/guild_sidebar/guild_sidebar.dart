@@ -16,6 +16,7 @@ import 'package:fluxer_app/core/gateway/providers/gateway_event_providers.dart';
 import 'package:fluxer_app/core/permissions/channel_effective_permissions.dart';
 import 'package:fluxer_app/core/permissions/channel_permission_cache_provider.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/router/navigate_to_content.dart';
 import 'package:fluxer_app/core/router/route_kind.dart';
@@ -41,6 +42,7 @@ import 'package:fluxer_app/features/channels/presentation/sheets/mute_duration_s
 import 'package:fluxer_app/features/channels/presentation/widgets/channel_icon.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/channel_list_typing_indicator.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/channel_unread_indicator.dart';
+import 'package:fluxer_app/features/channels/presentation/widgets/desktop_sidebar_header_surface.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/guild_sidebar_skeleton.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/voice_channel_participants.dart';
 import 'package:fluxer_app/features/channels/presentation/widgets/voice_channel_user_count.dart';
@@ -54,7 +56,7 @@ import 'package:fluxer_app/features/channels/providers/guild_sidebar_entries_pro
 import 'package:fluxer_app/features/channels/providers/guild_sidebar_scroll_store_provider.dart';
 import 'package:fluxer_app/features/channels/providers/unread_provider.dart';
 import 'package:fluxer_app/features/channels/utils/channel_scroll_indicator_severity.dart';
-import 'package:fluxer_app/features/channels/utils/navigate_to_channel_content.dart';
+import 'package:fluxer_app/features/channels/utils/navigation/navigate_to_channel_content.dart';
 import 'package:fluxer_app/features/channels/utils/show_channel_debug_sheet.dart';
 import 'package:fluxer_app/features/chat/utils/messages/delete_my_messages_in_channel_action.dart';
 import 'package:fluxer_app/features/chat/utils/messages/message_link.dart';
@@ -68,15 +70,16 @@ import 'package:fluxer_app/features/guilds/providers/guild_permissions_provider.
 import 'package:fluxer_app/features/guilds/providers/guild_read_state_provider.dart';
 import 'package:fluxer_app/features/guilds/providers/route_guild_provider.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_outage_availability.dart';
+import 'package:fluxer_app/features/mature_content/domain/mature_content_types.dart';
 import 'package:fluxer_app/features/mature_content/providers/mature_content_agreements_provider.dart';
 import 'package:fluxer_app/features/mature_content/providers/sensitive_content_provider.dart';
 import 'package:fluxer_app/features/members/utils/guild_members_page_permissions.dart';
 import 'package:fluxer_app/features/settings/domain/guild/guild_settings_tab.dart';
-import 'package:fluxer_app/features/settings/providers/advanced_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/advanced_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
-import 'package:fluxer_app/features/shell/providers/shell_sidebar_width_provider.dart';
+import 'package:fluxer_app/features/shell/providers/layout/shell_sidebar_width_provider.dart';
 import 'package:fluxer_app/features/threads/presentation/thread_sidebar_tile.dart';
 import 'package:fluxer_app/features/ui/action_menu/context_menu_widgets.dart';
 import 'package:fluxer_app/features/ui/scroller/fluxer_smooth_scrollbar.dart';
@@ -88,12 +91,13 @@ import 'package:fluxer_app/features/voice/providers/voice_channel_participants_p
 import 'package:fluxer_app/features/voice/providers/voice_p2p_mode_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
-import 'package:fluxer_app/features/voice/utils/voice_connection_actions.dart';
-import 'package:fluxer_app/features/voice/utils/voice_e2ee_display.dart';
-import 'package:fluxer_app/features/voice/utils/voice_p2p_mode.dart';
+import 'package:fluxer_app/features/voice/utils/connection/connection_actions.dart';
+import 'package:fluxer_app/features/voice/utils/e2ee/e2ee_display.dart';
+import 'package:fluxer_app/features/voice/utils/e2ee/p2p_mode.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/external_links/external_link_handler.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/clipboard_utils.dart';
@@ -101,7 +105,6 @@ import 'package:fluxer_app/shared/utils/navigation_item_semantics.dart';
 import 'package:fluxer_dart/export.dart' hide ChannelType;
 import 'package:fluxer_dart/gateway.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 part 'guild_sidebar_banner_layout.dart';
 part 'guild_sidebar_category_header.dart';
@@ -120,19 +123,21 @@ class GuildSidebar extends ConsumerStatefulWidget {
 
 class _GuildSidebarState extends ConsumerState<GuildSidebar> {
   Future<void> _handleServerHeaderTap(BuildContext context, Guild guild) async {
-    if (isMobileLayout(context)) {
+    if (isMobileLayout(context) || usesDesktopPointerUi(context)) {
       await presentGuildMenuSheet(context, ref, guild: guild);
       return;
     }
 
     await ref
-        .read(guildPermissionsProvider.notifier)
+        .read(guildPermissionsProvider(readAccountUserId(ref)).notifier)
         .refreshPermissions(guild.id);
     if (!context.mounted) {
       return;
     }
 
-    final int permissions = ref.read(guildPermissionsProvider)[guild.id] ?? 0;
+    final int permissions =
+        ref.read(guildPermissionsProvider(readAccountUserId(ref)))[guild.id] ??
+        0;
     if (canOpenGuildSettingsForRef(
       ref: ref,
       permissions: permissions,
@@ -148,28 +153,29 @@ class _GuildSidebarState extends ConsumerState<GuildSidebar> {
   @override
   Widget build(BuildContext context) {
     final String? guildId = ref.watch(activeGuildIdProvider);
-    final Set<String> trackedUnavailableGuildIds = ref.watch(
-      guildAvailabilityProvider,
-    );
-    final ChannelListState channelListState = ref.watch(
-      channelListViewModelProvider,
+    final (Guild? listGuild, bool listReceived) = ref.watch(
+      channelListViewModelProvider.select(
+        (ChannelListState state) =>
+            (state.guild, state.hasReceivedInitialChannelList),
+      ),
     );
     final Guild? routeGuild = guildId == null
         ? null
         : ref.watch(routeGuildProvider(guildId)).value;
-    final Guild? guild = channelListState.guild?.id == guildId
-        ? channelListState.guild
-        : routeGuild;
+    final Guild? guild = listGuild?.id == guildId ? listGuild : routeGuild;
     final bool guildOutageUnavailable =
         guildId != null &&
-        isGuildOutageUnavailable(
-          guildId: guildId,
-          trackedUnavailableGuildIds: trackedUnavailableGuildIds,
-          guild: guild,
+        ref.watch(
+          guildAvailabilityProvider.select(
+            (Set<String> ids) => isGuildOutageUnavailable(
+              guildId: guildId,
+              trackedUnavailableGuildIds: ids,
+              guild: guild,
+            ),
+          ),
         );
     final bool hasReceivedInitialChannelList =
-        channelListState.guild?.id == guildId &&
-        channelListState.hasReceivedInitialChannelList;
+        listGuild?.id == guildId && listReceived;
     final bool guildReady =
         guild != null && guildId != null && guild.id == guildId;
 
@@ -180,13 +186,22 @@ class _GuildSidebarState extends ConsumerState<GuildSidebar> {
       ref,
       context,
     );
+    final double savedScrollOffset =
+        guildId != null &&
+            guildReady &&
+            !guildOutageUnavailable &&
+            !hasReceivedInitialChannelList
+        ? ref.read(guildSidebarScrollStoreProvider).offsetFor(guildId) ?? 0
+        : 0;
 
     return Container(
       width: channelSidebarHasFixedWidth(context) ? channelSidebarWidth : null,
       padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
       decoration: BoxDecoration(
         color: context.colors.channelSidebarBackground,
-        border: Border(right: BorderSide(color: context.colors.borderColor)),
+        border: BorderDirectional(
+          end: BorderSide(color: context.colors.borderColor),
+        ),
       ),
       child: Column(
         children: [
@@ -195,6 +210,7 @@ class _GuildSidebarState extends ConsumerState<GuildSidebar> {
               guild: guild,
               outageUnavailable: guildOutageUnavailable,
               channelSidebarWidth: channelSidebarWidth,
+              scrollOffset: savedScrollOffset,
               onTap: guildOutageUnavailable || guild == null
                   ? null
                   : () => unawaited(_handleServerHeaderTap(context, guild)),
@@ -205,10 +221,8 @@ class _GuildSidebarState extends ConsumerState<GuildSidebar> {
                 : _GuildSidebarChannelListHost(
                     activeGuildId: guildId,
                     guild: guild,
-                    onHeaderTap: guildOutageUnavailable
-                        ? null
-                        : () =>
-                              unawaited(_handleServerHeaderTap(context, guild)),
+                    onHeaderTap: () =>
+                        unawaited(_handleServerHeaderTap(context, guild)),
                   ),
           ),
         ],

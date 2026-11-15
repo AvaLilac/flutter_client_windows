@@ -4,16 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/gateway/providers/gateway_event_providers.dart';
 import 'package:fluxer_app/core/permissions/channel_permission_cache_provider.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/shell/presentation/widgets/user_panel_widgets.dart';
-import 'package:fluxer_app/features/voice/providers/screen_share_capability_provider.dart';
-import 'package:fluxer_app/features/voice/providers/video_camera_capability_provider.dart';
+import 'package:fluxer_app/features/voice/providers/voice_capability_providers.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
+import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 import 'package:fluxer_dart/gateway.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class VoiceConnectionLocalControls extends ConsumerWidget {
   const VoiceConnectionLocalControls({super.key});
@@ -37,6 +38,7 @@ class VoiceConnectionLocalControls extends ConsumerWidget {
         .maybeWhen(data: (bool value) => value, orElse: () => false);
     final bool canVideo = hasCamera && _canUseVideo(ref, voice.channelId);
     final bool canToggleCamera = isConnected && canVideo;
+    final bool desktop = usesDesktopPointerUi(context);
 
     final List<Widget> controls = <Widget>[];
     if (hasCamera) {
@@ -44,9 +46,13 @@ class VoiceConnectionLocalControls extends ConsumerWidget {
         Expanded(
           child: UserPanelMediaButton(
             icon: PhosphorIcon(
-              isCameraOn
-                  ? PhosphorIconsFill.videoCamera
-                  : PhosphorIconsFill.videoCameraSlash,
+              desktop
+                  ? (isCameraOn
+                        ? PhosphorIconsFill.camera
+                        : PhosphorIconsFill.cameraSlash)
+                  : (isCameraOn
+                        ? PhosphorIconsFill.videoCamera
+                        : PhosphorIconsFill.videoCameraSlash),
             ),
             isActive: isCameraOn,
             enabled: canToggleCamera,
@@ -104,7 +110,7 @@ class VoiceConnectionLocalControls extends ConsumerWidget {
       return true;
     }
     final int? permissionBits = ref
-        .read(channelPermissionCacheProvider.notifier)
+        .read(channelPermissionCacheProvider(readAccountUserId(ref)).notifier)
         .getChannelBits(channelId);
     if (permissionBits == null) {
       return true;

@@ -147,7 +147,7 @@ class FluxerDatabase extends _$FluxerDatabase {
   FluxerDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 99;
+  int get schemaVersion => 110;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1576,6 +1576,133 @@ class FluxerDatabase extends _$FluxerDatabase {
           )) {
         await customStatement(
           'ALTER TABLE read_states DROP COLUMN missing_since',
+        );
+      }
+      if (from < 100) {
+        for (final GeneratedColumn<Object> column in <GeneratedColumn<Object>>[
+          users.operatorPassBadgeHidden,
+          users.operatorPassBadgeTimestampHidden,
+          users.operatorPassBadgeCountHidden,
+        ]) {
+          if (!await _tableHasColumn(
+            m.database,
+            tableName: 'users',
+            columnName: column.name,
+          )) {
+            await m.addColumn(users, column);
+          }
+        }
+      }
+      if (from < 101) {
+        if (!await _tableHasColumn(
+          m.database,
+          tableName: 'servers',
+          columnName: servers.badgeIdsJson.name,
+        )) {
+          await m.addColumn(servers, servers.badgeIdsJson);
+        }
+        if (!await _tableHasColumn(
+          m.database,
+          tableName: 'users',
+          columnName: users.hiddenProfileBadgesJson.name,
+        )) {
+          await m.addColumn(users, users.hiddenProfileBadgesJson);
+        }
+      }
+      if (from < 102) {
+        if (!await _tableHasColumn(
+          m.database,
+          tableName: 'roles',
+          columnName: roles.icon.name,
+        )) {
+          await m.addColumn(roles, roles.icon);
+        }
+        if (!await _tableHasColumn(
+          m.database,
+          tableName: 'roles',
+          columnName: roles.unicodeEmoji.name,
+        )) {
+          await m.addColumn(roles, roles.unicodeEmoji);
+        }
+      }
+      if (from < 103) {
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS idx_messages_channel',
+        );
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS idx_messages_author',
+        );
+      }
+      if (from < 104) {
+        if (!await _tableHasColumn(
+          m.database,
+          tableName: 'dm_channels',
+          columnName: dmChannels.nsfw.name,
+        )) {
+          await m.addColumn(dmChannels, dmChannels.nsfw);
+        }
+      }
+      if (from < 105 &&
+          !await _tableHasColumn(
+            m.database,
+            tableName: 'user_preferences',
+            columnName: userPreferencesTable.systemThemeChosenLocally.name,
+          )) {
+        await m.addColumn(
+          userPreferencesTable,
+          userPreferencesTable.systemThemeChosenLocally,
+        );
+        await m.database.customStatement(
+          'UPDATE user_preferences SET system_theme_chosen_locally = 1 '
+          "WHERE theme = 'system'",
+        );
+      }
+      if (from < 106 &&
+          !await _tableHasColumn(
+            m.database,
+            tableName: 'recent_instances',
+            columnName: recentInstances.url.name,
+          )) {
+        await m.addColumn(recentInstances, recentInstances.url);
+      }
+      if (from < 107) {
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_guild_emojis_guild '
+          'ON guild_emojis (guild_id)',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_guild_stickers_guild '
+          'ON guild_stickers (guild_id)',
+        );
+      }
+      if (from < 108 &&
+          !await _tableHasColumn(
+            m.database,
+            tableName: 'auth_sessions',
+            columnName: authSessions.email.name,
+          )) {
+        await m.addColumn(authSessions, authSessions.email);
+      }
+      if (from < 109 &&
+          !await _tableHasColumn(
+            m.database,
+            tableName: 'user_preferences',
+            columnName: userPreferencesTable.announceCallJoinsAndLeaves.name,
+          )) {
+        await m.addColumn(
+          userPreferencesTable,
+          userPreferencesTable.announceCallJoinsAndLeaves,
+        );
+      }
+      if (from < 110 &&
+          !await _tableHasColumn(
+            m.database,
+            tableName: 'user_preferences',
+            columnName: userPreferencesTable.useSystemDynamicColors.name,
+          )) {
+        await m.addColumn(
+          userPreferencesTable,
+          userPreferencesTable.useSystemDynamicColors,
         );
       }
     },

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/features/settings/domain/user_settings_section.dart';
 import 'package:fluxer_app/features/settings/presentation/user_settings_nav.dart';
-import 'package:fluxer_app/features/settings/utils/user_settings_billing_utils.dart';
+import 'package:fluxer_app/features/settings/utils/commerce/user_settings_billing_utils.dart';
 
 void main() {
   group('isUserSettingsBillingSectionAvailable', () {
@@ -39,6 +39,7 @@ void main() {
           buildUserSettingsDesktopNav(
             showBilling: false,
             showGiveFeedback: false,
+            showHelp: false,
             showJoinFluxerLabs: false,
             isTouchPrimary: false,
           );
@@ -46,6 +47,7 @@ void main() {
           buildUserSettingsDesktopNav(
             showBilling: true,
             showGiveFeedback: false,
+            showHelp: false,
             showJoinFluxerLabs: false,
             isTouchPrimary: false,
           );
@@ -74,6 +76,7 @@ void main() {
       final touchNav = buildUserSettingsDesktopNav(
         showBilling: false,
         showGiveFeedback: false,
+        showHelp: false,
         showJoinFluxerLabs: false,
         isTouchPrimary: true,
       );
@@ -85,6 +88,7 @@ void main() {
       final pointerNav = buildUserSettingsDesktopNav(
         showBilling: false,
         showGiveFeedback: false,
+        showHelp: false,
         showJoinFluxerLabs: false,
         isTouchPrimary: false,
       );
@@ -104,6 +108,7 @@ void main() {
           UserSettingsSection.giftsAndCodes,
           showBilling: false,
           showGiveFeedback: false,
+          showHelp: false,
           showJoinFluxerLabs: false,
           isTouchPrimary: false,
         ),
@@ -117,6 +122,7 @@ void main() {
           UserSettingsSection.shortcuts,
           showBilling: false,
           showGiveFeedback: false,
+          showHelp: false,
           showJoinFluxerLabs: false,
           isTouchPrimary: true,
         ),

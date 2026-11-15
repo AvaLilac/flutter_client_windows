@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/deep_links/deep_link_handler.dart';
-import 'package:fluxer_app/core/providers/gateway_ready_provider.dart';
-import 'package:fluxer_app/core/providers/gateway_reconnect_provider.dart';
-import 'package:fluxer_app/core/providers/splash_exit_allowed_provider.dart';
-import 'package:fluxer_app/core/push/pending_push_notification_path_provider.dart';
+import 'package:fluxer_app/core/providers/app/splash_exit_allowed_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_ready_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_reconnect_provider.dart';
+import 'package:fluxer_app/core/push/notification/pending_path_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 
 void main() {
@@ -77,6 +77,27 @@ void main() {
       '/channels/@me/789',
     );
   });
+
+  test('a deep link while the shell shows behind the splash is queued', () {
+    final ProviderContainer container = ProviderContainer(
+      overrides: [
+        deepLinkHandlerProvider.overrideWith(_InertDeepLinkHandler.new),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    container.read(authStateProvider.notifier).setAuthenticated(value: true);
+    container.read(gatewayReadyProvider.notifier).setReady();
+
+    container
+        .read(deepLinkHandlerProvider.notifier)
+        .handlePath('/channels/@me/123');
+
+    expect(
+      container.read(pendingPushNotificationPathProvider)?.path,
+      '/channels/@me/123',
+    );
+  });
 }
 
 final class _RecordingDeepLinkHandler extends DeepLinkHandler {
@@ -89,4 +110,9 @@ final class _RecordingDeepLinkHandler extends DeepLinkHandler {
   void handlePath(String path) {
     handledPaths.add(path);
   }
+}
+
+final class _InertDeepLinkHandler extends DeepLinkHandler {
+  @override
+  void build() {}
 }

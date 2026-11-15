@@ -10,7 +10,7 @@ import 'package:fluxer_app/core/theme/themes/dark.dart';
 import 'package:fluxer_app/features/chat/domain/message.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_item.dart';
 import 'package:fluxer_app/features/chat/presentation/widgets/messages/message_row_layout.dart';
-import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/chat_preferences_provider.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_dart/export.dart';
 
@@ -86,9 +86,9 @@ void main() {
       );
       await tester.pump();
 
-      const expectedPadding = EdgeInsets.only(
-        left: kMessageRowPaddingHorizontal,
-        right: kMessageRowPaddingHorizontal,
+      const expectedPadding = EdgeInsetsDirectional.only(
+        start: kMessageRowPaddingHorizontal,
+        end: kMessageRowPaddingHorizontal,
         top: 2,
         bottom: 2,
       );
@@ -113,9 +113,9 @@ void main() {
       (tester) async {
         expect(
           await pumpPadding(tester, isGrouped: false),
-          const EdgeInsets.only(
-            left: kMessageRowPaddingHorizontal,
-            right: kMessageRowPaddingHorizontal,
+          const EdgeInsetsDirectional.only(
+            start: kMessageRowPaddingHorizontal,
+            end: kMessageRowPaddingHorizontal,
             top: 2,
             bottom: 2,
           ),
@@ -128,9 +128,9 @@ void main() {
       (tester) async {
         expect(
           await pumpPadding(tester, isGrouped: true),
-          const EdgeInsets.only(
-            left: kMessageRowPaddingHorizontal,
-            right: kMessageRowPaddingHorizontal,
+          const EdgeInsetsDirectional.only(
+            start: kMessageRowPaddingHorizontal,
+            end: kMessageRowPaddingHorizontal,
             top: 2,
             bottom: 2,
           ),

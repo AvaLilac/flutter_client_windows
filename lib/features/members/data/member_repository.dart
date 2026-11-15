@@ -142,6 +142,12 @@ class MemberRepository {
             hoistPosition: map['hoist_position'] != null
                 ? Value(map['hoist_position'] as int)
                 : const Value.absent(),
+            icon: map.containsKey('icon')
+                ? Value(map['icon'] as String?)
+                : const Value.absent(),
+            unicodeEmoji: map.containsKey('unicode_emoji')
+                ? Value(map['unicode_emoji'] as String?)
+                : const Value.absent(),
           );
         }).toList();
       } else {
@@ -157,6 +163,17 @@ class MemberRepository {
 
   Future<List<Member>> getCachedMembersForGuild(String guildId) async {
     final List<db.Member> rows = await _db.memberDao.getMembers(guildId);
+    return _membersFromRows(guildId, rows);
+  }
+
+  Future<List<Member>> getCachedMembersByUserIds(
+    String guildId,
+    List<String> userIds,
+  ) async {
+    final List<db.Member> rows = await _db.memberDao.getMembersByUserIds(
+      guildId,
+      userIds,
+    );
     return _membersFromRows(guildId, rows);
   }
 
@@ -185,7 +202,10 @@ class MemberRepository {
       guildId,
       scopeUserIds,
     );
-    final List<db.Role> roles = await _db.roleDao.getRoles(guildId);
+    final Map<String, db.Role> roles = <String, db.Role>{
+      for (final db.Role role in await _db.roleDao.getRoles(guildId))
+        role.id: role,
+    };
     final List<String> userIds = rows.map((db.Member m) => m.userId).toList();
     final List<db.User> userList = await _db.userDao.getUsersByIds(userIds);
     final Map<String, db.User> users = <String, db.User>{
@@ -215,7 +235,10 @@ class MemberRepository {
     if (members.isEmpty) {
       return const <Member>[];
     }
-    final List<db.Role> roles = await _db.roleDao.getRoles(guildId);
+    final Map<String, db.Role> roles = <String, db.Role>{
+      for (final db.Role role in await _db.roleDao.getRoles(guildId))
+        role.id: role,
+    };
     final List<String> userIds = members
         .map((db.Member m) => m.userId)
         .toList();

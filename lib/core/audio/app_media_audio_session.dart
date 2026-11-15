@@ -4,7 +4,9 @@ import 'package:audio_session/audio_session.dart' as audio_session;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fluxer_app/core/audio/chat_attachment/chat_attachment_audio_session.dart';
+import 'package:fluxer_app/core/audio/system_voice_call_guard.dart';
 import 'package:fluxer_app/core/talker.dart';
+import 'package:fluxer_voice/fluxer_voice.dart';
 
 final AudioContext kAppMediaAudioContext = AudioContext(
   android: const AudioContextAndroid(audioFocus: AndroidAudioFocus.none),
@@ -49,7 +51,8 @@ kRingerRespectingSfxAudioSessionConfig =
 
 bool voiceCallOwnsAndroidAudioRoute() {
   return defaultTargetPlatform == TargetPlatform.android &&
-      ChatAttachmentAudioSession.instance.isVoiceCallActive;
+      (ChatAttachmentAudioSession.instance.isVoiceCallActive ||
+          FluxerVoiceAudioSession.instance.isActive);
 }
 
 Future<bool> applyAudioPlayerContext(
@@ -57,6 +60,9 @@ Future<bool> applyAudioPlayerContext(
   AudioContext context,
 ) async {
   if (voiceCallOwnsAndroidAudioRoute()) {
+    return false;
+  }
+  if (await isExternalSystemVoiceCallActive()) {
     return false;
   }
   await player.setAudioContext(context);
@@ -86,7 +92,9 @@ class AppMediaAudioSession {
     required this.configureSession,
     required this.setSessionActive,
     required this.isClaimedElsewhere,
-  });
+    Future<bool> Function()? isExternalCallActive,
+  }) : _isExternalCallActive =
+           isExternalCallActive ?? isExternalSystemVoiceCallActive;
 
   static final AppMediaAudioSession instance = AppMediaAudioSession(
     platform: AppAudioSessionPlatform.current,
@@ -106,6 +114,7 @@ class AppMediaAudioSession {
     },
     isClaimedElsewhere: () =>
         ChatAttachmentAudioSession.instance.isVoiceCallActive ||
+        FluxerVoiceAudioSession.instance.isActive ||
         ChatAttachmentAudioSession.instance.hasActivePlayback,
   );
 
@@ -117,6 +126,7 @@ class AppMediaAudioSession {
   configureSession;
   final Future<void> Function({required bool active}) setSessionActive;
   final bool Function() isClaimedElsewhere;
+  final Future<bool> Function() _isExternalCallActive;
 
   bool _foreground = false;
   Future<void> _queue = Future<void>.value();
@@ -125,11 +135,24 @@ class AppMediaAudioSession {
 
   bool get _isIOS => platform == AppAudioSessionPlatform.ios;
 
+  Future<bool> _shouldManageSession() async {
+    if (isClaimedElsewhere()) {
+      return false;
+    }
+    if (await _isExternalCallActive()) {
+      return false;
+    }
+    return true;
+  }
+
   Future<void> configure() {
     if (!_isMobile) {
       return Future<void>.value();
     }
     return _enqueue(() async {
+      if (!await _shouldManageSession()) {
+        return;
+      }
       await _applyGlobalAudioContext();
       await configureSession(kAppMediaAudioSessionConfig);
     });
@@ -140,22 +163,36 @@ class AppMediaAudioSession {
       return Future<void>.value();
     }
     _foreground = foreground;
-    return _enqueue(() async {
+    return _enqueue(() => _applyForegroundTransition(foreground));
+  }
+
+  /// Re-applies the foreground media session when an external call no longer
+  /// blocks configuration (for example after returning from the system dialer).
+  Future<void> syncForegroundSession() {
+    if (!_isMobile || !_foreground) {
+      return Future<void>.value();
+    }
+    return _enqueue(() => _applyForegroundTransition(true));
+  }
+
+  Future<void> _applyForegroundTransition(bool foreground) async {
+    if (foreground) {
+      if (!await _shouldManageSession()) {
+        return;
+      }
+      await _applyGlobalAudioContext();
+      await configureSession(kAppMediaAudioSessionConfig);
+      if (_isIOS) {
+        await setSessionActive(active: true);
+      }
+      return;
+    }
+    if (_isIOS) {
       if (isClaimedElsewhere()) {
         return;
       }
-      if (foreground) {
-        await _applyGlobalAudioContext();
-        await configureSession(kAppMediaAudioSessionConfig);
-        if (_isIOS) {
-          await setSessionActive(active: true);
-        }
-        return;
-      }
-      if (_isIOS) {
-        await _releaseNow();
-      }
-    });
+      await _releaseNow();
+    }
   }
 
   Future<void> release() {
@@ -166,6 +203,9 @@ class AppMediaAudioSession {
   }
 
   Future<void> _releaseNow() async {
+    if (!await _shouldManageSession()) {
+      return;
+    }
     await _applyGlobalAudioContext();
     await setSessionActive(active: false);
     if (!_isIOS) {

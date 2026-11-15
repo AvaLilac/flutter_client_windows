@@ -4,7 +4,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
-import 'package:fluxer_app/features/shell/providers/drawer_past_half_screen_provider.dart';
+import 'package:fluxer_app/features/friends/providers/blocked_user_ids_provider.dart';
+import 'package:fluxer_app/features/shell/providers/drawer/drawer_providers.dart';
 import 'package:fluxer_app/features/ui/voice/voice_participant_media_tile.dart';
 import 'package:fluxer_app/features/voice/domain/voice_media_participant.dart';
 import 'package:fluxer_app/features/voice/providers/voice_active_speakers_provider.dart';
@@ -14,11 +15,11 @@ import 'package:fluxer_app/features/voice/providers/voice_channel_participants_p
 import 'package:fluxer_app/features/voice/providers/voice_screen_share_watch_tile_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
-import 'package:fluxer_app/features/voice/utils/voice_participant_tile_id.dart';
-import 'package:fluxer_app/features/voice/utils/voice_participant_track_resolver.dart';
-import 'package:fluxer_app/features/voice/utils/voice_pip_featured_selector.dart';
-import 'package:fluxer_app/features/voice/utils/voice_pip_morph.dart';
-import 'package:fluxer_app/features/voice/utils/voice_pip_visibility.dart';
+import 'package:fluxer_app/features/voice/utils/grid_layout/participant_tile_id.dart';
+import 'package:fluxer_app/features/voice/utils/media/participant_track_resolver.dart';
+import 'package:fluxer_app/features/voice/utils/pip/pip_featured_selector.dart';
+import 'package:fluxer_app/features/voice/utils/pip/pip_morph.dart';
+import 'package:fluxer_app/features/voice/utils/pip/pip_visibility.dart';
 
 class VoicePipPlacement extends Notifier<Offset?> {
   @override
@@ -68,8 +69,13 @@ List<VoicePipCandidate> buildVoicePipCandidates({
         participant.voice.connectionId ??
         participant.voice.sessionId ??
         participant.userId;
+    final String? connectionId = participant.voice.connectionId;
     final bool isLocal =
-        currentUserId != null && participant.userId == currentUserId;
+        currentUserId != null &&
+        participant.userId == currentUserId &&
+        (localConnectionId == null ||
+            connectionId == null ||
+            connectionId == localConnectionId);
     final bool muted =
         participant.voice.selfMute ||
         participant.voice.mute ||
@@ -208,6 +214,40 @@ final voicePipFeaturedHasVideoProvider = Provider<bool>((Ref ref) {
   for (final VoicePipCandidate tile in tiles) {
     if (tile.tileId == featured) {
       return tile.hasVideo;
+    }
+  }
+  return false;
+});
+
+final voicePipFeaturedBlockedProvider = Provider<bool>((Ref ref) {
+  final String? featured = ref.watch(voicePipFeaturedTileIdProvider);
+  final parsed = featured == null
+      ? null
+      : parseVoiceParticipantTileId(featured);
+  if (parsed == null) {
+    return false;
+  }
+  final String? key = voiceSessionParticipantsKey(
+    ref.watch(voiceSessionProvider),
+  );
+  if (key == null) {
+    return false;
+  }
+  for (final VoiceChannelParticipantData participant in ref.watch(
+    voiceChannelParticipantsProvider(key),
+  )) {
+    if (voiceParticipantTileId(
+          voice: participant.voice,
+          userId: participant.userId,
+          source: parsed.source,
+        ) ==
+        featured) {
+      return participant.userId != ref.watch(currentUserIdProvider) &&
+          ref.watch(
+            blockedUserIdsProvider.select(
+              (Set<String> ids) => ids.contains(participant.userId),
+            ),
+          );
     }
   }
   return false;

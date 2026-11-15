@@ -340,7 +340,9 @@ class ComposerAutocompleteFieldState
     if (isDirectChat) {
       return allPermissions;
     }
-    final int? cached = ref.read(channelPermissionCacheProvider)[_channelId];
+    final int? cached = ref.read(
+      channelPermissionCacheProvider(readAccountUserId(ref)),
+    )[_channelId];
     if (cached != null) {
       return cached;
     }
@@ -423,7 +425,7 @@ class ComposerAutocompleteFieldState
     required String guildId,
     required String channelId,
   }) {
-    prefetchGuildRoles(ref.read(memberRepositoryProvider), guildId);
+    prefetchGuildRoles(ref, guildId);
     _startGuildRolesWatch(guildId);
     _startChannelPermissionWatch(channelId);
     _startGuildMemberCountWatch(guildId);
@@ -445,7 +447,13 @@ class ComposerAutocompleteFieldState
         if (previous?.value == next.value) {
           return;
         }
-        ref.read(guildMentionMemberSearchProvider).invalidateSnapshot(guildId);
+        final GuildMentionMemberSearch search = ref.read(
+          guildMentionMemberSearchProvider,
+        );
+        if (search.snapshotMatchesRowCount(guildId, next.requireValue)) {
+          return;
+        }
+        search.invalidateSnapshot(guildId);
         _clearMentionSessionCaches();
         _scheduleSync();
       },
@@ -470,7 +478,7 @@ class ComposerAutocompleteFieldState
     _stopChannelPermissionWatch();
     _channelPermissionWatchChannelId = channelId;
     _channelPermissionSubscription = ref.listenManual(
-      channelPermissionCacheProvider,
+      channelPermissionCacheProvider(readAccountUserId(ref)),
       (ChannelPermissionCaches? previous, ChannelPermissionCaches next) {
         if (!mounted) {
           return;
@@ -485,7 +493,7 @@ class ComposerAutocompleteFieldState
     );
     unawaited(
       ref
-          .read(channelPermissionCacheProvider.notifier)
+          .read(channelPermissionCacheProvider(readAccountUserId(ref)).notifier)
           .rebuildChannel(channelId),
     );
   }
@@ -647,7 +655,9 @@ class ComposerAutocompleteFieldState
     );
     if (guildId != null && guildId.isNotEmpty) {
       _startMentionAutocompleteWatches(guildId: guildId, channelId: _channelId);
-      ref.read(guildSyncProvider.notifier).syncIfNeeded(guildId);
+      ref
+          .read(guildSyncProvider(readAccountUserId(ref)).notifier)
+          .syncIfNeeded(guildId);
       final GuildMentionMemberSearch search = ref.read(
         guildMentionMemberSearchProvider,
       );
@@ -874,6 +884,7 @@ class ComposerAutocompleteFieldState
           .read(guildRolesByIdProvider(guildId))
           .value;
       final List<db.Role> dbRoles = await localRolesForMentionAutocomplete(
+        ref: ref,
         database: database,
         repository: memberRepository,
         guildId: guildId,
@@ -1142,7 +1153,9 @@ class ComposerAutocompleteFieldState
       currentUserId: ref.read(currentUserIdProvider),
     );
     final int bits =
-        ref.read(channelPermissionCacheProvider)[_channelId] ??
+        ref.read(
+          channelPermissionCacheProvider(readAccountUserId(ref)),
+        )[_channelId] ??
         (isDirect ? allPermissions : 0);
     final List<ComposerSlashCommand> filtered =
         filterCommandsByQuery(composerSlashCommands(l10n), trigger.matchedText)
@@ -1474,6 +1487,7 @@ class ComposerAutocompleteFieldState
         .read(guildRolesByIdProvider(guildId))
         .value;
     final List<db.Role> dbRoles = await localRolesForMentionAutocomplete(
+      ref: ref,
       database: database,
       repository: memberRepository,
       guildId: guildId,

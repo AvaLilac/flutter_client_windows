@@ -1,5 +1,6 @@
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
+import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 
 class VolumePopoutControl extends StatefulWidget {
@@ -54,7 +55,9 @@ class _VolumePopoutControlState extends State<VolumePopoutControl> {
   }
 
   void _close({bool silently = false}) {
-    _overlayEntry?.remove();
+    _overlayEntry
+      ?..remove()
+      ..dispose();
     _overlayEntry = null;
     if (silently || !mounted || !_isOpen) {
       return;
@@ -250,6 +253,7 @@ class _VolumePopoutControlState extends State<VolumePopoutControl> {
             height: widget.buttonSize,
           ),
           padding: EdgeInsets.zero,
+          tooltip: FluxerLocalizations.of(context).videoPlayerVolume,
           onPressed: _toggleOpen,
           icon: Icon(
             widget.isMuted

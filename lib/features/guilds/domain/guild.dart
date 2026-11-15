@@ -1,11 +1,13 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show immutable, listEquals;
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
 
 export 'package:fluxer_app/core/media/fluxer_media_cdn.dart'
     show fluxerMediaCdn;
 
+@immutable
 class Guild {
   final String id;
   final String name;
@@ -18,9 +20,11 @@ class Guild {
   final String? ownerId;
   final int position;
   final List<String> features;
+  final List<String> badgeIds;
   final bool unavailable;
   final int disabledOperations;
   final int verificationLevel;
+  final int mfaLevel;
   final bool nsfw;
   final int contentWarningLevel;
   final String? contentWarningText;
@@ -38,9 +42,11 @@ class Guild {
     this.ownerId,
     this.position = 0,
     this.features = const [],
+    this.badgeIds = const [],
     this.unavailable = false,
     this.disabledOperations = 0,
     this.verificationLevel = 0,
+    this.mfaLevel = 0,
     this.nsfw = false,
     this.contentWarningLevel = 0,
     this.contentWarningText,
@@ -60,15 +66,67 @@ class Guild {
       ownerId: row.ownerId,
       position: row.position,
       features: (jsonDecode(row.featuresJson) as List<dynamic>).cast<String>(),
+      badgeIds: (jsonDecode(row.badgeIdsJson) as List<dynamic>).cast<String>(),
       unavailable: row.unavailable,
       disabledOperations: row.disabledOperations,
       verificationLevel: row.verificationLevel,
+      mfaLevel: row.mfaLevel,
       nsfw: row.nsfw,
       contentWarningLevel: row.contentWarningLevel,
       contentWarningText: row.contentWarningText,
       vanityUrlCode: row.vanityUrlCode,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is Guild &&
+            other.id == id &&
+            other.name == name &&
+            other.icon == icon &&
+            other.banner == banner &&
+            other.splash == splash &&
+            other.embedSplash == embedSplash &&
+            other.memberCount == memberCount &&
+            other.onlineCount == onlineCount &&
+            other.ownerId == ownerId &&
+            other.position == position &&
+            listEquals(other.features, features) &&
+            listEquals(other.badgeIds, badgeIds) &&
+            other.unavailable == unavailable &&
+            other.disabledOperations == disabledOperations &&
+            other.verificationLevel == verificationLevel &&
+            other.mfaLevel == mfaLevel &&
+            other.nsfw == nsfw &&
+            other.contentWarningLevel == contentWarningLevel &&
+            other.contentWarningText == contentWarningText &&
+            other.vanityUrlCode == vanityUrlCode;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    icon,
+    banner,
+    splash,
+    embedSplash,
+    memberCount,
+    onlineCount,
+    ownerId,
+    position,
+    Object.hashAll(features),
+    Object.hashAll(badgeIds),
+    unavailable,
+    disabledOperations,
+    verificationLevel,
+    mfaLevel,
+    nsfw,
+    contentWarningLevel,
+    contentWarningText,
+    vanityUrlCode,
+  );
 
   bool get isVerified => features.contains('VERIFIED');
   bool get isPartnered => features.contains('PARTNERED');

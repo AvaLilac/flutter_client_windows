@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' as db;
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/well_known_provider.dart';
+import 'package:fluxer_app/core/providers/instance/well_known_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
@@ -37,16 +37,19 @@ import 'package:fluxer_app/features/dm/presentation/dm_layout.dart';
 import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
 import 'package:fluxer_app/features/friends/domain/friend.dart';
 import 'package:fluxer_app/features/friends/providers/blocked_user_ids_provider.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/swipe_right_to_left_action_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
-import 'package:fluxer_app/features/shell/providers/reveal_side_provider.dart';
-import 'package:fluxer_app/features/shell/providers/shell_popup_overlay_provider.dart';
-import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/features/mature_content/domain/mature_content_types.dart';
+import 'package:fluxer_app/features/mature_content/providers/sensitive_content_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/chat_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/message_ui_preferences_providers.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
+import 'package:fluxer_app/features/shell/providers/drawer/reveal_side_provider.dart';
+import 'package:fluxer_app/features/shell/providers/layout/shell_popup_overlay_provider.dart';
+import 'package:fluxer_app/material_ui.dart' hide SensitiveContent;
 import 'package:fluxer_dart/export.dart' hide ChannelType;
 import 'package:riverpod/src/framework.dart' show Override;
 
+import '../../../../../helpers/message_list_unread_ack_test_helpers.dart';
 import '../../../../../helpers/open_test_database.dart';
 import '../../../../../helpers/test_l10n.dart';
 
@@ -802,7 +805,7 @@ void main() {
             ).overrideWith((ref) => ChannelMessagePermissions.all),
             messageListReadStateProvider(
               _otherChannelId,
-            ).overrideWith((ref) => Stream<db.ReadState?>.value(null)),
+            ).overrideWith((ref) => messageListUnreadAckStream()),
           ],
         );
         addTearDown(container.dispose);
@@ -1088,7 +1091,7 @@ void main() {
           ).overrideWith((ref) => ChannelMessagePermissions.all),
           messageListReadStateProvider(
             _otherChannelId,
-          ).overrideWith((ref) => Stream<db.ReadState?>.value(null)),
+          ).overrideWith((ref) => messageListUnreadAckStream()),
         ],
       );
       addTearDown(container.dispose);
@@ -1156,7 +1159,14 @@ List<Override> _dmDrawerOverrides({
     swipeRightToLeftActionPreferencesProvider.overrideWith(
       _ChannelDetailsSwipePreference.new,
     ),
+    sensitiveContentProvider.overrideWith(_AdultSensitive.new),
   ];
+}
+
+class _AdultSensitive extends SensitiveContent {
+  @override
+  SensitiveContentState build() =>
+      const SensitiveContentState(access: MatureAccess.allowed);
 }
 
 class _MutableDmViewModel extends DmViewModel {
@@ -1255,7 +1265,9 @@ List<Override> _surfaceOverrides({
       _channelId,
     ).overrideWith((ref) => ChannelMessagePermissions.all),
     messageListReadStateProvider(_channelId).overrideWith(
-      (ref) => readStateStream ?? Stream<db.ReadState?>.value(null),
+      (ref) => readStateStream != null
+          ? mapReadStateStreamToUnreadAck(readStateStream)
+          : messageListUnreadAckStream(),
     ),
     maxMessageLengthProvider.overrideWithValue(2000),
     themePreferenceProvider.overrideWithValue(ThemePreferenceState()),
@@ -1334,7 +1346,7 @@ List<Override> _jumpContentOverrides({required ChatViewModel recorder}) {
     ).overrideWith((ref) => ChannelMessagePermissions.all),
     messageListReadStateProvider(
       _channelId,
-    ).overrideWith((ref) => Stream<db.ReadState?>.value(null)),
+    ).overrideWith((ref) => messageListUnreadAckStream()),
     themePreferenceProvider.overrideWithValue(ThemePreferenceState()),
   ];
 }
@@ -1361,7 +1373,7 @@ List<Override> _contentOverrides({
     ).overrideWith((ref) => ChannelMessagePermissions.all),
     messageListReadStateProvider(
       _channelId,
-    ).overrideWith((ref) => Stream<db.ReadState?>.value(null)),
+    ).overrideWith((ref) => messageListUnreadAckStream()),
     themePreferenceProvider.overrideWithValue(ThemePreferenceState()),
     userSettingsViewModelProvider.overrideWithValue(
       const UserSettingsViewState(
@@ -1753,9 +1765,7 @@ class _FakeWellKnown extends WellKnown {
         gift: '',
         webapp: '',
       ),
-      captcha: InstanceCaptchaSchema(
-        provider: InstanceCaptchaProviderSchema.none,
-      ),
+      captcha: InstanceCaptchaSchema(provider: CaptchaProviderSchema.none),
       features: InstanceFeaturesSchema(
         voiceEnabled: false,
         stripeEnabled: false,
@@ -1776,7 +1786,9 @@ class _FakeWellKnown extends WellKnown {
       sso: InstanceSsoSchema(
         enabled: false,
         enforced: false,
+        usernameFromProvider: false,
         displayName: null,
+        buttonLabel: null,
         redirectUri: '',
       ),
       registration: InstanceRegistrationSchema(
@@ -1790,6 +1802,7 @@ class _FakeWellKnown extends WellKnown {
         guildCreateAccess: true,
       ),
       services: InstanceServicesSchema(
+        connectionProviders: <InstanceConnectionProviderSchema>[],
         gifEnabled: false,
         youtubeEnabled: false,
         blueskyEnabled: false,
@@ -1811,9 +1824,20 @@ class _FakeWellKnown extends WellKnown {
           faviconUrl: null,
           themeColor: null,
           statusPageUrl: null,
+          statusPageInstatus: false,
           statusPageIncidentHistoryUrl: null,
           premiumProductName: 'Plutonium',
           premiumInfoUrl: null,
+          faviconDarkUrl: null,
+          signInBackdropUrl: null,
+          premiumPageColor: null,
+          premiumShowcaseExpressionsUrl: null,
+          premiumShowcaseProfileUrl: null,
+          premiumShowcaseStreamUrl: null,
+          premiumShowcaseUploadUrl: null,
+          customCss: null,
+          uploadLimitMessage: null,
+          trustedDomains: <String>[],
         ),
         setup: InstanceSetupSchema(configured: true, adminUrl: null),
         legal: InstanceAppPublicSchemaLegal(
@@ -1825,6 +1849,7 @@ class _FakeWellKnown extends WellKnown {
           collectDateOfBirth: false,
         ),
       ),
+      agePolicy: InstanceAgePolicySchema(geos: []),
     );
   }
 }

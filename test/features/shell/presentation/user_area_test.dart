@@ -11,8 +11,8 @@ import 'package:fluxer_app/features/dm/domain/dm_conversation.dart';
 import 'package:fluxer_app/features/dm/providers/dm_view_model.dart';
 import 'package:fluxer_app/features/friends/domain/friend.dart';
 import 'package:fluxer_app/features/profile/providers/user_presence_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
-import 'package:fluxer_app/features/settings/providers/voice_settings_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/voice_settings_provider.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/shell/presentation/user_area.dart';
 import 'package:fluxer_app/features/shell/presentation/widgets/user_panel_widgets.dart';
@@ -23,8 +23,8 @@ import 'package:fluxer_app/features/voice/providers/voice_connection_stats_provi
 import 'package:fluxer_app/features/voice/providers/voice_session_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_dart/gateway.dart' show VoiceState;
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:riverpod/src/framework.dart' show Override;
 
 import '../../../helpers/test_l10n.dart';
@@ -285,6 +285,36 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(switchAccounts.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('UserArea shows the display name without the tag', (
+    WidgetTester tester,
+  ) async {
+    final colorTheme = buildDarkColorTheme();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _userAreaOverrides(
+          voiceSession: _IdleVoiceSession.new,
+          localVoice: _FakeLocalVoiceState.new,
+        ),
+        child: MaterialApp(
+          locale: kTestLocale,
+          localizationsDelegates: fluxerLocalizationsDelegates,
+          supportedLocales: FluxerLocalizations.supportedLocales,
+          theme: buildFluxerTheme(
+            colorTheme: colorTheme,
+            textTheme: FluxerTextTheme.fromColors(colorTheme),
+            layoutTheme: FluxerLayoutTheme.scaled(),
+          ),
+          home: const Scaffold(body: UserArea()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Tester'), findsOneWidget);
+    expect(find.textContaining('#0001'), findsNothing);
+    expect(find.textContaining('tester'), findsNothing);
   });
 
   testWidgets('UserArea skips bottom safe area on mobile layout', (

@@ -13,6 +13,8 @@ class MemberRole {
   final bool mentionable;
   final int permissions;
   final int? hoistPosition;
+  final String? icon;
+  final String? unicodeEmoji;
 
   const MemberRole({
     required this.id,
@@ -23,7 +25,13 @@ class MemberRole {
     this.mentionable = false,
     this.permissions = 0,
     this.hoistPosition,
+    this.icon,
+    this.unicodeEmoji,
   });
+
+  bool get hasIcon =>
+      (icon != null && icon!.isNotEmpty) ||
+      (unicodeEmoji != null && unicodeEmoji!.isNotEmpty);
 
   bool isEveryoneRole(String guildId) => id == guildId;
 
@@ -44,6 +52,8 @@ class MemberRole {
       mentionable: row.mentionable,
       permissions: int.tryParse(row.permissions) ?? 0,
       hoistPosition: row.hoistPosition,
+      icon: row.icon,
+      unicodeEmoji: row.unicodeEmoji,
     );
   }
 }
@@ -55,6 +65,26 @@ List<MemberRole> sortRolesByPosition(List<MemberRole> roles) {
     }
     return BigInt.parse(a.id) < BigInt.parse(b.id) ? -1 : 1;
   });
+}
+
+MemberRole? resolveMemberIconRole({
+  required List<String> roleIds,
+  required Map<String, db.Role> rolesById,
+}) {
+  final List<MemberRole> roles = <MemberRole>[
+    for (final String id in roleIds)
+      if (rolesById.containsKey(id)) MemberRole.fromRow(rolesById[id]!),
+  ];
+  return resolveMemberIconRoleFromRoles(roles);
+}
+
+MemberRole? resolveMemberIconRoleFromRoles(List<MemberRole> roles) {
+  for (final MemberRole role in sortRolesByPosition(roles)) {
+    if (role.hasIcon) {
+      return role;
+    }
+  }
+  return null;
 }
 
 class Member {
@@ -78,12 +108,15 @@ class Member {
     this.roles = const [],
   });
 
-  factory Member.fromRow(db.Member row, db.User? user, List<db.Role> allRoles) {
+  factory Member.fromRow(
+    db.Member row,
+    db.User? user,
+    Map<String, db.Role> rolesById,
+  ) {
     final roleIds = _parseRoleIds(row.roleIdsJson);
-    final roleMap = {for (final r in allRoles) r.id: r};
     final memberRoles = <MemberRole>[
       for (final id in roleIds)
-        if (roleMap.containsKey(id)) MemberRole.fromRow(roleMap[id]!),
+        if (rolesById.containsKey(id)) MemberRole.fromRow(rolesById[id]!),
     ];
 
     final bool isAvatarUnset = hasMemberProfileFlag(
@@ -126,4 +159,6 @@ class Member {
     }
     return [];
   }
+
+  MemberRole? get iconRole => resolveMemberIconRoleFromRoles(roles);
 }

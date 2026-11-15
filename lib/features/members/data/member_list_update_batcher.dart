@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluxer_app/core/database/fluxer_database.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/features/members/data/member_cache_evictor.dart';
@@ -8,8 +10,11 @@ import 'package:fluxer_app/features/members/data/member_list_drift_sync.dart';
 import 'package:fluxer_app/features/members/domain/member_list_range_utils.dart';
 import 'package:fluxer_app/features/members/domain/member_list_viewport_state.dart';
 import 'package:fluxer_app/features/members/providers/member_list_viewport_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_dart/gateway.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+part 'member_list_update_batcher.g.dart';
 
 const int kMemberListUpdateBatchMs = 1000;
 
@@ -27,7 +32,7 @@ class MemberListUpdateBatcher {
       return;
     }
     final MemberListViewportListState? list = _ref
-        .read(memberListViewportProvider.notifier)
+        .read(memberListViewportProvider(readAccountUserId(_ref)).notifier)
         .getList(guildId: event.guildId, channelId: channelId);
     if (list == null || !list.hasReceivedInitialPayload) {
       _apply(event, reason: 'initial', coalesced: 1);
@@ -82,24 +87,27 @@ class MemberListUpdateBatcher {
       '[Gateway] GUILD_MEMBER_LIST_UPDATE: ${event.guildId} '
       '($reason, ${coalesced}x)',
     );
-    _ref.read(memberListViewportProvider.notifier).applyListUpdate(event);
+    _ref
+        .read(memberListViewportProvider(readAccountUserId(_ref)).notifier)
+        .applyListUpdate(event);
+    final FluxerDatabase database = _ref.read(fluxerDatabaseProvider);
+    final MemberCacheEvictor evictor = _ref.read(memberCacheEvictorProvider);
     unawaited(() async {
-      await MemberListDriftSync(
-        _ref.read(fluxerDatabaseProvider),
-      ).syncFromListUpdate(
+      await MemberListDriftSync(database).syncFromListUpdate(
         guildId: event.guildId,
         ops: event.ops,
         isValidRange: isValidMemberListRange,
       );
-      await _ref
-          .read(memberCacheEvictorProvider)
-          .evictIfNeeded(
-            guildId: event.guildId,
-            protectedUserIds: collectProtectedMemberUserIds(
-              ref: _ref,
-              guildId: event.guildId,
-            ),
-          );
+      if (!_ref.mounted) {
+        return;
+      }
+      await evictor.evictIfNeeded(
+        guildId: event.guildId,
+        protectedUserIds: collectProtectedMemberUserIds(
+          ref: _ref,
+          guildId: event.guildId,
+        ),
+      );
     }());
   }
 
@@ -165,8 +173,23 @@ class MemberListUpdateBatcher {
       memberCount: next.memberCount,
       onlineCount: next.onlineCount,
       groups: next.groups,
-      ops: <MemberListOp>[...existing.ops, ...next.ops],
+      ops: _withoutReplacedSyncs(<MemberListOp>[...existing.ops, ...next.ops]),
     );
+  }
+
+  List<MemberListOp> _withoutReplacedSyncs(List<MemberListOp> ops) {
+    final Set<String> syncedRanges = <String>{};
+    final List<MemberListOp> kept = <MemberListOp>[];
+    for (final MemberListOp op in ops.reversed) {
+      final List<int>? range = op.range;
+      if (op.op == 'SYNC' &&
+          range != null &&
+          !syncedRanges.add(range.join(':'))) {
+        continue;
+      }
+      kept.add(op);
+    }
+    return kept.reversed.toList();
   }
 
   String _batchKey(String guildId, String listId) => '$guildId:$listId';
@@ -181,9 +204,9 @@ class _PendingMemberListBatch {
   int count;
 }
 
-final Provider<MemberListUpdateBatcher> memberListUpdateBatcherProvider =
-    Provider<MemberListUpdateBatcher>((Ref ref) {
-      final MemberListUpdateBatcher batcher = MemberListUpdateBatcher(ref);
-      ref.onDispose(batcher.dispose);
-      return batcher;
-    });
+@Riverpod(keepAlive: true)
+MemberListUpdateBatcher memberListUpdateBatcher(Ref ref, String accountUserId) {
+  final MemberListUpdateBatcher batcher = MemberListUpdateBatcher(ref);
+  ref.onDispose(batcher.dispose);
+  return batcher;
+}

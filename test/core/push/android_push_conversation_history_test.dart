@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxer_app/core/push/android_push_conversation_history.dart';
+import 'package:fluxer_app/core/push/android/conversation/history.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -74,6 +74,66 @@ void main() {
     expect(state?.lines.last.messageId, '12');
   });
 
+  test('reuses a sender avatar when a later download fails', () async {
+    await AndroidPushConversationHistoryStore.appendLine(
+      conversationTag: tag,
+      line: const PushConversationLine(
+        messageId: '10',
+        senderName: 'Alice',
+        senderKey: 'alice',
+        body: 'one',
+        timestampMs: 10,
+        avatarPath: '/cache/alice.png',
+      ),
+      payload: payload,
+    );
+    final PushConversationState state =
+        await AndroidPushConversationHistoryStore.appendLine(
+          conversationTag: tag,
+          line: line('11', body: 'two'),
+          payload: payload,
+        );
+    expect(state.lines.last.avatarPath, '/cache/alice.png');
+  });
+
+  test('keeps each line author through storage and avatar reuse', () async {
+    await AndroidPushConversationHistoryStore.appendLine(
+      conversationTag: tag,
+      line: const PushConversationLine(
+        messageId: '10',
+        senderName: 'Alice',
+        senderKey: 'alice',
+        body: 'one',
+        timestampMs: 10,
+        authorId: 'author-a',
+        avatarPath: '/cache/alice.png',
+      ),
+      payload: payload,
+    );
+    final PushConversationState state =
+        await AndroidPushConversationHistoryStore.appendLine(
+          conversationTag: tag,
+          line: const PushConversationLine(
+            messageId: '11',
+            senderName: 'Alice',
+            senderKey: 'alice',
+            body: 'two',
+            timestampMs: 11,
+            authorId: 'author-b',
+          ),
+          payload: payload,
+        );
+    expect(state.lines.last.avatarPath, '/cache/alice.png');
+    expect(
+      state.lines.map((PushConversationLine entry) => entry.authorId),
+      <String>['author-a', 'author-b'],
+    );
+    expect(
+      PushConversationLine.fromJson(state.lines.first.toJson())?.authorId,
+      'author-a',
+    );
+  });
+
   test('trimAck drops covered lines and keeps newer ones', () async {
     await AndroidPushConversationHistoryStore.appendLine(
       conversationTag: tag,
@@ -106,5 +166,99 @@ void main() {
         await AndroidPushConversationHistoryStore.trimAck(conversationTag: tag);
     expect(remaining, isNull);
     expect(await AndroidPushConversationHistoryStore.readState(tag), isNull);
+  });
+
+  test('concurrent trims and appends do not bring acked lines back', () async {
+    for (final String id in <String>['1', '2', '3', '4']) {
+      await AndroidPushConversationHistoryStore.appendLine(
+        conversationTag: tag,
+        line: line(id),
+        payload: payload,
+      );
+    }
+    await Future.wait(<Future<Object?>>[
+      AndroidPushConversationHistoryStore.trimAck(
+        conversationTag: tag,
+        upToMessageId: '2',
+      ),
+      AndroidPushConversationHistoryStore.appendLine(
+        conversationTag: tag,
+        line: line('5'),
+        payload: payload,
+      ),
+      AndroidPushConversationHistoryStore.trimAck(
+        conversationTag: tag,
+        upToMessageId: '4',
+      ),
+    ]);
+    final PushConversationState? state =
+        await AndroidPushConversationHistoryStore.readState(tag);
+    expect(state?.lines.map((PushConversationLine l) => l.messageId), ['5']);
+  });
+
+  test('keeps lines ordered by time when pushes arrive out of order', () async {
+    await AndroidPushConversationHistoryStore.appendLine(
+      conversationTag: tag,
+      line: line('20'),
+      payload: payload,
+    );
+    final PushConversationState state =
+        await AndroidPushConversationHistoryStore.appendLine(
+          conversationTag: tag,
+          line: line('10'),
+          payload: payload,
+        );
+    expect(
+      state.lines.map((PushConversationLine entry) => entry.messageId),
+      <String>['10', '20'],
+    );
+  });
+
+  test('retainConversations drops conversations no longer posted', () async {
+    await AndroidPushConversationHistoryStore.appendLine(
+      conversationTag: tag,
+      line: line('10'),
+      payload: payload,
+    );
+    await AndroidPushConversationHistoryStore.appendLine(
+      conversationTag: 'channel:2',
+      line: line('11'),
+      payload: payload,
+    );
+    await AndroidPushConversationHistoryStore.retainConversations(<String>{
+      'channel:2',
+    });
+    expect(await AndroidPushConversationHistoryStore.readState(tag), isNull);
+    expect(
+      await AndroidPushConversationHistoryStore.readState('channel:2'),
+      isNotNull,
+    );
+  });
+
+  test('writes leave no staging files behind', () async {
+    await AndroidPushConversationHistoryStore.appendLine(
+      conversationTag: tag,
+      line: line('10'),
+      payload: payload,
+    );
+    final List<String> names = tempDir
+        .listSync()
+        .map((FileSystemEntity entry) => entry.uri.pathSegments.last)
+        .toList();
+    expect(names, <String>['push_conversation_history.json']);
+  });
+
+  test('keeps the raw title in stored state for republishing', () async {
+    await AndroidPushConversationHistoryStore.appendLine(
+      conversationTag: tag,
+      line: line('10'),
+      payload: <String, String>{
+        ...payload,
+        'title': 'Alice (#general, My Server)',
+      },
+    );
+    final PushConversationState? remaining =
+        await AndroidPushConversationHistoryStore.readState(tag);
+    expect(remaining?.payload['title'], 'Alice (#general, My Server)');
   });
 }

@@ -5,14 +5,16 @@ import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
-import 'package:fluxer_app/core/providers/active_instance_provider.dart';
+import 'package:fluxer_app/core/providers/instance/active_instance_provider.dart';
 import 'package:fluxer_app/core/router/navigate_to_content.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
 import 'package:fluxer_app/features/guilds/providers/guild_providers.dart';
 import 'package:fluxer_app/features/guilds/providers/invite_accept_provider.dart';
 import 'package:fluxer_app/features/guilds/services/join_community_service.dart';
-import 'package:fluxer_app/features/guilds/utils/guild_invite_action_state.dart';
+import 'package:fluxer_app/features/guilds/utils/invites/guild_invite_action_state.dart';
+import 'package:fluxer_app/features/moderation/domain/iar_context.dart';
+import 'package:fluxer_app/features/moderation/presentation/report_flow/open_report_flow.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/shell/utils/shell_popup_navigation.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_guild_acronym.dart';
@@ -22,9 +24,9 @@ import 'package:fluxer_app/features/ui/overlay/fluxer_overlay_back_handler.dart'
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_dart/export.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const String _foodPatternAsset = 'assets/images/i-like-food.svg';
 
@@ -79,9 +81,9 @@ class _InviteAcceptModalDialog extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: <Widget>[
                   InviteAcceptModalBody(code: code),
-                  Positioned(
+                  PositionedDirectional(
                     top: 12,
-                    right: 12,
+                    end: 12,
                     child: _InviteAcceptCloseButton(
                       onPressed: () => Navigator.of(context).pop(),
                     ),
@@ -188,6 +190,7 @@ class _InviteAcceptModalBodyState extends ConsumerState<InviteAcceptModalBody> {
           child: _InviteAcceptCard(child: _InviteAcceptError(l10n: l10n)),
         ),
         InviteAcceptGuild(:final invite) => _GuildInviteContent(
+          code: widget.code,
           invite: invite,
           l10n: l10n,
           isAccepting: _isAccepting,
@@ -286,8 +289,8 @@ class _InviteFoodPattern extends StatelessWidget {
                 children: <Widget>[
                   for (int row = 0; row < rows; row++)
                     for (int col = 0; col < columns; col++)
-                      Positioned(
-                        left: col * _tileSize,
+                      PositionedDirectional(
+                        start: col * _tileSize,
                         top: row * _tileSize,
                         width: _tileSize,
                         height: _tileSize,
@@ -396,6 +399,7 @@ class _InviteAcceptError extends StatelessWidget {
 
 class _GuildInviteContent extends ConsumerWidget {
   const _GuildInviteContent({
+    required this.code,
     required this.invite,
     required this.l10n,
     required this.isAccepting,
@@ -403,6 +407,7 @@ class _GuildInviteContent extends ConsumerWidget {
     required this.onGoTo,
   });
 
+  final String code;
   final InviteResponseSchemaGuildInviteResponse invite;
   final FluxerLocalizations l10n;
   final bool isAccepting;
@@ -452,9 +457,13 @@ class _GuildInviteContent extends ConsumerWidget {
               iconUrl: _iconUrl,
               guildName: invite.guild.name,
               features: features,
+              badgeIds: localGuild?.badgeIds ?? invite.guild.badgeIds,
               subtitle: l10n.inviteAcceptTitle,
               onlineLabel: l10n.embedInviteOnline(onlineStr),
-              membersLabel: l10n.embedInviteMembers(memberStr),
+              membersLabel: l10n.embedInviteMembers(
+                invite.memberCount,
+                memberStr,
+              ),
             ),
             if (pausedMessage != null) ...<Widget>[
               const SizedBox(height: 12),
@@ -484,6 +493,20 @@ class _GuildInviteContent extends ConsumerWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            FluxerButton.ghost(
+              onPressedAsync: () => openReportFlow(
+                context,
+                iarContext: IarGuildContext(
+                  guildId: invite.guild.id,
+                  name: invite.guild.name,
+                  iconUrl: _iconUrl,
+                  inviteCode: code,
+                ),
+              ),
+              icon: PhosphorIconsFill.flag,
+              label: l10n.guildMenuReportCommunity,
+            ),
           ],
         ),
       ),
@@ -506,6 +529,7 @@ class _InviteGuildHeader extends StatelessWidget {
     required this.iconUrl,
     required this.guildName,
     required this.features,
+    required this.badgeIds,
     required this.subtitle,
     required this.onlineLabel,
     required this.membersLabel,
@@ -514,6 +538,7 @@ class _InviteGuildHeader extends StatelessWidget {
   final String? iconUrl;
   final String guildName;
   final List<String> features;
+  final List<String> badgeIds;
   final String subtitle;
   final String onlineLabel;
   final String membersLabel;
@@ -545,8 +570,8 @@ class _InviteGuildHeader extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(left: 6),
-              child: FluxerGuildBadge(features: features),
+              padding: const EdgeInsetsDirectional.only(start: 6),
+              child: FluxerGuildBadge(features: features, badgeIds: badgeIds),
             ),
           ],
         ),
@@ -625,6 +650,7 @@ class _GroupDmInviteContent extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           l10n.embedInviteMembers(
+            invite.memberCount,
             _GuildInviteContent._formatCount(invite.memberCount),
           ),
           textAlign: TextAlign.center,

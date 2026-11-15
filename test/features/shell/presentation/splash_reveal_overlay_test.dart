@@ -5,7 +5,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/instance/instance_runtime_config.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/features/shell/presentation/splash_reveal_overlay.dart';
 import 'package:fluxer_app/features/ui/background/starfield_background.dart';
 import 'package:fluxer_app/features/ui/icons/instance_branding_image.dart';
@@ -62,6 +62,48 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(completed, isTrue);
+    });
+
+    testWidgets('keeps the starfield behind the logo as it expands', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (BuildContext context) {
+              return Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: () {
+                      SplashRevealOverlay.show(
+                        context: context,
+                        coverColor: const Color(0xFF080616),
+                        logoBrandColor: const Color(0xFF7A57BF),
+                        logoBrandSymbolColor: Colors.white,
+                        logoCenterGlobal: const Offset(200, 400),
+                        useLogoZoomTransition: true,
+                        animationsEnabled: true,
+                      );
+                    },
+                    child: const Text('reveal'),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('reveal'));
+      await tester.pump();
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(find.byType(InstanceBrandMark), findsNothing);
+      expect(find.byType(StarfieldBackground), findsOneWidget);
+
+      await tester.pumpAndSettle();
     });
 
     testWidgets('disposing mid-animation does not throw', (tester) async {

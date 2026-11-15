@@ -41,7 +41,8 @@ Future<bool> promptForChannelGateIfNeeded({
 bool isResolvedChannelGateBlocking({
   required Channel channel,
   required ChannelListState channelList,
-  required bool nsfwAllowed,
+  required MatureAccess access,
+  required bool allowInAppConsent,
   required MatureContentAgreementsState agreements,
 }) {
   Channel? parentCategory;
@@ -59,8 +60,9 @@ bool isResolvedChannelGateBlocking({
           guild: listedGuild?.id == channel.guildId ? listedGuild : null,
           parentCategory: parentCategory,
         ),
-        nsfwAllowed: nsfwAllowed,
+        access: access,
         agreements: agreements,
+        allowInAppConsent: allowInAppConsent,
       ) !=
       MatureContentGateReason.none;
 }
@@ -80,7 +82,10 @@ Future<bool> isChannelGateBlocking({
     return isResolvedChannelGateBlocking(
       channel: resolvedChannel,
       channelList: channelList,
-      nsfwAllowed: container.read(sensitiveContentProvider).nsfwAllowed,
+      access: container.read(sensitiveContentProvider).access,
+      allowInAppConsent: container
+          .read(sensitiveContentProvider)
+          .inAppConsentAllowed,
       agreements: container.read(matureContentAgreementsProvider),
     );
   }

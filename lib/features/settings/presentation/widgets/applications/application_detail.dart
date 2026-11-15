@@ -7,7 +7,7 @@ import 'package:fluxer_app/core/instance/instance_config_snapshot.dart';
 import 'package:fluxer_app/core/instance/instance_endpoints.dart';
 import 'package:fluxer_app/core/media/fluxer_media_url.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
-import 'package:fluxer_app/core/providers/active_instance_provider.dart';
+import 'package:fluxer_app/core/providers/instance/active_instance_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/applications/application_bot_profile_section.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/applications/application_danger_section.dart';
@@ -17,18 +17,18 @@ import 'package:fluxer_app/features/settings/presentation/widgets/applications/a
 import 'package:fluxer_app/features/settings/presentation/widgets/applications/application_secrets_section.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/image_crop_sheet.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/wide_settings_content_layout.dart';
-import 'package:fluxer_app/features/settings/providers/applications_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/applications_view_model.dart';
 import 'package:fluxer_app/features/settings/utils/bot_username.dart';
 import 'package:fluxer_app/features/settings/utils/oauth_authorize_url.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/clipboard_utils.dart';
 import 'package:fluxer_app/shared/utils/image_utils.dart';
 import 'package:fluxer_dart/export.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class ApplicationDetail extends ConsumerStatefulWidget {
   const ApplicationDetail({

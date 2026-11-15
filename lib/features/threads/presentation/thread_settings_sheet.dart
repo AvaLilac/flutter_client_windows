@@ -116,12 +116,7 @@ class _ThreadSettingsBodyState extends ConsumerState<_ThreadSettingsBody> {
             ) ==
             null;
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        context.layout.s4,
-        0,
-        context.layout.s4,
-        context.layout.s4,
-      ),
+      padding: EdgeInsets.fromLTRB(context.layout.s4, 0, context.layout.s4, 0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -20,6 +20,7 @@ MatureContentGateCopy resolveMatureContentGateCopy({
   required FluxerLocalizations l10n,
   required MatureContentGateReason reason,
   required ResolvedMatureGateContext context,
+  required String Function() webAppAddress,
   ChannelType? channelType,
 }) {
   final bool hasCustomWarningText =
@@ -28,10 +29,36 @@ MatureContentGateCopy resolveMatureContentGateCopy({
   final String defaultWarningBody = hasCustomWarningText
       ? context.effectiveWarningText!
       : l10n.defaultContentWarningBody;
+  if (reason == MatureContentGateReason.regionLocked) {
+    return MatureContentGateCopy(
+      title: l10n.matureContentTitle,
+      body: l10n.matureContentRegionLockedBody,
+      primaryButtonLabel: null,
+      canProceed: false,
+    );
+  }
+  if (reason == MatureContentGateReason.appLocked) {
+    return MatureContentGateCopy(
+      title: _matureTitle(l10n, context.scope),
+      body: l10n.matureContentAppLockedBody,
+      primaryButtonLabel: null,
+      canProceed: false,
+    );
+  }
   if (reason == MatureContentGateReason.minorBlocked) {
     return MatureContentGateCopy(
       title: _minorBlockedTitle(l10n, context.scope),
       body: _minorBlockedBody(l10n, context.scope),
+      primaryButtonLabel: null,
+      canProceed: false,
+    );
+  }
+  if (reason == MatureContentGateReason.webOptInRequired) {
+    return MatureContentGateCopy(
+      title: context.effectiveMatureContent
+          ? _matureTitle(l10n, context.scope)
+          : _contentWarningTitle(l10n, context.scope),
+      body: l10n.matureContentIosWebOptInInstanceBody(webAppAddress()),
       primaryButtonLabel: null,
       canProceed: false,
     );

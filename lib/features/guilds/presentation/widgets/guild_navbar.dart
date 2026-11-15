@@ -2,14 +2,19 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cached_network_image_ce/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/api/fluxer_client_provider.dart';
 import 'package:fluxer_app/core/database/fluxer_database.dart' hide Channel;
+import 'package:fluxer_app/core/instance/instance_constants.dart';
+import 'package:fluxer_app/core/media/fluxer_media_url.dart';
 import 'package:fluxer_app/core/permissions/channel_effective_permissions.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
 import 'package:fluxer_app/core/providers/database_provider.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/gateway/gateway_session_recovery_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/router/route_names.dart';
 import 'package:fluxer_app/core/router/route_state_providers.dart';
@@ -78,31 +83,35 @@ import 'package:fluxer_app/features/guilds/providers/visible_unavailable_guild_c
 import 'package:fluxer_app/features/guilds/utils/guild_folder_icon.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_folder_menu_actions.dart';
 import 'package:fluxer_app/features/guilds/utils/guild_settings_actions.dart';
-import 'package:fluxer_app/features/guilds/utils/invite_people_actions.dart';
-import 'package:fluxer_app/features/guilds/utils/invite_people_recipients.dart';
+import 'package:fluxer_app/features/guilds/utils/invites/invite_people_actions.dart';
+import 'package:fluxer_app/features/guilds/utils/invites/invite_people_recipients.dart';
 import 'package:fluxer_app/features/guilds/utils/leave_guild_action.dart';
+import 'package:fluxer_app/features/moderation/domain/iar_context.dart';
+import 'package:fluxer_app/features/moderation/presentation/report_flow/open_report_flow.dart';
 import 'package:fluxer_app/features/settings/domain/guild/guild_settings_tab.dart';
 import 'package:fluxer_app/features/settings/presentation/user_settings_modal.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/time_format_providers.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_app/features/shell/navigation/drawer_navigation_coordinator.dart';
 import 'package:fluxer_app/features/shell/navigation/root_overlay_navigation.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/avatar/fluxer_guild_acronym.dart';
+import 'package:fluxer_app/features/ui/icons/fluxer_brand_logo.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/features/ui/warning_alert/fluxer_warning_alert.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/external_links/external_link_handler.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/providers/input_modality_provider.dart';
 import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/clipboard_utils.dart';
 import 'package:fluxer_app/shared/utils/display_name.dart';
+import 'package:fluxer_app/shared/utils/user_date_formatting.dart';
 import 'package:fluxer_app/shared/widgets/debug_bottom_sheet.dart';
 import 'package:fluxer_dart/export.dart' hide ChannelType;
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 part 'guild_navbar_dashed_icon.dart';
 part 'guild_navbar_folder.dart';
@@ -158,6 +167,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
   bool _needsScrollClamp = false;
   GuildNavbarScrollStore? _scrollStore;
   List<DmChannel> _railDms = const <DmChannel>[];
+  Set<String> _permissionGuildIds = const <String>{};
   final Set<String> _enteringDmIds = <String>{};
   final Set<String> _exitingDmIds = <String>{};
   bool _railDmsSeeded = false;
@@ -178,17 +188,13 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       hideTopWhen: (double scrollOffset) => scrollOffset < 80,
       orderedIds: _indicatorOrder,
     )..attach();
-    final GuildPermissions permissions = ref.read(
-      guildPermissionsProvider.notifier,
-    );
-    final List<GuildNavbarItem> initialItems = ref.read(
-      organizedGuildListProvider,
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
       }
-      _prefetchGuildPermissions(permissions, initialItems);
+      _prefetchGuildPermissions(
+        _guildIdsOf(ref.read(organizedGuildListProvider)),
+      );
       _clampScrollOffset();
       _scrollIndicator.scheduleUpdate();
     });
@@ -249,20 +255,17 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     });
   }
 
-  void _prefetchGuildPermissions(
-    GuildPermissions permissionsNotifier,
-    List<GuildNavbarItem> items,
-  ) {
-    for (final GuildNavbarItem item in items) {
-      switch (item) {
-        case GuildNavbarGuild(:final Guild guild):
-          unawaited(permissionsNotifier.getPermissions(guild.id));
-        case GuildNavbarFolder(:final List<Guild> guilds):
-          for (final Guild guild in guilds) {
-            unawaited(permissionsNotifier.getPermissions(guild.id));
-          }
-      }
-    }
+  static Set<String> _guildIdsOf(List<GuildNavbarItem> items) => <String>{
+    for (final Guild guild in flattenOrganizedGuildList(items)) guild.id,
+  };
+
+  void _prefetchGuildPermissions(Set<String> guildIds) {
+    _permissionGuildIds = guildIds;
+    unawaited(
+      ref
+          .read(guildPermissionsProvider(readAccountUserId(ref)).notifier)
+          .prefetch(guildIds),
+    );
   }
 
   List<_NavbarListEntry> _buildNavbarEntries({
@@ -273,6 +276,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     required int pendingUnavailableCount,
     required List<GuildNavbarItem> organizedItems,
     required bool showAddCommunity,
+    required bool showExplore,
     required bool hideDirectMessages,
   }) {
     final List<_NavbarListEntry> entries = <_NavbarListEntry>[];
@@ -325,9 +329,11 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
           );
       }
     }
-    entries.add(
-      const _NavbarListEntry(kind: _NavbarListEntryKind.exploreCommunities),
-    );
+    if (showExplore) {
+      entries.add(
+        const _NavbarListEntry(kind: _NavbarListEntryKind.exploreCommunities),
+      );
+    }
     if (showAddCommunity) {
       entries.add(
         const _NavbarListEntry(kind: _NavbarListEntryKind.addCommunity),
@@ -421,6 +427,9 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     );
 
     final dmFolderState = ref.watch(dmFolderProvider);
+    final collapseDMs = ref.watch(
+      appearancePreferencesProvider.select((s) => s.collapseDMs),
+    );
     ref.watch(unreadDmChannelsProvider.select(dmNavbarMembershipToken));
     final List<DmChannel> unreadDms = _reconcileRailDms(
       ref.read(unreadDmChannelsProvider).channels,
@@ -433,7 +442,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
     final List<DmChannel> allowlistedDms;
     final List<DmChannel> regularDms;
 
-    if (dmFolderState.collapseDMs && !dmFolderState.expanded) {
+    if (collapseDMs && !dmFolderState.expanded) {
       allowlistedDms = unreadDms
           .where((dm) => dmFolderState.allowlistedIds.contains(dm.id))
           .toList();
@@ -445,27 +454,25 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       regularDms = unreadDms;
     }
 
-    final dmItemsVisible = !dmFolderState.collapseDMs || dmFolderState.expanded;
+    final dmItemsVisible = !collapseDMs || dmFolderState.expanded;
 
     ref
       ..listen<List<GuildNavbarItem>>(organizedGuildListProvider, (
         List<GuildNavbarItem>? previous,
         List<GuildNavbarItem> next,
       ) {
-        if (previous != next) {
-          final GuildPermissions permissions = ref.read(
-            guildPermissionsProvider.notifier,
-          );
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) {
-              return;
-            }
-            _prefetchGuildPermissions(permissions, next);
-          });
+        final Set<String> guildIds = _guildIdsOf(next);
+        if (!setEquals(guildIds, _permissionGuildIds)) {
+          _prefetchGuildPermissions(guildIds);
         }
         if (_needsScrollClamp && next.isNotEmpty) {
           _scheduleScrollClamp();
         }
+      })
+      ..listen<int>(gatewayFullRecoveryProvider, (_, _) {
+        _prefetchGuildPermissions(
+          _guildIdsOf(ref.read(organizedGuildListProvider)),
+        );
       })
       ..listen(guildReadStateProvider, (_, _) {
         _scrollIndicator.scheduleUpdate();
@@ -475,6 +482,9 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       });
 
     final bool showAddCommunity = ref.watch(addGuildEnabledProvider);
+    final bool showExplore = ref.watch(
+      instanceRuntimeConfigProvider.select((config) => config.exploreAvailable),
+    );
     final bool hideDirectMessages = ref.watch(
       instanceRuntimeConfigProvider.select(
         (config) => config.directMessagesDisabled,
@@ -489,6 +499,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       pendingUnavailableCount: pendingUnavailableCount,
       organizedItems: organizedItems,
       showAddCommunity: showAddCommunity,
+      showExplore: showExplore,
       hideDirectMessages: hideDirectMessages,
     );
     _indicatorEntries = navbarEntries;
@@ -510,7 +521,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
         return _buildNavbarListItem(
           context,
           entry: navbarEntries[index],
-          dmFolderState: dmFolderState,
+          collapseDMs: collapseDMs,
           unavailableCount: unavailableCount,
         );
       },
@@ -521,7 +532,9 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
       width: kGuildNavbarWidth,
       decoration: BoxDecoration(
         color: context.colors.serverSidebarBackground,
-        border: Border(right: BorderSide(color: context.colors.borderColor)),
+        border: BorderDirectional(
+          end: BorderSide(color: context.colors.borderColor),
+        ),
       ),
       child: ScrollConfiguration(
         behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
@@ -542,7 +555,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
   Widget _buildNavbarListItem(
     BuildContext context, {
     required _NavbarListEntry entry,
-    required DmFolderViewState dmFolderState,
+    required bool collapseDMs,
     required int unavailableCount,
   }) {
     final FluxerLocalizations l10n = FluxerLocalizations.of(context);
@@ -567,7 +580,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
               context,
               position: position,
               dm: dm,
-              isCollapsed: dmFolderState.collapseDMs,
+              isCollapsed: collapseDMs,
               isAllowlisted: true,
             ),
           ),
@@ -588,7 +601,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
               context,
               position: position,
               dm: dm,
-              isCollapsed: dmFolderState.collapseDMs,
+              isCollapsed: collapseDMs,
               isAllowlisted: false,
             ),
           ),
@@ -693,7 +706,7 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
           label: l10n.guildNavbarHelp,
           icon: PhosphorIconsBold.questionMark,
           onTap: () =>
-              handleExternalLinkTap(context, 'https://help.fluxer.app'),
+              handleExternalLinkTap(context, InstanceConstants.helpCenterUrl),
         );
     }
   }
@@ -855,7 +868,9 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
         final muteState = ref.watch(guildMuteProvider(guild.id)).value;
         final voiceActivity = ref.watch(guildVoiceActivityProvider(guild.id));
         final permissions = ref.watch(
-          guildPermissionsProvider.select((s) => s[guild.id] ?? 0),
+          guildPermissionsProvider(
+            watchAccountUserId(ref),
+          ).select((s) => s[guild.id] ?? 0),
         );
         final invitesPaused =
             guild.features.contains('INVITES_DISABLED') &&
@@ -893,7 +908,9 @@ class _GuildNavbarState extends ConsumerState<GuildNavbar> {
             );
           },
           onMenuOpened: () {
-            ref.read(guildSyncProvider.notifier).syncIfNeeded(guild.id);
+            ref
+                .read(guildSyncProvider(readAccountUserId(ref)).notifier)
+                .syncIfNeeded(guild.id);
           },
           resolveMenuPermissions: () =>
               _resolveGuildMenuPermissions(ref, guild.id),

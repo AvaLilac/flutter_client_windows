@@ -9,8 +9,9 @@ import 'package:fluxer_app/core/synced_preferences/engine/synced_preferences_dir
 import 'package:fluxer_app/core/synced_preferences/usage_frecency.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/expression_usage_provider.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
-import 'package:fluxer_app/shared/utils/emoji_registry.dart';
-import 'package:fluxer_app/shared/utils/emoji_utils.dart';
+import 'package:fluxer_app/features/mature_content/providers/mature_expression_filter.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_registry.dart';
+import 'package:fluxer_app/shared/utils/emoji/emoji_utils.dart';
 import 'package:riverpod/riverpod.dart' as rp;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -133,8 +134,12 @@ Future<List<String>> rankedEmojiUsageKeys(Ref ref) async {
 final allGuildEmojisForPickerProvider =
     rp.StreamProvider<List<GuildEmojiEntry>>((ref) {
       final db = ref.watch(fluxerDatabaseProvider);
-      return db.guildEmojiDao.watchAll().map(
-        (rows) => rows.map(GuildEmojiEntry.fromRow).toList(),
+      return watchExpressionsVisibleForMatureAccess<GuildEmojiEntry>(
+        ref,
+        db.guildEmojiDao.watchAll().map(
+          (rows) => rows.map(GuildEmojiEntry.fromRow).toList(),
+        ),
+        (GuildEmojiEntry emoji) => emoji.guildId,
       );
     });
 

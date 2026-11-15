@@ -94,6 +94,7 @@ final class ApplePushBridge: NSObject, FlutterStreamHandler {
       identifier: PushNotificationPayload.messageReplyCategoryId,
       actions: [reply],
       intentIdentifiers: ["INSendMessageIntent"],
+      hiddenPreviewsBodyPlaceholder: NSLocalizedString("PUSH_NEW_MESSAGE", comment: ""),
       options: []
     )
     DispatchQueue.main.async {
@@ -260,7 +261,10 @@ final class ApplePushBridge: NSObject, FlutterStreamHandler {
     }
     removeDeliveredNotificationsForChannel(
       channelId: channelId,
-      upToMessageId: PushNotificationPayload.resolveMessageId(from: userInfo)
+      upToMessageId: PushNotificationPayload.resolveMessageId(
+        from: userInfo,
+        channelId: channelId
+      )
     ) {
       DispatchQueue.main.async(execute: finish)
     }
@@ -271,16 +275,7 @@ final class ApplePushBridge: NSObject, FlutterStreamHandler {
     completion: @escaping () -> Void
   ) {
     let raw = userInfo["badge_count"] ?? (userInfo["data"] as? [AnyHashable: Any])?["badge_count"]
-    let count: Int?
-    if let number = raw as? Int {
-      count = number
-    } else if let number = raw as? NSNumber {
-      count = number.intValue
-    } else if let text = raw as? String {
-      count = Int(text)
-    } else {
-      count = nil
-    }
+    let count = PushNotificationPayload.parseBadgeCount(raw)
     guard let count else {
       completion()
       return
@@ -304,22 +299,11 @@ final class ApplePushBridge: NSObject, FlutterStreamHandler {
       return
     }
     UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
-      let identifiers = notifications.compactMap { notification -> String? in
-        guard PushNotificationPayload.notificationMatchesChannel(notification, channelId: channelId)
-        else {
-          return nil
-        }
-        let messageId = PushNotificationPayload.resolveMessageId(
-          from: notification.request.content.userInfo
-        )
-        guard PushNotificationPayload.messageIsCoveredByAck(
-          messageId: messageId,
-          upToMessageId: upToMessageId
-        ) else {
-          return nil
-        }
-        return notification.request.identifier
-      }
+      let identifiers = PushNotificationPayload.deliveredNotificationIdentifiersToRemove(
+        from: notifications,
+        channelId: channelId,
+        upToMessageId: upToMessageId
+      )
       if identifiers.isEmpty {
         completion?()
         return
@@ -424,34 +408,13 @@ final class ApplePushBridge: NSObject, FlutterStreamHandler {
     )
   }
 
-  private static func requestAuthorizationIfNeeded(completion: @escaping () -> Void) {
-    UNUserNotificationCenter.current().getNotificationSettings { settings in
-      switch settings.authorizationStatus {
-      case .notDetermined:
-        UNUserNotificationCenter.current().requestAuthorization(
-          options: [.alert, .badge, .sound]
-        ) { _, _ in
-          DispatchQueue.main.async {
-            completion()
-          }
-        }
-      default:
-        DispatchQueue.main.async {
-          completion()
-        }
-      }
-    }
-  }
-
   private func handleMethodCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "registerRemoteNotifications":
       DispatchQueue.main.async {
         Self.logApns("registerRemoteNotifications requested")
-        Self.requestAuthorizationIfNeeded {
-          UIApplication.shared.registerForRemoteNotifications()
-          result(nil)
-        }
+        UIApplication.shared.registerForRemoteNotifications()
+        result(nil)
       }
     case "getDeviceToken":
       DispatchQueue.main.async {
@@ -521,6 +484,23 @@ final class ApplePushBridge: NSObject, FlutterStreamHandler {
         message: message,
         directMessage: directMessage
       )
+      result(nil)
+    case "setGroupDmNames":
+      guard let args = call.arguments as? [String: Any],
+        let userId = args["userId"] as? String,
+        !userId.isEmpty,
+        let names = args["names"] as? [String: String]
+      else {
+        result(
+          FlutterError(
+            code: "invalid_args",
+            message: "userId and names are required",
+            details: nil
+          )
+        )
+        return
+      }
+      PushNotificationPayload.storeGroupDmNames(userId: userId, names: names)
       result(nil)
     case "setActiveUserId":
       let userId = call.arguments as? String

@@ -5,6 +5,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxer_app/core/permissions/permission.dart';
+import 'package:fluxer_app/core/router/fluxer_router.dart';
 import 'package:fluxer_app/core/theme/fluxer_layout_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_text_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme.dart';
@@ -20,7 +21,7 @@ import 'package:fluxer_app/features/settings/presentation/widgets/guild/channels
 import 'package:fluxer_app/features/settings/presentation/widgets/guild/channels/guild_channel_settings_row.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/guild/channels/guild_channels_settings_widget.dart';
 import 'package:fluxer_app/material_ui.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 
 import '../../../../../../helpers/test_l10n.dart';
 import '../../../../../../helpers/wide_layout_test_sizes.dart';
@@ -29,6 +30,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   const String guildId = 'guild-1';
+  const String testAccountUserId = 'test-user-id';
 
   Channel channel({
     required String id,
@@ -55,9 +57,10 @@ void main() {
     return ProviderScope(
       overrides: [
         channelRepositoryProvider.overrideWithValue(repository),
-        guildPermissionsProvider.overrideWithValue(<String, int>{
-          guildId: Permission.manageChannels.value,
-        }),
+        currentUserIdProvider.overrideWithValue(testAccountUserId),
+        guildPermissionsProvider(testAccountUserId).overrideWithValue(
+          <String, int>{guildId: Permission.manageChannels.value},
+        ),
       ],
       child: MaterialApp(
         locale: kTestLocale,

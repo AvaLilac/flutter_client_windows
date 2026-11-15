@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluxer_app/core/api/attachment_request_auth.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/core/utils/channel_jump_link.dart';
 import 'package:fluxer_app/features/chat/utils/channel_jump_navigator.dart';
-import 'package:fluxer_app/features/guilds/utils/invite_link_navigator.dart';
-import 'package:fluxer_app/features/settings/providers/default_apps_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/gifts/presentation/modals/gift_accept_modal.dart';
+import 'package:fluxer_app/features/gifts/utils/gift_code_utils.dart';
+import 'package:fluxer_app/features/guilds/utils/invites/invite_link_navigator.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/default_apps_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/external_links/external_link_warning_sheet.dart';
 import 'package:fluxer_app/shared/external_links/external_url_launcher.dart';
@@ -18,6 +21,12 @@ Future<void> handleExternalLinkTap(
 }) async {
   if (isInviteLink(url)) {
     await handleInviteLinkTap(context, url);
+    return;
+  }
+
+  final String? giftCode = parseGiftLinkCode(url);
+  if (giftCode != null) {
+    await showGiftAcceptModal(context, code: giftCode);
     return;
   }
 
@@ -76,6 +85,23 @@ Future<void> handleExternalLinkTap(
 
       await _openExternalUrl(context, uri);
     },
+  );
+}
+
+Future<void> openAttachmentInBrowser(
+  BuildContext context,
+  String url, {
+  bool? useRootNavigator,
+}) async {
+  final String browserUrl = await AttachmentRequestAuth.fileTokenUrl(url);
+  if (!context.mounted) {
+    return;
+  }
+  await handleExternalLinkTap(
+    context,
+    browserUrl,
+    useRootNavigator: useRootNavigator,
+    skipWarning: AttachmentRequestAuth.isApiAttachmentUrl(url),
   );
 }
 

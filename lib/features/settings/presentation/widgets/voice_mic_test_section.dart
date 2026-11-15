@@ -7,18 +7,19 @@ import 'package:fluxer_app/core/system_permissions/system_permission_service.dar
 import 'package:fluxer_app/core/talker.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/audio_level_meter.dart';
-import 'package:fluxer_app/features/settings/providers/voice_settings_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/voice_settings_provider.dart';
 import 'package:fluxer_app/features/ui/ui.dart';
 import 'package:fluxer_app/features/voice/domain/voice_settings_state.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_provider.dart';
 import 'package:fluxer_app/features/voice/providers/voice_session_state.dart';
 import 'package:fluxer_app/features/voice/services/voice_settings_applicator.dart';
-import 'package:fluxer_app/features/voice/utils/voice_mic_test_track.dart';
-import 'package:fluxer_app/features/voice/utils/voice_volume_utils.dart';
+import 'package:fluxer_app/features/voice/utils/audio/mic_test_track.dart';
+import 'package:fluxer_app/features/voice/utils/audio/speaker_route.dart';
+import 'package:fluxer_app/features/voice/utils/audio/volume_utils.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:livekit_client/livekit_client.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class VoiceMicTestSection extends ConsumerStatefulWidget {
   const VoiceMicTestSection({super.key});
@@ -47,6 +48,7 @@ class _VoiceMicTestSectionState extends ConsumerState<VoiceMicTestSection> {
   @override
   void dispose() {
     unawaited(_disposeTestResources());
+    unawaited(releaseNativeVoiceAudioSession(kVoiceMicTestAudioOwner));
     _levelNotifier.dispose();
     super.dispose();
   }
@@ -70,12 +72,14 @@ class _VoiceMicTestSectionState extends ConsumerState<VoiceMicTestSection> {
       voiceSettingsApplicatorProvider,
     );
     try {
+      await acquireNativeVoiceAudioSession(kVoiceMicTestAudioOwner);
       await applicator.applySpeakerOutput(settings: settings);
       await _configureOutputDevice(settings.outputDeviceId);
       final LocalAudioTrack track = await _createMicTestTrack(
         applicator: applicator,
         settings: settings,
       );
+      _track = track;
       await track.start();
       await Helper.setVolume(
         inputVoiceVolumePercentToGain(settings.inputVolume),
@@ -85,6 +89,7 @@ class _VoiceMicTestSectionState extends ConsumerState<VoiceMicTestSection> {
         track,
         options: const AudioVisualizerOptions(barCount: 8),
       );
+      _visualizer = visualizer;
       _visualizerListener = visualizer.createListener()
         ..on<AudioVisualizerEvent>((AudioVisualizerEvent event) {
           if (!mounted) {
@@ -95,18 +100,10 @@ class _VoiceMicTestSectionState extends ConsumerState<VoiceMicTestSection> {
       await visualizer.start();
       await _startPlayback(track, settings);
       if (!mounted) {
-        await _disposePlayback();
-        await _visualizerListener?.dispose();
-        await visualizer.stop();
-        await visualizer.dispose();
-        await track.stop();
+        await _disposeTestResources();
         return;
       }
-      setState(() {
-        _track = track;
-        _visualizer = visualizer;
-        _isRunning = true;
-      });
+      setState(() => _isRunning = true);
     } on Object catch (error, stackTrace) {
       talker.error('Failed to start mic test', error, stackTrace);
       await _stopTest();
@@ -139,6 +136,7 @@ class _VoiceMicTestSectionState extends ConsumerState<VoiceMicTestSection> {
     VoiceSettingsState settings,
   ) async {
     final RTCVideoRenderer renderer = RTCVideoRenderer();
+    _playbackRenderer = renderer;
     await renderer.initialize();
     final double outputVolume = boostedVoiceVolumePercentToTrackVolume(
       settings.outputVolume,
@@ -149,9 +147,11 @@ class _VoiceMicTestSectionState extends ConsumerState<VoiceMicTestSection> {
     final RTCPeerConnection localPeerConnection = await createPeerConnection(
       _loopbackConfiguration,
     );
+    _loopbackLocalPeerConnection = localPeerConnection;
     final RTCPeerConnection remotePeerConnection = await createPeerConnection(
       _loopbackConfiguration,
     );
+    _loopbackRemotePeerConnection = remotePeerConnection;
     remotePeerConnection.onTrack = (RTCTrackEvent event) {
       if (event.track.kind == 'audio' && event.streams.isNotEmpty) {
         renderer.srcObject = event.streams.first;
@@ -172,9 +172,6 @@ class _VoiceMicTestSectionState extends ConsumerState<VoiceMicTestSection> {
       await renderer.audioOutput(outputDeviceId);
     }
     await renderer.setVolume(outputVolume);
-    _playbackRenderer = renderer;
-    _loopbackLocalPeerConnection = localPeerConnection;
-    _loopbackRemotePeerConnection = remotePeerConnection;
   }
 
   String? _resolveOutputDeviceId(String outputDeviceId) {
@@ -199,6 +196,7 @@ class _VoiceMicTestSectionState extends ConsumerState<VoiceMicTestSection> {
 
   Future<void> _stopTest() async {
     await _disposeTestResources();
+    await releaseNativeVoiceAudioSession(kVoiceMicTestAudioOwner);
     if (!mounted) {
       return;
     }

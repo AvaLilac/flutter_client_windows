@@ -6,11 +6,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluxer_app/core/api/dio_error_message.dart';
 import 'package:fluxer_app/core/build/app_build_config.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/app/account_user_id.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_color_theme.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/settings/presentation/widgets/wide_settings_content_layout.dart';
-import 'package:fluxer_app/features/settings/providers/connections_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/connections_view_model.dart';
 import 'package:fluxer_app/features/ui/bottom_sheet/fluxer_bottom_sheet.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button_size.dart';
@@ -22,9 +23,9 @@ import 'package:fluxer_app/features/ui/toast/toast_provider.dart';
 import 'package:fluxer_app/features/ui/warning_alert/fluxer_warning_alert.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/utils/clipboard_utils.dart';
 import 'package:fluxer_dart/export.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum _AddStep { initiate, verify }
@@ -229,7 +230,9 @@ class _ConnectionAddBodyState extends ConsumerState<_ConnectionAddBody> {
       );
       return;
     }
-    final existing = ref.read(connectionsViewModelProvider).connections;
+    final existing = ref
+        .read(connectionsViewModelProvider(readAccountUserId(ref)))
+        .connections;
     final sdkType = _type.sdkType;
     final isDuplicate = existing.any(
       (c) => c.type == sdkType && c.name.toLowerCase() == identifier,
@@ -239,7 +242,9 @@ class _ConnectionAddBodyState extends ConsumerState<_ConnectionAddBody> {
       return;
     }
 
-    final vm = ref.read(connectionsViewModelProvider.notifier);
+    final vm = ref.read(
+      connectionsViewModelProvider(readAccountUserId(ref)).notifier,
+    );
     setState(() => _error = null);
 
     if (_type == _ConnectionType.bluesky) {
@@ -583,7 +588,7 @@ class _ConnectionAddBodyState extends ConsumerState<_ConnectionAddBody> {
     final l10n = FluxerLocalizations.of(context);
     try {
       await ref
-          .read(connectionsViewModelProvider.notifier)
+          .read(connectionsViewModelProvider(readAccountUserId(ref)).notifier)
           .verifyAndCreate(_verification!.initiationToken);
       if (mounted) {
         widget.close();

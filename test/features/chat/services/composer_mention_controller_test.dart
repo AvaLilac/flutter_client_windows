@@ -374,4 +374,120 @@ void main() {
 
     expect(controller.toWireText(), 'hello world');
   });
+
+  testWidgets('a mention pasted by the keyboard becomes a mention chip', (
+    WidgetTester tester,
+  ) async {
+    final ComposerMentionController controller = await _pumpController(tester);
+    await tester.showKeyboard(find.byType(TextField));
+
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'Hi <@123> there',
+        selection: TextSelection.collapsed(offset: 15),
+      ),
+    );
+    await tester.pump();
+
+    expect(controller.text, isNot(contains('<@123>')));
+    expect(controller.toWireText(), 'Hi <@123> there');
+    expect(controller.selection, const TextSelection.collapsed(offset: 10));
+  });
+
+  testWidgets('a keyboard paste is chipped while the next word is composing', (
+    WidgetTester tester,
+  ) async {
+    final ComposerMentionController controller = await _pumpController(tester);
+    await tester.showKeyboard(find.byType(TextField));
+
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '<#456> there',
+        selection: TextSelection.collapsed(offset: 12),
+        composing: TextRange(start: 7, end: 12),
+      ),
+    );
+    await tester.pump();
+
+    expect(controller.text, isNot(contains('<#456>')));
+    expect(controller.toWireText(), '<#456> there');
+    expect(controller.value.composing, const TextRange(start: 2, end: 7));
+  });
+
+  group('markdown highlight', () {
+    List<InlineSpan> flatten(TextSpan root) {
+      final List<InlineSpan> out = <InlineSpan>[];
+      root.visitChildren((InlineSpan span) {
+        if (span != root &&
+            (span is WidgetSpan || span is TextSpan && span.text != null)) {
+          out.add(span);
+        }
+        return true;
+      });
+      return out;
+    }
+
+    testWidgets('restyles markdown without changing the text', (
+      WidgetTester tester,
+    ) async {
+      final ComposerMentionController controller = await _pumpController(
+        tester,
+      );
+      controller.text = 'say **hi** now';
+      await tester.pump();
+      final BuildContext context = tester.element(find.byType(TextField));
+      const TextStyle base = TextStyle(color: Color(0xFFFFFFFF), fontSize: 16);
+      final TextSpan root = controller.buildTextSpan(
+        context: context,
+        withComposing: false,
+        style: base,
+      );
+      final List<TextSpan> spans = flatten(root).cast<TextSpan>();
+      expect(spans.map((TextSpan s) => s.text).join(), 'say **hi** now');
+      final TextSpan marker = spans.firstWhere((TextSpan s) => s.text == '**');
+      expect(marker.style!.color!.a, closeTo(0.45, 0.01));
+      final TextSpan bold = spans.firstWhere((TextSpan s) => s.text == 'hi');
+      expect(bold.style!.fontWeight, FontWeight.w700);
+      expect(spans.first.style, base);
+    });
+
+    testWidgets('maps spans around mention chips to display offsets', (
+      WidgetTester tester,
+    ) async {
+      final ComposerMentionController controller = await _pumpController(
+        tester,
+      );
+      controller
+        ..text = '@msu'
+        ..selection = const TextSelection.collapsed(offset: 4)
+        ..insertUserMentionPlaceholder(
+          matchStart: 0,
+          matchEnd: 4,
+          userId: '1481621807877361924',
+          displayName: 'msubizo',
+        );
+      await tester.pump();
+      final String display = '${controller.text}~~x~~';
+      controller.value = TextEditingValue(
+        text: display,
+        selection: TextSelection.collapsed(offset: display.length),
+      );
+      await tester.pump();
+      final int strikeStart = controller.text.indexOf('~~');
+      expect(strikeStart, greaterThan(0));
+      final BuildContext context = tester.element(find.byType(TextField));
+      final List<InlineSpan> spans = flatten(
+        controller.buildTextSpan(context: context, withComposing: false),
+      );
+      expect(spans.first, isA<WidgetSpan>());
+      final TextSpan struck = spans.whereType<TextSpan>().firstWhere(
+        (TextSpan s) => s.text == 'x',
+      );
+      expect(struck.style!.decoration, TextDecoration.lineThrough);
+      expect(
+        spans.whereType<TextSpan>().map((TextSpan s) => s.text).join(),
+        controller.text.substring(1),
+      );
+    });
+  });
 }

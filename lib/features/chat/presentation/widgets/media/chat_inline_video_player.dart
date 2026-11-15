@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/providers/app_ui_lifecycle_provider.dart';
+import 'package:fluxer_app/core/api/attachment_request_auth.dart';
+import 'package:fluxer_app/core/providers/app/app_ui_lifecycle_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/chat/domain/chat_fullscreen_video_launch_context.dart';
 import 'package:fluxer_app/features/chat/domain/chat_video_source.dart';
@@ -16,11 +17,12 @@ import 'package:fluxer_app/features/chat/utils/media/chat_video_hdr_player_confi
 import 'package:fluxer_app/features/chat/utils/media/chat_video_playback_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/media_dimension_utils.dart';
 import 'package:fluxer_app/features/chat/utils/media/media_kit_player_lifecycle.dart';
-import 'package:fluxer_app/features/settings/providers/appearance_preferences_provider.dart';
-import 'package:fluxer_app/features/settings/providers/chat_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/appearance_preferences_provider.dart';
+import 'package:fluxer_app/features/settings/providers/preferences/chat_preferences_provider.dart';
 import 'package:fluxer_app/features/shell/presentation/responsive_layout.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/features/ui/tappable/fluxer_gesture_detector.dart';
+import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
 import 'package:fluxer_app/shared/widgets/shared_video_controls.dart';
 import 'package:media_kit/media_kit.dart';
@@ -141,7 +143,12 @@ class _ChatInlineVideoPlayerState extends ConsumerState<ChatInlineVideoPlayer> {
         await player.play();
       } else {
         final String playbackUrl = await resolvePlaybackUrl(widget.source);
-        await player.open(Media(playbackUrl));
+        await player.open(
+          Media(
+            playbackUrl,
+            httpHeaders: AttachmentRequestAuth.headersFor(playbackUrl),
+          ),
+        );
         _hasLoadedMedia = true;
       }
       if (!mounted || _playbackFailed) {
@@ -194,16 +201,20 @@ class _ChatInlineVideoPlayerState extends ConsumerState<ChatInlineVideoPlayer> {
       aspectRatio: _resolveAspectRatio(),
       child: isMobile
           ? MessageDoubleTapExempt(
-              child: FluxerGestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _openMobileFullscreen,
-                child: Stack(
-                  fit: StackFit.expand,
-                  alignment: Alignment.center,
-                  children: <Widget>[
-                    _buildPoster(),
-                    const VideoPlayButtonOverlay(),
-                  ],
+              child: Semantics(
+                button: true,
+                label: FluxerLocalizations.of(context).videoPlayerPlay,
+                child: FluxerGestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _openMobileFullscreen,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      _buildPoster(),
+                      const VideoPlayButtonOverlay(),
+                    ],
+                  ),
                 ),
               ),
             )
@@ -235,19 +246,23 @@ class _ChatInlineVideoPlayerState extends ConsumerState<ChatInlineVideoPlayer> {
               ],
             )
           : MessageDoubleTapExempt(
-              child: FluxerGestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _startPlayback,
-                child: Stack(
-                  fit: StackFit.expand,
-                  alignment: Alignment.center,
-                  children: <Widget>[
-                    _buildPoster(),
-                    if (_isLoading)
-                      const Center(child: FluxerLoadingSpinner())
-                    else
-                      const VideoPlayButtonOverlay(),
-                  ],
+              child: Semantics(
+                button: true,
+                label: FluxerLocalizations.of(context).videoPlayerPlay,
+                child: FluxerGestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _startPlayback,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      _buildPoster(),
+                      if (_isLoading)
+                        const Center(child: FluxerLoadingSpinner())
+                      else
+                        const VideoPlayButtonOverlay(),
+                    ],
+                  ),
                 ),
               ),
             ),

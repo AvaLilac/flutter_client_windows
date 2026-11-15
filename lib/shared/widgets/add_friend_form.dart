@@ -1,20 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxer_app/core/providers/instance_runtime_config_provider.dart';
+import 'package:fluxer_app/core/providers/instance/instance_runtime_config_provider.dart';
 import 'package:fluxer_app/core/theme/fluxer_theme_extension.dart';
 import 'package:fluxer_app/features/friends/providers/friend_providers.dart';
 import 'package:fluxer_app/features/settings/presentation/sheets/claim_account_sheet.dart';
-import 'package:fluxer_app/features/settings/presentation/user_settings_modal.dart';
-import 'package:fluxer_app/features/settings/providers/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/providers/view_models/user_settings_view_model.dart';
+import 'package:fluxer_app/features/settings/utils/resend_verification_email.dart';
 import 'package:fluxer_app/features/ui/button/fluxer_button.dart';
 import 'package:fluxer_app/features/ui/input/fluxer_input.dart';
 import 'package:fluxer_app/features/ui/spinner/fluxer_loading_spinner.dart';
 import 'package:fluxer_app/l10n/generated/fluxer_localizations.dart';
 import 'package:fluxer_app/material_ui.dart';
+import 'package:fluxer_app/shared/icons/phosphor.dart';
 import 'package:fluxer_app/shared/utils/api_error_presentation.dart';
 import 'package:fluxer_app/shared/utils/fluxer_tag_parser.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 enum _FormResultStatus { success, error }
 
@@ -110,14 +110,23 @@ class _AddFriendFormState extends ConsumerState<AddFriendForm> {
       );
     }
     if (!settings.isVerified) {
+      final bool emailsEnabled = ref.watch(
+        instanceRuntimeConfigProvider.select((config) => config.emailsEnabled),
+      );
       return _AddFriendGate(
         icon: PhosphorIconsFill.envelopeSimple,
         title: l10n.addFriendVerifyTitle,
         description: l10n.addFriendVerifyDescription,
-        actionLabel: l10n.addFriendVerifyEmail,
-        onAction: () => UserSettingsModal.show(context),
+        actionLabel: emailsEnabled ? l10n.verificationResendEmail : null,
+        onAction:
+            emailsEnabled && !ref.watch(resendVerificationEmailInFlightProvider)
+            ? () => unawaited(resendVerificationEmail(ref, context))
+            : null,
       );
     }
+    final productName = ref.watch(
+      instanceRuntimeConfigProvider.select((config) => config.productName),
+    );
     final isDisabled = _isLoading || _controller.text.trim().isEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,8 +135,8 @@ class _AddFriendFormState extends ConsumerState<AddFriendForm> {
           controller: _controller,
           label: l10n.addFriendUsernameLabel,
           hint: ref.watch(uniqueUsernamesProvider)
-              ? l10n.addFriendUsernameOnlyHint
-              : l10n.addFriendUsernameHint,
+              ? productName
+              : '$productName#0000',
           enabled: !_isLoading,
           autofocus: true,
           onChanged: (_) {
@@ -184,8 +193,8 @@ class _AddFriendGate extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
-  final String actionLabel;
-  final VoidCallback onAction;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -208,8 +217,10 @@ class _AddFriendGate extends StatelessWidget {
             height: 1.4,
           ),
         ),
-        SizedBox(height: context.layout.s4),
-        FluxerButton.primary(label: actionLabel, onPressed: onAction),
+        if (actionLabel case final String label) ...[
+          SizedBox(height: context.layout.s4),
+          FluxerButton.primary(label: label, onPressed: onAction),
+        ],
       ],
     );
   }

@@ -2,7 +2,7 @@ import 'dart:ui' show Path, Rect;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxer_app/core/providers/splash_exit_allowed_provider.dart';
+import 'package:fluxer_app/core/providers/app/splash_exit_allowed_provider.dart';
 import 'package:fluxer_app/features/shell/presentation/splash_reveal_overlay.dart';
 
 void main() {
@@ -110,15 +110,22 @@ void main() {
       );
     });
 
-    test('fades instead of expanding when zoom is disabled', () {
-      expect(
-        splashRevealLogoScale(
+    test('keeps scale at 1 when zoom is disabled', () {
+      for (final double progress in <double>[
+        0,
+        SplashRevealOverlay.pulseEndFraction,
+        0.5,
+        1,
+      ]) {
+        expect(
+          splashRevealLogoScale(
+            progress,
+            reducedMotion: false,
+            useLogoZoomTransition: false,
+          ),
           1,
-          reducedMotion: false,
-          useLogoZoomTransition: false,
-        ),
-        SplashRevealOverlay.fadeEndScale,
-      );
+        );
+      }
     });
   });
 

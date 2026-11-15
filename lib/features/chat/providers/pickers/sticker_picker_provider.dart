@@ -7,6 +7,7 @@ import 'package:fluxer_app/core/providers/database_provider.dart';
 import 'package:fluxer_app/core/synced_preferences/usage_frecency.dart';
 import 'package:fluxer_app/features/chat/providers/pickers/expression_usage_provider.dart';
 import 'package:fluxer_app/features/guilds/domain/guild.dart';
+import 'package:fluxer_app/features/mature_content/providers/mature_expression_filter.dart';
 import 'package:riverpod/riverpod.dart' as rp;
 
 const int kMaxFrecentStickers = 42;
@@ -62,8 +63,12 @@ String stickerFavoriteKey(StickerEntry sticker) =>
 final allGuildStickersForPickerProvider = rp.StreamProvider<List<StickerEntry>>(
   (ref) {
     final db = ref.watch(fluxerDatabaseProvider);
-    return db.guildStickerDao.watchAll().map(
-      (rows) => rows.map(StickerEntry.fromRow).toList(),
+    return watchExpressionsVisibleForMatureAccess<StickerEntry>(
+      ref,
+      db.guildStickerDao.watchAll().map(
+        (rows) => rows.map(StickerEntry.fromRow).toList(),
+      ),
+      (StickerEntry sticker) => sticker.guildId,
     );
   },
 );
