@@ -171,6 +171,7 @@ jobs:
 
       - name: Build Linux app
         env:
+          CXXFLAGS: -Wno-error=deprecated-declarations
           VERSION_NAME: ${{ steps.version.outputs.release_drafter_version }}
           BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
         run: |
