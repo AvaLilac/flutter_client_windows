@@ -4595,6 +4595,33 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get connectionEnterDomain => '请输入域名。';
 
   @override
+  String get connectionsEmptyDescriptionAccounts =>
+      'Link your accounts or verify domain ownership to display them on your profile.';
+
+  @override
+  String connectionsAddProviderAriaLabel(String providerName) {
+    return 'Add $providerName connection';
+  }
+
+  @override
+  String connectionConnectWithProvider(String providerName) {
+    return 'Connect with $providerName';
+  }
+
+  @override
+  String connectionProviderInstructions(String providerName) {
+    return '$providerName opens in your browser. Sign in there to connect your account.';
+  }
+
+  @override
+  String connectionProviderAuthorizeFailed(String providerName) {
+    return 'Couldn\'t start $providerName authorization.';
+  }
+
+  @override
+  String get connectionUnavailable => 'No longer available';
+
+  @override
   String get lookAndFeelThemeSectionTitle => '主题';
 
   @override
@@ -11902,6 +11929,9 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get guildNavbarInvitesPaused => '此社区的邀请目前已暂停';
 
   @override
+  String get guildNavbarInvitesPausedRaid => '检测到疑似突袭，邀请已暂停';
+
+  @override
   String get guildNavbarDurationNever => '永不';
 
   @override
@@ -16260,6 +16290,11 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   String get oxygenUpdating => 'Updating…';
 
   @override
+  String oxygenUpdatingProgress(int percent) {
+    return 'Updating… $percent%';
+  }
+
+  @override
   String desktopTrayShow(String productName) {
     return 'Show $productName';
   }
@@ -16267,6 +16302,15 @@ class FluxerLocalizationsZh extends FluxerLocalizations {
   @override
   String desktopTrayHide(String productName) {
     return 'Hide $productName';
+  }
+
+  @override
+  String desktopBadgeUnreadMessages(int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return 'Unread messages: $countString';
   }
 
   @override
@@ -28000,6 +28044,9 @@ class FluxerLocalizationsZhHant extends FluxerLocalizationsZh {
 
   @override
   String get guildNavbarInvitesPaused => '此社群目前暫停邀請';
+
+  @override
+  String get guildNavbarInvitesPausedRaid => '因疑似突襲，邀請已暫停';
 
   @override
   String get guildNavbarDurationNever => '永不';

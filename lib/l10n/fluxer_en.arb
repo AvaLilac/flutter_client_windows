@@ -6221,6 +6221,50 @@
   "@connectionEnterDomain": {
     "description": "Inline error shown when the domain input is empty."
   },
+  "connectionsEmptyDescriptionAccounts": "Link your accounts or verify domain ownership to display them on your profile.",
+  "@connectionsEmptyDescriptionAccounts": {
+    "description": "Empty-state description when the instance offers account connections besides domains."
+  },
+  "connectionsAddProviderAriaLabel": "Add {providerName} connection",
+  "@connectionsAddProviderAriaLabel": {
+    "description": "Semantic label for an instance connection provider's add-connection tile. providerName is the provider display name.",
+    "placeholders": {
+      "providerName": {
+        "type": "String"
+      }
+    }
+  },
+  "connectionConnectWithProvider": "Connect with {providerName}",
+  "@connectionConnectWithProvider": {
+    "description": "Button label for starting an external account connection. providerName is the provider display name.",
+    "placeholders": {
+      "providerName": {
+        "type": "String"
+      }
+    }
+  },
+  "connectionProviderInstructions": "{providerName} opens in your browser. Sign in there to connect your account.",
+  "@connectionProviderInstructions": {
+    "description": "Explains the browser sign-in step for an instance connection provider. providerName is the provider display name.",
+    "placeholders": {
+      "providerName": {
+        "type": "String"
+      }
+    }
+  },
+  "connectionProviderAuthorizeFailed": "Couldn't start {providerName} authorization.",
+  "@connectionProviderAuthorizeFailed": {
+    "description": "Error shown when starting the sign-in flow for a connection provider fails. providerName is the provider display name.",
+    "placeholders": {
+      "providerName": {
+        "type": "String"
+      }
+    }
+  },
+  "connectionUnavailable": "No longer available",
+  "@connectionUnavailable": {
+    "description": "Label for a linked account whose provider this instance removed or turned off. The account is hidden from the profile."
+  },
   "lookAndFeelThemeSectionTitle": "Theme",
   "@lookAndFeelThemeSectionTitle": {
     "description": "Section title for theme selection."
@@ -15165,6 +15209,10 @@
   "@guildNavbarInvitesPaused": {
     "description": "Guild tooltip when invites are disabled."
   },
+  "guildNavbarInvitesPausedRaid": "Invites are paused after a suspected raid",
+  "@guildNavbarInvitesPausedRaid": {
+    "description": "Guild tooltip when invites are paused after a suspected raid."
+  },
   "guildNavbarDurationNever": "never",
   "@guildNavbarDurationNever": {
     "description": "Invite expiry duration label for no expiry."
@@ -20589,6 +20637,15 @@
   "@oxygenUpdating": {
     "description": "Tooltip and accessible label on the channel header updater icon in the desktop app while an update the user started is downloading. The app restarts by itself when it is done."
   },
+  "oxygenUpdatingProgress": "Updating… {percent}%",
+  "@oxygenUpdatingProgress": {
+    "description": "Tooltip and accessible label on the channel header updater icon in the desktop app while an update is downloading and its progress is known. percent is a whole number from 0 to 100. The app restarts by itself when it is done.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "desktopTrayShow": "Show {productName}",
   "@desktopTrayShow": {
     "description": "Desktop tray/menu bar menu item that shows the hidden app window.",
@@ -20604,6 +20661,16 @@
     "placeholders": {
       "productName": {
         "type": "String"
+      }
+    }
+  },
+  "desktopBadgeUnreadMessages": "Unread messages: {count}",
+  "@desktopBadgeUnreadMessages": {
+    "description": "Accessible description of the taskbar badge showing the number of unread mentions and pending friend requests.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },

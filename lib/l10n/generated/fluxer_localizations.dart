@@ -7784,6 +7784,42 @@ abstract class FluxerLocalizations {
   /// **'Enter a domain.'**
   String get connectionEnterDomain;
 
+  /// Empty-state description when the instance offers account connections besides domains.
+  ///
+  /// In en, this message translates to:
+  /// **'Link your accounts or verify domain ownership to display them on your profile.'**
+  String get connectionsEmptyDescriptionAccounts;
+
+  /// Semantic label for an instance connection provider's add-connection tile. providerName is the provider display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {providerName} connection'**
+  String connectionsAddProviderAriaLabel(String providerName);
+
+  /// Button label for starting an external account connection. providerName is the provider display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect with {providerName}'**
+  String connectionConnectWithProvider(String providerName);
+
+  /// Explains the browser sign-in step for an instance connection provider. providerName is the provider display name.
+  ///
+  /// In en, this message translates to:
+  /// **'{providerName} opens in your browser. Sign in there to connect your account.'**
+  String connectionProviderInstructions(String providerName);
+
+  /// Error shown when starting the sign-in flow for a connection provider fails. providerName is the provider display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t start {providerName} authorization.'**
+  String connectionProviderAuthorizeFailed(String providerName);
+
+  /// Label for a linked account whose provider this instance removed or turned off. The account is hidden from the profile.
+  ///
+  /// In en, this message translates to:
+  /// **'No longer available'**
+  String get connectionUnavailable;
+
   /// Section title for theme selection.
   ///
   /// In en, this message translates to:
@@ -20866,6 +20902,12 @@ abstract class FluxerLocalizations {
   /// **'Invites are currently paused in this community'**
   String get guildNavbarInvitesPaused;
 
+  /// Guild tooltip when invites are paused after a suspected raid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invites are paused after a suspected raid'**
+  String get guildNavbarInvitesPausedRaid;
+
   /// Invite expiry duration label for no expiry.
   ///
   /// In en, this message translates to:
@@ -28521,6 +28563,12 @@ abstract class FluxerLocalizations {
   /// **'Updating…'**
   String get oxygenUpdating;
 
+  /// Tooltip and accessible label on the channel header updater icon in the desktop app while an update is downloading and its progress is known. percent is a whole number from 0 to 100. The app restarts by itself when it is done.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating… {percent}%'**
+  String oxygenUpdatingProgress(int percent);
+
   /// Desktop tray/menu bar menu item that shows the hidden app window.
   ///
   /// In en, this message translates to:
@@ -28532,6 +28580,12 @@ abstract class FluxerLocalizations {
   /// In en, this message translates to:
   /// **'Hide {productName}'**
   String desktopTrayHide(String productName);
+
+  /// Accessible description of the taskbar badge showing the number of unread mentions and pending friend requests.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread messages: {count}'**
+  String desktopBadgeUnreadMessages(int count);
 
   /// Desktop tray/menu bar menu item that opens user settings.
   ///

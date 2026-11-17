@@ -4842,6 +4842,33 @@ class FluxerLocalizationsTr extends FluxerLocalizations {
   String get connectionEnterDomain => 'Bir alan adı girin.';
 
   @override
+  String get connectionsEmptyDescriptionAccounts =>
+      'Link your accounts or verify domain ownership to display them on your profile.';
+
+  @override
+  String connectionsAddProviderAriaLabel(String providerName) {
+    return 'Add $providerName connection';
+  }
+
+  @override
+  String connectionConnectWithProvider(String providerName) {
+    return 'Connect with $providerName';
+  }
+
+  @override
+  String connectionProviderInstructions(String providerName) {
+    return '$providerName opens in your browser. Sign in there to connect your account.';
+  }
+
+  @override
+  String connectionProviderAuthorizeFailed(String providerName) {
+    return 'Couldn\'t start $providerName authorization.';
+  }
+
+  @override
+  String get connectionUnavailable => 'No longer available';
+
+  @override
   String get lookAndFeelThemeSectionTitle => 'Tema';
 
   @override
@@ -12684,6 +12711,10 @@ class FluxerLocalizationsTr extends FluxerLocalizations {
       'Bu toplulukta davetler şu anda duraklatıldı';
 
   @override
+  String get guildNavbarInvitesPausedRaid =>
+      'Davetler şüpheli bir baskından sonra duraklatıldı';
+
+  @override
   String get guildNavbarDurationNever => 'asla';
 
   @override
@@ -17346,6 +17377,11 @@ class FluxerLocalizationsTr extends FluxerLocalizations {
   String get oxygenUpdating => 'Updating…';
 
   @override
+  String oxygenUpdatingProgress(int percent) {
+    return 'Updating… $percent%';
+  }
+
+  @override
   String desktopTrayShow(String productName) {
     return 'Show $productName';
   }
@@ -17353,6 +17389,15 @@ class FluxerLocalizationsTr extends FluxerLocalizations {
   @override
   String desktopTrayHide(String productName) {
     return 'Hide $productName';
+  }
+
+  @override
+  String desktopBadgeUnreadMessages(int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return 'Unread messages: $countString';
   }
 
   @override
