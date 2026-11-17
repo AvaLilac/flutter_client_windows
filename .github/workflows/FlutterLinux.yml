@@ -1,26 +1,44 @@
-name: Linux Canary Build (unofficial)
+
+name: Linux Canary Build (Artifact)
 
 on:
   workflow_dispatch:
+    inputs:
+      build_number:
+        description: Build number appended to the version (defaults to the run number)
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      build_number:
+        description: Build number appended to the version (defaults to the run number)
+        required: false
+        type: string
+    outputs:
+      version:
+        description: Application build version
+        value: ${{ jobs.build-and-pack.outputs.version }}
 
 permissions:
   contents: read
 
 jobs:
-  build-linux:
-    name: Build Linux (canary)
+  build-and-pack:
+    name: Build Linux canary app
     runs-on: ubuntu-latest
 
     container:
       image: debian:sid
 
     env:
-      PUSH_PROVIDER: unifiedpush
       DEBIAN_FRONTEND: noninteractive
 
     defaults:
       run:
         shell: bash
+
+    outputs:
+      version: ${{ steps.version.outputs.pack_version }}
 
     steps:
       - name: Install base tools
@@ -28,7 +46,7 @@ jobs:
           apt-get update
           apt-get install -y \
             ca-certificates curl git unzip xz-utils zip tar zstd jq file \
-            build-essential
+            build-essential python3
 
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -70,16 +88,34 @@ jobs:
             fi
           done
           if [ -z "$FOUND" ]; then
-            echo "No WPE WebKit dev package available in the apt repositories"
+            echo "::error::No WPE WebKit dev package available in the apt repositories"
             exit 1
           fi
           echo "Installed $FOUND"
           pkg-config --list-all | grep -i wpe || true
 
+      - name: Resolve version
+        id: version
+        env:
+          INPUT_BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          python3 .github/scripts/app_version.py read
+          BUILD_NUMBER="${INPUT_BUILD_NUMBER:-$GITHUB_RUN_NUMBER}"
+          if ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid build number: $BUILD_NUMBER"
+            exit 1
+          fi
+          VERSION_NAME="$(grep '^release_drafter_version=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | tr -d '\r')"
+          {
+            echo "build_number=$BUILD_NUMBER"
+            echo "pack_version=$VERSION_NAME-canary.$BUILD_NUMBER"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Set up Flutter
         uses: axi92/flutter-action@72633a794ba0b23276fa4fc465a6cacb758a90c5
         with:
           channel: stable
+          flutter-version: 3.47.9
 
       - name: Set up Rust and native asset build hooks
         run: |
@@ -87,6 +123,8 @@ jobs:
             | sh -s -- -y --profile minimal --default-toolchain stable
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           . "$HOME/.cargo/env"
+          rustup show active-toolchain || rustup toolchain install stable
+          rustup target add x86_64-unknown-linux-gnu
           flutter config --enable-linux-desktop
           flutter config --enable-native-assets
 
@@ -104,12 +142,15 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Prefetch Rust toolchains for native asset hooks
+        run: bash tool/prefetch_native_rust_toolchains.sh
+
       - name: Patch inappwebview Linux plugin for older WPE headers
         run: |
           CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}"
           FILE=$(find "$CACHE_DIR/hosted/pub.dev" -path '*flutter_inappwebview_linux-*/linux/in_app_webview/in_app_webview_settings.cc' | head -n 1)
           if [ -z "$FILE" ]; then
-            echo "in_app_webview_settings.cc not found"
+            echo "::error::in_app_webview_settings.cc not found"
             exit 1
           fi
           sed -i 's|WPE_SETTING_DISABLE_ANIMATIONS|"/wpe-platform/disable-animations"|g' "$FILE"
@@ -118,46 +159,61 @@ jobs:
       - name: Run build_runner
         run: dart run build_runner build
 
-      - name: Build Linux release
+      - name: Build Linux app
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.release_drafter_version }}
+          BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
         run: |
           flutter build linux --release -v \
+            --build-name "$VERSION_NAME" \
+            --build-number "$BUILD_NUMBER" \
             --dart-define-from-file=tool/dart_defines/canary.json \
-            --dart-define=PUSH_PROVIDER=${PUSH_PROVIDER} 2>&1 | tee build.log
+            --dart-define=BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --dart-define=CANARY_NUMBER="$BUILD_NUMBER" 2>&1 | tee build.log
+
+          APP_DIR="build/linux/x64/release/bundle"
+
+          if [ ! -f "$APP_DIR/fluxer_oxygen" ]; then
+            echo "::error::Expected executable at $APP_DIR/fluxer_oxygen"
+            echo "----- Bundle contents -----"
+            ls -la "$APP_DIR" || true
+            exit 1
+          fi
 
       - name: Rename bundled libraries to their sonames
         run: |
-          cd build/linux/x64/release/bundle/lib
-          for f in libWPEWebKit-2.0.so.1.* libwpe-1.0.so.1.*; do
-            [ -e "$f" ] || continue
-            mv "$f" "$(echo "$f" | sed -E 's/(\.so\.[0-9]+)\..*/\1/')"
-          done
-          ls -la | grep -iE 'wpe'
+          LIB_DIR="build/linux/x64/release/bundle/lib"
+          if [ -d "$LIB_DIR" ]; then
+            cd "$LIB_DIR"
+            for f in libWPEWebKit-2.0.so.1.* libwpe-1.0.so.1.*; do
+              [ -e "$f" ] || continue
+              mv "$f" "$(echo "$f" | sed -E 's/(\.so\.[0-9]+)\..*/\1/')"
+            done
+            ls -la | grep -iE 'wpe' || true
+          fi
 
       - name: Show build errors
         if: failure()
         run: |
-          grep -nE "error:|Error:|CMake Error|fatal error|FAILED|undefined reference|not found" build.log | head -60
-          echo "-----"
-          tail -n 40 build.log
+          if [ -f build.log ]; then
+            grep -nE "error:|Error:|CMake Error|fatal error|FAILED|undefined reference|not found" build.log | head -60
+            echo "-----"
+            tail -n 40 build.log
+          fi
 
       - name: Upload build log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: linux-build-log
+          name: oxygen-canary-linux-build-log
           path: build.log
+          if-no-files-found: ignore
           retention-days: 7
 
-      - name: Package build
-        run: |
-          mkdir -p dist
-          tar -czf dist/fluxer-canary-linux-x64.tar.gz \
-            -C build/linux/x64/release/bundle .
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Linux build artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: fluxer-canary-linux-x64
-          path: dist/fluxer-canary-linux-x64.tar.gz
+          name: oxygen-canary-linux-x64
+          path: build/linux/x64/release/bundle/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
