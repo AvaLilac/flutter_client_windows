@@ -148,13 +148,24 @@ jobs:
       - name: Patch inappwebview Linux plugin for older WPE headers
         run: |
           CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}"
-          FILE=$(find "$CACHE_DIR/hosted/pub.dev" -path '*flutter_inappwebview_linux-*/linux/in_app_webview/in_app_webview_settings.cc' | head -n 1)
-          if [ -z "$FILE" ]; then
-            echo "::error::in_app_webview_settings.cc not found"
-            exit 1
+
+          if [ ! -d "$CACHE_DIR" ]; then
+            echo "::warning::Pub cache directory not found: $CACHE_DIR"
+            exit 0
           fi
-          sed -i 's|WPE_SETTING_DISABLE_ANIMATIONS|"/wpe-platform/disable-animations"|g' "$FILE"
-          grep -n "disable-animations" "$FILE"
+
+          FILES=$(grep -RIl --include='*.cc' 'WPE_SETTING_DISABLE_ANIMATIONS' "$CACHE_DIR" 2>/dev/null || true)
+
+          if [ -z "$FILES" ]; then
+            echo "::notice::WPE_SETTING_DISABLE_ANIMATIONS not found. No patch needed."
+            exit 0
+          fi
+
+          while IFS= read -r FILE; do
+            sed -i 's|WPE_SETTING_DISABLE_ANIMATIONS|"/wpe-platform/disable-animations"|g' "$FILE"
+            echo "Patched: $FILE"
+            grep -n "disable-animations" "$FILE"
+          done <<< "$FILES"
 
       - name: Run build_runner
         run: dart run build_runner build
