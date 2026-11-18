@@ -1155,9 +1155,6 @@ class FluxerLocalizationsTr extends FluxerLocalizations {
   String get embedGiftClaim => 'Hediyeyi al';
 
   @override
-  String get embedGiftClaimed => 'Hediye alındı';
-
-  @override
   String get embedGiftClaimAccount => 'Kullanmak için hesabı sahiplen';
 
   @override
@@ -1166,9 +1163,6 @@ class FluxerLocalizationsTr extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'Bu hediye kodu geçersiz veya zaten alınmış.';
-
-  @override
-  String get embedGiftUnavailable => 'Hediye mevcut değil';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6270,6 +6264,27 @@ class FluxerLocalizationsTr extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Video';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Kamerayı çevir';

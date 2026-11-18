@@ -1164,9 +1164,6 @@ class FluxerLocalizationsBg extends FluxerLocalizations {
   String get embedGiftClaim => 'Вземи подарък';
 
   @override
-  String get embedGiftClaimed => 'Подаръкът е взет';
-
-  @override
   String get embedGiftClaimAccount => 'Заяви акаунта си, за да осребриш';
 
   @override
@@ -1175,9 +1172,6 @@ class FluxerLocalizationsBg extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'Този код за подарък е невалиден или вече е използван.';
-
-  @override
-  String get embedGiftUnavailable => 'Подаръкът не е наличен';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6322,6 +6316,27 @@ class FluxerLocalizationsBg extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Видео';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Превключване на камерата';

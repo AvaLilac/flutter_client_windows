@@ -1159,9 +1159,6 @@ class FluxerLocalizationsBn extends FluxerLocalizations {
   String get embedGiftClaim => 'Claim gift';
 
   @override
-  String get embedGiftClaimed => 'Gift claimed';
-
-  @override
   String get embedGiftClaimAccount => 'Claim account to redeem';
 
   @override
@@ -1170,9 +1167,6 @@ class FluxerLocalizationsBn extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'This gift code is invalid or already claimed.';
-
-  @override
-  String get embedGiftUnavailable => 'Gift unavailable';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6249,6 +6243,27 @@ class FluxerLocalizationsBn extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Video';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Flip camera';

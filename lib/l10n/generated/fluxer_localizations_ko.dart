@@ -1111,9 +1111,6 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
   String get embedGiftClaim => '선물 받기';
 
   @override
-  String get embedGiftClaimed => '선물 받음';
-
-  @override
   String get embedGiftClaimAccount => '선물 받으려면 계정을 등록하세요';
 
   @override
@@ -1121,9 +1118,6 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
 
   @override
   String get embedGiftUnknownSubtitle => '선물 코드가 유효하지 않거나 이미 사용되었습니다.';
-
-  @override
-  String get embedGiftUnavailable => '선물 불가';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6028,6 +6022,27 @@ class FluxerLocalizationsKo extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => '비디오';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => '카메라 전환';

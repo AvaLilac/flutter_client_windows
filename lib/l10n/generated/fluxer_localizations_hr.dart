@@ -1166,9 +1166,6 @@ class FluxerLocalizationsHr extends FluxerLocalizations {
   String get embedGiftClaim => 'Preuzmi poklon';
 
   @override
-  String get embedGiftClaimed => 'Poklon preuzet';
-
-  @override
   String get embedGiftClaimAccount => 'Preuzmite račun za iskorištavanje';
 
   @override
@@ -1177,9 +1174,6 @@ class FluxerLocalizationsHr extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'Ovaj kôd poklona nije važeći ili je već iskorišten.';
-
-  @override
-  String get embedGiftUnavailable => 'Poklon nije dostupan';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6298,6 +6292,27 @@ class FluxerLocalizationsHr extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Videozapis';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Promijeni kameru';

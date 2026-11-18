@@ -1166,9 +1166,6 @@ class FluxerLocalizationsCs extends FluxerLocalizations {
   String get embedGiftClaim => 'Převzít dárek';
 
   @override
-  String get embedGiftClaimed => 'Dárek převzat';
-
-  @override
   String get embedGiftClaimAccount => 'Pro uplatnění dokončete registraci účtu';
 
   @override
@@ -1177,9 +1174,6 @@ class FluxerLocalizationsCs extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'Tento dárkový kód je neplatný nebo ho již někdo převzal.';
-
-  @override
-  String get embedGiftUnavailable => 'Dárek není k dispozici';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6300,6 +6294,27 @@ class FluxerLocalizationsCs extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Video';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Otočit kameru';

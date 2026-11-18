@@ -1148,9 +1148,6 @@ class FluxerLocalizationsHe extends FluxerLocalizations {
   String get embedGiftClaim => 'קבל את המתנה';
 
   @override
-  String get embedGiftClaimed => 'המתנה התקבלה';
-
-  @override
   String get embedGiftClaimAccount => 'תבע את החשבון כדי לממש';
 
   @override
@@ -1158,9 +1155,6 @@ class FluxerLocalizationsHe extends FluxerLocalizations {
 
   @override
   String get embedGiftUnknownSubtitle => 'קוד המתנה הזה שגוי או שכבר מומש.';
-
-  @override
-  String get embedGiftUnavailable => 'המתנה אינה זמינה';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6205,6 +6199,27 @@ class FluxerLocalizationsHe extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'וידאו';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'החלף מצלמה';

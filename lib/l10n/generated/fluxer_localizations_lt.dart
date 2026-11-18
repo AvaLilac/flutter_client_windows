@@ -1170,9 +1170,6 @@ class FluxerLocalizationsLt extends FluxerLocalizations {
   String get embedGiftClaim => 'Atsiimti dovaną';
 
   @override
-  String get embedGiftClaimed => 'Dovana atsiimta';
-
-  @override
   String get embedGiftClaimAccount =>
       'Norėdami išpirkti, užregistruokite paskyrą';
 
@@ -1182,9 +1179,6 @@ class FluxerLocalizationsLt extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'Šis dovanos kodas neteisingas arba jau panaudotas.';
-
-  @override
-  String get embedGiftUnavailable => 'Dovana nepasiekiama';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6360,6 +6354,27 @@ class FluxerLocalizationsLt extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Vaizdo įrašas';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Apversti kamerą';

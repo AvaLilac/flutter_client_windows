@@ -1154,9 +1154,6 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   String get embedGiftClaim => 'Nhận quà';
 
   @override
-  String get embedGiftClaimed => 'Đã nhận quà';
-
-  @override
   String get embedGiftClaimAccount => 'Xác nhận tài khoản để đổi quà';
 
   @override
@@ -1165,9 +1162,6 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'Mã quà tặng này không hợp lệ hoặc đã được nhận.';
-
-  @override
-  String get embedGiftUnavailable => 'Quà tặng không khả dụng';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6257,6 +6251,27 @@ class FluxerLocalizationsVi extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Video';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Chuyển camera';

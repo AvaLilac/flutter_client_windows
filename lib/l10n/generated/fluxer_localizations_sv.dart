@@ -1163,9 +1163,6 @@ class FluxerLocalizationsSv extends FluxerLocalizations {
   String get embedGiftClaim => 'Lös in present';
 
   @override
-  String get embedGiftClaimed => 'Presenten är inlöst';
-
-  @override
   String get embedGiftClaimAccount => 'Säkra kontot för att lösa in';
 
   @override
@@ -1174,9 +1171,6 @@ class FluxerLocalizationsSv extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'Den här presentkoden är ogiltig eller har redan lösts in.';
-
-  @override
-  String get embedGiftUnavailable => 'Presenten är inte tillgänglig';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6289,6 +6283,27 @@ class FluxerLocalizationsSv extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Video';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Byt kamera';

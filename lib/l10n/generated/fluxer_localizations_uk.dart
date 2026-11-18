@@ -1173,9 +1173,6 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   String get embedGiftClaim => 'Отримати подарунок';
 
   @override
-  String get embedGiftClaimed => 'Подарунок отримано';
-
-  @override
   String get embedGiftClaimAccount =>
       'Зареєструвати обліковий запис для активації';
 
@@ -1185,9 +1182,6 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'Цей код подарунка недійсний або вже використаний.';
-
-  @override
-  String get embedGiftUnavailable => 'Подарунок недоступний';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6326,6 +6320,27 @@ class FluxerLocalizationsUk extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Відео';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Змінити камеру';

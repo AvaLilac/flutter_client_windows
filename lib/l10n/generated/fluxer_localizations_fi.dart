@@ -1161,9 +1161,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   String get embedGiftClaim => 'Lunasta lahja';
 
   @override
-  String get embedGiftClaimed => 'Lahja lunastettu';
-
-  @override
   String get embedGiftClaimAccount => 'Viimeistele rekisteröinti lunastaaksesi';
 
   @override
@@ -1172,9 +1169,6 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'Tämä lahjakoodi on virheellinen tai jo käytetty.';
-
-  @override
-  String get embedGiftUnavailable => 'Lahja ei ole saatavilla';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6290,6 +6284,27 @@ class FluxerLocalizationsFi extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'Video';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'Vaihda kameraa';

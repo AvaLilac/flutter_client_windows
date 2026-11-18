@@ -1170,9 +1170,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   String get embedGiftClaim => 'استلام الهدية';
 
   @override
-  String get embedGiftClaimed => 'تم استلام الهدية';
-
-  @override
   String get embedGiftClaimAccount => 'المطالبة بالحساب للاسترداد';
 
   @override
@@ -1181,9 +1178,6 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
   @override
   String get embedGiftUnknownSubtitle =>
       'رمز الهدية هذا غير صالح أو تم استلامه بالفعل.';
-
-  @override
-  String get embedGiftUnavailable => 'الهدية غير متاحة';
 
   @override
   String giftAcceptClaimSubscription(String productName) {
@@ -6260,6 +6254,27 @@ class FluxerLocalizationsAr extends FluxerLocalizations {
 
   @override
   String get voiceControlVideo => 'الفيديو';
+
+  @override
+  String get voiceControlMoreOptions => 'More options';
+
+  @override
+  String get voiceControlInputSettings => 'Input settings';
+
+  @override
+  String get voiceControlOutputSettings => 'Output settings';
+
+  @override
+  String get voiceControlCameraSettings => 'Camera settings';
+
+  @override
+  String get voiceControlScreenShareSettings => 'Screen share settings';
+
+  @override
+  String get voiceControlStartScreenShare => 'Share your screen';
+
+  @override
+  String get voiceControlStopScreenShare => 'Stop sharing';
 
   @override
   String get voiceControlFlipCamera => 'تبديل الكاميرا';
